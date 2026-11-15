@@ -1,6 +1,8 @@
 import 'dart:math' as math;
+import 'dart:ui' as ui show lerpDouble;
 
 import 'package:cupertino_ui/cupertino_ui.dart' show CupertinoPageTransition;
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
@@ -11,6 +13,7 @@ import '../motion/hero_transition.dart'
     show HeroBarsCover, HeroLiftHole, HeroPageCover;
 import '../motion/motion_tokens.dart';
 import '../motion/page_transitions.dart';
+import '../theme/func_semantic_tokens.dart' show FuncShape;
 import 'frozen_while_hidden.dart';
 import 'home_shell_metrics.dart';
 import 'route_animation.dart';
@@ -22,7 +25,10 @@ import 'route_animation.dart';
 ///   drives an in-app partial drag.
 /// * **iOS:** same [CupertinoPageTransition], plus an interactive left-edge
 ///   (24dp zone) swipe-back gesture gated to the active visible route when
-///   `canPop` holds (`PopScope` dirty-form protection still blocks it).
+///   `canPop` holds (`PopScope` dirty-form protection still blocks it). Full-screen
+///   shared-element detail routes widen the leading edge and accept downward
+///   pulls from the top strip or top-rested scrollables, fading the backdrop and
+///   applying damped canvas scaling/displacement into the Hero return flight.
 /// * **Desktop (Windows / macOS / Linux):** lightweight fade + subtle
 ///   horizontal slide (`MotionTokens.desktopPageTransition`).
 ///
@@ -130,27 +136,63 @@ class _FuncPageRoute<T> extends PageRoute<T> {
   );
 
   final ValueNotifier<bool> _popGestureNotifier = ValueNotifier<bool>(false);
+  final ValueNotifier<_CanvasDragState> _canvasDrag =
+      ValueNotifier<_CanvasDragState>(_CanvasDragState.zero);
+  final ValueNotifier<double> _canvasBackdropFactor = ValueNotifier<double>(
+    1.0,
+  );
   _IosBackGestureController<T>? _activePopGesture;
+  _IosCanvasDismissController<T>? _activeCanvasDismiss;
   bool _routeDisposed = false;
   bool _boundedOverlayActive = false;
 
-  bool get _popGestureInProgress => _activePopGesture != null;
+  bool get _popGestureInProgress =>
+      _activePopGesture != null || _activeCanvasDismiss != null;
 
-  void _setActivePopGesture(_IosBackGestureController<T>? gesture) {
-    _activePopGesture = gesture;
+  bool _supportsCanvasDismiss(BuildContext context) =>
+      Theme.of(context).platform == TargetPlatform.iOS &&
+      _page.sharedElement &&
+      _backdrop &&
+      !_isBoundedOverlay(context);
+
+  void _syncPopGestureNotifier() {
     if (_routeDisposed) return;
-    final active = gesture != null;
+    final active = _popGestureInProgress;
     if (_popGestureNotifier.value == active) return;
     if (SchedulerBinding.instance.schedulerPhase ==
         SchedulerPhase.persistentCallbacks) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!_routeDisposed) {
-          _popGestureNotifier.value = _activePopGesture != null;
+          _popGestureNotifier.value = _popGestureInProgress;
         }
       });
       return;
     }
     _popGestureNotifier.value = active;
+  }
+
+  void _setActivePopGesture(_IosBackGestureController<T>? gesture) {
+    _activePopGesture = gesture;
+    _syncPopGestureNotifier();
+  }
+
+  bool get _revealingBelow =>
+      _activeCanvasDismiss != null || _canvasDrag.value.progress > 0;
+
+  void _setActiveCanvasDismiss(_IosCanvasDismissController<T>? gesture) {
+    _activeCanvasDismiss = gesture;
+    _syncPopGestureNotifier();
+    _syncRouteOpacity();
+  }
+
+  void _setCanvasDrag(
+    _CanvasDragState state, {
+    required double backdropFactor,
+  }) {
+    if (_routeDisposed) return;
+    _canvasDrag.value = state;
+    _canvasBackdropFactor.value = backdropFactor;
+    _syncRouteOpacity();
   }
 
   // A shared-element page's layers show over their part of an opening and
@@ -165,6 +207,14 @@ class _FuncPageRoute<T> extends PageRoute<T> {
     controller!,
     curve: MotionTokens.sharedElementBackdropIn,
     reverseCurve: MotionTokens.sharedElementBackdropOut,
+  );
+
+  /// Combines [_backdropFade] with interactive drag transparency so dragging
+  /// a shared-element detail route reveals the underlying page smoothly and
+  /// hands off to reverse playback without snapping opaque.
+  late final Animation<double> _interactiveBackdropFade = _MultipliedAnimation(
+    base: _backdropFade,
+    factor: _canvasBackdropFactor,
   );
 
   /// A shared-element page's content: over its background, or over the
@@ -203,7 +253,7 @@ class _FuncPageRoute<T> extends PageRoute<T> {
         HeroPageCover.add(
           previousRoute,
           this,
-          _backdrop ? _backdropFade : _contentFade,
+          _backdrop ? _interactiveBackdropFade : _contentFade,
         );
       }
       _covered = previousRoute;
@@ -221,7 +271,10 @@ class _FuncPageRoute<T> extends PageRoute<T> {
   void dispose() {
     _routeDisposed = true;
     _activePopGesture = null;
+    _activeCanvasDismiss = null;
     _popGestureNotifier.dispose();
+    _canvasDrag.dispose();
+    _canvasBackdropFactor.dispose();
     _uncover();
     // A page removed without a pop never finished leaving: left behind, its
     // entry would hold the page below still for good.
@@ -260,7 +313,8 @@ class _FuncPageRoute<T> extends PageRoute<T> {
   bool get fullscreenDialog => _page.fullscreenDialog;
 
   @override
-  bool get opaque => _boundedOverlayActive ? false : _page.opaque;
+  bool get opaque =>
+      _boundedOverlayActive || _revealingBelow ? false : _page.opaque;
 
   bool _isBoundedOverlay(BuildContext context) =>
       _page.boundedOverlayOnWide &&
@@ -274,15 +328,30 @@ class _FuncPageRoute<T> extends PageRoute<T> {
     if (_boundedOverlayActive == active) return;
     _boundedOverlayActive = active;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_routeDisposed || overlayEntries.isEmpty) return;
-      final targetOpaque = controller?.status == AnimationStatus.completed
-          ? opaque
-          : false;
-      if (overlayEntries.first.opaque != targetOpaque) {
-        overlayEntries.first.opaque = targetOpaque;
-      }
-      changedInternalState();
+      _syncRouteOpacity(forceChangedState: true);
     });
+  }
+
+  void _syncRouteOpacity({bool forceChangedState = false}) {
+    if (_routeDisposed || overlayEntries.isEmpty) return;
+    if (SchedulerBinding.instance.schedulerPhase ==
+        SchedulerPhase.persistentCallbacks) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _syncRouteOpacity(forceChangedState: forceChangedState);
+      });
+      return;
+    }
+    final targetOpaque = controller?.status == AnimationStatus.completed
+        ? opaque
+        : false;
+    final entry = overlayEntries.first;
+    final changed = entry.opaque != targetOpaque;
+    if (changed) {
+      entry.opaque = targetOpaque;
+    }
+    if (changed || forceChangedState) {
+      changedInternalState();
+    }
   }
 
   @override
@@ -398,6 +467,7 @@ class _FuncPageRoute<T> extends PageRoute<T> {
           child: child,
         );
       }
+      final canvasDismiss = _supportsCanvasDismiss(context);
       return FuncTransitionGuard(
         animation: animation,
         secondaryAnimation: secondary,
@@ -410,6 +480,7 @@ class _FuncPageRoute<T> extends PageRoute<T> {
                     context,
                     builtChild!,
                     popGestureInProgress: popGestureInProgress,
+                    supportsCanvasDismiss: canvasDismiss,
                   )
                 : builtChild!;
             return IgnorePointer(
@@ -420,18 +491,23 @@ class _FuncPageRoute<T> extends PageRoute<T> {
               ignoring:
                   animation.status == AnimationStatus.reverse ||
                   shared && !popGestureInProgress && _contentFade.value < 1,
-              // On iOS we attach our own 24dp edge-back detector inside
+              // On iOS we attach our own edge-back/canvas-dismiss detector inside
               // CupertinoPageTransition (instead of CupertinoPageTransitionsBuilder)
               // so horizontal drags inside DetailImagePager/PageView stay intact.
               child: CupertinoPageTransition(
-                primaryRouteAnimation: shared && !popGestureInProgress
+                primaryRouteAnimation:
+                    shared && (canvasDismiss || !popGestureInProgress)
                     ? kAlwaysCompleteAnimation
                     : _linearSlideIn,
                 secondaryRouteAnimation: still
                     ? kAlwaysDismissedAnimation
                     : _linearSlideAside,
                 linearTransition: true,
-                child: _IosEdgeBackDetector<T>(route: this, child: content),
+                child: _IosEdgeBackDetector<T>(
+                  route: this,
+                  supportsCanvasDismiss: canvasDismiss,
+                  child: content,
+                ),
               ),
             );
           },
@@ -472,20 +548,52 @@ class _FuncPageRoute<T> extends PageRoute<T> {
     BuildContext context,
     Widget child, {
     bool popGestureInProgress = false,
+    bool supportsCanvasDismiss = false,
   }) {
     final content = FadeTransition(
-      opacity: popGestureInProgress ? kAlwaysCompleteAnimation : _contentFade,
+      opacity: !supportsCanvasDismiss && popGestureInProgress
+          ? kAlwaysCompleteAnimation
+          : _contentFade,
       child: HeroLiftHole(animation: controller!, child: child),
     );
     if (!_backdrop || _isBoundedOverlay(context)) return content;
+    final reduceMotion = !MotionTokens.enabled(context);
+    final foreground = supportsCanvasDismiss
+        ? ValueListenableBuilder<_CanvasDragState>(
+            valueListenable: _canvasDrag,
+            child: content,
+            builder: (context, drag, inner) {
+              final hasMotionDrag = !reduceMotion && drag.progress > 0;
+              return Transform.translate(
+                offset: reduceMotion ? Offset.zero : drag.offset,
+                child: Transform.scale(
+                  scale: reduceMotion ? 1.0 : drag.scale,
+                  alignment: Alignment.center,
+                  child: ClipRRect(
+                    key: const ValueKey('func-shared-canvas-clip'),
+                    clipBehavior: hasMotionDrag ? Clip.antiAlias : Clip.none,
+                    borderRadius: hasMotionDrag
+                        ? BorderRadius.lerp(
+                            BorderRadius.zero,
+                            FuncShape.dialog,
+                            drag.progress.clamp(0.0, 1.0),
+                          )!
+                        : BorderRadius.zero,
+                    child: inner,
+                  ),
+                ),
+              );
+            },
+          )
+        : content;
     return Stack(
       fit: StackFit.passthrough,
       children: [
         Positioned.fill(
           child: FadeTransition(
-            opacity: popGestureInProgress
+            opacity: !supportsCanvasDismiss && popGestureInProgress
                 ? kAlwaysCompleteAnimation
-                : _backdropFade,
+                : _interactiveBackdropFade,
             child: ColoredBox(color: Theme.of(context).scaffoldBackgroundColor),
           ),
         ),
@@ -495,7 +603,7 @@ class _FuncPageRoute<T> extends PageRoute<T> {
             color: Theme.of(context).scaffoldBackgroundColor,
           ),
         ),
-        content,
+        foreground,
       ],
     );
   }
@@ -521,12 +629,84 @@ class _GestureLinearAnimation extends Animation<double>
 }
 
 const double _kIosBackEdgeWidth = 24.0;
+const double _kSharedIosBackEdgeWidth = 48.0;
+const double _kSharedTopPullHeight = 72.0;
 const double _kMinFlingVelocity = 1.0;
+const double _kCanvasCommitFlingVelocity = 500.0;
+const double _kCanvasCancelFlingVelocity = -200.0;
+const double _kCanvasCommitProgress = 0.35;
+const double _kCanvasMinScale = 0.85;
+const double _kCanvasMinBackdropFactor = 0.12;
+
+@immutable
+class _CanvasDragState {
+  const _CanvasDragState({
+    required this.offset,
+    required this.scale,
+    required this.progress,
+  });
+
+  static const zero = _CanvasDragState(
+    offset: Offset.zero,
+    scale: 1.0,
+    progress: 0.0,
+  );
+
+  final Offset offset;
+  final double scale;
+  final double progress;
+
+  static _CanvasDragState lerp(
+    _CanvasDragState a,
+    _CanvasDragState b,
+    double t,
+  ) => _CanvasDragState(
+    offset: Offset.lerp(a.offset, b.offset, t) ?? Offset.zero,
+    scale: ui.lerpDouble(a.scale, b.scale, t) ?? 1.0,
+    progress: ui.lerpDouble(a.progress, b.progress, t) ?? 0.0,
+  );
+}
+
+class _MultipliedAnimation extends Animation<double>
+    with
+        AnimationLazyListenerMixin,
+        AnimationLocalListenersMixin,
+        AnimationLocalStatusListenersMixin {
+  _MultipliedAnimation({required this.base, required this.factor});
+
+  final Animation<double> base;
+  final ValueListenable<double> factor;
+
+  @override
+  void didStartListening() {
+    base.addListener(notifyListeners);
+    factor.addListener(notifyListeners);
+    base.addStatusListener(notifyStatusListeners);
+  }
+
+  @override
+  void didStopListening() {
+    base.removeListener(notifyListeners);
+    factor.removeListener(notifyListeners);
+    base.removeStatusListener(notifyStatusListeners);
+  }
+
+  @override
+  AnimationStatus get status => base.status;
+
+  @override
+  double get value => (base.value * factor.value).clamp(0.0, 1.0);
+}
 
 class _IosEdgeBackDetector<T> extends StatefulWidget {
-  const _IosEdgeBackDetector({required this.route, required this.child});
+  const _IosEdgeBackDetector({
+    required this.route,
+    this.supportsCanvasDismiss = false,
+    required this.child,
+  });
 
   final _FuncPageRoute<T> route;
+  final bool supportsCanvasDismiss;
   final Widget child;
 
   @override
@@ -534,45 +714,131 @@ class _IosEdgeBackDetector<T> extends StatefulWidget {
       _IosEdgeBackDetectorState<T>();
 }
 
-class _IosEdgeBackDetectorState<T> extends State<_IosEdgeBackDetector<T>> {
+class _IosEdgeBackDetectorState<T> extends State<_IosEdgeBackDetector<T>>
+    with SingleTickerProviderStateMixin {
   _IosBackGestureController<T>? _backGestureController;
+  _IosCanvasDismissController<T>? _canvasDismissController;
+  bool _verticalScrollAtTop = true;
+
+  late final AnimationController _returnController = AnimationController(
+    vsync: this,
+  );
   late final _InwardHorizontalDragGestureRecognizer _recognizer =
       _InwardHorizontalDragGestureRecognizer(debugOwner: this)
-        ..onStart = _handleDragStart
-        ..onUpdate = _handleDragUpdate
-        ..onEnd = _handleDragEnd
-        ..onCancel = _handleDragCancel;
+        ..onStart = _handleEdgeDragStart
+        ..onUpdate = _handleEdgeDragUpdate
+        ..onEnd = _handleEdgeDragEnd
+        ..onCancel = _handleEdgeDragCancel;
+  late final _DownwardVerticalDragGestureRecognizer _verticalRecognizer =
+      _DownwardVerticalDragGestureRecognizer(debugOwner: this)
+        ..onStart = _handleVerticalDragStart
+        ..onUpdate = _handleVerticalDragUpdate
+        ..onEnd = _handleVerticalDragEnd
+        ..onCancel = _handleVerticalDragCancel;
 
   bool get _enabled {
     final route = widget.route;
     if (Theme.of(context).platform != TargetPlatform.iOS) return false;
-    if (route.fullscreenDialog || !route.isCurrent) return false;
+    if (route.fullscreenDialog || !route.isCurrent || !route.isActive) {
+      return false;
+    }
+    if (route._routeController?.status == AnimationStatus.reverse) {
+      return false;
+    }
     if (!route.popGestureEnabled) return false;
     if (!TickerMode.getValuesNotifier(context).value.enabled) return false;
     if (route.navigator?.userGestureInProgress ?? true) return false;
+    if (route._popGestureInProgress) return false;
     return true;
   }
 
   @override
   void dispose() {
     _recognizer.dispose();
+    _verticalRecognizer.dispose();
     if (_backGestureController case final active?) {
       _backGestureController = null;
       active.cancelOnDispose();
     }
+    if (_canvasDismissController case final canvas?) {
+      _canvasDismissController = null;
+      canvas.cancelOnDispose();
+    }
+    _returnController.dispose();
     super.dispose();
   }
 
   void _handlePointerDown(PointerDownEvent event) {
     if (!_enabled) return;
-    _recognizer.inwardSign = Directionality.of(context) == TextDirection.rtl
-        ? -1.0
-        : 1.0;
-    _recognizer.addPointer(event);
+    final box = context.findRenderObject();
+    if (box is! RenderBox || !box.hasSize) return;
+    final local = box.globalToLocal(event.position);
+    final width = box.size.width;
+    final padding = MediaQuery.paddingOf(context);
+    final isRtl = Directionality.of(context) == TextDirection.rtl;
+    final edgePadding = isRtl ? padding.right : padding.left;
+    final baseEdgeWidth = widget.supportsCanvasDismiss
+        ? _kSharedIosBackEdgeWidth
+        : _kIosBackEdgeWidth;
+    final edgeWidth = math.max(edgePadding, baseEdgeWidth);
+    final inwardDistance = isRtl ? width - local.dx : local.dx;
+
+    if (inwardDistance >= 0 && inwardDistance <= edgeWidth) {
+      _recognizer.inwardSign = isRtl ? -1.0 : 1.0;
+      _recognizer.addPointer(event);
+    }
+
+    if (widget.supportsCanvasDismiss) {
+      final inTopStrip =
+          local.dy >= 0 && local.dy <= padding.top + _kSharedTopPullHeight;
+      if (inTopStrip || _verticalScrollAtTop) {
+        _verticalRecognizer.addPointer(event);
+      }
+    }
   }
 
-  void _handleDragStart(DragStartDetails details) {
+  void _startCanvasDismiss({required bool vertical}) {
+    if (!_enabled || _canvasDismissController != null) return;
+    final route = widget.route;
+    final navigator = route.navigator;
+    final controller = route._routeController;
+    final size = context.size ?? MediaQuery.sizeOf(context);
+    if (navigator == null || controller == null || size.isEmpty) return;
+    final (returnDuration, returnCurve) = MotionTokens.springCurve(
+      context,
+      MotionSpring.spatialFast,
+    );
+    late final _IosCanvasDismissController<T> canvasController;
+    canvasController = _IosCanvasDismissController<T>(
+      route: route,
+      navigator: navigator,
+      controller: controller,
+      returnController: _returnController,
+      returnDuration: returnDuration,
+      returnCurve: returnCurve,
+      viewport: size,
+      isVertical: vertical,
+      isRtl: Directionality.of(context) == TextDirection.rtl,
+      getIsCurrent: () => route.isCurrent,
+      onFinished: () {
+        if (identical(_canvasDismissController, canvasController)) {
+          _canvasDismissController = null;
+        }
+        if (identical(route._activeCanvasDismiss, canvasController)) {
+          route._setActiveCanvasDismiss(null);
+        }
+      },
+    );
+    _canvasDismissController = canvasController;
+    route._setActiveCanvasDismiss(canvasController);
+  }
+
+  void _handleEdgeDragStart(DragStartDetails details) {
     if (!_enabled) return;
+    if (widget.supportsCanvasDismiss) {
+      _startCanvasDismiss(vertical: false);
+      return;
+    }
     final route = widget.route;
     final navigator = route.navigator;
     final controller = route._routeController;
@@ -597,14 +863,24 @@ class _IosEdgeBackDetectorState<T> extends State<_IosEdgeBackDetector<T>> {
     route._setActivePopGesture(gestureController);
   }
 
-  void _handleDragUpdate(DragUpdateDetails details) {
+  void _handleEdgeDragUpdate(DragUpdateDetails details) {
+    final canvas = _canvasDismissController;
+    if (canvas != null && !canvas.isVertical) {
+      canvas.dragUpdate(Offset(_convertToLogical(details.primaryDelta!), 0));
+      return;
+    }
     final active = _backGestureController;
     final width = context.size?.width ?? 0;
     if (active == null || width <= 0) return;
     active.dragUpdate(_convertToLogical(details.primaryDelta! / width));
   }
 
-  void _handleDragEnd(DragEndDetails details) {
+  void _handleEdgeDragEnd(DragEndDetails details) {
+    final canvas = _canvasDismissController;
+    if (canvas != null && !canvas.isVertical) {
+      canvas.dragEnd(_convertToLogical(details.velocity.pixelsPerSecond.dx));
+      return;
+    }
     final active = _backGestureController;
     final width = context.size?.width ?? 0;
     if (active == null) return;
@@ -614,10 +890,38 @@ class _IosEdgeBackDetectorState<T> extends State<_IosEdgeBackDetector<T>> {
     active.dragEnd(velocity);
   }
 
-  void _handleDragCancel() {
+  void _handleEdgeDragCancel() {
+    final canvas = _canvasDismissController;
+    if (canvas != null && !canvas.isVertical) {
+      canvas.dragEnd(0.0);
+      return;
+    }
     final active = _backGestureController;
     if (active == null) return;
     active.dragEnd(0.0);
+  }
+
+  void _handleVerticalDragStart(DragStartDetails details) {
+    if (!widget.supportsCanvasDismiss) return;
+    _startCanvasDismiss(vertical: true);
+  }
+
+  void _handleVerticalDragUpdate(DragUpdateDetails details) {
+    final canvas = _canvasDismissController;
+    if (canvas == null || !canvas.isVertical) return;
+    canvas.dragUpdate(Offset(0, details.primaryDelta!));
+  }
+
+  void _handleVerticalDragEnd(DragEndDetails details) {
+    final canvas = _canvasDismissController;
+    if (canvas == null || !canvas.isVertical) return;
+    canvas.dragEnd(details.velocity.pixelsPerSecond.dy);
+  }
+
+  void _handleVerticalDragCancel() {
+    final canvas = _canvasDismissController;
+    if (canvas == null || !canvas.isVertical) return;
+    canvas.dragEnd(0.0);
   }
 
   double _convertToLogical(double value) =>
@@ -626,22 +930,37 @@ class _IosEdgeBackDetectorState<T> extends State<_IosEdgeBackDetector<T>> {
         TextDirection.ltr => value,
       };
 
+  bool _onScrollNotification(ScrollNotification notification) {
+    if (notification.metrics.axis == Axis.vertical) {
+      if (notification is ScrollStartNotification ||
+          notification is ScrollUpdateNotification ||
+          notification is ScrollEndNotification) {
+        _verticalScrollAtTop =
+            notification.metrics.pixels <=
+            notification.metrics.minScrollExtent + 0.5;
+      }
+    } else if (notification is ScrollEndNotification &&
+        notification.depth == 0) {
+      // Horizontal work switches in IllustDetailPagerPage land on the next
+      // artwork scrolled to top.
+      _verticalScrollAtTop = true;
+    }
+    return false;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final padding = MediaQuery.paddingOf(context);
-    final edgePadding = switch (Directionality.of(context)) {
-      TextDirection.rtl => padding.right,
-      TextDirection.ltr => padding.left,
-    };
+    final content = widget.supportsCanvasDismiss
+        ? NotificationListener<ScrollNotification>(
+            onNotification: _onScrollNotification,
+            child: widget.child,
+          )
+        : widget.child;
     return Stack(
       fit: StackFit.passthrough,
       children: [
-        widget.child,
-        PositionedDirectional(
-          start: 0,
-          width: math.max(edgePadding, _kIosBackEdgeWidth),
-          top: 0,
-          bottom: 0,
+        content,
+        Positioned.fill(
           child: Listener(
             behavior: HitTestBehavior.translucent,
             onPointerDown: _handlePointerDown,
@@ -653,28 +972,30 @@ class _IosEdgeBackDetectorState<T> extends State<_IosEdgeBackDetector<T>> {
 }
 
 /// Only competes for drags moving inward from the screen's leading edge, so
-/// an outward swipe inside a pager at the edge stays with the pager.
+/// an outward swipe inside a pager or vertical scroll at the edge stays free.
 class _InwardHorizontalDragGestureRecognizer
     extends HorizontalDragGestureRecognizer {
   _InwardHorizontalDragGestureRecognizer({super.debugOwner});
 
   double inwardSign = 1.0;
-  double? _startX;
+  Offset? _startPosition;
   bool _decided = false;
 
   @override
   void addAllowedPointer(PointerDownEvent event) {
-    _startX = event.position.dx;
+    _startPosition = event.position;
     _decided = false;
     super.addAllowedPointer(event);
   }
 
   @override
   void handleEvent(PointerEvent event) {
-    if (!_decided && _startX != null && event is PointerMoveEvent) {
-      final dx = (event.position.dx - _startX!) * inwardSign;
+    if (!_decided && _startPosition != null && event is PointerMoveEvent) {
+      final delta = event.position - _startPosition!;
+      final dx = delta.dx * inwardSign;
+      final absDy = delta.dy.abs();
       final slop = gestureSettings?.touchSlop ?? kTouchSlop;
-      if (dx < -slop * 0.5) {
+      if (dx < -slop * 0.5 || (absDy > slop * 0.5 && dx < absDy * 1.1)) {
         _decided = true;
         resolve(GestureDisposition.rejected);
         return;
@@ -684,6 +1005,215 @@ class _InwardHorizontalDragGestureRecognizer
       }
     }
     super.handleEvent(event);
+  }
+}
+
+/// Only competes for predominantly downward pulls, rejecting immediately on
+/// upward scrolls or horizontal pager swipes so [CustomScrollView] and
+/// [PageView] / [DetailImagePager] never lose responsiveness.
+class _DownwardVerticalDragGestureRecognizer
+    extends VerticalDragGestureRecognizer {
+  _DownwardVerticalDragGestureRecognizer({super.debugOwner});
+
+  Offset? _startPosition;
+  bool _decided = false;
+
+  @override
+  void addAllowedPointer(PointerDownEvent event) {
+    _startPosition = event.position;
+    _decided = false;
+    super.addAllowedPointer(event);
+  }
+
+  @override
+  void handleEvent(PointerEvent event) {
+    if (!_decided && _startPosition != null && event is PointerMoveEvent) {
+      final delta = event.position - _startPosition!;
+      final dy = delta.dy;
+      final absDx = delta.dx.abs();
+      final slop = gestureSettings?.touchSlop ?? kTouchSlop;
+      if (dy < -slop * 0.5 || (absDx > slop * 0.5 && dy < absDx * 1.35)) {
+        _decided = true;
+        resolve(GestureDisposition.rejected);
+        return;
+      }
+      if (dy > slop) {
+        _decided = true;
+      }
+    }
+    super.handleEvent(event);
+  }
+}
+
+class _IosCanvasDismissController<T> {
+  _IosCanvasDismissController({
+    required this.route,
+    required this.navigator,
+    required this.controller,
+    required this.returnController,
+    required this.returnDuration,
+    required this.returnCurve,
+    required this.viewport,
+    required this.isVertical,
+    required this.isRtl,
+    required this.getIsCurrent,
+    required this.onFinished,
+  }) : _dismissExtent = math.max(
+         120.0,
+         math.min(viewport.width, viewport.height) * 0.45,
+       ) {
+    navigator.didStartUserGesture();
+  }
+
+  final _FuncPageRoute<T> route;
+  final NavigatorState navigator;
+  final AnimationController controller;
+  final AnimationController returnController;
+  final Duration returnDuration;
+  final Curve returnCurve;
+  final Size viewport;
+  final bool isVertical;
+  final bool isRtl;
+  final ValueGetter<bool> getIsCurrent;
+  final VoidCallback onFinished;
+  final double _dismissExtent;
+
+  Offset _rawDelta = Offset.zero;
+  _CanvasDragState _currentState = _CanvasDragState.zero;
+  double _currentBackdropFactor = 1.0;
+  AnimationStatusListener? _routeStatusListener;
+  VoidCallback? _returnTickListener;
+  AnimationStatusListener? _returnStatusListener;
+  bool _dragEnded = false;
+  bool _finished = false;
+
+  void dragUpdate(Offset logicalDelta) {
+    if (_dragEnded || _finished) return;
+    _rawDelta += logicalDelta;
+    final distance = isVertical
+        ? math.max(0.0, _rawDelta.dy)
+        : math.max(0.0, _rawDelta.dx);
+    final progress = (distance / _dismissExtent).clamp(0.0, 1.0);
+    final eased = Curves.easeOut.transform(progress);
+    final scale = ui.lerpDouble(1.0, _kCanvasMinScale, eased)!;
+    final visualOffset = isVertical
+        ? Offset(0, _dampedVertical(_rawDelta.dy))
+        : Offset(_visualX(_rawDelta.dx * 0.45), 0);
+    _currentState = _CanvasDragState(
+      offset: visualOffset,
+      scale: scale,
+      progress: progress,
+    );
+    _currentBackdropFactor = (1.0 - progress * 0.85).clamp(
+      _kCanvasMinBackdropFactor,
+      1.0,
+    );
+    route._setCanvasDrag(_currentState, backdropFactor: _currentBackdropFactor);
+  }
+
+  double _dampedVertical(double dy) => dy >= 0 ? dy * 0.55 : dy * 0.15;
+
+  double _visualX(double logicalX) => isRtl ? -logicalX : logicalX;
+
+  void dragEnd(double primaryVelocity) {
+    if (_dragEnded || _finished) return;
+    _dragEnded = true;
+    final isCurrent = getIsCurrent();
+    final shouldCommit =
+        isCurrent &&
+        (primaryVelocity >= _kCanvasCommitFlingVelocity ||
+            (primaryVelocity > _kCanvasCancelFlingVelocity &&
+                _currentState.progress >= _kCanvasCommitProgress));
+
+    if (shouldCommit) {
+      route._setCanvasDrag(
+        _currentState,
+        backdropFactor: _currentBackdropFactor,
+      );
+      navigator.pop();
+      if (controller.isAnimating) {
+        _routeStatusListener = (status) {
+          if (status == AnimationStatus.dismissed ||
+              status == AnimationStatus.completed) {
+            _complete();
+          }
+        };
+        controller.addStatusListener(_routeStatusListener!);
+      } else {
+        _complete();
+      }
+      return;
+    }
+
+    if (returnDuration == Duration.zero) {
+      route._setCanvasDrag(_CanvasDragState.zero, backdropFactor: 1.0);
+      _complete();
+      return;
+    }
+
+    final startState = _currentState;
+    final startFactor = _currentBackdropFactor;
+    _returnTickListener = () {
+      if (_finished) return;
+      final t = returnCurve.transform(returnController.value);
+      route._setCanvasDrag(
+        _CanvasDragState.lerp(startState, _CanvasDragState.zero, t),
+        backdropFactor: ui.lerpDouble(startFactor, 1.0, t)!,
+      );
+    };
+    _returnStatusListener = (status) {
+      if (status == AnimationStatus.completed ||
+          status == AnimationStatus.dismissed) {
+        route._setCanvasDrag(_CanvasDragState.zero, backdropFactor: 1.0);
+        _complete();
+      }
+    };
+    returnController
+      ..duration = returnDuration
+      ..value = 0.0
+      ..addListener(_returnTickListener!)
+      ..addStatusListener(_returnStatusListener!)
+      ..forward();
+  }
+
+  void cancelOnDispose() {
+    if (_finished) return;
+    _finished = true;
+    _detachListeners();
+    if (returnController.isAnimating) {
+      returnController.stop();
+    }
+    onFinished();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (navigator.mounted) {
+        navigator.didStopUserGesture();
+      }
+    });
+  }
+
+  void _complete() {
+    if (_finished) return;
+    _finished = true;
+    _detachListeners();
+    onFinished();
+    if (navigator.mounted) {
+      navigator.didStopUserGesture();
+    }
+  }
+
+  void _detachListeners() {
+    if (_routeStatusListener case final listener?) {
+      _routeStatusListener = null;
+      controller.removeStatusListener(listener);
+    }
+    if (_returnTickListener case final listener?) {
+      _returnTickListener = null;
+      returnController.removeListener(listener);
+    }
+    if (_returnStatusListener case final listener?) {
+      _returnStatusListener = null;
+      returnController.removeStatusListener(listener);
+    }
   }
 }
 

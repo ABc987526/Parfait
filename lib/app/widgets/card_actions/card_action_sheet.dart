@@ -15,6 +15,7 @@ import '../display_actions.dart';
 import '../feed/muted_cover.dart';
 import 'card_action.dart';
 import 'illust_card_actions.dart';
+import 'ios_card_context_menu.dart';
 
 /// The card's secondary click on a pointer: the registered [CardAction]s as a
 /// context menu beside the pointer (R11). On touch or stylus the same call
@@ -53,9 +54,13 @@ Future<void> showCardActionsMenu(
 }
 
 /// Card long-press menu: names the work at the top, then renders the
-/// registered [CardAction]s as an adaptive overlay (dialog/popover on wide
-/// pointer viewports, bottom sheet on touch/narrow).
+/// registered [CardAction]s as a frosted preview context menu on iOS, or an
+/// adaptive overlay (dialog/popover on wide pointer viewports, bottom sheet on
+/// touch/narrow) elsewhere.
 Future<void> showCardActionSheet(BuildContext context, IllustEntity entity) {
+  if (Theme.of(context).platform == TargetPlatform.iOS) {
+    return showIosCardContextMenu(context, entity);
+  }
   // The actions run on the card's context. A refresh landing under the
   // open sheet can take the card away: they run on its Navigator's then,
   // which outlives the card and the sheet.
