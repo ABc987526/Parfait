@@ -30,9 +30,6 @@ const _census = <String, int>{
   'lib/app/navigation/func_page.dart': 2,
   // Skeleton shimmer: a loop period, not a transition.
   'lib/app/widgets/skeleton/func_skeleton.dart': 1,
-  // Wheel scrolling is scroll physics for mouse input; scaling it changes
-  // how scrolling feels, not how fast an animation plays.
-  'lib/app/widgets/smooth_wheel_scroll.dart': 1,
   // How long a searched setting stays marked: a dwell that must hold
   // under reduced motion; the fade after it is resolved.
   'lib/app/widgets/settings/settings_anchor.dart': 1,

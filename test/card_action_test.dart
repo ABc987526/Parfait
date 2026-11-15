@@ -89,17 +89,19 @@ void main() {
         _cardApp(container, IllustCard(entity: parseIllust(illustJson(7)))),
       );
       final card = find.byType(IllustCard);
-      final at = tester.getCenter(card);
-      await tester.tap(
-        card,
+      // Right-click in the upper portion of the card so the 6-item desktop
+      // menu fits inside the default 800x600 test viewport without clamping.
+      final at = tester.getRect(card).topCenter + const Offset(0, 32);
+      await tester.tapAt(
+        at,
         kind: PointerDeviceKind.mouse,
         buttons: kSecondaryMouseButton,
       );
       await tester.pumpAndSettle();
 
-      // The same five entries, as a menu instead of the bottom sheet.
+      // The desktop entries, as a menu instead of the bottom sheet.
       expect(find.widgetWithText(ListTile, '分享'), findsNothing);
-      for (final label in ['下载', '稍后再看', '屏蔽此作品', '屏蔽作者', '分享']) {
+      for (final label in ['下载', '复制原图', '稍后再看', '屏蔽此作品', '屏蔽作者', '分享']) {
         expect(
           find.widgetWithText(PopupMenuItem<void>, label),
           findsOneWidget,
