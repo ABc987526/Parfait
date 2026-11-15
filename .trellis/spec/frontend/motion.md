@@ -376,3 +376,9 @@ reviewed: 2026-11-15
   sluggish on desktop.
 - **Check:** `test/desktop_ux_phase2_test.dart` "Pointer mode skips PressScale 100ms delay, animates ShellRail fade+slide at 150ms, and SmoothWheelScroll jumps instantly"
 - **Code:** `lib/app/motion/press_scale.dart`, `lib/app/motion/motion_tokens.dart`, `lib/app/widgets/home_branch_stack.dart`, `lib/app/widgets/smooth_wheel_scroll.dart`
+
+### MOTION-24 iOS frosted card menu and shared canvas dismiss suppress displacement under reduced motion
+- **Rule:** Under reduced motion (`!MotionTokens.enabled(context)`), `IosCardContextMenu` omits spring lift translation and fades in place, and iOS `FuncPage` shared-element drag dismiss suppresses canvas translation, scaling, and `FuncShape.dialog` corner rounding while keeping backdrop fade and dismiss completion intact.
+- **Why:** Spatial zoom and canvas translation trigger discomfort under reduced-motion accessibility settings, whereas backdrop opacity continues communicating gesture progress cleanly.
+- **Check:** `test/card_action_test.dart` "iOS card context menu respects reduced motion without scaling", `test/func_page_test.dart` "iOS sharedElement canvas dismiss disables scale and displacement under reduced motion", `test/multiplatform_matrix_gate_test.dart` "reduced motion gate disables scale and displacement on shared-element dismiss and context menu"
+- **Code:** `lib/app/widgets/card_actions/ios_card_context_menu.dart`, `lib/app/navigation/func_page.dart`, `lib/app/motion/motion_tokens.dart`
