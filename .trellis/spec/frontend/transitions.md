@@ -459,3 +459,9 @@ reviewed: 2026-10-29
   restoration ids say which page and branch a flight end is on.
 - **Check:** `test/hero_transition_test.dart` "a flight from a card out of sight is logged, others not" "a push is held to the tapped card only when it leaves a card"
 - **Code:** `lib/app/motion/hero_anomaly.dart`, `lib/core/debug/hero_anomaly_log.dart`, `lib/features/settings/pages/frame_probe_page.dart`
+
+### TRANS-24 iOS shared-element routes dim the backdrop on a shrunken opaque-free canvas
+- **Rule:** Shared-element iOS `FuncPage` routes start dismiss drags from a 48dp leading edge, the 72dp top chrome strip, or top-rested downward scrolls without stealing horizontal pager swipes or scroll-up drags. During drag (`_revealingBelow`), `_FuncPageRoute` flips route `opaque` and `overlayEntries.first.opaque` to `false` via `_syncRouteOpacity()` so the route below stays visible behind the damped, min-`0.85`-scaled, `FuncShape.dialog`-rounded canvas, restores `opaque` on cancel, and hands the shrunken card rect into the return `Hero` flight on commit.
+- **Why:** Leaving `overlayEntries.first.opaque` `true` while dragging culled the route below until `pop()`, flashing solid background frames before snapping to the feed on finger release.
+- **Check:** `test/func_page_test.dart` "iOS sharedElement route uses damped canvas scale, backdrop fade, widened edge, and gesture cleanup" "iOS sharedElement vertical pull dismisses cleanly without conflicting with scrollables or horizontal pager"
+- **Code:** `lib/app/navigation/func_page.dart`, `lib/app/motion/hero_transition.dart`, `lib/app/theme/func_tokens.dart`

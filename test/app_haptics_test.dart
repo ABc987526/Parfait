@@ -179,6 +179,76 @@ void main() {
       );
     });
   });
+
+  group('IosHapticsDriver', () {
+    const channel = MethodChannel('parfait/haptics');
+    final calls = <MethodCall>[];
+    Object? Function(MethodCall call) reply = (_) => null;
+
+    setUp(() {
+      calls.clear();
+      reply = (_) => null;
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (call) async {
+            calls.add(call);
+            return reply(call);
+          });
+    });
+
+    tearDown(() {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, null);
+    });
+
+    test('notification waveforms map success, warning, and error', () async {
+      const driver = IosHapticsDriver();
+      driver.play(HapticRole.success, HapticStrength.standard);
+      driver.playNotification(IosHapticNotification.warning);
+      driver.play(HapticRole.error, HapticStrength.strong);
+      driver.play(HapticRole.success, HapticStrength.off);
+      driver.playNotification(
+        IosHapticNotification.error,
+        strength: HapticStrength.off,
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(calls, hasLength(3));
+      expect(calls.map((c) => c.method).toList(), ['play', 'play', 'play']);
+      expect(calls[0].arguments, {'role': 'success', 'strength': 'standard'});
+      expect(calls[1].arguments, {'role': 'warning', 'strength': 'standard'});
+      expect(calls[2].arguments, {'role': 'error', 'strength': 'strong'});
+    });
+
+    test(
+      'capability distinguishes iPhone Taptic Engine vs hardwareless iPad',
+      () async {
+        reply = (_) => {'tier': 'predefined', 'systemOff': false};
+        expect(
+          await const IosHapticsDriver().capability(),
+          const HapticsCapability(
+            tier: HapticsTier.predefined,
+            systemOff: false,
+          ),
+        );
+        reply = (_) => {'tier': 'none', 'systemOff': false};
+        expect(
+          await const IosHapticsDriver().capability(),
+          HapticsCapability.none,
+        );
+        reply = (_) => {'tier': 'unknown', 'systemOff': false};
+        await expectLater(
+          const IosHapticsDriver().capability(),
+          throwsFormatException,
+        );
+      },
+    );
+
+    test('play swallows platform errors on notification channel', () async {
+      reply = (_) => throw PlatformException(code: 'haptics_failed');
+      const IosHapticsDriver().play(HapticRole.error, HapticStrength.standard);
+      await Future<void>.delayed(Duration.zero);
+      expect(calls, hasLength(1));
+    });
+  });
 }
 
 class _ThrowingDriver implements HapticsDriver {

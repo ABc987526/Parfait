@@ -10,7 +10,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:parfait/app/haptics/haptics_driver.dart';
+import 'package:parfait/app/motion/motion_tokens.dart';
 import 'package:parfait/app/widgets/card_actions/illust_card_actions.dart';
+import 'package:parfait/core/settings/app_settings.dart';
 import 'package:parfait/app/widgets/feed/illust_card.dart';
 import 'package:parfait/app/widgets/feed/muted_cover.dart';
 import 'package:parfait/core/mute/mute_models.dart';
@@ -593,4 +595,72 @@ void main() {
       expect(find.widgetWithText(ListTile, '下载'), findsOneWidget);
     },
   );
+
+  testWidgets(
+    'iOS long-press replaces bottom sheet with frosted preview context menu and runs actions',
+    (tester) async {
+      final (container, _, repository) = await makeCardWorld();
+      final entity = parseIllust(illustJson(9));
+      await tester.pumpWidget(_cardApp(container, IllustCard(entity: entity)));
+      await tester.longPress(find.byType(IllustCard));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 120));
+
+      expect(find.byType(BackdropFilter), findsWidgets);
+      expect(find.byKey(const Key('ios-card-context-preview')), findsOneWidget);
+      expect(find.byKey(const Key('ios-card-context-menu')), findsOneWidget);
+      expect(find.byType(ListTile), findsNothing);
+      await tester.pumpAndSettle();
+
+      for (final label in ['下载', '稍后再看', '屏蔽此作品', '屏蔽作者', '分享']) {
+        expect(find.bySemanticsLabel(label), findsOneWidget);
+      }
+
+      await tester.tap(find.text('稍后再看'));
+      await tester.pumpAndSettle();
+      expect(find.text('已加入稍后再看'), findsOneWidget);
+      expect((await repository.list('100')).map((e) => e.entity.id), [9]);
+    },
+    variant: TargetPlatformVariant.only(TargetPlatform.iOS),
+  );
+
+  testWidgets('iOS card context menu respects reduced motion without scaling', (
+    tester,
+  ) async {
+    final (container, _, _) = await makeCardWorld();
+    await tester.pumpWidget(
+      _cardApp(
+        container,
+        MotionScope(
+          reduce: true,
+          speed: AnimationSpeed.normal,
+          child: IllustCard(entity: parseIllust(illustJson(7))),
+        ),
+      ),
+    );
+    await tester.longPress(find.byType(IllustCard));
+    await tester.pump();
+
+    expect(find.byKey(const Key('ios-card-context-preview')), findsOneWidget);
+    expect(find.byKey(const Key('ios-card-context-menu')), findsOneWidget);
+    final previewTransform = tester.widget<Transform>(
+      find
+          .ancestor(
+            of: find.byKey(const Key('ios-card-context-preview')),
+            matching: find.byType(Transform),
+          )
+          .first,
+    );
+    expect(previewTransform.transform, Matrix4.identity());
+    final previewBox = tester.getRect(
+      find.byKey(const Key('ios-card-context-preview')),
+    );
+    final menuBox = tester.getRect(
+      find.byKey(const Key('ios-card-context-menu')),
+    );
+    expect(menuBox.top, greaterThanOrEqualTo(previewBox.bottom));
+    await tester.tapAt(const Offset(4, 300));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('ios-card-context-menu')), findsNothing);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.iOS));
 }

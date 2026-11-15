@@ -108,4 +108,20 @@ void main() {
       await film.untilSettled();
     },
   );
+
+  testFilm(
+    'overlay/ios-card-context-preview',
+    location: '/recommended',
+    platform: TargetPlatform.iOS,
+    notes:
+        'iOS long-press replaces the bottom sheet with a full-screen frosted '
+        'backdrop, spring-lifted card preview, and compact docked menu; '
+        'tapping Watch Later pops cleanly and confirms.',
+    script: (film, router) async {
+      await film.longPress(find.bySemanticsLabel(RegExp('^illust 1000,')));
+      await film.frames(10);
+      await film.tap(find.text('稍后再看'));
+      await film.untilSettled();
+    },
+  );
 }

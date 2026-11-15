@@ -461,6 +461,20 @@ void main() {
     test(
       'PlatformCaps routes iOS haptics and macOS bookmark providers',
       () async {
+        const channel = MethodChannel('parfait/haptics');
+        var replyTier = 'predefined';
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(channel, (call) async {
+              if (call.method == 'capabilities') {
+                return {'tier': replyTier, 'systemOff': false};
+              }
+              return null;
+            });
+        addTearDown(() {
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+              .setMockMethodCallHandler(channel, null);
+        });
+
         final ios = _container(const PlatformCaps(isIOS: true));
         final macos = _container(const PlatformCaps(isMacOS: true));
         final driver = ios.read(hapticsDriverProvider);
@@ -472,6 +486,8 @@ void main() {
             systemOff: false,
           ),
         );
+        replyTier = 'none';
+        expect(await driver.capability(), HapticsCapability.none);
         expect(
           macos.read(safTreePickerProvider),
           isA<MacosBookmarkDirectoryPicker>(),

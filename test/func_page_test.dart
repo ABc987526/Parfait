@@ -87,6 +87,7 @@ Future<PageRoute<void>> _pushSecondPage(
   Widget second = const Text('page b'),
   bool sharedElement = false,
   bool settle = true,
+  bool reduceMotion = false,
 }) async {
   late PageRoute<void> pushed;
   late BuildContext rootContext;
@@ -99,25 +100,29 @@ Future<PageRoute<void>> _pushSecondPage(
           ).createRoute(rootContext)
           as PageRoute<void>;
   await tester.pumpWidget(
-    Directionality(
-      textDirection: TextDirection.ltr,
-      child: Builder(
-        builder: (context) {
-          rootContext = context;
-          return Navigator(
-            onGenerateRoute: (_) => page(
-              Builder(
-                builder: (context) => TextButton(
-                  onPressed: () {
-                    pushed = page(second, shared: sharedElement);
-                    Navigator.of(context).push(pushed);
-                  },
-                  child: home ?? const Text('page a'),
+    MotionScope(
+      reduce: reduceMotion,
+      speed: AnimationSpeed.normal,
+      child: Directionality(
+        textDirection: TextDirection.ltr,
+        child: Builder(
+          builder: (context) {
+            rootContext = context;
+            return Navigator(
+              onGenerateRoute: (_) => page(
+                Builder(
+                  builder: (context) => TextButton(
+                    onPressed: () {
+                      pushed = page(second, shared: sharedElement);
+                      Navigator.of(context).push(pushed);
+                    },
+                    child: home ?? const Text('page a'),
+                  ),
                 ),
               ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     ),
   );
@@ -943,13 +948,14 @@ void main() {
   );
 
   testWidgets(
-    'iOS sharedElement route slides on edge-swipe and cleans up gesture on settle or removal',
+    'iOS sharedElement route uses damped canvas scale, backdrop fade, widened edge, and gesture cleanup',
     (tester) async {
       setViewSize(tester, const Size(400, 800));
       final pushed = await _pushSecondPage(
         tester,
         sharedElement: true,
         second: const ColoredBox(
+          key: Key('shared-b-surface'),
           color: Color(0xFFFFFFFF),
           child: Align(alignment: Alignment.topLeft, child: Text('page b')),
         ),
@@ -957,29 +963,170 @@ void main() {
       final nav = pushed.navigator!;
       expect(tester.getTopLeft(find.text('page b')).dx, 0.0);
 
-      Future<TestGesture> startEdgeDrag() async {
-        final g = await tester.startGesture(const Offset(12, 300));
-        await g.moveBy(const Offset(30, 0));
-        await g.moveBy(const Offset(90, 0));
+      Future<TestGesture> startWidenedEdgeDrag(double dx) async {
+        // 36dp is outside standard 24dp edge-back but inside 48dp shared zone.
+        final g = await tester.startGesture(const Offset(36, 300));
+        await g.moveBy(const Offset(24, 0));
+        await g.moveBy(Offset(dx, 0));
         await tester.pump();
         return g;
       }
 
-      final drag = await startEdgeDrag();
+      expect(pushed.opaque, isTrue);
+      expect(pushed.overlayEntries.first.opaque, isTrue);
+      expect(find.text('page a'), findsNothing);
+
+      final shortDrag = await startWidenedEdgeDrag(32);
       expect(nav.userGestureInProgress, isTrue);
-      expect(tester.getTopLeft(find.text('page b')).dx, greaterThan(0.0));
-      await drag.up();
+      expect(pushed.opaque, isFalse);
+      expect(pushed.overlayEntries.first.opaque, isFalse);
+      // Underlying page must render live behind the shrinking translucent canvas.
+      expect(find.text('page a'), findsOneWidget);
+      final clipRect = tester.getRect(
+        find.byKey(const ValueKey('func-shared-canvas-clip')),
+      );
+      expect(clipRect.width, lessThan(400.0));
+      expect(clipRect.left, greaterThan(0.0));
+      expect(clipRect.left, lessThan(56.0));
+      final stageStack = find.ancestor(
+        of: find.byKey(const ValueKey('func-shared-canvas-clip')),
+        matching: find.byType(Stack),
+      );
+      final backdropFade = tester
+          .widgetList<FadeTransition>(
+            find.descendant(
+              of: stageStack.first,
+              matching: find.byType(FadeTransition),
+            ),
+          )
+          .first;
+      expect(backdropFade.opacity.value, lessThan(1.0));
+
+      await shortDrag.up();
       await tester.pumpAndSettle();
       expect(nav.userGestureInProgress, isFalse);
+      expect(pushed.opaque, isTrue);
+      expect(pushed.overlayEntries.first.opaque, isTrue);
+      expect(find.text('page a'), findsNothing);
+      expect(find.text('page b'), findsOneWidget);
+      expect(
+        tester
+            .getRect(find.byKey(const ValueKey('func-shared-canvas-clip')))
+            .width,
+        closeTo(400.0, 0.1),
+      );
 
-      final second = await startEdgeDrag();
-      await second.up();
+      final removeMidDrag = await startWidenedEdgeDrag(32);
+      await removeMidDrag.up();
       await tester.pump(const Duration(milliseconds: 16));
       expect(nav.userGestureInProgress, isTrue);
 
       nav.removeRoute(pushed);
       await tester.pumpAndSettle();
       expect(nav.userGestureInProgress, isFalse);
+      expect(find.text('page a'), findsOneWidget);
+    },
+    variant: TargetPlatformVariant.only(TargetPlatform.iOS),
+  );
+
+  testWidgets(
+    'iOS sharedElement vertical pull dismisses cleanly without conflicting with scrollables or horizontal pager',
+    (tester) async {
+      setViewSize(tester, const Size(400, 800));
+      final verticalController = ScrollController();
+      addTearDown(verticalController.dispose);
+      final pagerController = PageController();
+      addTearDown(pagerController.dispose);
+
+      await _pushSecondPage(
+        tester,
+        sharedElement: true,
+        second: Material(
+          child: Column(
+            children: [
+              const SizedBox(height: 56, child: Center(child: Text('page b'))),
+              Expanded(
+                child: PageView(
+                  controller: pagerController,
+                  children: [
+                    ListView.builder(
+                      controller: verticalController,
+                      itemExtent: 80,
+                      itemCount: 30,
+                      itemBuilder: (_, i) => Text('row-$i'),
+                    ),
+                    const Center(child: Text('pager-page-2')),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      // Upward scroll in ListView works normally without dismissing.
+      await tester.drag(find.byType(ListView), const Offset(0, -240));
+      await tester.pumpAndSettle();
+      final scrolledOffset = verticalController.offset;
+      expect(scrolledOffset, greaterThan(150.0));
+      expect(find.text('pager-page-2'), findsNothing);
+
+      // Downward drag while scrolled away from top scrolls ListView back to top.
+      await tester.dragFrom(const Offset(200, 400), const Offset(0, 140));
+      await tester.pumpAndSettle();
+      expect(verticalController.offset, lessThan(scrolledOffset));
+      await tester.dragFrom(const Offset(200, 400), const Offset(0, 160));
+      await tester.pumpAndSettle();
+      expect(verticalController.offset, 0.0);
+      expect(find.byType(PageView), findsOneWidget);
+
+      // Horizontal swipe switches pager page cleanly even from rested top.
+      await tester.dragFrom(const Offset(350, 300), const Offset(-260, 0));
+      await tester.pumpAndSettle();
+      expect(find.text('pager-page-2'), findsOneWidget);
+
+      // Downward pull on rested page scales canvas and commits pop on release.
+      final pull = await tester.startGesture(const Offset(200, 200));
+      await pull.moveBy(const Offset(0, 28));
+      await pull.moveBy(const Offset(0, 120));
+      await tester.pump();
+      final draggedRect = tester.getRect(
+        find.byKey(const ValueKey('func-shared-canvas-clip')),
+      );
+      expect(draggedRect.width, lessThan(400.0));
+      expect(draggedRect.top, greaterThan(0.0));
+      await pull.up();
+      await tester.pumpAndSettle();
+      expect(find.text('page a'), findsOneWidget);
+    },
+    variant: TargetPlatformVariant.only(TargetPlatform.iOS),
+  );
+
+  testWidgets(
+    'iOS sharedElement canvas dismiss disables scale and displacement under reduced motion',
+    (tester) async {
+      setViewSize(tester, const Size(400, 800));
+      await _pushSecondPage(
+        tester,
+        sharedElement: true,
+        reduceMotion: true,
+        second: const ColoredBox(
+          color: Color(0xFFFFFFFF),
+          child: Center(child: Text('page b')),
+        ),
+      );
+      final pull = await tester.startGesture(const Offset(200, 200));
+      await pull.moveBy(const Offset(0, 28));
+      await pull.moveBy(const Offset(0, 130));
+      await tester.pump();
+
+      final rect = tester.getRect(
+        find.byKey(const ValueKey('func-shared-canvas-clip')),
+      );
+      expect(rect, const Rect.fromLTWH(0, 0, 400, 800));
+
+      await pull.up();
+      await tester.pumpAndSettle();
       expect(find.text('page a'), findsOneWidget);
     },
     variant: TargetPlatformVariant.only(TargetPlatform.iOS),

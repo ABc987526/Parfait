@@ -1,3 +1,4 @@
+import CoreHaptics
 import Flutter
 import Photos
 import UIKit
@@ -15,7 +16,77 @@ import UIKit
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
     if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "ParfaitIosBridge") {
       IosPhotosBridge.register(with: registrar.messenger())
+      IosHapticsBridge.register(with: registrar.messenger())
       IosIntentBridge.register(with: registrar)
+    }
+  }
+}
+
+private enum IosHapticsBridge {
+  private static let channelName = "parfait/haptics"
+
+  static func register(with messenger: FlutterBinaryMessenger) {
+    let channel = FlutterMethodChannel(
+      name: channelName,
+      binaryMessenger: messenger
+    )
+    channel.setMethodCallHandler { call, result in
+      switch call.method {
+      case "capabilities":
+        result([
+          "tier": supportsTapticEngine() ? "predefined" : "none",
+          "systemOff": false,
+        ])
+      case "play":
+        guard let args = call.arguments as? [String: Any],
+              let role = args["role"] as? String,
+              !role.isEmpty else {
+          result(FlutterError(
+            code: "haptics_invalid_argument",
+            message: "Missing haptic role",
+            details: nil
+          ))
+          return
+        }
+        guard supportsTapticEngine(),
+              let feedbackType = notificationFeedbackType(for: role) else {
+          result(nil)
+          return
+        }
+        let emit = {
+          let generator = UINotificationFeedbackGenerator()
+          generator.prepare()
+          generator.notificationOccurred(feedbackType)
+          result(nil)
+        }
+        if Thread.isMainThread {
+          emit()
+        } else {
+          DispatchQueue.main.async(execute: emit)
+        }
+      default:
+        result(FlutterMethodNotImplemented)
+      }
+    }
+  }
+
+  private static func supportsTapticEngine() -> Bool {
+    return UIDevice.current.userInterfaceIdiom != .pad &&
+      CHHapticEngine.capabilitiesForHardware().supportsHaptics
+  }
+
+  private static func notificationFeedbackType(
+    for role: String
+  ) -> UINotificationFeedbackGenerator.FeedbackType? {
+    switch role {
+    case "success":
+      return .success
+    case "warning":
+      return .warning
+    case "error":
+      return .error
+    default:
+      return nil
     }
   }
 }

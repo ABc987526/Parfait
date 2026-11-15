@@ -85,22 +85,24 @@ final class AndroidHapticsDriver implements HapticsDriver {
   }
 
   @override
-  Future<HapticsCapability> capability() async {
-    final raw = await _channel.invokeMapMethod<String, Object?>('capabilities');
-    final tierName = raw?['tier'];
-    final systemOff = raw?['systemOff'];
-    final tier = HapticsTier.values.where((t) => t.name == tierName);
-    if (tier.isEmpty || systemOff is! bool) {
-      throw FormatException('haptics: unexpected capabilities $raw');
-    }
-    return HapticsCapability(tier: tier.single, systemOff: systemOff);
-  }
+  Future<HapticsCapability> capability() async => _decodeHapticsCapability(
+    await _channel.invokeMapMethod<String, Object?>('capabilities'),
+  );
 }
 
-/// iOS haptics backed by Flutter's `HapticFeedback` (UIKit feedback
-/// generators).
+/// UIKit `UINotificationFeedbackGenerator` notification waveforms surfaced on iOS.
+enum IosHapticNotification { success, warning, error }
+
+/// iOS haptics backed by UIKit `UINotificationFeedbackGenerator` over
+/// `parfait/haptics` for semantic notification outcomes (plus hardware Taptic
+/// capability probing so hardwareless iPads report [HapticsTier.none]), and
+/// Flutter's [HapticFeedback] for selection/impact ticks.
 final class IosHapticsDriver implements HapticsDriver {
-  const IosHapticsDriver();
+  const IosHapticsDriver([
+    this._channel = const MethodChannel('parfait/haptics'),
+  ]);
+
+  final MethodChannel _channel;
 
   @override
   void play(HapticRole role, HapticStrength strength) {
@@ -122,14 +124,14 @@ final class IosHapticsDriver implements HapticsDriver {
         strength == HapticStrength.strong
             ? HapticFeedback.heavyImpact()
             : HapticFeedback.mediumImpact(),
-      HapticRole.success =>
-        strength == HapticStrength.light
-            ? HapticFeedback.lightImpact()
-            : HapticFeedback.mediumImpact(),
-      HapticRole.error =>
-        strength == HapticStrength.light
-            ? HapticFeedback.mediumImpact()
-            : HapticFeedback.heavyImpact(),
+      HapticRole.success => _invokeNotification(
+        IosHapticNotification.success,
+        strength,
+      ),
+      HapticRole.error => _invokeNotification(
+        IosHapticNotification.error,
+        strength,
+      ),
     };
     unawaited(
       call.catchError((Object error) {
@@ -138,9 +140,42 @@ final class IosHapticsDriver implements HapticsDriver {
     );
   }
 
+  /// Dispatches a UIKit `UINotificationFeedbackGenerator` notification pulse
+  /// (`success`, `warning`, or `error`) through `parfait/haptics`.
+  void playNotification(
+    IosHapticNotification notification, {
+    HapticStrength strength = HapticStrength.standard,
+  }) {
+    if (strength == HapticStrength.off) return;
+    unawaited(
+      _invokeNotification(notification, strength).catchError((Object error) {
+        log('haptics: iOS notification ${notification.name} failed: $error');
+      }),
+    );
+  }
+
+  Future<void> _invokeNotification(
+    IosHapticNotification notification,
+    HapticStrength strength,
+  ) => _channel.invokeMethod<void>('play', {
+    'role': notification.name,
+    'strength': strength.name,
+  });
+
   @override
-  Future<HapticsCapability> capability() async =>
-      const HapticsCapability(tier: HapticsTier.predefined, systemOff: false);
+  Future<HapticsCapability> capability() async => _decodeHapticsCapability(
+    await _channel.invokeMapMethod<String, Object?>('capabilities'),
+  );
+}
+
+HapticsCapability _decodeHapticsCapability(Map<String, Object?>? raw) {
+  final tierName = raw?['tier'];
+  final systemOff = raw?['systemOff'];
+  final tier = HapticsTier.values.where((t) => t.name == tierName);
+  if (tier.isEmpty || systemOff is! bool) {
+    throw FormatException('haptics: unexpected capabilities $raw');
+  }
+  return HapticsCapability(tier: tier.single, systemOff: systemOff);
 }
 
 /// Desktop: no haptics hardware.

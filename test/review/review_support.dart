@@ -698,6 +698,7 @@ void testFilm(
   required FilmScript script,
   ReviewSetup setup = const ReviewSetup(),
   Brightness brightness = Brightness.light,
+  TargetPlatform? platform,
 }) {
   testWidgets(name, (tester) async {
     await reviewScene(tester, () async {
@@ -707,6 +708,7 @@ void testFilm(
         world: world!,
         location: location,
         brightness: brightness,
+        platform: platform,
       );
       await settleReview(tester);
       final film = FilmRecorder(tester, name, location);
