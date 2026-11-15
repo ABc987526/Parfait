@@ -10,6 +10,8 @@ import 'package:material_ui/material_ui.dart';
 import '../layout/input_modality.dart';
 import '../layout/window_layout_spec.dart';
 import '../pull_to_refresh.dart';
+import '../widgets/feed/feed_selection.dart';
+import 'forward_history.dart';
 
 const _navigationCommandsChannel = MethodChannel('parfait/navigation_commands');
 
@@ -70,6 +72,9 @@ class SearchShortcutAnchor extends StatefulWidget {
 
   final VoidCallback onTrigger;
   final Widget child;
+
+  /// Invokes the most recently mounted on-screen [SearchShortcutAnchor].
+  static bool triggerActive() => _SearchShortcutAnchorState.triggerActive();
 
   @override
   State<SearchShortcutAnchor> createState() => _SearchShortcutAnchorState();
@@ -153,12 +158,67 @@ class _KeyboardBackState extends State<KeyboardBack>
     super.dispose();
   }
 
+  static const _hardwareNavDebounce = Duration(milliseconds: 120);
+
+  String? _lastPointerNavDir;
+  DateTime? _lastPointerNavAt;
+  int _lastPointerPushGen = -1;
+
+  String? _lastChannelNavDir;
+  DateTime? _lastChannelNavAt;
+  int _lastChannelPushGen = -1;
+
+  ForwardHistoryStack get _history =>
+      ForwardHistoryStack.ofRouter(widget.router);
+
+  bool _shouldSuppressCrossSource(
+    String direction, {
+    required bool fromChannel,
+  }) {
+    final now = DateTime.now();
+    final gen = _history.pushGeneration;
+    if (fromChannel) {
+      if (_lastPointerNavDir == direction &&
+          _lastPointerPushGen == gen &&
+          _lastPointerNavAt != null &&
+          now.difference(_lastPointerNavAt!) < _hardwareNavDebounce) {
+        _lastPointerNavDir = null;
+        _lastPointerNavAt = null;
+        return true;
+      }
+      _lastChannelNavDir = direction;
+      _lastChannelNavAt = now;
+      _lastChannelPushGen = gen;
+      return false;
+    }
+    if (_lastChannelNavDir == direction &&
+        _lastChannelPushGen == gen &&
+        _lastChannelNavAt != null &&
+        now.difference(_lastChannelNavAt!) < _hardwareNavDebounce) {
+      _lastChannelNavDir = null;
+      _lastChannelNavAt = null;
+      return true;
+    }
+    _lastPointerNavDir = direction;
+    _lastPointerNavAt = now;
+    _lastPointerPushGen = gen;
+    return false;
+  }
+
   Future<Object?> _handleNavigationCommand(MethodCall call) async {
     switch (call.method) {
       case 'back':
+        if (_shouldSuppressCrossSource('back', fromChannel: true)) {
+          return true;
+        }
         return await widget.router.routerDelegate.popRoute();
       case 'forward':
-        return false;
+        if (_shouldSuppressCrossSource('forward', fromChannel: true)) {
+          return _history.canGoForward;
+        }
+        final handled = await _history.goForward();
+        _lastChannelPushGen = _history.pushGeneration;
+        return handled;
       default:
         return false;
     }
@@ -206,7 +266,16 @@ class _KeyboardBackState extends State<KeyboardBack>
 
   void _handlePointerDown(PointerDownEvent event) {
     if ((event.buttons & kBackMouseButton) != 0) {
+      if (_shouldSuppressCrossSource('back', fromChannel: false)) return;
       unawaited(widget.router.routerDelegate.popRoute());
+      return;
+    }
+    if ((event.buttons & kForwardMouseButton) != 0) {
+      if (_shouldSuppressCrossSource('forward', fromChannel: false)) return;
+      if (_history.canGoForward) {
+        unawaited(_history.goForward());
+        _lastPointerPushGen = _history.pushGeneration;
+      }
     }
   }
 
@@ -220,14 +289,26 @@ class _KeyboardBackState extends State<KeyboardBack>
       if (isMac) ...{
         const SingleActivator(LogicalKeyboardKey.bracketLeft, meta: true):
             const _BackIntent(unfocusEditing: false),
+        const SingleActivator(LogicalKeyboardKey.bracketRight, meta: true):
+            const _ForwardIntent(),
+        const SingleActivator(LogicalKeyboardKey.keyA, meta: true):
+            const _SelectAllFeedIntent(),
         const SingleActivator(LogicalKeyboardKey.keyF, meta: true):
+            const _SearchIntent(),
+        const SingleActivator(LogicalKeyboardKey.keyK, meta: true):
             const _SearchIntent(),
         const SingleActivator(LogicalKeyboardKey.keyR, meta: true):
             const _RefreshIntent(),
       } else ...{
         const SingleActivator(LogicalKeyboardKey.arrowLeft, alt: true):
             const _BackIntent(unfocusEditing: false),
+        const SingleActivator(LogicalKeyboardKey.arrowRight, alt: true):
+            const _ForwardIntent(),
+        const SingleActivator(LogicalKeyboardKey.keyA, control: true):
+            const _SelectAllFeedIntent(),
         const SingleActivator(LogicalKeyboardKey.keyF, control: true):
+            const _SearchIntent(),
+        const SingleActivator(LogicalKeyboardKey.keyK, control: true):
             const _SearchIntent(),
         const SingleActivator(LogicalKeyboardKey.keyR, control: true):
             const _RefreshIntent(),
@@ -253,6 +334,8 @@ class _KeyboardBackState extends State<KeyboardBack>
           child: Actions(
             actions: <Type, Action<Intent>>{
               _BackIntent: _BackAction(widget.router),
+              _ForwardIntent: _ForwardAction(widget.router),
+              _SelectAllFeedIntent: _SelectAllFeedAction(widget.router),
               _SearchIntent: _SearchAction(widget.router),
               _RefreshIntent: _RefreshAction(widget.router),
             },
@@ -270,12 +353,20 @@ class _BackIntent extends Intent {
   final bool unfocusEditing;
 }
 
+class _ForwardIntent extends Intent {
+  const _ForwardIntent();
+}
+
 class _SearchIntent extends Intent {
   const _SearchIntent();
 }
 
 class _RefreshIntent extends Intent {
   const _RefreshIntent();
+}
+
+class _SelectAllFeedIntent extends Intent {
+  const _SelectAllFeedIntent();
 }
 
 class _BackAction extends Action<_BackIntent> {
@@ -293,35 +384,77 @@ class _BackAction extends Action<_BackIntent> {
       primaryFocus!.unfocus();
       return null;
     }
+    if (intent.unfocusEditing &&
+        !_hasModalOrRootOverlay(router) &&
+        FeedSelectionAnchor.clearActiveSelection()) {
+      return null;
+    }
     // False at the start page's root: nothing left to go back to.
     return router.routerDelegate.popRoute();
   }
 }
 
-bool _canOpenSearchShortcut(GoRouter router) {
+class _ForwardAction extends Action<_ForwardIntent> {
+  _ForwardAction(this.router);
+
+  final GoRouter router;
+
+  @override
+  bool isEnabled(_ForwardIntent intent) =>
+      !_isEditingFocused() && ForwardHistoryStack.ofRouter(router).canGoForward;
+
+  @override
+  Object? invoke(_ForwardIntent intent) =>
+      ForwardHistoryStack.ofRouter(router).goForward();
+}
+
+bool _hasModalOrRootOverlay(GoRouter router) {
+  if (ForwardHistoryStack.ofRouter(router).hasOpenModal) return true;
   final focusContext = primaryFocus?.context;
   if (focusContext != null) {
     final focusRoute = ModalRoute.of(focusContext);
     if (focusRoute is PopupRoute ||
         (focusRoute != null && focusRoute.settings is! Page)) {
-      return false;
+      return true;
     }
   }
   final config = router.routerDelegate.currentConfiguration;
   final path = config.uri.path;
-  if (path.endsWith('/search/input')) return false;
-  final root = _stackRootOfPath(path);
-  if (root == null) return false;
   // Root-navigator pushes inside a stack (e.g. fullscreen image viewers) sit
-  // above the branch navigator and must not push search behind or over them.
+  // above the branch navigator and must not be bypassed by shell shortcuts.
   final lastMatch = config.lastOrNull;
   if (lastMatch != null &&
       lastMatch.route.parentNavigatorKey ==
           router.routerDelegate.navigatorKey &&
       !_overlayRoots.contains(path)) {
-    return false;
+    return true;
   }
-  return true;
+  return false;
+}
+
+bool _canOpenSearchShortcut(GoRouter router) {
+  if (_hasModalOrRootOverlay(router)) return false;
+  final path = liveRouterUri(router).path;
+  if (path.endsWith('/search/input')) return false;
+  return _stackRootOfPath(path) != null;
+}
+
+class _SelectAllFeedAction extends Action<_SelectAllFeedIntent> {
+  _SelectAllFeedAction(this.router);
+
+  final GoRouter router;
+
+  @override
+  bool isEnabled(_SelectAllFeedIntent intent) =>
+      !_isEditingFocused() &&
+      !_hasModalOrRootOverlay(router) &&
+      FeedSelectionAnchor.hasSelectableHost;
+
+  @override
+  Object? invoke(_SelectAllFeedIntent intent) {
+    FeedSelectionAnchor.selectAllActive();
+    return null;
+  }
 }
 
 class _SearchAction extends Action<_SearchIntent> {
@@ -337,7 +470,7 @@ class _SearchAction extends Action<_SearchIntent> {
   Object? invoke(_SearchIntent intent) {
     if (!_canOpenSearchShortcut(router)) return null;
     if (_SearchShortcutAnchorState.triggerActive()) return null;
-    final path = router.routerDelegate.currentConfiguration.uri.path;
+    final path = liveRouterUri(router).path;
     final root = _stackRootOfPath(path);
     if (root == null) return null;
     final location = root == '/search' ? '/search/input' : '$root/search/input';

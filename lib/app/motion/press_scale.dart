@@ -136,7 +136,8 @@ class _PressScaleState extends State<PressScale>
 
   void _onPointerDown(PointerDownEvent event) {
     _downPosition = event.position;
-    if (_verticalScrollable == null && _horizontalScrollable == null) {
+    if (event.kind == PointerDeviceKind.mouse ||
+        (_verticalScrollable == null && _horizontalScrollable == null)) {
       _setPressed(true);
       return;
     }

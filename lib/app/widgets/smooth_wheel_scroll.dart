@@ -74,8 +74,6 @@ class _SmoothWheelScrollState extends State<SmoothWheelScroll> {
   double? _futurePosition;
   int _scrollGeneration = 0;
 
-  static const _animationDuration = MotionTokens.wheelScroll;
-
   ScrollController _resolveController(BuildContext context) =>
       widget.controller ??
       PrimaryScrollController.maybeOf(context) ??
@@ -172,9 +170,15 @@ class _SmoothWheelScrollState extends State<SmoothWheelScroll> {
 
     event.respond(allowPlatformDefault: false);
 
+    var duration = MotionTokens.resolve(context, MotionTokens.wheelScroll);
+    if (duration == Duration.zero) {
+      controller.jumpTo(target);
+      _futurePosition = null;
+      return;
+    }
+
     // Shrink the animation when the clamped target is closer than the raw
     // accumulator implied, so edge hits feel crisp instead of slow.
-    var duration = _animationDuration;
     final span = (raw - current).abs();
     if (span > 0 && distance < span) {
       duration *= distance / span;
@@ -185,7 +189,7 @@ class _SmoothWheelScrollState extends State<SmoothWheelScroll> {
 
     unawaited(
       controller
-          .animateTo(target, duration: duration, curve: Curves.linear)
+          .animateTo(target, duration: duration, curve: Curves.easeOutCubic)
           .then((_) {
             // Clear only when no newer wheel tick superseded this animation,
             // so trackpad/scrollbar interruptions clear stale state while

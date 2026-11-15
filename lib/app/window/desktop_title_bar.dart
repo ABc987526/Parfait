@@ -32,6 +32,7 @@ class DesktopWindowActions {
     required this.onStartDragging,
     required this.onTitleBarDoubleClick,
     required this.onRegionsChanged,
+    this.onRegionsWithHeightChanged,
   });
 
   /// Non-interactive stub actions used in simulated desktop shells and review
@@ -53,6 +54,11 @@ class DesktopWindowActions {
   final VoidCallback onStartDragging;
   final VoidCallback onTitleBarDoubleClick;
   final ValueChanged<List<DesktopTitleBarRegion>> onRegionsChanged;
+  final void Function(
+    List<DesktopTitleBarRegion> regions,
+    double titleBarHeight,
+  )?
+  onRegionsWithHeightChanged;
 }
 
 /// Bridges the process-level desktop window controller into [DesktopWindowFrame].
@@ -91,6 +97,10 @@ class DesktopChromeMetrics extends InheritedWidget {
     this.isActive = true,
     this.usesSystemTitleBar = true,
     this.showCustomButtons = false,
+    this.hostMetrics,
+    this.actions,
+    this.showSimulatedTrafficLights = false,
+    this.brightnessListenable,
     required super.child,
   });
 
@@ -103,7 +113,11 @@ class DesktopChromeMetrics extends InheritedWidget {
       isMaximized = false,
       isActive = true,
       usesSystemTitleBar = true,
-      showCustomButtons = false;
+      showCustomButtons = false,
+      hostMetrics = null,
+      actions = null,
+      showSimulatedTrafficLights = false,
+      brightnessListenable = null;
 
   final double titleBarHeight;
   final double leadingInset;
@@ -114,6 +128,43 @@ class DesktopChromeMetrics extends InheritedWidget {
   final bool isActive;
   final bool usesSystemTitleBar;
   final bool showCustomButtons;
+  final DesktopWindowPlatformMetrics? hostMetrics;
+  final DesktopWindowActions? actions;
+  final bool showSimulatedTrafficLights;
+  final ValueListenable<Brightness>? brightnessListenable;
+
+  DesktopChromeMetrics copyWith({
+    double? titleBarHeight,
+    double? leadingInset,
+    double? trailingInset,
+    Size? trafficLightSize,
+    bool? isFullScreen,
+    bool? isMaximized,
+    bool? isActive,
+    bool? usesSystemTitleBar,
+    bool? showCustomButtons,
+    DesktopWindowPlatformMetrics? hostMetrics,
+    DesktopWindowActions? actions,
+    bool? showSimulatedTrafficLights,
+    ValueListenable<Brightness>? brightnessListenable,
+    required Widget child,
+  }) => DesktopChromeMetrics(
+    titleBarHeight: titleBarHeight ?? this.titleBarHeight,
+    leadingInset: leadingInset ?? this.leadingInset,
+    trailingInset: trailingInset ?? this.trailingInset,
+    trafficLightSize: trafficLightSize ?? this.trafficLightSize,
+    isFullScreen: isFullScreen ?? this.isFullScreen,
+    isMaximized: isMaximized ?? this.isMaximized,
+    isActive: isActive ?? this.isActive,
+    usesSystemTitleBar: usesSystemTitleBar ?? this.usesSystemTitleBar,
+    showCustomButtons: showCustomButtons ?? this.showCustomButtons,
+    hostMetrics: hostMetrics ?? this.hostMetrics,
+    actions: actions ?? this.actions,
+    showSimulatedTrafficLights:
+        showSimulatedTrafficLights ?? this.showSimulatedTrafficLights,
+    brightnessListenable: brightnessListenable ?? this.brightnessListenable,
+    child: child,
+  );
 
   bool get hasCustomChrome =>
       titleBarHeight > 0 && !isFullScreen && !usesSystemTitleBar;
@@ -195,7 +246,11 @@ class DesktopChromeMetrics extends InheritedWidget {
       isMaximized != oldWidget.isMaximized ||
       isActive != oldWidget.isActive ||
       usesSystemTitleBar != oldWidget.usesSystemTitleBar ||
-      showCustomButtons != oldWidget.showCustomButtons;
+      showCustomButtons != oldWidget.showCustomButtons ||
+      hostMetrics != oldWidget.hostMetrics ||
+      actions != oldWidget.actions ||
+      showSimulatedTrafficLights != oldWidget.showSimulatedTrafficLights ||
+      brightnessListenable != oldWidget.brightnessListenable;
 }
 
 /// Top-level frameless desktop chrome shell wrapping the router.
@@ -207,6 +262,7 @@ class DesktopWindowFrame extends StatefulWidget {
     this.actionsOverride,
     this.captionBrightnessOverride,
     this.showSimulatedTrafficLights = false,
+    this.suppressOverlayBar = false,
   });
 
   final Widget child;
@@ -214,6 +270,10 @@ class DesktopWindowFrame extends StatefulWidget {
   final DesktopWindowActions? actionsOverride;
   final ValueListenable<Brightness>? captionBrightnessOverride;
   final bool showSimulatedTrafficLights;
+
+  /// When true, omits the legacy `32dp` floating overlay title bar and its
+  /// top padding reservation so an outer `DesktopCommandBar` owns the row.
+  final bool suppressOverlayBar;
 
   @override
   State<DesktopWindowFrame> createState() => _DesktopWindowFrameState();
@@ -263,6 +323,10 @@ class _DesktopWindowFrameState extends State<DesktopWindowFrame> {
   ) {
     _lastActions = actions;
     _lastChrome = chrome;
+    if (widget.suppressOverlayBar) {
+      _lastRegionSignature = null;
+      return;
+    }
     if (actions == null || _regionMeasurePending) return;
     _regionMeasurePending = true;
     SchedulerBinding.instance.addPostFrameCallback((_) {
@@ -323,7 +387,8 @@ class _DesktopWindowFrameState extends State<DesktopWindowFrame> {
     _scheduleRegionPublish(actions, resolved);
 
     final mediaQuery = MediaQuery.of(context);
-    final adjustedMediaQuery = resolved.hasCustomChrome
+    final adjustedMediaQuery =
+        resolved.hasCustomChrome && !widget.suppressOverlayBar
         ? mediaQuery.copyWith(
             padding: mediaQuery.padding.copyWith(
               top: math.max(mediaQuery.padding.top, resolved.titleBarHeight),
@@ -356,6 +421,10 @@ class _DesktopWindowFrameState extends State<DesktopWindowFrame> {
         isActive: resolved.isActive,
         usesSystemTitleBar: resolved.usesSystemTitleBar,
         showCustomButtons: resolved.showCustomButtons,
+        hostMetrics: hostMetrics,
+        actions: actions,
+        showSimulatedTrafficLights: showSimulatedTrafficLights,
+        brightnessListenable: brightnessListenable,
         child: widget.child,
       ),
     );
@@ -364,8 +433,10 @@ class _DesktopWindowFrameState extends State<DesktopWindowFrame> {
         resolved.isFullScreen &&
         !resolved.usesSystemTitleBar &&
         platform != TargetPlatform.macOS;
+    final showLegacyOverlay =
+        resolved.hasCustomChrome && !widget.suppressOverlayBar;
 
-    if (!resolved.hasCustomChrome && !showFullscreenHoverOverlay) {
+    if (!showLegacyOverlay && !showFullscreenHoverOverlay) {
       return content;
     }
 
@@ -373,7 +444,7 @@ class _DesktopWindowFrameState extends State<DesktopWindowFrame> {
       fit: StackFit.expand,
       children: [
         content,
-        if (resolved.hasCustomChrome)
+        if (showLegacyOverlay)
           _IntegratedTitleBarOverlay(
             chrome: resolved,
             hostMetrics: hostMetrics,
@@ -514,7 +585,7 @@ class _IntegratedTitleBarOverlay extends StatelessWidget {
             top: 0,
             right: 0,
             height: chrome.titleBarHeight,
-            child: _CaptionButtonsCluster(
+            child: DesktopWindowCaptionButtons(
               height: chrome.titleBarHeight,
               isMaximized: chrome.isMaximized,
               isActive: chrome.isActive,
@@ -569,7 +640,7 @@ class _FullscreenHoverOverlay extends StatelessWidget {
                 child: Material(
                   color: surface.withValues(alpha: 0.92),
                   elevation: 2,
-                  child: _CaptionButtonsCluster(
+                  child: DesktopWindowCaptionButtons(
                     height: FuncSpacing.xxl,
                     isMaximized: true,
                     isActive: hostMetrics.isActive,
@@ -600,8 +671,11 @@ class _FullscreenHoverOverlay extends StatelessWidget {
   }
 }
 
-class _CaptionButtonsCluster extends StatelessWidget {
-  const _CaptionButtonsCluster({
+/// Shared minimize / maximize-restore / close button cluster used by both the
+/// integrated overlay and `DesktopCommandBar`.
+class DesktopWindowCaptionButtons extends StatelessWidget {
+  const DesktopWindowCaptionButtons({
+    super.key,
     required this.height,
     required this.isMaximized,
     required this.isActive,

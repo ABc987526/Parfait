@@ -91,7 +91,7 @@ class _IllustDetailController extends AsyncNotifier<IllustDetailState> {
       unawaited(
         _seedPageDimensions(
           id,
-          ref.read(_illustDetailRepositoryProvider).fetchPageDimensions(id),
+          ref.read(illustDetailRepositoryProvider).fetchPageDimensions(id),
           claim,
         ),
       );
@@ -128,7 +128,7 @@ class _IllustDetailController extends AsyncNotifier<IllustDetailState> {
       // Snapshot revisions captured before the fetch gate stale bookmark and
       // follow payloads against locally confirmed changes (R2).
       final revision = store.revisionNow();
-      final repository = ref.read(_illustDetailRepositoryProvider);
+      final repository = ref.read(illustDetailRepositoryProvider);
       // When the snapshot already proves the work is multi-page (the
       // feed→detail path), the pages call races the app detail instead of
       // queueing behind it.
@@ -211,7 +211,7 @@ class _IllustDetailController extends AsyncNotifier<IllustDetailState> {
 /// network. `null` (default) builds the shared pixivWeb policy client.
 final illustDetailWebClientProvider = Provider<http.Client?>((ref) => null);
 
-final _illustDetailRepositoryProvider = Provider<IllustDetailRepository>(
+final illustDetailRepositoryProvider = Provider<IllustDetailRepository>(
   (ref) => IllustDetailRepository(
     ref.watch(pixivHttpClientProvider),
     session: const MethodChannelWebProfileSession(),

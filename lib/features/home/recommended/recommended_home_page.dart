@@ -5,6 +5,7 @@ import '../../../app/widgets/app_top_bar.dart';
 import '../../../app/widgets/errors/error_details.dart';
 import '../../../app/widgets/app_snack_bar.dart';
 import '../../../app/widgets/feed/feed_grid.dart';
+import '../../../app/widgets/feed/feed_selection.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/pull_to_refresh.dart';
@@ -403,7 +404,7 @@ class _RecommendedFeedBody extends ConsumerWidget {
       RecommendedContentType.user => _userSlivers(context, ref, tail),
     };
 
-    return PullToRefresh(
+    final scrollHost = PullToRefresh(
       scrollController: scrollController,
       onRefresh: onRefresh,
       child: LoadMoreListener(
@@ -426,6 +427,11 @@ class _RecommendedFeedBody extends ConsumerWidget {
         ),
       ),
     );
+    return switch (type) {
+      RecommendedContentType.illust ||
+      RecommendedContentType.manga => SelectableFeedHost(child: scrollHost),
+      RecommendedContentType.novel || RecommendedContentType.user => scrollHost,
+    };
   }
 
   List<Widget> _illustSlivers(

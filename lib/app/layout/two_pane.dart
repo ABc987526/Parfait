@@ -160,7 +160,17 @@ class _TwoPaneState extends State<TwoPane> {
     }
   }
 
-  Offset _measureRestOrigin(RenderBox renderObject) {
+  bool _chainHasSize(RenderObject start, [RenderObject? stopAt]) {
+    RenderObject? current = start;
+    while (current != null) {
+      if (current is RenderBox && !current.hasSize) return false;
+      if (identical(current, stopAt)) return true;
+      current = current.parent;
+    }
+    return stopAt == null;
+  }
+
+  Offset? _measureRestOrigin(RenderBox renderObject) {
     final route = ModalRoute.of(context);
     final primaryAnimating = route?.animation?.isAnimating ?? false;
     final secondaryDisplaced =
@@ -171,11 +181,14 @@ class _TwoPaneState extends State<TwoPane> {
       if (subtree is RenderBox &&
           subtree.attached &&
           nav is RenderBox &&
-          nav.attached) {
+          nav.attached &&
+          _chainHasSize(nav) &&
+          _chainHasSize(renderObject, subtree)) {
         return nav.localToGlobal(Offset.zero) +
             renderObject.localToGlobal(Offset.zero, ancestor: subtree);
       }
     }
+    if (!_chainHasSize(renderObject)) return null;
     return renderObject.localToGlobal(Offset.zero);
   }
 
@@ -188,6 +201,7 @@ class _TwoPaneState extends State<TwoPane> {
       final renderObject = context.findRenderObject();
       if (renderObject is! RenderBox || !renderObject.attached) return;
       final origin = _measureRestOrigin(renderObject);
+      if (origin == null) return;
       if (_measuredOrigin == null ||
           (origin.dx - _measuredOrigin!.dx).abs() > 0.5 ||
           (origin.dy - _measuredOrigin!.dy).abs() > 0.5) {

@@ -12,6 +12,7 @@ import '../../app/navigation/routes.dart';
 import '../../app/pixiv_image.dart';
 import '../../app/theme/func_semantic_tokens.dart';
 import '../../app/theme/func_tokens.dart';
+import '../../app/window/desktop_command_bar.dart';
 import '../../app/widgets/app_tab_bar.dart';
 import '../../app/widgets/app_top_bar.dart';
 import '../../app/widgets/display_actions.dart';
@@ -177,6 +178,7 @@ class _SearchHomePageState extends ConsumerState<SearchHomePage>
     // search field next to the camera (R7); a phone keeps the field over
     // the tabs.
     final wide = PageHeader.isWide(context);
+    final hasCommandBar = DesktopCommandBarScope.isActiveOf(context);
     return Scaffold(
       // Root pages own no inline composer: leaving the default `true`
       // would subscribe this whole subtree to per-frame viewInsets churn
@@ -187,10 +189,9 @@ class _SearchHomePageState extends ConsumerState<SearchHomePage>
           ? AppTopBar(
               titleSpacing: 0,
               title: tabs,
-              actions: [
-                camera,
-                HeaderSearch(type: _active),
-              ],
+              actions: hasCommandBar
+                  ? const []
+                  : [camera, HeaderSearch(type: _active)],
             )
           : AppTopBar(
               title: SearchFieldButton(

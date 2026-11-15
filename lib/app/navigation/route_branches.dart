@@ -621,6 +621,7 @@ StatefulShellBranch _branch({
   Widget Function(BuildContext context, GoRouterState state)? homeBuilder,
   required GlobalKey<NavigatorState> navigatorKey,
   required RouteObserver<ModalRoute<dynamic>> observer,
+  NavigatorObserver? forwardObserver,
   required GlobalKey<NavigatorState> rootNavigatorKey,
   required RouteObserver<ModalRoute<dynamic>> rootObserver,
   required String restorationScopeId,
@@ -636,7 +637,7 @@ StatefulShellBranch _branch({
   );
   return StatefulShellBranch(
     navigatorKey: navigatorKey,
-    observers: [observer],
+    observers: [observer, ?forwardObserver],
     restorationScopeId: restorationScopeId,
     // Hands HomeBranchStack every branch's Navigator; it mounts them.
     preload: true,

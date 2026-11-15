@@ -181,7 +181,7 @@ Page<dynamic> _page(
         ? MotionTokens.desktopPageTransition
         : MotionTokens.pageTransition,
   );
-  return FuncPage<dynamic>(
+  final page = FuncPage<dynamic>(
     key: state.pageKey,
     restorationId: RestorationScope.maybeOf(context) == null
         ? null
@@ -198,6 +198,27 @@ Page<dynamic> _page(
     sharedElementBackdrop: sharedElementBackdrop,
     boundedOverlayOnWide: boundedOverlayOnWide,
   );
+  ForwardHistoryStack.attachPage(
+    page,
+    bucket: _historyBucketForPath(state.uri.path),
+    location: state.uri.toString(),
+    extra: state.extra,
+  );
+  return page;
+}
+
+String _historyBucketForPath(String path) {
+  for (final root in const [
+    'recommended',
+    'ranking',
+    'new',
+    'search',
+    'settings',
+  ]) {
+    final prefix = '/$root';
+    if (path == prefix || path.startsWith('$prefix/')) return root;
+  }
+  return 'root';
 }
 
 int _pathId(GoRouterState state, String name) =>
@@ -229,7 +250,32 @@ class _RememberedIllustState extends State<_RememberedIllust>
     registerForRestoration(_shown, 'id');
   }
 
-  void _remember(int id) => _shown.value = id;
+  void _remember(int id) {
+    _shown.value = id;
+    final page = ModalRoute.of(context)?.settings;
+    if (page is Page<dynamic>) {
+      ForwardHistoryStack.updatePageEntry(page, (current) {
+        final nextLocation = current.location.replaceFirst(
+          RegExp(r'/illust/\d+'),
+          '/illust/$id',
+        );
+        final nextExtra = switch (current.extra) {
+          final IllustRouteExtra e
+              when e.pagerSource != null && e.pagerSource!.ids.contains(id) =>
+            IllustRouteExtra(
+              pagerSource: e.pagerSource,
+              heroScope: e.heroScope,
+            ),
+          _ => null,
+        };
+        return ForwardHistoryEntry(
+          bucket: current.bucket,
+          location: nextLocation,
+          extra: nextExtra,
+        );
+      });
+    }
+  }
 
   @override
   void dispose() {

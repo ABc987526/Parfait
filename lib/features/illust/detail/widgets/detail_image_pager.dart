@@ -1,11 +1,9 @@
-import 'package:flutter/gestures.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../app/motion/hero_transition.dart';
 import '../../../../app/motion/motion_tokens.dart';
 import '../../../../app/motion/swipe_paging.dart';
-import '../../../../app/scroll_behavior.dart';
 import '../../../../core/entity/illust_entity.dart';
 import 'detail_page_counter.dart';
 import 'page_image.dart';
@@ -130,12 +128,6 @@ class _DetailImagePagerState extends State<DetailImagePager>
     if (pageSettling || (pagePosition - edge).abs() > 1e-3) return false;
     return SwipePagerScope.maybeOf(context)?.canPage(forward) ?? false;
   }
-
-  /// The paging slop: a sideways swipe takes twice the device's touch slop,
-  /// as Android's ViewPager does (MOTION-18).
-  @override
-  DeviceGestureSettings? pagingGestureSettingsOf(BuildContext context) =>
-      pagingGestureSettings(MediaQuery.maybeGestureSettingsOf(context));
 
   @override
   void dispose() {

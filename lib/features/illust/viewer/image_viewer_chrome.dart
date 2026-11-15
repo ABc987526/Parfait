@@ -1,8 +1,8 @@
 part of 'image_viewer_page.dart';
 
-/// Manga-reader page scrubber: dragging shows the target page's thumbnail
-/// and label above the track; releasing jumps straight there.
-class _PageScrubber extends StatelessWidget {
+/// Manga-reader page scrubber: dragging or pointer hovering shows the target
+/// page's thumbnail and label above the track; releasing jumps straight there.
+class _PageScrubber extends StatefulWidget {
   const _PageScrubber({
     super.key,
     required this.count,
@@ -12,10 +12,12 @@ class _PageScrubber extends StatelessWidget {
     required this.onChangeEnd,
     required this.pageLabel,
     required this.thumbnailUrl,
+    this.onHoverPageChanged,
   });
 
   static const double thumbnailExtent = 72;
   static const double _trackHeight = 48;
+  static const double _trackHorizontalInset = 24;
 
   final int count;
   final int current;
@@ -24,98 +26,328 @@ class _PageScrubber extends StatelessWidget {
   final ValueChanged<double> onChangeEnd;
   final String Function(int page) pageLabel;
   final String? Function(int page) thumbnailUrl;
+  final ValueChanged<int?>? onHoverPageChanged;
+
+  @override
+  State<_PageScrubber> createState() => _PageScrubberState();
+}
+
+class _PageScrubberState extends State<_PageScrubber> {
+  int? _hoverPage;
+
+  void _setHoverPage(int? page) {
+    if (_hoverPage == page) return;
+    setState(() => _hoverPage = page);
+    widget.onHoverPageChanged?.call(page);
+  }
+
+  int _pageForOffset(double dx, double width) {
+    if (widget.count <= 1) return 0;
+    final effectiveWidth = math.max(
+      1.0,
+      width - _PageScrubber._trackHorizontalInset * 2,
+    );
+    final fraction =
+        ((dx - _PageScrubber._trackHorizontalInset) / effectiveWidth).clamp(
+          0.0,
+          1.0,
+        );
+    return (fraction * (widget.count - 1)).round().clamp(0, widget.count - 1);
+  }
 
   @override
   Widget build(BuildContext context) {
     const color = FuncTokens.white;
-    final dragging = value != current;
-    final thumbnail = thumbnailUrl(value);
-    return SizedBox(
-      height: _trackHeight,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Positioned.fill(
-            child: SliderTheme(
-              data: SliderTheme.of(context).copyWith(
-                // No scrim under the chrome: the light run and the dark
-                // rest of the track, plus a shadowed thumb, keep the
-                // position legible on white and black artwork alike.
-                activeTrackColor: color,
-                inactiveTrackColor: FuncTokens.imageControl,
-                thumbColor: color,
-                overlayColor: color.withValues(alpha: 0.16),
-                trackHeight: 3,
-                thumbShape: const RoundSliderThumbShape(
-                  enabledThumbRadius: 7,
-                  elevation: 2,
-                ),
-                overlayShape: const RoundSliderOverlayShape(overlayRadius: 24),
-              ),
-              // No label: the bubble above is the page indicator, so the
-              // slider's own value indicator would be a second one.
-              child: AppSlider(
-                min: 0,
-                max: (count - 1).toDouble(),
-                divisions: count - 1,
-                value: value.toDouble(),
-                onChanged: onChanged,
-                onChangeEnd: onChangeEnd,
-              ),
-            ),
-          ),
-          // After the slider: appearing mid-drag, it must not shift the
-          // slider's slot, or the slider is rebuilt and the drag dies.
-          // Above the track, over the artwork: display only, so it may
-          // overflow the scrubber's own box.
-          if (dragging)
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: _trackHeight,
-              child: Center(
-                child: DecoratedBox(
-                  decoration: const BoxDecoration(
-                    color: FuncTokens.imageControl,
-                    borderRadius: FuncShape.control,
+    final dragging = widget.value != widget.current;
+    final previewPage = dragging ? widget.value : _hoverPage;
+    final thumbnail = previewPage == null
+        ? null
+        : widget.thumbnailUrl(previewPage);
+    final horizontalFraction = previewPage == null || widget.count <= 1
+        ? 0.5
+        : previewPage / (widget.count - 1);
+    return LayoutBuilder(
+      builder: (context, constraints) => MouseRegion(
+        onHover: (event) => _setHoverPage(
+          _pageForOffset(event.localPosition.dx, constraints.maxWidth),
+        ),
+        onExit: (_) => _setHoverPage(null),
+        child: SizedBox(
+          height: _PageScrubber._trackHeight,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Positioned.fill(
+                child: SliderTheme(
+                  data: SliderTheme.of(context).copyWith(
+                    // No scrim under the chrome: the light run and the dark
+                    // rest of the track, plus a shadowed thumb, keep the
+                    // position legible on white and black artwork alike.
+                    activeTrackColor: color,
+                    inactiveTrackColor: FuncTokens.imageControl,
+                    thumbColor: color,
+                    overlayColor: color.withValues(alpha: 0.16),
+                    trackHeight: 3,
+                    thumbShape: const RoundSliderThumbShape(
+                      enabledThumbRadius: 7,
+                      elevation: 2,
+                    ),
+                    overlayShape: const RoundSliderOverlayShape(
+                      overlayRadius: _PageScrubber._trackHorizontalInset,
+                    ),
                   ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(FuncSpacing.xs),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (thumbnail != null)
-                          ClipRRect(
-                            borderRadius: FuncShape.badge,
-                            child: SizedBox.square(
-                              dimension: thumbnailExtent,
-                              child: PixivImage.avatar(
-                                thumbnail,
-                                key: ValueKey(thumbnail),
-                                size: thumbnailExtent,
-                              ),
-                            ),
+                  // No label: the bubble above is the page indicator, so the
+                  // slider's own value indicator would be a second one.
+                  child: AppSlider(
+                    min: 0,
+                    max: (widget.count - 1).toDouble(),
+                    divisions: widget.count - 1,
+                    value: widget.value.toDouble(),
+                    onChanged: widget.onChanged,
+                    onChangeEnd: widget.onChangeEnd,
+                  ),
+                ),
+              ),
+              // After the slider: appearing mid-drag/hover, it must not shift
+              // the slider's slot, or the slider is rebuilt and the drag dies.
+              // Above the track, over the artwork: display only, so it may
+              // overflow the scrubber's own box.
+              if (previewPage != null)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: _PageScrubber._trackHeight,
+                  child: IgnorePointer(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: FuncSpacing.sm,
+                      ),
+                      child: Align(
+                        alignment: Alignment(horizontalFraction * 2 - 1, 1),
+                        child: DecoratedBox(
+                          decoration: const BoxDecoration(
+                            color: FuncTokens.imageControl,
+                            borderRadius: FuncShape.control,
                           ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: FuncSpacing.xs,
-                            vertical: FuncSpacing.xxs,
-                          ),
-                          child: Text(
-                            pageLabel(value),
-                            style: const TextStyle(
-                              color: color,
-                              fontFeatures: [FontFeature.tabularFigures()],
+                          child: Padding(
+                            padding: const EdgeInsets.all(FuncSpacing.xs),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (thumbnail != null)
+                                  ClipRRect(
+                                    borderRadius: FuncShape.badge,
+                                    child: SizedBox.square(
+                                      dimension: _PageScrubber.thumbnailExtent,
+                                      child: PixivImage.avatar(
+                                        thumbnail,
+                                        key: ValueKey(thumbnail),
+                                        size: _PageScrubber.thumbnailExtent,
+                                      ),
+                                    ),
+                                  ),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: FuncSpacing.xs,
+                                    vertical: FuncSpacing.xxs,
+                                  ),
+                                  child: Text(
+                                    widget.pageLabel(previewPage),
+                                    style: const TextStyle(
+                                      color: color,
+                                      fontFeatures: [
+                                        FontFeature.tabularFigures(),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ),
-                      ],
+                      ),
                     ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Wide-layout docked info panel beside the viewer stage (`>= 840dp`).
+class _ViewerInfoPanel extends StatelessWidget {
+  const _ViewerInfoPanel({
+    required this.entity,
+    required this.onClose,
+    required this.onSaveAll,
+    required this.onOpenDetail,
+    required this.onOpenAuthor,
+    required this.onOpenTag,
+  });
+
+  static const double width = 320;
+
+  final IllustEntity entity;
+  final VoidCallback onClose;
+  final VoidCallback onSaveAll;
+  final VoidCallback onOpenDetail;
+  final VoidCallback onOpenAuthor;
+  final ValueChanged<String> onOpenTag;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final darkTheme = Theme.of(context).brightness == Brightness.dark
+        ? Theme.of(context)
+        : replicaTheme(Brightness.dark);
+    final createDate = DateTime.tryParse(entity.createDate ?? '');
+    final dateText = createDate == null
+        ? null
+        : AppFormat.date(context, createDate);
+    final plainCaption = captionPlainText(entity.caption);
+    final metaParts = <String>[
+      ?dateText,
+      '#${entity.id}',
+      l10n.illustPagesTotal(entity.pageCount),
+      if (entity.width > 0 && entity.height > 0)
+        '${entity.width} × ${entity.height}',
+    ];
+
+    return Theme(
+      data: darkTheme,
+      child: Builder(
+        builder: (context) {
+          final colorScheme = Theme.of(context).colorScheme;
+          final textTheme = Theme.of(context).textTheme;
+          return SizedBox(
+            key: const Key('viewer-info-panel'),
+            width: width,
+            child: Material(
+              color: colorScheme.surfaceContainerLow,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  border: Border(
+                    left: BorderSide(color: colorScheme.outlineVariant),
+                  ),
+                ),
+                child: SafeArea(
+                  left: false,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsetsDirectional.fromSTEB(
+                          FuncSpacing.md,
+                          FuncSpacing.sm,
+                          FuncSpacing.xs,
+                          FuncSpacing.xs,
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                l10n.viewerInfo,
+                                style: textTheme.titleSmall,
+                              ),
+                            ),
+                            IconButton(
+                              tooltip: MaterialLocalizations.of(
+                                context,
+                              ).closeButtonTooltip,
+                              onPressed: onClose,
+                              icon: const Icon(Icons.close),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Divider(height: 1),
+                      Expanded(
+                        child: SelectionArea(
+                          child: ListView(
+                            padding: const EdgeInsets.all(FuncSpacing.md),
+                            children: [
+                              Text(entity.title, style: textTheme.titleMedium),
+                              const SizedBox(height: FuncSpacing.sm),
+                              InkWell(
+                                borderRadius: FuncShape.control,
+                                onTap: entity.user.id > 0 ? onOpenAuthor : null,
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: FuncSpacing.xs,
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      SelectionContainer.disabled(
+                                        child: PersonAvatar(
+                                          imageUrl: entity.user.profileImageUrl,
+                                          radius: 16,
+                                        ),
+                                      ),
+                                      const SizedBox(width: FuncSpacing.sm),
+                                      Expanded(
+                                        child: Text(
+                                          entity.user.name,
+                                          style: textTheme.bodyMedium?.copyWith(
+                                            color: colorScheme.primary,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: FuncSpacing.xs),
+                              Text(
+                                metaParts.join(' · '),
+                                style: textTheme.bodySmall?.copyWith(
+                                  color: colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                              if (entity.tags.isNotEmpty) ...[
+                                const SizedBox(height: FuncSpacing.md),
+                                Wrap(
+                                  spacing: FuncSpacing.xs,
+                                  runSpacing: FuncSpacing.xs,
+                                  children: [
+                                    for (final tag in entity.tags)
+                                      ActionChip(
+                                        label: Text('#${tag.name}'),
+                                        onPressed: () => onOpenTag(tag.name),
+                                      ),
+                                  ],
+                                ),
+                              ],
+                              if (plainCaption.isNotEmpty) ...[
+                                const SizedBox(height: FuncSpacing.md),
+                                Text(plainCaption, style: textTheme.bodySmall),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+                      const Divider(height: 1),
+                      ListTile(
+                        leading: const Icon(Icons.download_outlined),
+                        title: Text(l10n.downloadAll),
+                        onTap: onSaveAll,
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.open_in_new),
+                        title: Text(l10n.viewerOpenDetail),
+                        onTap: onOpenDetail,
+                      ),
+                    ],
                   ),
                 ),
               ),
             ),
-        ],
+          );
+        },
       ),
     );
   }

@@ -4,7 +4,14 @@ import 'dart:math' as math;
 
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/foundation.dart' show ValueListenable;
-import 'package:flutter/gestures.dart' show PointerDeviceKind;
+import 'package:flutter/gestures.dart'
+    show
+        Drag,
+        DragDownDetails,
+        HorizontalDragGestureRecognizer,
+        PointerDeviceKind,
+        PointerPanZoomStartEvent,
+        PointerPanZoomUpdateEvent;
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -116,6 +123,11 @@ class _IllustDetailPagerPageState extends ConsumerState<IllustDetailPagerPage>
   /// ([InfoBlock.warmTexts]), and the work it belongs to.
   final _texts = Queue<WarmText>();
   int? _textsOf;
+  final FocusNode _selectionFocusNode = FocusNode(
+    debugLabel: 'illustPagerSelection',
+  );
+  Drag? _pagerDrag;
+  ScrollHoldController? _pagerHold;
   bool _startEdgeHovered = false;
   bool _endEdgeHovered = false;
 
@@ -145,6 +157,11 @@ class _IllustDetailPagerPageState extends ConsumerState<IllustDetailPagerPage>
       (_) => source.clearHomeFlight(),
     );
     _dwell?.cancel();
+    _pagerHold?.cancel();
+    _pagerHold = null;
+    _pagerDrag?.cancel();
+    _pagerDrag = null;
+    _selectionFocusNode.dispose();
     _controller.dispose();
     _index.dispose();
     _activeId.dispose();
@@ -226,6 +243,7 @@ class _IllustDetailPagerPageState extends ConsumerState<IllustDetailPagerPage>
     switch (notification) {
       case ScrollStartNotification():
         _dwell?.cancel();
+        if (_selectionFocusNode.hasFocus) _selectionFocusNode.unfocus();
       case ScrollEndNotification() when _controller.hasClients:
         final page = _controller.page;
         if (page != null) {
@@ -251,6 +269,7 @@ class _IllustDetailPagerPageState extends ConsumerState<IllustDetailPagerPage>
   void _onPageChanged(int index) {
     final ids = widget.source.ids;
     if (index < 0 || index >= ids.length) return;
+    if (_selectionFocusNode.hasFocus) _selectionFocusNode.unfocus();
     _index.value = index;
     _currentId = ids[index];
     widget.source.aimHomeFlight(_currentId);
@@ -345,6 +364,39 @@ class _IllustDetailPagerPageState extends ConsumerState<IllustDetailPagerPage>
     }
   }
 
+  void _disposePagerHold() => _pagerHold = null;
+
+  void _disposePagerDrag() => _pagerDrag = null;
+
+  void _handlePagerDragDown(DragDownDetails _) {
+    if (_controller.positions.length != 1) return;
+    _pagerHold?.cancel();
+    _pagerHold = _controller.position.hold(_disposePagerHold);
+  }
+
+  void _handlePagerDragStart(DragStartDetails details) {
+    if (_controller.positions.length != 1) return;
+    _pagerDrag?.cancel();
+    _pagerDrag = _controller.position.drag(details, _disposePagerDrag);
+    if (_pagerHold != null) {
+      _disposePagerHold();
+    }
+  }
+
+  void _handlePagerDragUpdate(DragUpdateDetails details) {
+    _pagerDrag?.update(details);
+  }
+
+  void _handlePagerDragEnd(DragEndDetails details) {
+    _pagerDrag?.end(details);
+  }
+
+  void _handlePagerDragCancel() {
+    if (!mounted) return;
+    _pagerHold?.cancel();
+    _pagerDrag?.cancel();
+  }
+
   @override
   Widget build(BuildContext context) {
     final ids = widget.source.ids;
@@ -352,13 +404,66 @@ class _IllustDetailPagerPageState extends ConsumerState<IllustDetailPagerPage>
         (InputModalityScope.maybeOf(context) ??
             defaultInputModalityFor(Theme.of(context).platform)) ==
         InputModality.pointer;
+    final scrollBehavior = ScrollConfiguration.of(context);
+    final pagerPhysics = const PageSnapPhysics().applyTo(
+      scrollBehavior.getScrollPhysics(context),
+    );
+    final pagerDragDevices = scrollBehavior.dragDevices.difference(const {
+      PointerDeviceKind.mouse,
+    });
+    final pageView = ScrollConfiguration(
+      // Let only [_PagerDragRecognizer] drive touch/trackpad horizontal
+      // swipes so a mouse drag falls straight through to [SelectionArea] while
+      // PageSnapPhysics continues handling page snapping and accessibility.
+      behavior: scrollBehavior.copyWith(dragDevices: const {}),
+      child: PageView.builder(
+        controller: _controller,
+        physics: pagerPhysics,
+        // Keep adjacent pages built ahead of the swipe — their entities
+        // are already in IllustStore from the feed fetch, so the
+        // incoming page lands rendered instead of spinning up on first
+        // contact. [_ready] decides which of them build a real detail.
+        allowImplicitScrolling: true,
+        itemCount: ids.length,
+        onPageChanged: _onPageChanged,
+        // A feed page landing mid-paging can shift the list: built pages
+        // move with their work instead of rebuilding as another one.
+        findChildIndexCallback: (key) {
+          if (key is! ValueKey<int>) return null;
+          final index = widget.source.ids.indexOf(key.value);
+          return index < 0 ? null : index;
+        },
+        itemBuilder: (context, index) {
+          final landing = ids[index] == _initialId;
+          final slot = _PagerSlot(
+            index: index,
+            ready: _ready,
+            current: _index,
+            activeId: _activeId,
+            illustId: ids[index],
+            heroScope: widget.heroScope,
+            heroImageUrl: landing ? widget.heroImageUrl : null,
+            heroImageDecodeWidth: landing ? widget.heroImageDecodeWidth : null,
+          );
+          return ScrollConfiguration(
+            key: ValueKey(ids[index]),
+            behavior: scrollBehavior,
+            child: slot,
+          );
+        },
+      ),
+    );
     final pager = _AfterRouteTransition(
       onSettled: _onRouteSettled,
       child: NotificationListener<ScrollNotification>(
         onNotification: _onScroll,
-        // The paging slop: a swipe leaning towards vertical scrolls the
-        // detail instead of turning the page.
-        child: PagingSlop(
+        // [SelectionArea] sits outside [RawGestureDetector(_PagerDragRecognizer)]
+        // so touch horizontal swipes at 1x device touch slop enter and win the
+        // gesture arena before SelectableRegion's hardcoded 18px horizontal drag
+        // recognizer (same pattern as NovelReader), while mouse drags select
+        // text across the whole detail body.
+        child: SelectionArea(
+          focusNode: _selectionFocusNode,
           // A two-pane page's image pager takes a swipe at its first or
           // last image and hands it on to the next or previous work (B7).
           child: SwipePagerScope(
@@ -367,41 +472,36 @@ class _IllustDetailPagerPageState extends ConsumerState<IllustDetailPagerPage>
               final index = _index.value;
               return forward ? index < ids.length - 1 : index > 0;
             },
-            child: PageView.builder(
-              controller: _controller,
-              physics: const PageSnapPhysics(),
-              // Keep adjacent pages built ahead of the swipe — their entities
-              // are already in IllustStore from the feed fetch, so the
-              // incoming page lands rendered instead of spinning up on first
-              // contact. [_ready] decides which of them build a real detail.
-              allowImplicitScrolling: true,
-              itemCount: ids.length,
-              onPageChanged: _onPageChanged,
-              // A feed page landing mid-paging can shift the list: built pages
-              // move with their work instead of rebuilding as another one.
-              findChildIndexCallback: (key) {
-                if (key is! ValueKey<int>) return null;
-                final index = widget.source.ids.indexOf(key.value);
-                return index < 0 ? null : index;
+            child: RawGestureDetector(
+              behavior: HitTestBehavior.translucent,
+              gestures: <Type, GestureRecognizerFactory>{
+                _PagerDragRecognizer:
+                    GestureRecognizerFactoryWithHandlers<_PagerDragRecognizer>(
+                      () => _PagerDragRecognizer(
+                        supportedDevices: pagerDragDevices,
+                      ),
+                      (_PagerDragRecognizer instance) {
+                        instance
+                          ..onDown = _handlePagerDragDown
+                          ..onStart = _handlePagerDragStart
+                          ..onUpdate = _handlePagerDragUpdate
+                          ..onEnd = _handlePagerDragEnd
+                          ..onCancel = _handlePagerDragCancel
+                          ..minFlingDistance = pagerPhysics.minFlingDistance
+                          ..minFlingVelocity = pagerPhysics.minFlingVelocity
+                          ..maxFlingVelocity = pagerPhysics.maxFlingVelocity
+                          ..velocityTrackerBuilder = scrollBehavior
+                              .velocityTrackerBuilder(context)
+                          ..multitouchDragStrategy = scrollBehavior
+                              .getMultitouchDragStrategy(context)
+                          ..gestureSettings = MediaQuery.maybeGestureSettingsOf(
+                            context,
+                          )
+                          ..supportedDevices = pagerDragDevices;
+                      },
+                    ),
               },
-              itemBuilder: (context, index) {
-                final landing = ids[index] == _initialId;
-                return PagingSlopPage(
-                  key: ValueKey(ids[index]),
-                  child: _PagerSlot(
-                    index: index,
-                    ready: _ready,
-                    current: _index,
-                    activeId: _activeId,
-                    illustId: ids[index],
-                    heroScope: widget.heroScope,
-                    heroImageUrl: landing ? widget.heroImageUrl : null,
-                    heroImageDecodeWidth: landing
-                        ? widget.heroImageDecodeWidth
-                        : null,
-                  ),
-                );
-              },
+              child: pageView,
             ),
           ),
         ),
@@ -693,13 +793,16 @@ class _PagerSlotState extends State<_PagerSlot>
     final page = ListenableBuilder(
       listenable: _gates,
       child: _detail,
-      builder: (context, child) => HeroMode(
-        enabled: widget.index == widget.current.value,
-        child: DetailPageActivity(
-          active: widget.illustId == widget.activeId.value,
-          child: child!,
-        ),
-      ),
+      builder: (context, child) {
+        final isCurrent = widget.index == widget.current.value;
+        return HeroMode(
+          enabled: isCurrent,
+          child: DetailPageActivity(
+            active: widget.illustId == widget.activeId.value,
+            child: child!,
+          ),
+        );
+      },
     );
     if (!_builtOnScreen) return page;
     final fade = _standInFade;
@@ -852,4 +955,64 @@ class _AfterRouteTransitionState extends State<_AfterRouteTransition> {
 
   @override
   Widget build(BuildContext context) => widget.child;
+}
+
+/// Horizontal drag recognizer for the illust detail pager.
+///
+/// Sits inside [SelectionArea] at 1× device touch slop (beating
+/// SelectableRegion's hardcoded 18px horizontal drag recognizer in the gesture
+/// arena), excludes mouse drags so pointer text selection works, and rejects
+/// drags leaning vertically past ~26.5° so vertical scroll wins cleanly.
+class _PagerDragRecognizer extends HorizontalDragGestureRecognizer {
+  _PagerDragRecognizer({super.supportedDevices});
+
+  final Map<int, Offset> _downAt = <int, Offset>{};
+  Offset _moved = Offset.zero;
+
+  @override
+  void addAllowedPointer(PointerDownEvent event) {
+    if (_downAt.isEmpty) _moved = Offset.zero;
+    _downAt[event.pointer] = event.position;
+    super.addAllowedPointer(event);
+  }
+
+  @override
+  void addAllowedPointerPanZoom(PointerPanZoomStartEvent event) {
+    if (_downAt.isEmpty) _moved = Offset.zero;
+    super.addAllowedPointerPanZoom(event);
+  }
+
+  @override
+  void handleEvent(PointerEvent event) {
+    if (!event.synthesized) {
+      if (event is PointerMoveEvent) {
+        final down = _downAt[event.pointer];
+        _moved = down == null ? _moved + event.delta : event.position - down;
+      } else if (event is PointerPanZoomUpdateEvent) {
+        _moved += event.panDelta;
+      }
+    }
+    super.handleEvent(event);
+  }
+
+  @override
+  void didStopTrackingLastPointer(int pointer) {
+    _downAt.clear();
+    _moved = Offset.zero;
+    super.didStopTrackingLastPointer(pointer);
+  }
+
+  @override
+  bool hasSufficientGlobalDistanceToAccept(
+    PointerDeviceKind pointerDeviceKind,
+    double? deviceTouchSlop,
+  ) {
+    if (!super.hasSufficientGlobalDistanceToAccept(
+      pointerDeviceKind,
+      deviceTouchSlop,
+    )) {
+      return false;
+    }
+    return _moved.dy.abs() <= _moved.dx.abs() * 0.5;
+  }
 }

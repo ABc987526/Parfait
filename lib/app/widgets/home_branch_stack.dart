@@ -203,10 +203,19 @@ class _HomeBranchStackState extends ConsumerState<HomeBranchStack>
     );
   }
 
+  Duration _switchDuration(BuildContext context, {required bool rail}) =>
+      MotionTokens.resolve(
+        context,
+        rail ? MotionTokens.desktopPageTransition : MotionTokens.branchSwitch,
+      );
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _switch.duration = MotionTokens.resolve(context, MotionTokens.branchSwitch);
+    final rail = FormFactor.of(
+      context,
+    ).hasRail(MediaQuery.sizeOf(context).width);
+    _switch.duration = _switchDuration(context, rail: rail);
     _navVisibility.duration = MotionTokens.resolve(
       context,
       MotionTokens.chrome,
@@ -227,7 +236,10 @@ class _HomeBranchStackState extends ConsumerState<HomeBranchStack>
     _outgoing = _current;
     _current = index;
     final generation = ++_switchGeneration;
-    final duration = MotionTokens.resolve(context, MotionTokens.branchSwitch);
+    final rail = FormFactor.of(
+      context,
+    ).hasRail(MediaQuery.sizeOf(context).width);
+    final duration = _switchDuration(context, rail: rail);
     if (duration == Duration.zero) {
       _outgoing = null;
       _switchSnapshot.allowSnapshotting = false;
@@ -410,10 +422,23 @@ class _HomeBranchStackState extends ConsumerState<HomeBranchStack>
     if (!rail && Directionality.of(context) == TextDirection.rtl) {
       sign = -sign;
     }
-    final away = rail ? Offset(0, sign) : Offset(sign, 0);
+    final away = rail ? Offset(0, 0.03 * sign) : Offset(sign, 0);
     final tween = i == _current
         ? Tween<Offset>(begin: away, end: Offset.zero)
         : Tween<Offset>(begin: Offset.zero, end: -away);
+    return _switch.drive(
+      tween.chain(CurveTween(curve: MotionTokens.branchSwitchCurve)),
+    );
+  }
+
+  Animation<double> _fadeOf(int i, {required bool rail}) {
+    final outgoing = _outgoing;
+    if (!rail || outgoing == null || (i != _current && i != outgoing)) {
+      return kAlwaysCompleteAnimation;
+    }
+    final tween = i == _current
+        ? Tween<double>(begin: 0, end: 1)
+        : Tween<double>(begin: 1, end: 0);
     return _switch.drive(
       tween.chain(CurveTween(curve: MotionTokens.branchSwitchCurve)),
     );
@@ -467,28 +492,31 @@ class _HomeBranchStackState extends ConsumerState<HomeBranchStack>
           // branch out of sight (TRANS-07).
           child: HeroMode(
             enabled: i == _current,
-            child: IgnorePointer(
-              ignoring: i != _current,
-              // A branch mounting off screen pushes its first route, which
-              // would take the focus from the text field on screen.
-              child: ExcludeFocus(
-                excluding: i != _current,
-                child: ExcludeSemantics(
+            child: FadeTransition(
+              opacity: _fadeOf(i, rail: rail),
+              child: IgnorePointer(
+                ignoring: i != _current,
+                // A branch mounting off screen pushes its first route, which
+                // would take the focus from the text field on screen.
+                child: ExcludeFocus(
                   excluding: i != _current,
-                  child: SlideTransition(
-                    position: _slideOf(i, rail: rail, order: order),
-                    // Always in the tree, so starting a switch never
-                    // remounts a branch; only the outgoing branch paints
-                    // from a texture.
-                    child: SnapshotWidget(
-                      // A branch showing a platform view paints live.
-                      mode: SnapshotMode.permissive,
-                      controller: i == _outgoing
-                          ? _switchSnapshot
-                          : _idleSnapshot,
-                      child: _mounted.contains(i)
-                          ? widget.children[i]
-                          : const SizedBox.shrink(),
+                  child: ExcludeSemantics(
+                    excluding: i != _current,
+                    child: SlideTransition(
+                      position: _slideOf(i, rail: rail, order: order),
+                      // Always in the tree, so starting a switch never
+                      // remounts a branch; only the outgoing branch paints
+                      // from a texture.
+                      child: SnapshotWidget(
+                        // A branch showing a platform view paints live.
+                        mode: SnapshotMode.permissive,
+                        controller: i == _outgoing
+                            ? _switchSnapshot
+                            : _idleSnapshot,
+                        child: _mounted.contains(i)
+                            ? widget.children[i]
+                            : const SizedBox.shrink(),
+                      ),
                     ),
                   ),
                 ),

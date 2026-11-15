@@ -6100,6 +6100,132 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'显示工具栏'**
   String get novelShowToolbar;
+
+  /// Tooltip and menu item label for navigating back in history
+  ///
+  /// In zh, this message translates to:
+  /// **'后退'**
+  String get navBack;
+
+  /// Tooltip and menu item label for navigating forward in history
+  ///
+  /// In zh, this message translates to:
+  /// **'前进'**
+  String get navForward;
+
+  /// Tooltip for the desktop command bar quick content filter button (R-18 and AI display toggles)
+  ///
+  /// In zh, this message translates to:
+  /// **'内容筛选'**
+  String get commandContentFilter;
+
+  /// Tooltip for the desktop command bar account avatar switcher button
+  ///
+  /// In zh, this message translates to:
+  /// **'切换账号'**
+  String get commandSwitchAccount;
+
+  /// macOS top-level File menu title
+  ///
+  /// In zh, this message translates to:
+  /// **'文件'**
+  String get menuFile;
+
+  /// macOS top-level View menu title
+  ///
+  /// In zh, this message translates to:
+  /// **'视图'**
+  String get menuView;
+
+  /// macOS top-level Navigate menu title
+  ///
+  /// In zh, this message translates to:
+  /// **'导航'**
+  String get menuNavigate;
+
+  /// macOS top-level Window menu title
+  ///
+  /// In zh, this message translates to:
+  /// **'窗口'**
+  String get menuWindow;
+
+  /// macOS application menu item opening Settings
+  ///
+  /// In zh, this message translates to:
+  /// **'偏好设置…'**
+  String get menuPreferences;
+
+  /// View menu item to enter window fullscreen mode
+  ///
+  /// In zh, this message translates to:
+  /// **'进入全屏'**
+  String get menuEnterFullScreen;
+
+  /// View menu item to exit window fullscreen mode
+  ///
+  /// In zh, this message translates to:
+  /// **'退出全屏'**
+  String get menuExitFullScreen;
+
+  /// Tooltip for the previous-page edge navigation button in the image viewer
+  ///
+  /// In zh, this message translates to:
+  /// **'上一页'**
+  String get viewerPreviousPage;
+
+  /// Tooltip for the next-page edge navigation button in the image viewer
+  ///
+  /// In zh, this message translates to:
+  /// **'下一页'**
+  String get viewerNextPage;
+
+  /// Context menu and detail/viewer action label to copy the original artwork image to the system clipboard
+  ///
+  /// In zh, this message translates to:
+  /// **'复制原图'**
+  String get copyOriginalImage;
+
+  /// Confirmation toast shown after copying an artwork image to the clipboard
+  ///
+  /// In zh, this message translates to:
+  /// **'原图已复制到剪贴板'**
+  String get imageCopiedToClipboard;
+
+  /// Error toast shown when copying the artwork image to the clipboard fails
+  ///
+  /// In zh, this message translates to:
+  /// **'无法复制原图'**
+  String get imageCopyFailed;
+
+  /// Floating batch bar action button to download original images for selected works
+  ///
+  /// In zh, this message translates to:
+  /// **'下载原图'**
+  String get batchDownloadOriginal;
+
+  /// Floating batch bar action button to enqueue public bookmarks for selected works
+  ///
+  /// In zh, this message translates to:
+  /// **'公开收藏'**
+  String get batchBookmarkPublic;
+
+  /// Floating batch bar action button to enqueue private bookmarks for selected works
+  ///
+  /// In zh, this message translates to:
+  /// **'私密收藏'**
+  String get batchBookmarkPrivate;
+
+  /// Floating batch bar button and tooltip to clear multi-selection
+  ///
+  /// In zh, this message translates to:
+  /// **'取消选择'**
+  String get batchClearSelection;
+
+  /// Feedback toast shown after queuing multiple artworks for bookmarking
+  ///
+  /// In zh, this message translates to:
+  /// **'{count, plural, other{已加入收藏队列（{count} 项）}}'**
+  String batchBookmarkEnqueued(int count);
 }
 
 class _AppLocalizationsDelegate

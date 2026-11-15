@@ -8,6 +8,7 @@ import 'package:visibility_detector/visibility_detector.dart';
 
 import '../../../app/navigation/route_animation.dart';
 import '../../../app/pixiv_image.dart';
+import '../../../app/pull_to_refresh.dart';
 import '../../../app/widgets/ambient_wash.dart';
 import '../../../app/widgets/app_top_bar.dart';
 import '../../../app/widgets/bookmark_switch_button.dart'
@@ -27,6 +28,7 @@ import '../../../core/history/history_models.dart';
 import '../../../core/history/history_repository.dart';
 import '../../../core/history/history_snapshot.dart';
 import '../../../core/history/history_visibility.dart';
+import '../../../core/platform/image_clipboard.dart';
 import '../../../core/settings/settings_controller.dart';
 import '../../../core/share/share_service.dart';
 import '../../../app/widgets/app_menu_button.dart';
@@ -37,6 +39,7 @@ import '../../../app/haptics/app_haptics.dart';
 import '../../../app/motion/motion_tokens.dart';
 import '../../../app/motion/scroll_hide.dart';
 import '../../../app/motion/state_fade.dart';
+import '../../../app/motion/swipe_paging.dart';
 import '../../../app/theme/func_semantic_tokens.dart';
 import '../../../app/motion/hero_transition.dart';
 import '../../../app/widgets/feed/feed_states.dart';
@@ -698,62 +701,67 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
           _exitDownloadMode();
         }
       },
-      child: Scaffold(
-        // The comment composer takes the keyboard's inset itself; the
-        // page under it keeps its size (LAYOUT-10's overlay exception).
-        resizeToAvoidBottomInset: false,
-        extendBodyBehindAppBar: immersive,
-        appBar: _downloadMode && entity != null
-            ? _buildSelectionAppBar(context, entity)
-            : _buildAppBar(context, async, immersive: immersive),
-        body: _fadeStates(
-          async.when(
-            // U5 (R7): AsyncNotifier.build() returns a Future, so the first
-            // frame is ALWAYS AsyncLoading — a spinner here would hide the
-            // store snapshot the feed already placed in IllustStore, and the
-            // Hero destination would not exist on the first frame. Render the
-            // snapshot immediately; the controller's IllustDetailLoading state
-            // stays as the no-snapshot first-load signal.
-            loading: () {
-              final snapshot = _snapshotEntity();
-              if (snapshot != null) {
-                return _buildContent(context, ref, snapshot);
-              }
-              return const IllustDetailSkeleton();
-            },
-            error: (Object error, StackTrace _) => FeedError(
-              title: context.l10n.illustDetailLoadFailed,
-              error: error,
-              retryLabel: context.l10n.retry,
-              onRetry: () => ref
-                  .read(
-                    illustDetailControllerProvider(widget.illustId).notifier,
-                  )
-                  .reload(),
+      child: RefreshActionAnchor(
+        onRefresh: () => ref
+            .read(illustDetailControllerProvider(widget.illustId).notifier)
+            .reload(),
+        child: Scaffold(
+          // The comment composer takes the keyboard's inset itself; the
+          // page under it keeps its size (LAYOUT-10's overlay exception).
+          resizeToAvoidBottomInset: false,
+          extendBodyBehindAppBar: immersive,
+          appBar: _downloadMode && entity != null
+              ? _buildSelectionAppBar(context, entity)
+              : _buildAppBar(context, async, immersive: immersive),
+          body: _fadeStates(
+            async.when(
+              // U5 (R7): AsyncNotifier.build() returns a Future, so the first
+              // frame is ALWAYS AsyncLoading — a spinner here would hide the
+              // store snapshot the feed already placed in IllustStore, and the
+              // Hero destination would not exist on the first frame. Render the
+              // snapshot immediately; the controller's IllustDetailLoading state
+              // stays as the no-snapshot first-load signal.
+              loading: () {
+                final snapshot = _snapshotEntity();
+                if (snapshot != null) {
+                  return _buildContent(context, ref, snapshot);
+                }
+                return const IllustDetailSkeleton();
+              },
+              error: (Object error, StackTrace _) => FeedError(
+                title: context.l10n.illustDetailLoadFailed,
+                error: error,
+                retryLabel: context.l10n.retry,
+                onRetry: () => ref
+                    .read(
+                      illustDetailControllerProvider(widget.illustId).notifier,
+                    )
+                    .reload(),
+              ),
+              data: (state) {
+                // Snapshot-first (R1): the shared store renders stale data behind
+                // any in-flight refresh; the controller state drives the terminal
+                // surfaces (the loading branch above reads the store directly).
+                return switch (state) {
+                  IllustDetailRestricted(:final entity) => FeedEmpty(
+                    icon: Icons.visibility_off_outlined,
+                    title: context.l10n.illustDetailRestricted(entity.id),
+                  ),
+                  IllustDetailNotFound() => FeedEmpty(
+                    icon: Icons.search_off,
+                    title: context.l10n.illustDetailNotFound,
+                  ),
+                  IllustDetailReady(:final entity) => _buildContent(
+                    context,
+                    ref,
+                    entity,
+                    detailReady: true,
+                  ),
+                  IllustDetailError(:final error, :final snapshot) =>
+                    _errorOrSnapshot(context, ref, error, snapshot),
+                };
+              },
             ),
-            data: (state) {
-              // Snapshot-first (R1): the shared store renders stale data behind
-              // any in-flight refresh; the controller state drives the terminal
-              // surfaces (the loading branch above reads the store directly).
-              return switch (state) {
-                IllustDetailRestricted(:final entity) => FeedEmpty(
-                  icon: Icons.visibility_off_outlined,
-                  title: context.l10n.illustDetailRestricted(entity.id),
-                ),
-                IllustDetailNotFound() => FeedEmpty(
-                  icon: Icons.search_off,
-                  title: context.l10n.illustDetailNotFound,
-                ),
-                IllustDetailReady(:final entity) => _buildContent(
-                  context,
-                  ref,
-                  entity,
-                  detailReady: true,
-                ),
-                IllustDetailError(:final error, :final snapshot) =>
-                  _errorOrSnapshot(context, ref, error, snapshot),
-              };
-            },
           ),
         ),
       ),
@@ -822,12 +830,14 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
       // title fades in with the surface once the image scrolls away. The
       // opaque layouts keep a generic label: the real title wraps freely
       // in InfoBlock.
-      title: Text(
-        immersive && entity != null
-            ? entity.title
-            : context.l10n.illustDetailTitle,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
+      title: SelectionContainer.disabled(
+        child: Text(
+          immersive && entity != null
+              ? entity.title
+              : context.l10n.illustDetailTitle,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
       ),
       immersion: immersive ? _immersion : null,
       // Nothing to lift the controls off while page 1 sits below the bar.
@@ -865,6 +875,7 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
         if (!twoPane || !rendersContent) _DetailMenuAction.share,
         if (rendersContent) ...[
           _DetailMenuAction.editBookmark,
+          if (isDesktopImageClipboardSupported) copyImageCardAction,
           watchLaterCardAction,
         ],
         if (entity.pageCount > 1 && !entity.isUgoira)

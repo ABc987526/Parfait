@@ -5,11 +5,13 @@ import 'package:material_ui/material_ui.dart';
 import '../../app/layout/deferred_cache_scroll_view.dart';
 import '../../app/widgets/app_top_bar.dart';
 import '../../app/widgets/feed/feed_grid.dart';
+import '../../app/widgets/feed/feed_selection.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/widgets/novel_entry.dart';
 import '../../app/widgets/user_preview_row.dart';
 import '../../app/pull_to_refresh.dart';
+import '../../app/window/desktop_command_bar.dart';
 import '../../core/entity/illust_store.dart';
 import '../../core/entity/stored_entities.dart';
 import '../../core/network/api_error.dart';
@@ -376,64 +378,76 @@ class _SearchResultPageState extends ConsumerState<SearchResultPage>
     // at the end of the bar (R9); the filter summary still sits under it.
     // A phone keeps the query in the title over the tabs.
     final wide = PageHeader.isWide(context);
-    return Scaffold(
-      // No inline composer: a `true` here would subscribe this page (and
-      // every live branch page) to per-frame viewInsets churn while the
-      // IME hides during the push transition — the constant-low-FPS
-      // search-suggestion push came from that relayout storm.
-      resizeToAvoidBottomInset: false,
-      appBar: AppTopBar(
-        titleSpacing: 0,
-        title: wide ? tabBar : Builder(builder: keywordField),
-        bottom: wide
-            ? (summary == null
-                  ? null
-                  : PreferredSize(
-                      preferredSize: Size.fromHeight(summaryHeight),
-                      child: summary,
-                    ))
-            : PreferredSize(
-                preferredSize: Size.fromHeight(
-                  tabBar.preferredSize.height + summaryHeight,
+    final hasCommandBar = DesktopCommandBarScope.isActiveOf(context);
+    final hideWideSearchControls = wide && hasCommandBar;
+    return DesktopCommandActionsAnchor(
+      action: hideWideSearchControls
+          ? Padding(
+              padding: const EdgeInsets.symmetric(horizontal: FuncSpacing.xxs),
+              child: filterButton,
+            )
+          : null,
+      child: Scaffold(
+        // No inline composer: a `true` here would subscribe this page (and
+        // every live branch page) to per-frame viewInsets churn while the
+        // IME hides during the push transition — the constant-low-FPS
+        // search-suggestion push came from that relayout storm.
+        resizeToAvoidBottomInset: false,
+        appBar: AppTopBar(
+          titleSpacing: 0,
+          title: wide ? tabBar : Builder(builder: keywordField),
+          bottom: wide
+              ? (summary == null
+                    ? null
+                    : PreferredSize(
+                        preferredSize: Size.fromHeight(summaryHeight),
+                        child: summary,
+                      ))
+              : PreferredSize(
+                  preferredSize: Size.fromHeight(
+                    tabBar.preferredSize.height + summaryHeight,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [tabBar, ?summary],
+                  ),
                 ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [tabBar, ?summary],
-                ),
+          actions: hideWideSearchControls
+              ? const []
+              : [
+                  filterButton,
+                  if (wide)
+                    Padding(
+                      padding: const EdgeInsetsDirectional.only(
+                        start: FuncSpacing.sm,
+                        end: FuncSpacing.lg,
+                      ),
+                      child: SizedBox(
+                        width: PageHeader.searchFieldWidth(context),
+                        child: Builder(builder: keywordField),
+                      ),
+                    ),
+                ],
+        ),
+        body: Builder(
+          builder: (context) {
+            _notificationContext = context;
+            return TabSwipeSwitcher(
+              tabController: _tabController,
+              prepareTab: _prepareTab,
+              child: TabSlideStack(
+                controller: _tabController,
+                children: [
+                  for (final type in SearchResultType.values)
+                    if (_loadedTypes.contains(type))
+                      _bodyFor(type)
+                    else
+                      const SizedBox.shrink(),
+                ],
               ),
-        actions: [
-          filterButton,
-          if (wide)
-            Padding(
-              padding: const EdgeInsetsDirectional.only(
-                start: FuncSpacing.sm,
-                end: FuncSpacing.lg,
-              ),
-              child: SizedBox(
-                width: PageHeader.searchFieldWidth(context),
-                child: Builder(builder: keywordField),
-              ),
-            ),
-        ],
-      ),
-      body: Builder(
-        builder: (context) {
-          _notificationContext = context;
-          return TabSwipeSwitcher(
-            tabController: _tabController,
-            prepareTab: _prepareTab,
-            child: TabSlideStack(
-              controller: _tabController,
-              children: [
-                for (final type in SearchResultType.values)
-                  if (_loadedTypes.contains(type))
-                    _bodyFor(type)
-                  else
-                    const SizedBox.shrink(),
-              ],
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }
@@ -580,48 +594,50 @@ class _IllustSearchFeed extends ConsumerWidget {
       );
     }
     if (entities.isEmpty) return _EmptySearchResult(query: query);
-    return PullToRefresh(
-      onRefresh: () => ref.read(searchFeedProvider(query).notifier).refresh(),
-      child: LoadMoreListener(
-        itemCount: feed.ids.length,
-        onLoadMore: () =>
-            ref.read(searchFeedProvider(query).notifier).loadMore(),
-        child: SmoothWheelScroll(
-          controller: scrollController,
-          basePhysics: const AlwaysScrollableScrollPhysics(),
-          builder: (context, controller, physics) => DeferredCacheScrollView(
-            key: PageStorageKey(query.cacheKey),
-            physics: physics,
-            scrollCacheExtent: kFeedCacheExtent,
-            restorationId: 'search-${query.cacheKey}',
-            controller: controller,
-            slivers: [
-              IllustFeedGrid(
-                padding: _illustGridPadding,
-                itemIds: [for (final e in entities) e.id],
-                itemCount: entities.length,
-                pagerLoadMore: () =>
-                    ref.read(searchFeedProvider(query).notifier).loadMore(),
-                warmTexts: (context, index) =>
-                    IllustCard.warmTexts(context, entities[index]),
-                items: entities,
-                itemDeps: query.cacheKey,
-                itemBuilder: (context, index) => IllustCard(
-                  entity: entities[index],
-                  heroScope: 'search:${query.cacheKey}',
+    return SelectableFeedHost(
+      child: PullToRefresh(
+        onRefresh: () => ref.read(searchFeedProvider(query).notifier).refresh(),
+        child: LoadMoreListener(
+          itemCount: feed.ids.length,
+          onLoadMore: () =>
+              ref.read(searchFeedProvider(query).notifier).loadMore(),
+          child: SmoothWheelScroll(
+            controller: scrollController,
+            basePhysics: const AlwaysScrollableScrollPhysics(),
+            builder: (context, controller, physics) => DeferredCacheScrollView(
+              key: PageStorageKey(query.cacheKey),
+              physics: physics,
+              scrollCacheExtent: kFeedCacheExtent,
+              restorationId: 'search-${query.cacheKey}',
+              controller: controller,
+              slivers: [
+                IllustFeedGrid(
+                  padding: _illustGridPadding,
+                  itemIds: [for (final e in entities) e.id],
+                  itemCount: entities.length,
+                  pagerLoadMore: () =>
+                      ref.read(searchFeedProvider(query).notifier).loadMore(),
+                  warmTexts: (context, index) =>
+                      IllustCard.warmTexts(context, entities[index]),
+                  items: entities,
+                  itemDeps: query.cacheKey,
+                  itemBuilder: (context, index) => IllustCard(
+                    entity: entities[index],
+                    heroScope: 'search:${query.cacheKey}',
+                  ),
                 ),
-              ),
-              SliverToBoxAdapter(
-                child: FeedTail(
-                  feed: feed,
-                  onRetry: () => ref
-                      .read(searchFeedProvider(query).notifier)
-                      .retryLoadMore(),
-                  errorTitle: context.l10n.searchLoadMoreFailed,
-                  retryLabel: context.l10n.searchRetry,
+                SliverToBoxAdapter(
+                  child: FeedTail(
+                    feed: feed,
+                    onRetry: () => ref
+                        .read(searchFeedProvider(query).notifier)
+                        .retryLoadMore(),
+                    errorTitle: context.l10n.searchLoadMoreFailed,
+                    retryLabel: context.l10n.searchRetry,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

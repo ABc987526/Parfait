@@ -7,11 +7,13 @@ import '../../../core/entity/illust_entity.dart';
 import '../../../core/illust/illust_download_controller.dart';
 import '../../../core/mute/mute_models.dart';
 import '../../../core/mute/mute_store.dart';
+import '../../../core/platform/image_clipboard.dart';
 import '../../../core/share/share_service.dart';
 import '../../../core/watchlater/watch_later_repository.dart';
 import '../../../core/watchlater/watch_later_store.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../l10n/context.dart';
+import '../../clipboard.dart';
 import '../../haptics/app_haptics.dart';
 import '../../navigation/routes.dart';
 import '../app_snack_bar.dart';
@@ -25,13 +27,18 @@ import 'card_action.dart';
 /// the card or sheet code (registered slot per parent design §2).
 final illustCardActionsProvider = Provider<List<CardAction>>((ref) {
   // No bookmark entry: every card carries its heart, one tap away.
-  return const [
-    _DownloadAction(),
+  return [
+    const _DownloadAction(),
+    if (isDesktopImageClipboardSupported) copyImageCardAction,
     watchLaterCardAction,
     ...muteCardActions,
-    _ShareAction(),
+    const _ShareAction(),
   ];
 });
+
+/// Desktop card/detail action that copies the artwork's first page original
+/// image to the system clipboard.
+const CardAction copyImageCardAction = _CopyImageAction();
 
 // The detail page's ⋮ menu carries these too, so none of them needs the
 // long-press. Download and share have detail buttons of their own.
@@ -83,6 +90,31 @@ class _DownloadAction extends CardAction {
       reportFailure(error, stack);
     }
   }
+}
+
+class _CopyImageAction extends CardAction {
+  const _CopyImageAction();
+
+  @override
+  String get id => 'copy-image';
+
+  @override
+  IconData iconFor(CardActionState state, IllustEntity entity) =>
+      Icons.copy_outlined;
+
+  @override
+  String labelFor(
+    CardActionState state,
+    IllustEntity entity,
+    AppLocalizations l10n,
+  ) => l10n.copyOriginalImage;
+
+  @override
+  Future<void> run(
+    BuildContext context,
+    ProviderContainer container,
+    IllustEntity entity,
+  ) => copyIllustOriginalImageToClipboard(context, container, entity);
 }
 
 class _WatchLaterAction extends CardAction {

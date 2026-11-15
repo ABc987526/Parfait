@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -34,6 +35,8 @@ import 'navigation/routes.dart';
 import 'startup_gate.dart';
 import 'theme/replica_theme.dart';
 import 'theme/system_colors.dart';
+import 'window/desktop_command_bar.dart';
+import 'window/desktop_menu_bar.dart';
 import 'window/desktop_title_bar.dart';
 import 'touch_exploration_scope.dart';
 import 'widgets/prompt_host.dart';
@@ -329,7 +332,14 @@ class _AppChromeState extends ConsumerState<AppChrome> {
   }
 
   @override
+  @override
   Widget build(BuildContext context) {
+    final platform = Theme.of(context).platform;
+    final usesCommandBar =
+        !kIsWeb &&
+        (platform == TargetPlatform.windows ||
+            platform == TargetPlatform.macOS ||
+            platform == TargetPlatform.linux);
     return DesktopSystemBarsScope(
       controller: _systemBars,
       child: DesktopWindowBinding(
@@ -349,6 +359,7 @@ class _AppChromeState extends ConsumerState<AppChrome> {
               child: MaterialUiCompatibilityBridge(
                 child: TouchExplorationScope(
                   child: DesktopWindowFrame(
+                    suppressOverlayBar: usesCommandBar,
                     // Above the bridge so intent failures can prompt from its own
                     // context; below the motion, touch-exploration, and desktop
                     // chrome scopes it reads.
@@ -360,7 +371,60 @@ class _AppChromeState extends ConsumerState<AppChrome> {
                         intentSource: widget.intentSource,
                         child: KeyboardBack(
                           router: widget.router,
-                          child: widget.child,
+                          child: usesCommandBar
+                              ? Builder(
+                                  builder: (frameContext) {
+                                    final chrome = DesktopChromeMetrics.maybeOf(
+                                      frameContext,
+                                    );
+                                    final isFullScreen =
+                                        chrome?.isFullScreen ?? false;
+                                    return DesktopMenuBar(
+                                      settings: widget.settings,
+                                      router: widget.router,
+                                      child: DesktopCommandBarScope(
+                                        active: true,
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.stretch,
+                                          children: [
+                                            if (!isFullScreen)
+                                              DesktopCommandBar(
+                                                settings: widget.settings,
+                                                router: widget.router,
+                                              ),
+                                            Expanded(
+                                              child: Builder(
+                                                builder: (contentContext) {
+                                                  final innerChrome =
+                                                      DesktopChromeMetrics.maybeOf(
+                                                        contentContext,
+                                                      );
+                                                  final stripped =
+                                                      MediaQuery.removePadding(
+                                                        context: contentContext,
+                                                        removeTop: true,
+                                                        child: widget.child,
+                                                      );
+                                                  if (innerChrome == null) {
+                                                    return stripped;
+                                                  }
+                                                  return innerChrome.copyWith(
+                                                    titleBarHeight: 0,
+                                                    leadingInset: 0,
+                                                    trailingInset: 0,
+                                                    child: stripped,
+                                                  );
+                                                },
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                )
+                              : widget.child,
                         ),
                       ),
                     ),

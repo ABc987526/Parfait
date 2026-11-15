@@ -3318,4 +3318,75 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get novelShowToolbar => 'Show toolbar';
+
+  @override
+  String get navBack => 'Back';
+
+  @override
+  String get navForward => 'Forward';
+
+  @override
+  String get commandContentFilter => 'Content filter';
+
+  @override
+  String get commandSwitchAccount => 'Switch account';
+
+  @override
+  String get menuFile => 'File';
+
+  @override
+  String get menuView => 'View';
+
+  @override
+  String get menuNavigate => 'Navigate';
+
+  @override
+  String get menuWindow => 'Window';
+
+  @override
+  String get menuPreferences => 'Preferences…';
+
+  @override
+  String get menuEnterFullScreen => 'Enter Full Screen';
+
+  @override
+  String get menuExitFullScreen => 'Exit Full Screen';
+
+  @override
+  String get viewerPreviousPage => 'Previous page';
+
+  @override
+  String get viewerNextPage => 'Next page';
+
+  @override
+  String get copyOriginalImage => 'Copy original image';
+
+  @override
+  String get imageCopiedToClipboard => 'Original image copied to clipboard';
+
+  @override
+  String get imageCopyFailed => 'Failed to copy original image';
+
+  @override
+  String get batchDownloadOriginal => 'Download originals';
+
+  @override
+  String get batchBookmarkPublic => 'Public bookmark';
+
+  @override
+  String get batchBookmarkPrivate => 'Private bookmark';
+
+  @override
+  String get batchClearSelection => 'Clear selection';
+
+  @override
+  String batchBookmarkEnqueued(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Added $count works to bookmark queue',
+      one: 'Added 1 work to bookmark queue',
+    );
+    return '$_temp0';
+  }
 }
