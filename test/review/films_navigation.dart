@@ -370,6 +370,51 @@ void main() {
       },
     );
   }
+
+  testFilm(
+    'nav/ios-shared-drag-dismiss',
+    location: '/recommended',
+    platform: TargetPlatform.iOS,
+    notes:
+        'iOS shared-element detail dismiss: opening illust 1000 via Hero, '
+        'then pulling down shows subtle canvas scaling, rounded corners, and '
+        'progressive backdrop fade revealing the feed underneath; a short drag '
+        'springs back, and a deeper pull hands off seamlessly from the '
+        'shrunken rect into the Hero return flight with zero lateral slide or '
+        'opaque snap.',
+    script: (film, router) async {
+      final card = film.tester.getCenter(
+        find.bySemanticsLabel(RegExp('^illust 1000,')).first,
+      );
+      await _open(film, card);
+      await film.untilSettled();
+
+      Future<void> pullDown({
+        required double distance,
+        required int moveFrames,
+      }) async {
+        final gesture = await film.tester.createGesture();
+        const start = Offset(195, 160);
+        await gesture.down(start, timeStamp: film.clock);
+        final step = Offset(0, distance / moveFrames);
+        for (var i = 0; i < moveFrames; i++) {
+          await gesture.moveBy(
+            step,
+            timeStamp: film.clock + FilmRecorder.vsync,
+          );
+          await film.frame();
+        }
+        await film.frames(3);
+        await gesture.up(timeStamp: film.clock);
+        await film.untilSettled();
+      }
+
+      // Sub-threshold pull previews canvas shrink + backdrop fade, then springs back.
+      await pullDown(distance: 72, moveFrames: 8);
+      // Full downward pull reveals underlying feed and commits into Hero return.
+      await pullDown(distance: 190, moveFrames: 12);
+    },
+  );
 }
 
 /// Taps [at] and films until a Hero flight is in the air (or 30 frames: a
