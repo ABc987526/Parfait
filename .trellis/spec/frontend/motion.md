@@ -10,7 +10,7 @@ applies_to:
   - lib/app/navigation/route_animation.dart
   - lib/app/layout/sliver_width_builder.dart
   - lib/app/startup_gate.dart
-reviewed: 2026-10-26
+reviewed: 2026-11-15
 ---
 
 # Motion, press feedback and the rebuild budget
@@ -132,15 +132,19 @@ reviewed: 2026-10-26
 - **Rule:** A hand-built drag recognizer takes
   `MediaQuery.maybeGestureSettingsOf(context)`, and a slop check uses
   `computeHitSlop` with the settings its competing scrollable reads; never
-  `kTouchSlop`. The detail and viewer pagers accept only past
-  `pagingSlopFactor` times the device slop, as Android's ViewPager does:
-  `PagingSlop` wraps the `PageView`, `PagingSlopPage` gives each page the
-  device slop back. A page whose pan accepts at twice the slop
-  (`InteractiveViewer`) keeps the paging slop while the pager can page. A
-  recognizer given the paging slop keeps the device slop as its
-  `minFlingDistance`. The tab and branch swipe (`SwipePagingRecognizer`)
-  start at the device slop sideways, and only while the finger leans no
-  more than `swipePagingMaxDegrees` (40°) off horizontal.
+  `kTouchSlop`. The viewer pager accepts only past `pagingSlopFactor` times
+  the device slop (`PagingSlop` wraps the `PageView`, `PagingSlopPage` gives
+  each page the device slop back, while a page whose pan accepts at twice
+  the slop keeps the paging slop while the pager can page); the illust
+  detail pager (`_PagerDragRecognizer`) and two-pane image pager
+  (`DetailImagePager` via `SwipePaging`) sit inside `SelectionArea` and
+  judge the `~27°` / `swipePagingMaxDegrees` angle directly at the device
+  slop (`1×`, excluding mouse drags) so `SelectableRegion`'s hardcoded 18px
+  horizontal drag recognizer cannot preempt touch swipes. A recognizer
+  given the paging slop keeps the device slop as its `minFlingDistance`.
+  The tab and branch swipe (`SwipePagingRecognizer`) start at the device
+  slop sideways, and only while the finger leans no more than
+  `swipePagingMaxDegrees` (40°) off horizontal.
 - **Why:** Android's slop is 8dp, `kTouchSlop` 18: pull-to-dismiss and a
   panorama lost to the pager, a card stayed pressed while its list
   scrolled. With equal slops a swipe up to 45° off horizontal turned the
@@ -149,7 +153,7 @@ reviewed: 2026-10-26
   every swipe steeper than about 27°: a thumb's arc meant for the next
   tab jiggled the list up and down (user report).
 - **Check:** `test/motion_test.dart` "a scroll takeover releases the pressed scale", `test/illust_detail_pager_test.dart` "scrolls the detail" "a panorama scrolls first and hands the swipe on at its edge", `test/tab_swipe_switcher_test.dart` "moves the tabs" "leaves the tabs", `test/hero_transition_test.dart` "only the entry page flies back"
-- **Code:** `lib/app/scroll_behavior.dart`, `lib/app/motion/drag_to_dismiss.dart`, `lib/app/motion/press_scale.dart`, `lib/app/motion/swipe_paging.dart`
+- **Code:** `lib/app/scroll_behavior.dart`, `lib/app/motion/drag_to_dismiss.dart`, `lib/app/motion/press_scale.dart`, `lib/app/motion/swipe_paging.dart`, `lib/features/illust/detail/illust_detail_pager_page.dart`, `lib/features/illust/detail/widgets/detail_image_pager.dart`
 
 ### MOTION-20 A released swipe lands from the finger's speed
 - **Rule:** A sideways swipe released between tabs, branches or pages
@@ -359,3 +363,16 @@ reviewed: 2026-10-26
   seconds behind its spinning image, and swipes landed on its stand-in.
 - **Check:** `test/home_branch_stack_test.dart` "a branch built ahead and never shown saves no setting" "a switch before its turn builds the branch at once", `test/motion_test.dart` "work ahead waits for a running animation to end" "work ahead behind a looping indicator waits once a run"
 - **Code:** `lib/app/motion/still_work.dart`, `lib/app/widgets/tab_swipe_switcher.dart`, `lib/app/widgets/home_branch_stack.dart`, `lib/app/navigation/routes.dart`, `lib/features/illust/detail/illust_detail_pager_page.dart`, `lib/core/image/image_worker.dart`, `lib/features/ranking/ranking_tabs.dart`
+
+### MOTION-23 Pointer input removes touch press delay, wheel inertia and wide slide travel
+- **Rule:** Under `InputModality.pointer`, `PressScale` skips the 100 ms scroll
+  disambiguation delay inside scrollables and responds immediately on pointer
+  down; `HomeBranchStack` over `ShellRail` animates branch switches with a
+  150 ms `MotionTokens.desktopBranchSwitch` fade plus 12dp short slide (or instant
+  cut under reduced motion); and `SmoothWheelScroll` calls `jumpTo` with
+  `Duration.zero` on discrete wheel ticks rather than queuing synthetic easing.
+- **Why:** Touch tap-delay filters, full-viewport mobile slide travel, and
+  synthetic easing inertia make mouse clicks and precision wheel scrolling feel
+  sluggish on desktop.
+- **Check:** `test/desktop_ux_phase2_test.dart` "Pointer mode skips PressScale 100ms delay, animates ShellRail fade+slide at 150ms, and SmoothWheelScroll jumps instantly"
+- **Code:** `lib/app/motion/press_scale.dart`, `lib/app/motion/motion_tokens.dart`, `lib/app/widgets/home_branch_stack.dart`, `lib/app/widgets/smooth_wheel_scroll.dart`
