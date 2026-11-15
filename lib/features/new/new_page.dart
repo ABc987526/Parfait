@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../app/layout/deferred_cache_scroll_view.dart';
 import '../../app/widgets/app_top_bar.dart';
 import '../../app/widgets/feed/feed_grid.dart';
+import '../../app/widgets/feed/feed_selection.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/navigation/routes.dart';
@@ -332,7 +333,7 @@ class _NewFeedBody extends ConsumerWidget {
         }
 
         final slivers = _buildSlivers(context, ref, feed);
-        return PullToRefresh(
+        final scrollHost = PullToRefresh(
           scrollController: scrollController,
           onRefresh: () =>
               ref.read(newFeedProvider(feedKey).notifier).refresh(),
@@ -358,6 +359,9 @@ class _NewFeedBody extends ConsumerWidget {
             ),
           ),
         );
+        return feedKey.type == NewFeedType.illust
+            ? SelectableFeedHost(child: scrollHost)
+            : scrollHost;
       },
     );
   }

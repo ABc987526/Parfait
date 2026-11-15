@@ -78,6 +78,7 @@ import '../../features/settings/pages/translation_credentials_page.dart';
 import '../../l10n/context.dart';
 import '../motion/hero_transition.dart';
 import '../motion/motion_tokens.dart';
+import 'forward_history.dart';
 import 'func_page.dart';
 import '../pixiv_image.dart';
 import '../startup_gate.dart';
@@ -112,10 +113,11 @@ GoRouter createPixivRouter({String initialLocation = '/splash'}) {
   final newRouteObserver = ExitAwareRouteObserver();
   final searchRouteObserver = ExitAwareRouteObserver();
   final settingsRouteObserver = ExitAwareRouteObserver();
+  final forwardHistory = ForwardHistoryStack.detached();
 
   final router = GoRouter(
     navigatorKey: appRootNavigatorKey,
-    observers: [appRootRouteObserver],
+    observers: [appRootRouteObserver, forwardHistory.rootObserver],
     restorationScopeId: 'router',
     initialLocation: initialLocation,
     routes: [
@@ -270,6 +272,7 @@ GoRouter createPixivRouter({String initialLocation = '/splash'}) {
             ),
             navigatorKey: recommendedNavigatorKey,
             observer: recommendedRouteObserver,
+            forwardObserver: forwardHistory.observerForBranch('recommended'),
             rootNavigatorKey: appRootNavigatorKey,
             rootObserver: appRootRouteObserver,
             restorationScopeId: 'recommended',
@@ -286,6 +289,7 @@ GoRouter createPixivRouter({String initialLocation = '/splash'}) {
             ),
             navigatorKey: rankingNavigatorKey,
             observer: rankingRouteObserver,
+            forwardObserver: forwardHistory.observerForBranch('ranking'),
             rootNavigatorKey: appRootNavigatorKey,
             rootObserver: appRootRouteObserver,
             restorationScopeId: 'ranking',
@@ -300,6 +304,7 @@ GoRouter createPixivRouter({String initialLocation = '/splash'}) {
             ),
             navigatorKey: newNavigatorKey,
             observer: newRouteObserver,
+            forwardObserver: forwardHistory.observerForBranch('new'),
             rootNavigatorKey: appRootNavigatorKey,
             rootObserver: appRootRouteObserver,
             restorationScopeId: 'new',
@@ -310,6 +315,7 @@ GoRouter createPixivRouter({String initialLocation = '/splash'}) {
             home: const SearchHomePage(),
             navigatorKey: searchNavigatorKey,
             observer: searchRouteObserver,
+            forwardObserver: forwardHistory.observerForBranch('search'),
             rootNavigatorKey: appRootNavigatorKey,
             rootObserver: appRootRouteObserver,
             restorationScopeId: 'search',
@@ -322,6 +328,7 @@ GoRouter createPixivRouter({String initialLocation = '/splash'}) {
             home: const MeDashboardPage(),
             navigatorKey: settingsNavigatorKey,
             observer: settingsRouteObserver,
+            forwardObserver: forwardHistory.observerForBranch('settings'),
             rootNavigatorKey: appRootNavigatorKey,
             rootObserver: appRootRouteObserver,
             restorationScopeId: 'settings',
@@ -331,6 +338,7 @@ GoRouter createPixivRouter({String initialLocation = '/splash'}) {
       ),
     ],
   );
+  forwardHistory.attachRouter(router);
   if (TraceMarks.enabled) _markPages(router);
   return router;
 }

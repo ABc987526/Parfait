@@ -79,14 +79,16 @@ class _CommentsPageState extends ConsumerState<CommentsPage> {
         child: Column(
           children: [
             Expanded(
-              child: RemovalScope(
-                controller: _removals,
-                child: _CommentFeedView(
-                  query: _query,
-                  onReply: _replyTo,
-                  onOpenReplies: (comment) =>
-                      openCommentReplies(context, comment),
-                  onDelete: _deleteComment,
+              child: SelectionArea(
+                child: RemovalScope(
+                  controller: _removals,
+                  child: _CommentFeedView(
+                    query: _query,
+                    onReply: _replyTo,
+                    onOpenReplies: (comment) =>
+                        openCommentReplies(context, comment),
+                    onDelete: _deleteComment,
+                  ),
                 ),
               ),
             ),
@@ -241,29 +243,31 @@ class _CommentRepliesPageState extends ConsumerState<CommentRepliesPage> {
         child: Column(
           children: [
             Expanded(
-              child: RemovalScope(
-                controller: _removals,
-                child: _CommentFeedView(
-                  query: _query,
-                  // The root comment rides the list's first slot: it scrolls
-                  // away like every other row, and the composer reply bar
-                  // keeps the reply context visible meanwhile. Its divider
-                  // sets it apart from the replies; the top bar names them.
-                  header: root == null
-                      ? null
-                      : Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            CommentItem(
-                              comment: root,
-                              onReply: () => _replyTo(root),
-                              onDelete: () => _deleteComment(root),
-                            ),
-                            const Divider(height: 1),
-                          ],
-                        ),
-                  onReply: _replyTo,
-                  onDelete: _deleteComment,
+              child: SelectionArea(
+                child: RemovalScope(
+                  controller: _removals,
+                  child: _CommentFeedView(
+                    query: _query,
+                    // The root comment rides the list's first slot: it scrolls
+                    // away like every other row, and the composer reply bar
+                    // keeps the reply context visible meanwhile. Its divider
+                    // sets it apart from the replies; the top bar names them.
+                    header: root == null
+                        ? null
+                        : Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              CommentItem(
+                                comment: root,
+                                onReply: () => _replyTo(root),
+                                onDelete: () => _deleteComment(root),
+                              ),
+                              const Divider(height: 1),
+                            ],
+                          ),
+                    onReply: _replyTo,
+                    onDelete: _deleteComment,
+                  ),
                 ),
               ),
             ),

@@ -5,10 +5,12 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../app/clipboard.dart';
 import '../../../app/format/app_format.dart';
+import '../../../app/layout/app_breakpoints.dart';
 import '../../../app/layout/input_modality.dart';
 import '../../../app/motion/drag_to_dismiss.dart';
 import '../../../app/haptics/app_haptics.dart';
@@ -18,10 +20,12 @@ import '../../../app/navigation/home_shell_metrics.dart';
 import '../../../app/navigation/route_animation.dart';
 import '../../../app/navigation/routes.dart';
 import '../../../app/motion/hero_transition.dart';
+import '../../../app/person_avatar.dart';
 import '../../../app/pixiv_image.dart';
 import '../../../app/scroll_behavior.dart';
 import '../../../app/widgets/app_slider.dart';
 import '../../../app/widgets/display_actions.dart';
+import '../../../core/entity/illust_caption.dart';
 import '../../../core/entity/illust_entity.dart';
 import '../../../core/download/download_providers.dart';
 import '../../../core/download/download_task.dart'
@@ -30,6 +34,7 @@ import '../../../core/illust/illust_download_controller.dart';
 import '../../../core/share/share_service.dart';
 import '../../../core/image/image_demand.dart';
 import '../../../core/image/image_worker_providers.dart';
+import '../../../core/platform/image_clipboard.dart';
 import '../../../app/system_ui.dart';
 import '../../../app/theme/func_tokens.dart';
 import '../../../app/theme/replica_theme.dart';
@@ -159,8 +164,11 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
   /// The page controller currently being zoom-animated and the tween
   /// driving it (focal zoom → Matrix4, not a scalar scale).
   TransformationController? _zoomTarget;
+  int? _zoomTargetPage;
   Tween<Matrix4>? _zoomTween;
   late final CurvedAnimation _zoomCurve;
+  final _targetZoomMatrices = <int, Matrix4>{};
+  final _stageKey = GlobalKey();
 
   /// Focal point of the in-flight double tap, in viewport coordinates.
   Offset? _doubleTapFocal;
@@ -186,6 +194,8 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
   bool _stageHovered = false;
   bool _pointerChromeRevealed = false;
   bool _chromeHotzoneHovered = false;
+  bool _scrubberHovered = false;
+  bool _infoPanelOpen = false;
   Timer? _chromeHideTimer;
 
   int get _pageCount => _pagesOf(widget);
@@ -208,7 +218,8 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
         : widget.initialPage.clamp(0, _pageCount - 1);
     _pageController = PageController(initialPage: _activePage);
     _zoomController = AnimationController(vsync: this)
-      ..addListener(_applyZoomFrame);
+      ..addListener(_applyZoomFrame)
+      ..addStatusListener(_onZoomStatus);
     _zoomCurve = CurvedAnimation(
       parent: _zoomController,
       curve: MotionTokens.spatialCurve,
@@ -227,6 +238,7 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
     // The pages arrived: the pager was never built, so it opens on the
     // page asked for instead of the one initState clamped to.
     if (_pagesOf(oldWidget) > 0 || _pageCount == 0) return;
+    _targetZoomMatrices.clear();
     _transformationFor(_activePage).removeListener(_onTransformed);
     _activePage = widget.initialPage.clamp(0, _pageCount - 1);
     _transformationFor(_activePage).addListener(_onTransformed);
@@ -279,6 +291,7 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
   void _onPageChanged() {
     final page = _pageController.page?.round() ?? _activePage;
     if (page != _activePage) {
+      _targetZoomMatrices.clear();
       setState(() {
         _transformationFor(_activePage).removeListener(_onTransformed);
         _activePage = page;
@@ -413,12 +426,13 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
     if (inputModalityForPointerKind(event.kind) != InputModality.pointer) {
       return;
     }
-    final size = context.size ?? MediaQuery.sizeOf(context);
+    final size = _stageSize();
     final padding = MediaQuery.paddingOf(context);
     final topHotzone = padding.top + kToolbarHeight + 24;
     final bottomHotzone = size.height - padding.bottom - 96;
     final dy = event.localPosition.dy;
-    final inHotzone = dy <= topHotzone || dy >= bottomHotzone;
+    final inHotzone =
+        dy <= topHotzone || dy >= bottomHotzone || _scrubberHovered;
 
     var changed = false;
     if (!_stageHovered) {
@@ -450,6 +464,7 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
 
   void _handlePointerExit(PointerExitEvent event) {
     _chromeHideTimer?.cancel();
+    _scrubberHovered = false;
     _chromeHotzoneHovered = false;
     if (_stageHovered || _pointerChromeRevealed) {
       setState(() {
@@ -459,15 +474,40 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
     }
   }
 
+  void _onScrubberHoverChanged(int? page) {
+    _scrubberHovered = page != null;
+    if (_scrubberHovered) {
+      _chromeHotzoneHovered = true;
+      _chromeHideTimer?.cancel();
+    } else {
+      _chromeHotzoneHovered = false;
+    }
+    if (page != null) _prefetchScrubWindow(page);
+  }
+
+  Size _stageSize() {
+    final box = _stageKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box != null && box.hasSize) return box.size;
+    return HomeShellChrome.contentSizeOf(context);
+  }
+
+  void _onZoomStatus(AnimationStatus status) {
+    if (status == AnimationStatus.completed ||
+        status == AnimationStatus.dismissed) {
+      final page = _zoomTargetPage;
+      if (page != null) _targetZoomMatrices.remove(page);
+    }
+  }
+
   /// fit → 2.5 (at the tap focal) → fit. The cycle is a Matrix4 tween so
   /// the focal point stays pinned under the user's finger. Per design
   /// §2.3 the toggle threshold is 1.5: a double tap below it always zooms
   /// in (even from a slight pinch), at/above it snaps back to fit.
   void _onDoubleTap() {
+    _targetZoomMatrices.remove(_activePage);
     final target = _transformationFor(_activePage);
     final zoomed = target.value.getMaxScaleOnAxis() >= 1.5;
-    final focal =
-        _doubleTapFocal ?? MediaQuery.sizeOf(context).center(Offset.zero);
+    final focal = _doubleTapFocal ?? _stageSize().center(Offset.zero);
     _animateZoom(target, zoomed ? Matrix4.identity() : _focalZoom(focal, 2.5));
   }
 
@@ -477,10 +517,22 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
     ..translateByDouble(-focal.dx, -focal.dy, 0, 1);
 
   void _animateZoom(TransformationController target, Matrix4 end) {
+    final duration = MotionTokens.resolve(context, MotionTokens.spatial);
+    if (duration == Duration.zero) {
+      _zoomController.stop();
+      _zoomTarget = null;
+      _zoomTargetPage = null;
+      _zoomTween = null;
+      _targetZoomMatrices.remove(_activePage);
+      target.value = end;
+      return;
+    }
     _zoomTarget = target;
+    _zoomTargetPage = _activePage;
+    _targetZoomMatrices[_activePage] = end;
     _zoomTween = Matrix4Tween(begin: target.value, end: end);
     _zoomController
-      ..duration = MotionTokens.resolve(context, MotionTokens.spatial)
+      ..duration = duration
       ..forward(from: 0);
   }
 
@@ -493,8 +545,10 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
 
   /// Explicit "fit to screen" reset — the bottom-bar button and the `0`
   /// key both land here (same result as the zoom cycle's fit leg).
-  void _resetZoom() =>
-      _animateZoom(_transformationFor(_activePage), Matrix4.identity());
+  void _resetZoom() {
+    _targetZoomMatrices.remove(_activePage);
+    _animateZoom(_transformationFor(_activePage), Matrix4.identity());
+  }
 
   /// Save the active page through the same controller as the detail
   /// badges: in-flight disables the button, done/error keep visible state.
@@ -592,9 +646,24 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
     _pageController.jumpToPage(page);
   }
 
+  bool _isWideInfoLayout(BuildContext context) =>
+      MediaQuery.sizeOf(context).width >= AppBreakpoints.expanded;
+
+  void _openFromInfoPanel(Future<void> Function(BuildContext context) open) {
+    final navContext = Navigator.of(context).context;
+    final hasRouter = GoRouter.maybeOf(context) != null;
+    Navigator.of(context).pop<void>();
+    if (hasRouter) unawaited(open(navContext));
+  }
+
   /// Info sheet — the viewer stays put; meta (title/author/date/id/pages)
   /// plus the same save-all / open-detail actions as the detail page.
+  /// On wide layouts (`>= 840dp`), toggles the docked right panel instead.
   void _showInfo(IllustEntity entity) {
+    if (_isWideInfoLayout(context)) {
+      setState(() => _infoPanelOpen = !_infoPanelOpen);
+      return;
+    }
     unawaited(
       showAppAdaptiveSideSheet<void>(
         context: context,
@@ -677,6 +746,19 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
               onSelected: () => unawaited(_downloadAll(entity)),
             ),
           if (entity != null) ...[
+            if (isDesktopImageClipboardSupported)
+              DisplayAction(
+                icon: Icons.copy_outlined,
+                label: l10n.copyOriginalImage,
+                onSelected: () => unawaited(
+                  copyIllustOriginalImageToClipboard(
+                    context,
+                    ProviderScope.containerOf(context),
+                    entity,
+                    pageIndex: _activePage,
+                  ),
+                ),
+              ),
             DisplayAction(
               icon: Icons.share_outlined,
               label: l10n.share,
@@ -791,110 +873,136 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
                   // edge; each chrome bar SafeAreas its own controls.
                   primary: false,
                   backgroundColor: Colors.black,
-                  body: MouseRegion(
-                    onEnter: _handlePointerMoveOrEnter,
-                    onHover: _handlePointerMoveOrEnter,
-                    onExit: _handlePointerExit,
-                    child: Stack(
-                      children: [
-                        Positioned.fill(
-                          // A status has nothing to zoom and keeps its exits:
-                          // outside the stage's taps, its retry answers at
-                          // once instead of after the double-tap timeout.
-                          child: _pageCount == 0
-                              ? widget.loading
-                                    ? const FeedLoading()
-                                    : widget.failure != null
-                                    ? _onStage(context, widget.failure!)
-                                    : Center(
-                                        child: Text(
-                                          text('viewerNoImages'),
-                                          style: TextStyle(
-                                            color: FuncTokens.white,
-                                          ),
-                                        ),
-                                      )
-                              : GestureDetector(
-                                  behavior: HitTestBehavior.opaque,
-                                  // Tap toggles chrome; double-tap runs the
-                                  // zoom cycle. One detector registers both
-                                  // so the framework arena does the
-                                  // ~kDoubleTapTimeout disambiguation (risks
-                                  // R1 — no custom timer).
-                                  onTap: _toggleChrome,
-                                  onDoubleTapDown: (details) =>
-                                      _doubleTapFocal = details.localPosition,
-                                  onDoubleTap: _onDoubleTap,
-                                  onSecondaryTapUp: (details) =>
-                                      _openContextMenu(details, saveState),
-                                  child:
-                                      // The paging slop: a drag leaning towards
-                                      // vertical dismisses instead of paging.
-                                      PagingSlop(
-                                        child: PageView.builder(
-                                          controller: _pageController,
-                                          physics: _activeZoomed
-                                              ? const NeverScrollableScrollPhysics()
-                                              : const PageSnapPhysics(),
-                                          itemCount: _pageCount,
-                                          itemBuilder: (context, page) =>
-                                              PagingSlopPage(
-                                                // Unzoomed, the image's pan must
-                                                // not tie with the pager; zoomed,
-                                                // the pager is off.
-                                                restore: _isZoomed(page),
-                                                child: _buildPage(
-                                                  context,
-                                                  page,
+                  body: Row(
+                    children: [
+                      Expanded(
+                        child: MouseRegion(
+                          key: _stageKey,
+                          onEnter: _handlePointerMoveOrEnter,
+                          onHover: _handlePointerMoveOrEnter,
+                          onExit: _handlePointerExit,
+                          child: Stack(
+                            children: [
+                              Positioned.fill(
+                                // A status has nothing to zoom and keeps its exits:
+                                // outside the stage's taps, its retry answers at
+                                // once instead of after the double-tap timeout.
+                                child: _pageCount == 0
+                                    ? widget.loading
+                                          ? const FeedLoading()
+                                          : widget.failure != null
+                                          ? _onStage(context, widget.failure!)
+                                          : Center(
+                                              child: Text(
+                                                text('viewerNoImages'),
+                                                style: TextStyle(
+                                                  color: FuncTokens.white,
                                                 ),
                                               ),
-                                        ),
+                                            )
+                                    : GestureDetector(
+                                        behavior: HitTestBehavior.opaque,
+                                        // Tap toggles chrome; double-tap runs the
+                                        // zoom cycle. One detector registers both
+                                        // so the framework arena does the
+                                        // ~kDoubleTapTimeout disambiguation (risks
+                                        // R1 — no custom timer).
+                                        onTap: _toggleChrome,
+                                        onDoubleTapDown: (details) =>
+                                            _doubleTapFocal =
+                                                details.localPosition,
+                                        onDoubleTap: _onDoubleTap,
+                                        onSecondaryTapUp: (details) =>
+                                            _openContextMenu(
+                                              details,
+                                              saveState,
+                                            ),
+                                        child:
+                                            // The paging slop: a drag leaning towards
+                                            // vertical dismisses instead of paging.
+                                            PagingSlop(
+                                              child: PageView.builder(
+                                                controller: _pageController,
+                                                physics: _activeZoomed
+                                                    ? const NeverScrollableScrollPhysics()
+                                                    : const PageSnapPhysics(),
+                                                itemCount: _pageCount,
+                                                itemBuilder: (context, page) =>
+                                                    PagingSlopPage(
+                                                      // Unzoomed, the image's pan must
+                                                      // not tie with the pager; zoomed,
+                                                      // the pager is off.
+                                                      restore: _isZoomed(page),
+                                                      child: _buildPage(
+                                                        context,
+                                                        page,
+                                                      ),
+                                                    ),
+                                              ),
+                                            ),
                                       ),
+                              ),
+                              if (_pageCount > 1 &&
+                                  (InputModalityScope.maybeOf(context) ??
+                                          defaultInputModalityFor(
+                                            Theme.of(context).platform,
+                                          )) ==
+                                      InputModality.pointer) ...[
+                                _ViewerPageNavButton(
+                                  key: const Key('viewer-prev-page'),
+                                  visible:
+                                      (_stageHovered || _chromeVisible) &&
+                                      _activePage > 0,
+                                  alignment: AlignmentDirectional.centerStart,
+                                  icon: Icons.chevron_left,
+                                  tooltip: MaterialLocalizations.of(
+                                    context,
+                                  ).previousPageTooltip,
+                                  onPressed: _pageBackward,
                                 ),
-                        ),
-                        if (_pageCount > 1 &&
-                            (InputModalityScope.maybeOf(context) ??
-                                    defaultInputModalityFor(
-                                      Theme.of(context).platform,
-                                    )) ==
-                                InputModality.pointer) ...[
-                          _ViewerPageNavButton(
-                            key: const Key('viewer-prev-page'),
-                            visible:
-                                (_stageHovered || _chromeVisible) &&
-                                _activePage > 0,
-                            alignment: AlignmentDirectional.centerStart,
-                            icon: Icons.chevron_left,
-                            tooltip: MaterialLocalizations.of(
-                              context,
-                            ).previousPageTooltip,
-                            onPressed: _pageBackward,
+                                _ViewerPageNavButton(
+                                  key: const Key('viewer-next-page'),
+                                  visible:
+                                      (_stageHovered || _chromeVisible) &&
+                                      _activePage + 1 < _pageCount,
+                                  alignment: AlignmentDirectional.centerEnd,
+                                  icon: Icons.chevron_right,
+                                  tooltip: MaterialLocalizations.of(
+                                    context,
+                                  ).nextPageTooltip,
+                                  onPressed: _pageForward,
+                                ),
+                              ],
+                              _ChromeEdgeBar(
+                                visible: _chromeVisible,
+                                edge: _ChromeEdge.top,
+                                child: _buildTopBar(context),
+                              ),
+                              _ChromeEdgeBar(
+                                visible: _chromeVisible,
+                                edge: _ChromeEdge.bottom,
+                                child: _buildBottomBar(context, saveState),
+                              ),
+                            ],
                           ),
-                          _ViewerPageNavButton(
-                            key: const Key('viewer-next-page'),
-                            visible:
-                                (_stageHovered || _chromeVisible) &&
-                                _activePage + 1 < _pageCount,
-                            alignment: AlignmentDirectional.centerEnd,
-                            icon: Icons.chevron_right,
-                            tooltip: MaterialLocalizations.of(
-                              context,
-                            ).nextPageTooltip,
-                            onPressed: _pageForward,
+                        ),
+                      ),
+                      if (_isWideInfoLayout(context) &&
+                          _infoPanelOpen &&
+                          entity != null)
+                        _ViewerInfoPanel(
+                          entity: entity,
+                          onClose: () => setState(() => _infoPanelOpen = false),
+                          onSaveAll: () => unawaited(_downloadAll(entity)),
+                          onOpenDetail: () => Navigator.of(context).pop<void>(),
+                          onOpenAuthor: () => _openFromInfoPanel(
+                            (ctx) => openUser(ctx, entity.user.id),
                           ),
-                        ],
-                        _ChromeEdgeBar(
-                          visible: _chromeVisible,
-                          edge: _ChromeEdge.top,
-                          child: _buildTopBar(context),
+                          onOpenTag: (tag) => _openFromInfoPanel(
+                            (ctx) => openTagSearch(ctx, tag),
+                          ),
                         ),
-                        _ChromeEdgeBar(
-                          visible: _chromeVisible,
-                          edge: _ChromeEdge.bottom,
-                          child: _buildBottomBar(context, saveState),
-                        ),
-                      ],
-                    ),
+                    ],
                   ),
                 ),
               ),
@@ -943,23 +1051,32 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
 
   /// Multiplicative zoom centered on the viewport — keyboard zooms have no
   /// pointer focal, so the screen center is the honest anchor.
-  void _zoomBy(double factor) => _zoomAt(
-    HomeShellChrome.contentSizeOf(context).center(Offset.zero),
-    factor,
-  );
+  void _zoomBy(double factor) =>
+      _zoomAt(_stageSize().center(Offset.zero), factor);
 
-  /// Keys and the wheel stay inside a pinch's bounds.
+  /// Keys and the wheel stay inside a pinch's bounds, accumulating successive
+  /// wheel ticks onto the in-flight target matrix.
   void _zoomAt(Offset focal, double factor) {
     final target = _transformationFor(_activePage);
-    final scale = target.value.getMaxScaleOnAxis();
+    final base = _targetZoomMatrices[_activePage] ?? target.value;
+    final scale = base.getMaxScaleOnAxis();
     final next = (scale * factor).clamp(
       ImageViewerPage.minScale,
       ImageViewerPage.maxScale,
     );
-    _animateZoom(
-      target,
-      _focalZoom(focal, next / scale)..multiply(target.value),
-    );
+    if (factor < 1 && next <= 1.001 && next >= 0.99) {
+      _animateZoom(target, Matrix4.identity());
+      return;
+    }
+    final end = _focalZoom(focal, next / scale)..multiply(base);
+    if (next > 1.0) {
+      final size = _stageSize();
+      final minTx = size.width * (1 - next);
+      final minTy = size.height * (1 - next);
+      end.setEntry(0, 3, end.entry(0, 3).clamp(minTx, 0.0));
+      end.setEntry(1, 3, end.entry(1, 3).clamp(minTy, 0.0));
+    }
+    _animateZoom(target, end);
   }
 
   /// Imperative pop — explicit exits (back button, Esc/Backspace) always
@@ -967,6 +1084,7 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
   /// zoom is still active we snap the transform back to fit and pop on the
   /// next frame — one frame's delay beats re-arming the gate machinery.
   void _imperativePop() {
+    _targetZoomMatrices.clear();
     if (!_activeZoomed) {
       Navigator.of(context).pop<void>();
       return;
@@ -1049,6 +1167,7 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
               minScale: ImageViewerPage.minScale,
               maxScale: ImageViewerPage.maxScale,
               panEnabled: _isZoomed(page),
+              onInteractionStart: (_) => _targetZoomMatrices.remove(page),
               // Tight constraints (U3): Center alone gives loose
               // constraints, so RenderImage laid out at its intrinsic
               // size (original pixels / DPR) and BoxFit.contain had
@@ -1165,6 +1284,12 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
     final entity = widget.entity;
     final l10n = context.l10n;
     final hasPages = _pageCount > 0;
+    final modality =
+        InputModalityScope.maybeOf(context) ??
+        defaultInputModalityFor(Theme.of(context).platform);
+    final showScrubber =
+        _pageCount >= 4 ||
+        (modality == InputModality.pointer && _pageCount >= 2);
     return Material(
       color: Colors.transparent,
       child: SafeArea(
@@ -1172,7 +1297,7 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (_pageCount >= 4)
+            if (showScrubber)
               Listener(
                 onPointerDown: (event) => _scrubPointer = event.pointer,
                 child: _PageScrubber(
@@ -1182,6 +1307,7 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
                   value: _scrubPage ?? _activePage,
                   onChanged: _onScrubChanged,
                   onChangeEnd: _onScrubEnd,
+                  onHoverPageChanged: _onScrubberHoverChanged,
                   pageLabel: (page) =>
                       context.l10n.viewerPageLabel(page + 1, _pageCount),
                   thumbnailUrl: (page) => widget.entity?.squareUrlAt(page),

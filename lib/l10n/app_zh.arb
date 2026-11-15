@@ -1983,5 +1983,94 @@
   "novelShowToolbar": "显示工具栏",
   "@novelShowToolbar": {
     "description": "Compact pointer-mode cue pill label to reveal the reader toolbar"
+  },
+  "navBack": "后退",
+  "@navBack": {
+    "description": "Tooltip and menu item label for navigating back in history"
+  },
+  "navForward": "前进",
+  "@navForward": {
+    "description": "Tooltip and menu item label for navigating forward in history"
+  },
+  "commandContentFilter": "内容筛选",
+  "@commandContentFilter": {
+    "description": "Tooltip for the desktop command bar quick content filter button (R-18 and AI display toggles)"
+  },
+  "commandSwitchAccount": "切换账号",
+  "@commandSwitchAccount": {
+    "description": "Tooltip for the desktop command bar account avatar switcher button"
+  },
+  "menuFile": "文件",
+  "@menuFile": {
+    "description": "macOS top-level File menu title"
+  },
+  "menuView": "视图",
+  "@menuView": {
+    "description": "macOS top-level View menu title"
+  },
+  "menuNavigate": "导航",
+  "@menuNavigate": {
+    "description": "macOS top-level Navigate menu title"
+  },
+  "menuWindow": "窗口",
+  "@menuWindow": {
+    "description": "macOS top-level Window menu title"
+  },
+  "menuPreferences": "偏好设置…",
+  "@menuPreferences": {
+    "description": "macOS application menu item opening Settings"
+  },
+  "menuEnterFullScreen": "进入全屏",
+  "@menuEnterFullScreen": {
+    "description": "View menu item to enter window fullscreen mode"
+  },
+  "menuExitFullScreen": "退出全屏",
+  "@menuExitFullScreen": {
+    "description": "View menu item to exit window fullscreen mode"
+  },
+  "viewerPreviousPage": "上一页",
+  "@viewerPreviousPage": {
+    "description": "Tooltip for the previous-page edge navigation button in the image viewer"
+  },
+  "viewerNextPage": "下一页",
+  "@viewerNextPage": {
+    "description": "Tooltip for the next-page edge navigation button in the image viewer"
+  },
+  "copyOriginalImage": "复制原图",
+  "@copyOriginalImage": {
+    "description": "Context menu and detail/viewer action label to copy the original artwork image to the system clipboard"
+  },
+  "imageCopiedToClipboard": "原图已复制到剪贴板",
+  "@imageCopiedToClipboard": {
+    "description": "Confirmation toast shown after copying an artwork image to the clipboard"
+  },
+  "imageCopyFailed": "无法复制原图",
+  "@imageCopyFailed": {
+    "description": "Error toast shown when copying the artwork image to the clipboard fails"
+  },
+  "batchDownloadOriginal": "下载原图",
+  "@batchDownloadOriginal": {
+    "description": "Floating batch bar action button to download original images for selected works"
+  },
+  "batchBookmarkPublic": "公开收藏",
+  "@batchBookmarkPublic": {
+    "description": "Floating batch bar action button to enqueue public bookmarks for selected works"
+  },
+  "batchBookmarkPrivate": "私密收藏",
+  "@batchBookmarkPrivate": {
+    "description": "Floating batch bar action button to enqueue private bookmarks for selected works"
+  },
+  "batchClearSelection": "取消选择",
+  "@batchClearSelection": {
+    "description": "Floating batch bar button and tooltip to clear multi-selection"
+  },
+  "batchBookmarkEnqueued": "{count, plural, other{已加入收藏队列（{count} 项）}}",
+  "@batchBookmarkEnqueued": {
+    "description": "Feedback toast shown after queuing multiple artworks for bookmarking",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   }
 }

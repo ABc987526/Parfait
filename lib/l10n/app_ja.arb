@@ -1416,5 +1416,33 @@
   "novelSpreadAuto": "自動",
   "novelSpreadLandscape": "横画面",
   "novelSpreadAlways": "常に見開き",
-  "novelShowToolbar": "ツールバーを表示"
+  "novelShowToolbar": "ツールバーを表示",
+  "navBack": "戻る",
+  "navForward": "進む",
+  "commandContentFilter": "表示フィルター",
+  "commandSwitchAccount": "アカウントを切り替え",
+  "menuFile": "ファイル",
+  "menuView": "表示",
+  "menuNavigate": "移動",
+  "menuWindow": "ウィンドウ",
+  "menuPreferences": "環境設定…",
+  "menuEnterFullScreen": "フルスクリーンにする",
+  "menuExitFullScreen": "フルスクリーンを解除",
+  "viewerPreviousPage": "前のページ",
+  "viewerNextPage": "次のページ",
+  "copyOriginalImage": "元画像をコピー",
+  "imageCopiedToClipboard": "元画像をクリップボードにコピーしました",
+  "imageCopyFailed": "元画像をコピーできませんでした",
+  "batchDownloadOriginal": "元画像をダウンロード",
+  "batchBookmarkPublic": "公開ブックマーク",
+  "batchBookmarkPrivate": "非公開ブックマーク",
+  "batchClearSelection": "選択を解除",
+  "batchBookmarkEnqueued": "{count, plural, other{{count}件をブックマークキューに追加しました}}",
+  "@batchBookmarkEnqueued": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
 }

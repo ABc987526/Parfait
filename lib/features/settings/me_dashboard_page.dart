@@ -13,6 +13,7 @@ import '../../app/navigation/home_shell_metrics.dart';
 import '../../app/navigation/routes.dart';
 import '../../app/person_avatar.dart';
 import '../../app/pixiv_image.dart';
+import '../../app/pull_to_refresh.dart';
 import '../../app/theme/func_semantic_tokens.dart';
 import '../../app/widgets/app_top_bar.dart';
 import '../../app/widgets/edge_icon_buttons.dart';
@@ -62,18 +63,25 @@ class _MeDashboardPageState extends ConsumerState<MeDashboardPage> {
     final wide =
         size.width >= AppBreakpoints.expanded &&
         size.height >= AppBreakpoints.compactHeight;
-    return Scaffold(
-      // Root pages own no inline composer: leaving the default `true`
-      // would subscribe this whole subtree to per-frame viewInsets churn
-      // every time the IME animates (e.g. the push that hides the search
-      // keyboard) — a relayout storm across all five live branches.
-      resizeToAvoidBottomInset: false,
-      // Settings open from the row at the page's end, not the bar.
-      appBar: AppTopBar(
-        contentWidth: wide ? _wideMaxWidth : ContentWidths.settings,
-        title: Text(context.l10n.homeMe),
+    return RefreshActionAnchor(
+      onRefresh: () {
+        ref.invalidate(_recentHistoryProvider);
+        ref.invalidate(_activeDownloadCountProvider);
+        unawaited(ref.read(accountStoreProvider.notifier).reload());
+      },
+      child: Scaffold(
+        // Root pages own no inline composer: leaving the default `true`
+        // would subscribe this whole subtree to per-frame viewInsets churn
+        // every time the IME animates (e.g. the push that hides the search
+        // keyboard) — a relayout storm across all five live branches.
+        resizeToAvoidBottomInset: false,
+        // Settings open from the row at the page's end, not the bar.
+        appBar: AppTopBar(
+          contentWidth: wide ? _wideMaxWidth : ContentWidths.settings,
+          title: Text(context.l10n.homeMe),
+        ),
+        body: _body(context, accounts, wide: wide),
       ),
-      body: _body(context, accounts, wide: wide),
     );
   }
 

@@ -94,24 +94,26 @@ class _ExpandableTextState extends State<ExpandableText> {
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
       Text.rich(widget.text, style: widget.style),
-      Align(
-        alignment: AlignmentDirectional.centerEnd,
-        // One node: the button announces its expanded state.
-        child: MergeSemantics(
-          child: Semantics(
-            expanded: true,
-            child: TextButton(
-              // The label ends where the lines above end; the target
-              // reaches inward instead.
-              style: TextButton.styleFrom(
-                padding: const EdgeInsetsDirectional.only(
-                  start: FuncSpacing.md,
+      SelectionContainer.disabled(
+        child: Align(
+          alignment: AlignmentDirectional.centerEnd,
+          // One node: the button announces its expanded state.
+          child: MergeSemantics(
+            child: Semantics(
+              expanded: true,
+              child: TextButton(
+                // The label ends where the lines above end; the target
+                // reaches inward instead.
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsetsDirectional.only(
+                    start: FuncSpacing.md,
+                  ),
+                  minimumSize: const Size(kMinInteractiveDimension, 40),
+                  alignment: AlignmentDirectional.centerEnd,
                 ),
-                minimumSize: const Size(kMinInteractiveDimension, 40),
-                alignment: AlignmentDirectional.centerEnd,
+                onPressed: _toggle,
+                child: Text(context.l10n.collapseText),
               ),
-              onPressed: _toggle,
-              child: Text(context.l10n.collapseText),
             ),
           ),
         ),
@@ -167,24 +169,28 @@ class _ExpandableTextState extends State<ExpandableText> {
           clipBehavior: Clip.none,
           children: [
             ClipRect(clipper: _Band(0, fold.lastLineTop), child: lines()),
-            ExcludeSemantics(
-              child: ClipRect(
-                clipper: _Band(fold.lastLineTop, fold.height),
-                child: ShaderMask(
-                  blendMode: BlendMode.dstIn,
-                  shaderCallback: (bounds) => _fade(
-                    bounds,
-                    clearFrom: width - labelWidth - _labelGap,
-                    textDirection: textDirection,
+            SelectionContainer.disabled(
+              child: ExcludeSemantics(
+                child: ClipRect(
+                  clipper: _Band(fold.lastLineTop, fold.height),
+                  child: ShaderMask(
+                    blendMode: BlendMode.dstIn,
+                    shaderCallback: (bounds) => _fade(
+                      bounds,
+                      clearFrom: width - labelWidth - _labelGap,
+                      textDirection: textDirection,
+                    ),
+                    child: lines(),
                   ),
-                  child: lines(),
                 ),
               ),
             ),
             PositionedDirectional(
               top: fold.baseline - labelAscent,
               end: 0,
-              child: ExcludeSemantics(child: Text(label, style: labelStyle)),
+              child: SelectionContainer.disabled(
+                child: ExcludeSemantics(child: Text(label, style: labelStyle)),
+              ),
             ),
           ],
         ),

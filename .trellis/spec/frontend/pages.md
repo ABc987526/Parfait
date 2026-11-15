@@ -431,3 +431,17 @@ reviewed: 2026-11-15
   of the window, far from the pointer.
 - **Check:** `test/card_action_test.dart` "a PC opens the card actions as a menu beside the pointer" "the PC menu reads the state when it opens, outside build" "a mouse lights the card on hover and opens it on right-click" "a card takes focus, opens on Enter and shows its actions on the menu keys"; `test/illust_detail_actions_test.dart` "a PC opens the tag entries as a menu beside the chip"; `test/history_page_test.dart` "a PC right-click on a card offers Manage, then enters"; `test/illust_detail_download_test.dart` "a PC right-click offers the selection mode, then toggles"; `test/scroll_behavior_test.dart` "a mouse brings a scrollbar and keeps the list as it was"
 - **Code:** `lib/app/widgets/display_actions.dart`, `lib/app/motion/app_overlays.dart`, `lib/app/widgets/card_actions/card_action_sheet.dart`, `lib/app/widgets/tag_actions_sheet.dart`, `lib/app/widgets/bookmark_switch_button.dart`, `lib/app/widgets/feed/illust_card.dart`, `lib/app/scroll_behavior.dart`, `lib/app/pull_to_refresh.dart`
+
+### PAGE-24 Pointer work card hover pills and selectable comment lists
+- **Rule:** Under `InputModality.pointer`, `IllustCard` omits `PressScale` shrink
+  and touch long-press gestures (retaining secondary-click context menus and
+  keyboard menu keys), reveals 28dp author avatar and bookmark quick-action
+  hover pills along the card overlay footer, and wraps card content in
+  `SelectionContainer.disabled` to prevent stray drag selections. `CommentsPage`
+  wraps comment lists in `SelectionArea` while excluding the bottom
+  `CommentComposer`.
+- **Why:** Pointer cards benefit from single-click hover shortcuts instead of
+  touch scaling and hidden long presses, while comment threads should allow
+  direct text copying without interfering with card gestures.
+- **Check:** `test/desktop_ux_phase2_test.dart` "Pointer IllustCard omits PressScale and long-press and reveals quick author and bookmark hover pills" "SelectionArea wraps detail and comments text while excluding IllustCard, collapsed fade, and touch tags"
+- **Code:** `lib/app/widgets/feed/illust_card.dart`, `lib/features/comments/comments_page.dart`

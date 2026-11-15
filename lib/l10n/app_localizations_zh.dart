@@ -3207,4 +3207,74 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get novelShowToolbar => '显示工具栏';
+
+  @override
+  String get navBack => '后退';
+
+  @override
+  String get navForward => '前进';
+
+  @override
+  String get commandContentFilter => '内容筛选';
+
+  @override
+  String get commandSwitchAccount => '切换账号';
+
+  @override
+  String get menuFile => '文件';
+
+  @override
+  String get menuView => '视图';
+
+  @override
+  String get menuNavigate => '导航';
+
+  @override
+  String get menuWindow => '窗口';
+
+  @override
+  String get menuPreferences => '偏好设置…';
+
+  @override
+  String get menuEnterFullScreen => '进入全屏';
+
+  @override
+  String get menuExitFullScreen => '退出全屏';
+
+  @override
+  String get viewerPreviousPage => '上一页';
+
+  @override
+  String get viewerNextPage => '下一页';
+
+  @override
+  String get copyOriginalImage => '复制原图';
+
+  @override
+  String get imageCopiedToClipboard => '原图已复制到剪贴板';
+
+  @override
+  String get imageCopyFailed => '无法复制原图';
+
+  @override
+  String get batchDownloadOriginal => '下载原图';
+
+  @override
+  String get batchBookmarkPublic => '公开收藏';
+
+  @override
+  String get batchBookmarkPrivate => '私密收藏';
+
+  @override
+  String get batchClearSelection => '取消选择';
+
+  @override
+  String batchBookmarkEnqueued(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '已加入收藏队列（$count 项）',
+    );
+    return '$_temp0';
+  }
 }

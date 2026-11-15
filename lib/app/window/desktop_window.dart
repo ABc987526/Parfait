@@ -542,11 +542,13 @@ class DesktopWindowSession with WindowListener {
   Future<void> titleBarDoubleClick() =>
       _host.performCommand(DesktopWindowCommand.titleBarDoubleClick);
 
-  Future<void> updateTitleBarRegions(List<DesktopTitleBarRegion> regions) =>
-      _host.setTitleBarMetrics(
-        regions: regions,
-        titleBarHeight: metrics.value.isFullScreen ? 0 : 32,
-      );
+  Future<void> updateTitleBarRegions(
+    List<DesktopTitleBarRegion> regions, {
+    double? titleBarHeight,
+  }) => _host.setTitleBarMetrics(
+    regions: regions,
+    titleBarHeight: metrics.value.isFullScreen ? 0.0 : (titleBarHeight ?? 32.0),
+  );
 
   /// Captures pre-maximize ordinary bounds; each plugin call is isolated so
   /// a Wayland position failure never discards window size.
@@ -734,6 +736,9 @@ class _DesktopWindowBindingState extends ConsumerState<DesktopWindowBinding> {
       onTitleBarDoubleClick: () => unawaited(session.titleBarDoubleClick()),
       onRegionsChanged: (regions) =>
           unawaited(session.updateTitleBarRegions(regions)),
+      onRegionsWithHeightChanged: (regions, height) => unawaited(
+        session.updateTitleBarRegions(regions, titleBarHeight: height),
+      ),
     );
     unawaited(
       session.attach(

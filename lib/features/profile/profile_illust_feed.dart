@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/layout/deferred_cache_scroll_view.dart';
 import '../../app/pull_to_refresh.dart';
 import '../../app/widgets/feed/feed_grid.dart';
+import '../../app/widgets/feed/feed_selection.dart';
 import '../../app/widgets/feed/feed_states.dart';
 import '../../app/widgets/feed/illust_card.dart';
 import '../../app/widgets/skeleton/illust_grid_skeleton.dart';
@@ -73,74 +74,76 @@ class ProfileIllustFeed extends ConsumerWidget {
             'profile:${feedKey.userId}:${feedKey.kind.name}:'
             '${feedKey.workType.name}:${feedKey.restrict.name}:'
             '${feedKey.bookmarkTag ?? ''}';
-        return PullToRefresh(
-          isNested: true,
-          onRefresh: () =>
-              ref.read(profileIllustFeedProvider(feedKey).notifier).refresh(),
-          child: LoadMoreListener(
-            itemCount: feed.ids.length,
-            onLoadMore: () => ref
-                .read(profileIllustFeedProvider(feedKey).notifier)
-                .loadMore(),
-            // No SmoothWheelScroll here: this is the inner scrollable of a
-            // NestedScrollView — driving its position via animateTo bypasses
-            // the nested coordinator, so the profile header would never
-            // collapse on wheel. Native wheel keeps header folding intact.
-            child: DeferredCacheScrollView(
-              key: PageStorageKey(feedKey),
-              restorationId: 'profile-${feedKey.toString()}',
-              physics: const AlwaysScrollableScrollPhysics(),
-              scrollCacheExtent: kFeedCacheExtent,
-              slivers: [
-                PullToRefresh.nestedHeader,
-                if (visibleEntities.isEmpty)
-                  SliverFillRemaining(
-                    hasScrollBody: false,
-                    // Bookmarks are not filtered: an empty page there is
-                    // not the filters' doing.
-                    child:
-                        feed.isAllHidden &&
-                            query.isEmpty &&
-                            controller.localFilterEnabled
-                        ? FeedAllHidden(
-                            feed: feed,
-                            onLoadMore: controller.retryLoadMore,
-                          )
-                        : FeedEmpty(
-                            icon: Icons.inbox_outlined,
-                            title: query.isEmpty
-                                ? context.l10n.profileItemsEmpty
-                                : context.l10n.bookmarkTagFilterEmpty,
-                          ),
-                  )
-                else
-                  IllustFeedGrid(
-                    padding: gridPadding,
-                    itemIds: [for (final e in visibleEntities) e.id],
-                    itemCount: visibleEntities.length,
-                    pagerLoadMore: () => ref
-                        .read(profileIllustFeedProvider(feedKey).notifier)
-                        .loadMore(),
-                    warmTexts: (context, index) =>
-                        IllustCard.warmTexts(context, visibleEntities[index]),
-                    items: visibleEntities,
-                    itemDeps: heroScope,
-                    itemBuilder: (context, index) => IllustCard(
-                      entity: visibleEntities[index],
-                      heroScope: heroScope,
+        return SelectableFeedHost(
+          child: PullToRefresh(
+            isNested: true,
+            onRefresh: () =>
+                ref.read(profileIllustFeedProvider(feedKey).notifier).refresh(),
+            child: LoadMoreListener(
+              itemCount: feed.ids.length,
+              onLoadMore: () => ref
+                  .read(profileIllustFeedProvider(feedKey).notifier)
+                  .loadMore(),
+              // No SmoothWheelScroll here: this is the inner scrollable of a
+              // NestedScrollView — driving its position via animateTo bypasses
+              // the nested coordinator, so the profile header would never
+              // collapse on wheel. Native wheel keeps header folding intact.
+              child: DeferredCacheScrollView(
+                key: PageStorageKey(feedKey),
+                restorationId: 'profile-${feedKey.toString()}',
+                physics: const AlwaysScrollableScrollPhysics(),
+                scrollCacheExtent: kFeedCacheExtent,
+                slivers: [
+                  PullToRefresh.nestedHeader,
+                  if (visibleEntities.isEmpty)
+                    SliverFillRemaining(
+                      hasScrollBody: false,
+                      // Bookmarks are not filtered: an empty page there is
+                      // not the filters' doing.
+                      child:
+                          feed.isAllHidden &&
+                              query.isEmpty &&
+                              controller.localFilterEnabled
+                          ? FeedAllHidden(
+                              feed: feed,
+                              onLoadMore: controller.retryLoadMore,
+                            )
+                          : FeedEmpty(
+                              icon: Icons.inbox_outlined,
+                              title: query.isEmpty
+                                  ? context.l10n.profileItemsEmpty
+                                  : context.l10n.bookmarkTagFilterEmpty,
+                            ),
+                    )
+                  else
+                    IllustFeedGrid(
+                      padding: gridPadding,
+                      itemIds: [for (final e in visibleEntities) e.id],
+                      itemCount: visibleEntities.length,
+                      pagerLoadMore: () => ref
+                          .read(profileIllustFeedProvider(feedKey).notifier)
+                          .loadMore(),
+                      warmTexts: (context, index) =>
+                          IllustCard.warmTexts(context, visibleEntities[index]),
+                      items: visibleEntities,
+                      itemDeps: heroScope,
+                      itemBuilder: (context, index) => IllustCard(
+                        entity: visibleEntities[index],
+                        heroScope: heroScope,
+                      ),
+                    ),
+                  SliverToBoxAdapter(
+                    child: FeedTail(
+                      feed: feed,
+                      onRetry: () => ref
+                          .read(profileIllustFeedProvider(feedKey).notifier)
+                          .retryLoadMore(),
+                      errorTitle: context.l10n.profileLoadMoreFailed,
+                      retryLabel: context.l10n.profileRetry,
                     ),
                   ),
-                SliverToBoxAdapter(
-                  child: FeedTail(
-                    feed: feed,
-                    onRetry: () => ref
-                        .read(profileIllustFeedProvider(feedKey).notifier)
-                        .retryLoadMore(),
-                    errorTitle: context.l10n.profileLoadMoreFailed,
-                    retryLabel: context.l10n.profileRetry,
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         );

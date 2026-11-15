@@ -58,20 +58,46 @@ class PullToRefresh extends StatefulWidget {
     return false;
   }
 
+  /// Whether an active visible [PullToRefresh] or [RefreshActionAnchor] is
+  /// currently mounted for [focusContext] or the active route.
+  static bool hasActiveRefresh([BuildContext? focusContext]) {
+    if (focusContext != null && focusContext.mounted) {
+      final primary = PrimaryScrollController.maybeOf(focusContext);
+      if (primary != null && _hasController(primary)) return true;
+    }
+    for (final state in _instances) {
+      if (state.mounted && state._isActiveAndVisible()) return true;
+    }
+    return _RefreshActionAnchorState.hasActive(focusContext);
+  }
+
+  static bool _hasController(ScrollController controller) {
+    final explicit = _mounted[controller];
+    if (explicit != null && explicit.mounted) return true;
+    for (final state in _instances) {
+      if (state.mounted &&
+          state._effectiveController == controller &&
+          state._isActiveAndVisible()) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   /// Refreshes the currently active, visible [PullToRefresh], preferring
-  /// [focusContext]'s [PrimaryScrollController] when present. False when no
-  /// visible [PullToRefresh] is mounted.
+  /// [focusContext]'s [PrimaryScrollController] when present, falling back to
+  /// any mounted active [RefreshActionAnchor]. False when nothing is active.
   static bool triggerActive([BuildContext? focusContext]) {
     if (focusContext != null && focusContext.mounted) {
       final primary = PrimaryScrollController.maybeOf(focusContext);
       if (primary != null && trigger(primary)) return true;
     }
-    for (final state in _instances) {
+    for (final state in _instances.toList().reversed) {
       if (state.mounted && state._isActiveAndVisible()) {
         return _triggerState(state);
       }
     }
-    return false;
+    return _RefreshActionAnchorState.triggerActive(focusContext);
   }
 
   static bool _triggerState(_PullToRefreshState state) {
@@ -444,6 +470,80 @@ class NestedRefreshOuterPhysics extends ScrollPhysics {
     }
     return super.applyBoundaryConditions(position, value);
   }
+}
+
+/// Registers an explicit refresh callback for secondary or non-scrollable
+/// views that do not host a [PullToRefresh], allowing the desktop command bar
+/// and F5 / Ctrl+R / Cmd+R shortcuts to refresh them uniformly.
+class RefreshActionAnchor extends StatefulWidget {
+  const RefreshActionAnchor({
+    super.key,
+    required this.onRefresh,
+    required this.child,
+  });
+
+  final VoidCallback? onRefresh;
+  final Widget child;
+
+  @override
+  State<RefreshActionAnchor> createState() => _RefreshActionAnchorState();
+}
+
+class _RefreshActionAnchorState extends State<RefreshActionAnchor> {
+  static final List<_RefreshActionAnchorState> _anchors = [];
+
+  static _RefreshActionAnchorState? _findActive([BuildContext? focusContext]) {
+    if (focusContext != null && focusContext.mounted) {
+      final focused = focusContext
+          .findAncestorStateOfType<_RefreshActionAnchorState>();
+      if (focused != null && focused._isActiveAndVisible()) {
+        return focused;
+      }
+    }
+    for (var i = _anchors.length - 1; i >= 0; i--) {
+      final anchor = _anchors[i];
+      if (anchor._isActiveAndVisible()) return anchor;
+    }
+    return null;
+  }
+
+  static bool hasActive([BuildContext? focusContext]) =>
+      _findActive(focusContext) != null;
+
+  static bool triggerActive([BuildContext? focusContext]) {
+    final anchor = _findActive(focusContext);
+    if (anchor == null) return false;
+    anchor.widget.onRefresh?.call();
+    return true;
+  }
+
+  bool _isActiveAndVisible() {
+    if (!mounted || widget.onRefresh == null) return false;
+    if (!TickerMode.getValuesNotifier(context).value.enabled) return false;
+    final route = ModalRoute.of(context);
+    if (route != null && !route.isCurrent) return false;
+    final ro = context.findRenderObject();
+    if (ro is! RenderBox || !ro.hasSize || ro.size.isEmpty) return false;
+    final view = View.maybeOf(context);
+    if (view == null) return true;
+    final screen = Offset.zero & (view.physicalSize / view.devicePixelRatio);
+    return (ro.localToGlobal(Offset.zero) & ro.size).overlaps(screen);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _anchors.add(this);
+  }
+
+  @override
+  void dispose() {
+    _anchors.remove(this);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
 
 /// Plays the threshold haptics as the pull crosses the refresh trigger:

@@ -1423,5 +1423,33 @@
   "novelSpreadAuto": "Auto",
   "novelSpreadLandscape": "Landscape",
   "novelSpreadAlways": "Always",
-  "novelShowToolbar": "Show toolbar"
+  "novelShowToolbar": "Show toolbar",
+  "navBack": "Back",
+  "navForward": "Forward",
+  "commandContentFilter": "Content filter",
+  "commandSwitchAccount": "Switch account",
+  "menuFile": "File",
+  "menuView": "View",
+  "menuNavigate": "Navigate",
+  "menuWindow": "Window",
+  "menuPreferences": "Preferences…",
+  "menuEnterFullScreen": "Enter Full Screen",
+  "menuExitFullScreen": "Exit Full Screen",
+  "viewerPreviousPage": "Previous page",
+  "viewerNextPage": "Next page",
+  "copyOriginalImage": "Copy original image",
+  "imageCopiedToClipboard": "Original image copied to clipboard",
+  "imageCopyFailed": "Failed to copy original image",
+  "batchDownloadOriginal": "Download originals",
+  "batchBookmarkPublic": "Public bookmark",
+  "batchBookmarkPrivate": "Private bookmark",
+  "batchClearSelection": "Clear selection",
+  "batchBookmarkEnqueued": "{count, plural, =1{Added 1 work to bookmark queue} other{Added {count} works to bookmark queue}}",
+  "@batchBookmarkEnqueued": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
 }

@@ -3,6 +3,7 @@ prefix: NAV
 applies_to:
   - lib/app/navigation/**
   - lib/app/layout/form_factor.dart
+  - lib/app/window/**
   - lib/app/startup_gate.dart
   - lib/app/widgets/home_branch_stack.dart
   - lib/app/widgets/shell_rail.dart
@@ -463,3 +464,19 @@ reviewed: 2026-11-15
   arrow.
 - **Check:** `test/home_branch_stack_test.dart` "Esc goes back as the system back does, short of leaving"
 - **Code:** `lib/app/navigation/keyboard_back.dart`, `lib/app/app.dart`
+
+### NAV-26 Desktop command bar, macOS menu bar and per-branch forward history
+- **Rule:** On desktop platforms (Windows, macOS, Linux), `AppChrome` mounts
+  the 48dp `DesktopCommandBar` (rail toggle, back/forward, refresh, search field
+  with keyword pills, reverse search, R-18/AI filter popovers, account switcher,
+  window drag/caption regions) and wraps routes in `DesktopCommandBarScope` so
+  page headers hide duplicate search and refresh triggers; macOS also mounts
+  `DesktopMenuBar` (`PlatformMenuBar`). Narrow or pre-home views keep window
+  chrome only. `ForwardHistoryStack` maintains per-branch forward stacks and
+  clears the active bucket on fresh pushes, while `KeyboardBack` dedupes
+  keyboard and mouse back/forward signals within 120 ms.
+- **Why:** Desktop shells require unified titlebar commands, native macOS
+  menus, and isolated browser-like forward navigation without double headers or
+  double-firing side buttons.
+- **Check:** `test/desktop_ux_phase2_test.dart` "DesktopCommandBar chrome, drag regions, header deduplication, and popovers" "DesktopMenuBar restricts to macOS and wires View, Navigation, Bookmarks, Downloads, and Search" "ForwardHistoryStack replays per-branch forward entries and debounces mouse back/forward"
+- **Code:** `lib/app/window/desktop_command_bar.dart`, `lib/app/window/desktop_menu_bar.dart`, `lib/app/window/desktop_title_bar.dart`, `lib/app/navigation/forward_history.dart`, `lib/app/navigation/keyboard_back.dart`

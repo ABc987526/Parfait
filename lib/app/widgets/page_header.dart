@@ -13,6 +13,7 @@ import '../navigation/keyboard_back.dart';
 import '../navigation/routes.dart';
 import '../pull_to_refresh.dart';
 import '../theme/func_semantic_tokens.dart';
+import '../window/desktop_command_bar.dart';
 import 'func_bottom_nav.dart';
 import 'search_field_button.dart';
 
@@ -66,7 +67,8 @@ class HeaderSearch extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (!PageHeader.isWide(context) ||
+    if (DesktopCommandBarScope.isActiveOf(context) ||
+        !PageHeader.isWide(context) ||
         BranchRootScope.maybeOf(context) == null) {
       return const SizedBox.shrink();
     }
@@ -113,6 +115,9 @@ class HeaderRefresh extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (DesktopCommandBarScope.isActiveOf(context)) {
+      return const SizedBox.shrink();
+    }
     final modality =
         InputModalityScope.maybeOf(context) ??
         defaultInputModalityFor(Theme.of(context).platform);

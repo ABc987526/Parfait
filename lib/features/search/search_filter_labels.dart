@@ -119,10 +119,12 @@ class SearchFilterButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final count = searchFilterLabels(context, filters).length;
     final l10n = context.l10n;
-    return IconButton(
-      tooltip: count == 0
-          ? l10n.searchFilters
-          : l10n.searchFiltersActive(count),
+    final tooltip = count == 0
+        ? l10n.searchFilters
+        : l10n.searchFiltersActive(count);
+    final hasOverlay = Overlay.maybeOf(context) != null;
+    final button = IconButton(
+      tooltip: hasOverlay ? tooltip : null,
       onPressed: onPressed,
       color: muted ? Theme.of(context).colorScheme.onSurfaceVariant : null,
       icon: Badge(
@@ -132,5 +134,6 @@ class SearchFilterButton extends StatelessWidget {
         child: const Icon(Icons.tune_outlined),
       ),
     );
+    return hasOverlay ? button : Semantics(tooltip: tooltip, child: button);
   }
 }

@@ -168,31 +168,33 @@ extension _IllustDetailContent on _IllustDetailPageState {
       if (entity.isUgoira)
         SliverToBoxAdapter(
           child: TickerPartition(
-            child: UgoiraViewer(
-              illustId: entity.id,
-              // Same contract as DetailPageImage: the viewer keeps the
-              // feed card's URL for the opening Hero flight and only
-              // upgrades to the detail quality once the route settles —
-              // without the guard a cached detail payload would swap
-              // the cover mid-flight onto an undecoded entry (the
-              // grey-shuttle regression).
-              // Ugoira has no page selection: long-press does not enter the
-              // download mode and the GIF export action stays always visible.
-              previewUrl: entity.imageUrls.large,
-              detailUrl: detailUrlFor(0),
-              heroImageUrl: widget.heroImageUrl,
-              heroTier: widget.heroImageUrl == null
-                  ? null
-                  : entity.imageTierOf(widget.heroImageUrl!),
-              width: entity.width,
-              height: entity.height,
-              heroTag: illustHeroTag(widget.heroScope, entity.id),
-              flightShuttleBuilder: illustHeroFlightShuttleBuilder,
-              heroDecodeWidth: widget.heroImageDecodeWidth,
-              heroPopUrl: widget.heroImageUrl,
-              heroPopDecodeWidth: widget.heroImageDecodeWidth,
-              tier: entity.imageTierOf(
-                detailUrlFor(0) ?? entity.imageUrls.large,
+            child: SelectionContainer.disabled(
+              child: UgoiraViewer(
+                illustId: entity.id,
+                // Same contract as DetailPageImage: the viewer keeps the
+                // feed card's URL for the opening Hero flight and only
+                // upgrades to the detail quality once the route settles —
+                // without the guard a cached detail payload would swap
+                // the cover mid-flight onto an undecoded entry (the
+                // grey-shuttle regression).
+                // Ugoira has no page selection: long-press does not enter the
+                // download mode and the GIF export action stays always visible.
+                previewUrl: entity.imageUrls.large,
+                detailUrl: detailUrlFor(0),
+                heroImageUrl: widget.heroImageUrl,
+                heroTier: widget.heroImageUrl == null
+                    ? null
+                    : entity.imageTierOf(widget.heroImageUrl!),
+                width: entity.width,
+                height: entity.height,
+                heroTag: illustHeroTag(widget.heroScope, entity.id),
+                flightShuttleBuilder: illustHeroFlightShuttleBuilder,
+                heroDecodeWidth: widget.heroImageDecodeWidth,
+                heroPopUrl: widget.heroImageUrl,
+                heroPopDecodeWidth: widget.heroImageDecodeWidth,
+                tier: entity.imageTierOf(
+                  detailUrlFor(0) ?? entity.imageUrls.large,
+                ),
               ),
             ),
           ),
@@ -217,30 +219,34 @@ extension _IllustDetailContent on _IllustDetailPageState {
                     key: ValueKey('illust-visibility-${entity.id}-$index'),
                     onVisibilityChanged: (info) =>
                         _onPageVisibility(index, info),
-                    child: DetailPageImage(
-                      key: ValueKey<Object?>('illust-page-${entity.id}-$index'),
-                      entity: entity,
-                      index: index,
-                      heroTag: index == 0
-                          ? illustHeroTag(widget.heroScope, entity.id)
-                          : '${illustHeroTag(widget.heroScope, entity.id)}-$index',
-                      heroScope: widget.heroScope,
-                      heroImageUrl: index == 0 ? widget.heroImageUrl : null,
-                      heroImageDecodeWidth: index == 0
-                          ? widget.heroImageDecodeWidth
-                          : null,
-                      detailUrl: detailUrlFor(index),
-                      downloadMode: _downloadMode,
-                      selected: _selectedPages?.contains(index) ?? false,
-                      onToggleSelect: () => _togglePageSelected(index),
-                      onLongPress: _enterDownloadMode,
-                      placeholderOnly: !detailReady && index > 0,
-                      overlayTopInset: index == 0
-                          ? layout.artworkUnderBarExtent
-                          : 0,
-                      imageSlotHeight: index == 0 && slotsFirstImage
-                          ? firstImageExtent
-                          : null,
+                    child: SelectionContainer.disabled(
+                      child: DetailPageImage(
+                        key: ValueKey<Object?>(
+                          'illust-page-${entity.id}-$index',
+                        ),
+                        entity: entity,
+                        index: index,
+                        heroTag: index == 0
+                            ? illustHeroTag(widget.heroScope, entity.id)
+                            : '${illustHeroTag(widget.heroScope, entity.id)}-$index',
+                        heroScope: widget.heroScope,
+                        heroImageUrl: index == 0 ? widget.heroImageUrl : null,
+                        heroImageDecodeWidth: index == 0
+                            ? widget.heroImageDecodeWidth
+                            : null,
+                        detailUrl: detailUrlFor(index),
+                        downloadMode: _downloadMode,
+                        selected: _selectedPages?.contains(index) ?? false,
+                        onToggleSelect: () => _togglePageSelected(index),
+                        onLongPress: _enterDownloadMode,
+                        placeholderOnly: !detailReady && index > 0,
+                        overlayTopInset: index == 0
+                            ? layout.artworkUnderBarExtent
+                            : 0,
+                        imageSlotHeight: index == 0 && slotsFirstImage
+                            ? firstImageExtent
+                            : null,
+                      ),
                     ),
                   ),
                 ),
@@ -258,12 +264,14 @@ extension _IllustDetailContent on _IllustDetailPageState {
         SliverToBoxAdapter(
           child: KeyedSubtree(
             key: _pagesToggleKey,
-            child: _PagesToggleButton(
-              count: entity.pageCount,
-              expanded: _pagesExpanded,
-              onPressed: _pagesExpanded
-                  ? () => _collapsePages(firstPageEnd)
-                  : _expandPages,
+            child: SelectionContainer.disabled(
+              child: _PagesToggleButton(
+                count: entity.pageCount,
+                expanded: _pagesExpanded,
+                onPressed: _pagesExpanded
+                    ? () => _collapsePages(firstPageEnd)
+                    : _expandPages,
+              ),
             ),
           ),
         ),
@@ -412,10 +420,12 @@ extension _IllustDetailContent on _IllustDetailPageState {
     // Over the column the comments belong to: the whole narrow page, the
     // meta column of the two-pane one.
     final composerLayer = Positioned.fill(
-      child: DetailCommentLayer(
-        illustId: widget.illustId,
-        composerKey: _composerKey,
-        onClose: _closeComposer,
+      child: SelectionContainer.disabled(
+        child: DetailCommentLayer(
+          illustId: widget.illustId,
+          composerKey: _composerKey,
+          onClose: _closeComposer,
+        ),
       ),
     );
     final content = GestureDetector(
@@ -429,37 +439,41 @@ extension _IllustDetailContent on _IllustDetailPageState {
               // page counter sits on the stage rather than on blank page:
               // the work's own ambient light (THEME-19), or a plain tier
               // while pages are being selected.
-              primary: Stack(
-                fit: StackFit.expand,
-                children: [
-                  if (!_downloadMode)
-                    AmbientWash(
-                      blur: 40,
-                      image: PixivImage.providerFor(
-                        context,
-                        widget.heroImageUrl ?? entity.imageUrls.medium,
-                        decodeWidth: 96,
+              primary: SelectionContainer.disabled(
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    if (!_downloadMode)
+                      AmbientWash(
+                        blur: 40,
+                        image: PixivImage.providerFor(
+                          context,
+                          widget.heroImageUrl ?? entity.imageUrls.medium,
+                          decodeWidth: 96,
+                        ),
+                      )
+                    else
+                      ColoredBox(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.surfaceContainerLow,
                       ),
-                    )
-                  else
-                    ColoredBox(
-                      color: Theme.of(context).colorScheme.surfaceContainerLow,
+                    DetailImagePager(
+                      entity: entity,
+                      detailUrlFor: detailUrlFor,
+                      downloadMode: _downloadMode,
+                      selectedPages: _selectedPages ?? const <int>{},
+                      onToggleSelect: _togglePageSelected,
+                      onLongPress: _enterDownloadMode,
+                      heroTag: illustHeroTag(widget.heroScope, entity.id),
+                      heroScope: widget.heroScope,
+                      initialPage: _imageIndex,
+                      onPageChanged: (page) => _imageIndex = page,
+                      heroImageUrl: widget.heroImageUrl,
+                      heroImageDecodeWidth: widget.heroImageDecodeWidth,
                     ),
-                  DetailImagePager(
-                    entity: entity,
-                    detailUrlFor: detailUrlFor,
-                    downloadMode: _downloadMode,
-                    selectedPages: _selectedPages ?? const <int>{},
-                    onToggleSelect: _togglePageSelected,
-                    onLongPress: _enterDownloadMode,
-                    heroTag: illustHeroTag(widget.heroScope, entity.id),
-                    heroScope: widget.heroScope,
-                    initialPage: _imageIndex,
-                    onPageChanged: (page) => _imageIndex = page,
-                    heroImageUrl: widget.heroImageUrl,
-                    heroImageDecodeWidth: widget.heroImageDecodeWidth,
-                  ),
-                ],
+                  ],
+                ),
               ),
               // The inspector pane owns the pinned artist card + persistent
               // actions (bookmark, download, share, ⋮) above the scrolling
@@ -473,7 +487,9 @@ extension _IllustDetailContent on _IllustDetailPageState {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        _buildInspectorHeader(context, ref, entity),
+                        SelectionContainer.disabled(
+                          child: _buildInspectorHeader(context, ref, entity),
+                        ),
                         const Divider(height: 1),
                         Expanded(
                           child: Scrollbar(
@@ -483,7 +499,7 @@ extension _IllustDetailContent on _IllustDetailPageState {
                               behavior: ScrollConfiguration.of(
                                 context,
                               ).copyWith(scrollbars: false),
-                              child: metaScroll,
+                              child: _DetailSelectionScope(child: metaScroll),
                             ),
                           ),
                         ),
@@ -499,14 +515,16 @@ extension _IllustDetailContent on _IllustDetailPageState {
               children: [
                 NotificationListener<ScrollNotification>(
                   onNotification: onScrollNotification,
-                  child: SmoothWheelScroll(
-                    controller: _narrowScroll,
-                    builder: (context, controller, physics) =>
-                        DeferredCacheScrollView(
-                          controller: controller,
-                          physics: physics,
-                          slivers: [...imageSlivers, ...metaSlivers],
-                        ),
+                  child: _DetailSelectionScope(
+                    child: SmoothWheelScroll(
+                      controller: _narrowScroll,
+                      builder: (context, controller, physics) =>
+                          DeferredCacheScrollView(
+                            controller: controller,
+                            physics: physics,
+                            slivers: [...imageSlivers, ...metaSlivers],
+                          ),
+                    ),
                   ),
                 ),
                 // The shared page counter floats over the top-end of the
@@ -782,4 +800,19 @@ class _DetailMoreMenu extends ConsumerWidget {
       entries: [for (final action in actions) entryOf(action)],
     );
   }
+}
+
+/// Hosts a local [SelectionArea] when [IllustDetailPage] is opened outside
+/// [IllustDetailPagerPage]; when paged, the pager owns the single outer
+/// [SelectionArea] outside its horizontal [PageView] so horizontal swipes beat
+/// selection drags in the gesture arena.
+class _DetailSelectionScope extends StatelessWidget {
+  const _DetailSelectionScope({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => SwipePagerScope.maybeOf(context) != null
+      ? child
+      : SelectionArea(child: child);
 }

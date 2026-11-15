@@ -13,7 +13,10 @@ import '../../../core/mute/mute_store.dart';
 import '../../../core/settings/app_settings.dart';
 import '../../../core/settings/settings_controller.dart';
 import '../../../l10n/context.dart';
+import '../../layout/input_modality.dart';
+import '../../person_avatar.dart';
 import '../../theme/func_semantic_tokens.dart';
+import '../../theme/func_tokens.dart';
 import '../../motion/hero_transition.dart';
 import '../../motion/motion_tokens.dart';
 import '../smooth_wheel_scroll.dart';
@@ -26,6 +29,7 @@ import '../card_actions/card_action_sheet.dart';
 import '../display_actions.dart';
 import '../entity_row.dart';
 import 'feed_grid.dart';
+import 'feed_selection.dart';
 import 'feed_text_warmup.dart';
 import 'illust_card_layout.dart';
 import 'muted_cover.dart';
@@ -163,7 +167,10 @@ class _IllustCardBody extends ConsumerWidget {
   VoidCallback? get onLongPress => card.onLongPress;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context, WidgetRef ref) =>
+      SelectionContainer.disabled(child: _buildColumn(context, ref));
+
+  Widget _buildColumn(BuildContext context, WidgetRef ref) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -309,78 +316,101 @@ class _IllustCardBody extends ConsumerWidget {
       );
     }
 
-    return _CardFocus(
-      onActivate: muted ? reveal : openDetail,
-      onMenu: longPress,
-      child: PressScale(
-        child: Semantics(
-          container: true,
-          button: true,
-          image: true,
-          // The one stop for the work: the title and author lines under the
-          // image are left out of semantics, so the label carries them (and
-          // the rank) instead of a screen reader reading them twice.
-          label: muted
-              ? context.l10n.labelValue(
-                  context.l10n.mutedContent,
-                  '${entity.title}, ${entity.user.name}',
-                )
-              : [
-                  if (rank case final rank?) context.l10n.rankLabel(rank),
-                  entity.title,
-                  entity.user.name,
-                ].join(', '),
-          onTap: muted ? reveal : openDetail,
-          onLongPress: longPress,
-          child: GestureDetector(
-            excludeFromSemantics: true,
-            onTapDown: muted
-                ? null
-                : (_) {
-                    _preloadTransitionImages(
-                      context,
-                      ref,
-                      preview,
-                      cardDecodeWidth,
-                      standInUrl: standInUrl,
-                    );
-                    pressWarmup.start(context, entity);
-                  },
-            onTapCancel: muted ? null : pressWarmup.stop,
-            onTap: muted ? reveal : openDetail,
-            onLongPress: longPress,
-            onSecondaryTapUp: secondaryTap,
-            // No outer ClipRRect: the Hero child already clips the image to
-            // the same 12px radius and every badge sits 7px inside the
-            // bounds, so the extra clip only cost a saveLayer per card per
-            // frame while scrolling.
-            child: _HoverLayer(
-              child: SizedBox(
-                width: cardWidth,
-                height: previewHeight,
-                child: muted
-                    ? MutedCover(reasonLabel: mutedHit.label, child: image)
-                    : Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          if (standInUrl case final url?)
-                            _StandInPrefetch(url: url, child: image)
-                          else
-                            image,
-                          HeroChrome(
-                            child: Stack(
-                              fit: StackFit.expand,
-                              children: _buildBadges(context),
-                            ),
-                          ),
-                        ],
+    final isPointer =
+        (InputModalityScope.maybeOf(context) ??
+            defaultInputModalityFor(Theme.of(context).platform)) ==
+        InputModality.pointer;
+
+    void primaryTap() {
+      final selection = FeedSelectionScope.maybeOf(context);
+      if (selection != null &&
+          selection.handleCardPrimaryTap(
+            entity.id,
+            Theme.of(context).platform,
+          )) {
+        return;
+      }
+      if (muted) {
+        reveal();
+      } else {
+        openDetail();
+      }
+    }
+
+    Widget card = Semantics(
+      container: true,
+      button: true,
+      image: true,
+      // The one stop for the work: the title and author lines under the
+      // image are left out of semantics, so the label carries them (and
+      // the rank) instead of a screen reader reading them twice.
+      label: muted
+          ? context.l10n.labelValue(
+              context.l10n.mutedContent,
+              '${entity.title}, ${entity.user.name}',
+            )
+          : [
+              if (rank case final rank?) context.l10n.rankLabel(rank),
+              entity.title,
+              entity.user.name,
+            ].join(', '),
+      onTap: primaryTap,
+      onLongPress: longPress,
+      child: GestureDetector(
+        excludeFromSemantics: true,
+        onTapDown: muted
+            ? null
+            : (_) {
+                _preloadTransitionImages(
+                  context,
+                  ref,
+                  preview,
+                  cardDecodeWidth,
+                  standInUrl: standInUrl,
+                );
+                pressWarmup.start(context, entity);
+              },
+        onTapCancel: muted ? null : pressWarmup.stop,
+        onTap: primaryTap,
+        onLongPress: isPointer ? null : longPress,
+        onSecondaryTapUp: secondaryTap,
+        // No outer ClipRRect: the Hero child already clips the image to
+        // the same 12px radius and every badge sits 7px inside the
+        // bounds, so the extra clip only cost a saveLayer per card per
+        // frame while scrolling.
+        child: _HoverLayer(
+          entity: entity,
+          isPointer: isPointer,
+          muted: muted,
+          child: SizedBox(
+            width: cardWidth,
+            height: previewHeight,
+            child: muted
+                ? MutedCover(reasonLabel: mutedHit.label, child: image)
+                : Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      if (standInUrl case final url?)
+                        _StandInPrefetch(url: url, child: image)
+                      else
+                        image,
+                      HeroChrome(
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: _buildBadges(context),
+                        ),
                       ),
-              ),
-            ),
+                    ],
+                  ),
           ),
         ),
       ),
     );
+    if (!isPointer) {
+      card = PressScale(child: card);
+    }
+
+    return _CardFocus(onActivate: primaryTap, onMenu: longPress, child: card);
   }
 
   Widget _buildImage(
@@ -645,13 +675,21 @@ class _StandInPrefetchState extends ConsumerState<_StandInPrefetch> {
   Widget build(BuildContext context) => widget.child;
 }
 
-/// The M3 hover state layer over the preview and a link cursor: with a
-/// mouse the card otherwise gave no sign it opens. Touch never hovers, so
-/// on a phone this is an empty decoration and the card body never rebuilds
-/// for it.
+/// The M3 hover state layer over the preview, subtle border highlight, quick
+/// author/bookmark hover pills and link cursor: with a mouse the card otherwise
+/// gave no sign it opens. Touch never hovers, so on a phone this is an empty
+/// decoration and the card body never rebuilds for it.
 class _HoverLayer extends StatefulWidget {
-  const _HoverLayer({required this.child});
+  const _HoverLayer({
+    required this.entity,
+    required this.isPointer,
+    required this.muted,
+    required this.child,
+  });
 
+  final IllustEntity entity;
+  final bool isPointer;
+  final bool muted;
   final Widget child;
 
   @override
@@ -670,6 +708,87 @@ class _HoverLayerState extends State<_HoverLayer> {
 
   @override
   Widget build(BuildContext context) {
+    final showPointerChrome = _hovered && widget.isPointer && !widget.muted;
+    final colorScheme = Theme.of(context).colorScheme;
+    final child = showPointerChrome
+        ? Stack(
+            fit: StackFit.passthrough,
+            children: [
+              widget.child,
+              PositionedDirectional(
+                start: 7,
+                end: 46,
+                bottom: 7,
+                child: Align(
+                  alignment: AlignmentDirectional.bottomStart,
+                  child: Material(
+                    color: FuncTokens.imageControl,
+                    borderRadius: FuncShape.badge,
+                    clipBehavior: Clip.antiAlias,
+                    child: InkWell(
+                      onTap: widget.entity.user.id > 0
+                          ? () => unawaited(
+                              openUser(context, widget.entity.user.id),
+                            )
+                          : null,
+                      child: Padding(
+                        padding: const EdgeInsetsDirectional.fromSTEB(
+                          4,
+                          3,
+                          8,
+                          3,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            PersonAvatar(
+                              imageUrl: widget.entity.user.profileImageUrl,
+                              radius: 10,
+                            ),
+                            const SizedBox(width: FuncSpacing.xs),
+                            Flexible(
+                              child: Text(
+                                widget.entity.user.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.labelSmall
+                                    ?.copyWith(color: FuncTokens.white),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              PositionedDirectional(
+                end: 7,
+                bottom: 7,
+                child: Theme(
+                  data: Theme.of(context).copyWith(
+                    iconButtonTheme: IconButtonThemeData(
+                      style: IconButton.styleFrom(
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ),
+                  ),
+                  child: Material(
+                    color: FuncTokens.imageControl,
+                    shape: const CircleBorder(),
+                    clipBehavior: Clip.antiAlias,
+                    child: BookmarkSwitchButton(
+                      illustId: widget.entity.id,
+                      title: widget.entity.title,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          )
+        : widget.child;
+
     return ScrollAwareHoverRegion(
       cursor: SystemMouseCursors.click,
       onHover: _setHovered,
@@ -677,13 +796,17 @@ class _HoverLayerState extends State<_HoverLayer> {
         position: DecorationPosition.foreground,
         decoration: _hovered
             ? BoxDecoration(
-                color: Theme.of(
-                  context,
-                ).colorScheme.onSurface.withValues(alpha: _opacity),
+                color: colorScheme.onSurface.withValues(alpha: _opacity),
+                border: widget.isPointer && !widget.muted
+                    ? Border.all(
+                        color: colorScheme.primary.withValues(alpha: 0.45),
+                        width: 1.5,
+                      )
+                    : null,
                 borderRadius: FuncShape.card,
               )
             : const BoxDecoration(),
-        child: widget.child,
+        child: child,
       ),
     );
   }

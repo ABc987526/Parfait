@@ -3234,4 +3234,74 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get novelShowToolbar => 'ツールバーを表示';
+
+  @override
+  String get navBack => '戻る';
+
+  @override
+  String get navForward => '進む';
+
+  @override
+  String get commandContentFilter => '表示フィルター';
+
+  @override
+  String get commandSwitchAccount => 'アカウントを切り替え';
+
+  @override
+  String get menuFile => 'ファイル';
+
+  @override
+  String get menuView => '表示';
+
+  @override
+  String get menuNavigate => '移動';
+
+  @override
+  String get menuWindow => 'ウィンドウ';
+
+  @override
+  String get menuPreferences => '環境設定…';
+
+  @override
+  String get menuEnterFullScreen => 'フルスクリーンにする';
+
+  @override
+  String get menuExitFullScreen => 'フルスクリーンを解除';
+
+  @override
+  String get viewerPreviousPage => '前のページ';
+
+  @override
+  String get viewerNextPage => '次のページ';
+
+  @override
+  String get copyOriginalImage => '元画像をコピー';
+
+  @override
+  String get imageCopiedToClipboard => '元画像をクリップボードにコピーしました';
+
+  @override
+  String get imageCopyFailed => '元画像をコピーできませんでした';
+
+  @override
+  String get batchDownloadOriginal => '元画像をダウンロード';
+
+  @override
+  String get batchBookmarkPublic => '公開ブックマーク';
+
+  @override
+  String get batchBookmarkPrivate => '非公開ブックマーク';
+
+  @override
+  String get batchClearSelection => '選択を解除';
+
+  @override
+  String batchBookmarkEnqueued(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count件をブックマークキューに追加しました',
+    );
+    return '$_temp0';
+  }
 }

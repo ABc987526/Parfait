@@ -7,8 +7,12 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstring>
+#include <limits>
+#include <objbase.h>
 #include <optional>
 #include <utility>
+#include <wincodec.h>
 
 #include "flutter/generated_plugin_registrant.h"
 #include "resource.h"
@@ -160,6 +164,224 @@ bool IsSupportedLaunchUri(const std::string& uri) {
          StartsWithCaseInsensitive(uri, "https://");
 }
 
+template <typename T>
+struct ComPtr {
+  ComPtr() = default;
+  ComPtr(const ComPtr&) = delete;
+  ComPtr& operator=(const ComPtr&) = delete;
+  ~ComPtr() { reset(); }
+
+  void reset() {
+    if (ptr != nullptr) {
+      ptr->Release();
+      ptr = nullptr;
+    }
+  }
+
+  T** put() {
+    reset();
+    return &ptr;
+  }
+
+  T* operator->() const { return ptr; }
+
+  T* ptr = nullptr;
+};
+
+struct ComInitScope {
+  bool uninit = false;
+  ~ComInitScope() {
+    if (uninit) {
+      ::CoUninitialize();
+    }
+  }
+};
+
+HGLOBAL AllocClipboardHGlobal(const void* data, size_t size) {
+  if (data == nullptr || size == 0) {
+    return nullptr;
+  }
+  HGLOBAL handle = ::GlobalAlloc(GMEM_MOVEABLE, size);
+  if (handle == nullptr) {
+    return nullptr;
+  }
+  void* dst = ::GlobalLock(handle);
+  if (dst == nullptr) {
+    ::GlobalFree(handle);
+    return nullptr;
+  }
+  std::memcpy(dst, data, size);
+  ::GlobalUnlock(handle);
+  return handle;
+}
+
+bool CopyEncodedImageToClipboard(HWND hwnd, const std::vector<uint8_t>& bytes) {
+  if (bytes.empty() ||
+      bytes.size() > static_cast<size_t>((std::numeric_limits<DWORD>::max)())) {
+    return false;
+  }
+
+  const HRESULT co_hr =
+      ::CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+  if (FAILED(co_hr) && co_hr != RPC_E_CHANGED_MODE) {
+    return false;
+  }
+  ComInitScope com_scope{SUCCEEDED(co_hr)};
+
+  ComPtr<IWICImagingFactory> factory;
+  if (FAILED(::CoCreateInstance(CLSID_WICImagingFactory, nullptr,
+                                CLSCTX_INPROC_SERVER,
+                                IID_PPV_ARGS(factory.put())))) {
+    return false;
+  }
+
+  ComPtr<IWICStream> wic_stream;
+  if (FAILED(factory->CreateStream(wic_stream.put())) ||
+      FAILED(wic_stream->InitializeFromMemory(
+          const_cast<BYTE*>(bytes.data()),
+          static_cast<DWORD>(bytes.size())))) {
+    return false;
+  }
+
+  ComPtr<IWICBitmapDecoder> decoder;
+  if (FAILED(factory->CreateDecoderFromStream(
+          wic_stream.ptr, nullptr, WICDecodeMetadataCacheOnDemand,
+          decoder.put()))) {
+    return false;
+  }
+
+  ComPtr<IWICBitmapFrameDecode> frame;
+  if (FAILED(decoder->GetFrame(0, frame.put()))) {
+    return false;
+  }
+
+  ComPtr<IWICFormatConverter> converter;
+  if (FAILED(factory->CreateFormatConverter(converter.put())) ||
+      FAILED(converter->Initialize(frame.ptr, GUID_WICPixelFormat32bppBGRA,
+                                   WICBitmapDitherTypeNone, nullptr, 0.0,
+                                   WICBitmapPaletteTypeCustom))) {
+    return false;
+  }
+
+  UINT width = 0;
+  UINT height = 0;
+  if (FAILED(converter->GetSize(&width, &height)) || width == 0 ||
+      height == 0 ||
+      width > static_cast<UINT>((std::numeric_limits<LONG>::max)()) ||
+      height > static_cast<UINT>((std::numeric_limits<LONG>::max)())) {
+    return false;
+  }
+
+  const uint64_t stride64 = static_cast<uint64_t>(width) * 4ULL;
+  const uint64_t pixel_bytes64 = stride64 * static_cast<uint64_t>(height);
+  const uint64_t dib_total64 = sizeof(BITMAPINFOHEADER) + pixel_bytes64;
+  if (stride64 > (std::numeric_limits<UINT>::max)() ||
+      pixel_bytes64 > (std::numeric_limits<UINT>::max)() ||
+      dib_total64 > (std::numeric_limits<size_t>::max)()) {
+    return false;
+  }
+
+  const UINT stride = static_cast<UINT>(stride64);
+  const UINT pixel_bytes = static_cast<UINT>(pixel_bytes64);
+  std::vector<uint8_t> pixels(static_cast<size_t>(pixel_bytes));
+  if (FAILED(converter->CopyPixels(nullptr, stride, pixel_bytes,
+                                   pixels.data()))) {
+    return false;
+  }
+
+  HGLOBAL dib_handle =
+      ::GlobalAlloc(GMEM_MOVEABLE, static_cast<SIZE_T>(dib_total64));
+  if (dib_handle == nullptr) {
+    return false;
+  }
+  void* dib_mem = ::GlobalLock(dib_handle);
+  if (dib_mem == nullptr) {
+    ::GlobalFree(dib_handle);
+    return false;
+  }
+
+  BITMAPINFOHEADER bih{};
+  bih.biSize = sizeof(BITMAPINFOHEADER);
+  bih.biWidth = static_cast<LONG>(width);
+  bih.biHeight = static_cast<LONG>(height);
+  bih.biPlanes = 1;
+  bih.biBitCount = 32;
+  bih.biCompression = BI_RGB;
+  bih.biSizeImage = static_cast<DWORD>(pixel_bytes);
+  std::memcpy(dib_mem, &bih, sizeof(bih));
+
+  uint8_t* dib_pixels = static_cast<uint8_t*>(dib_mem) + sizeof(bih);
+  for (UINT y = 0; y < height; ++y) {
+    const uint8_t* src_row = pixels.data() + static_cast<size_t>(height - 1 - y) * stride;
+    uint8_t* dst_row = dib_pixels + static_cast<size_t>(y) * stride;
+    std::memcpy(dst_row, src_row, stride);
+  }
+  ::GlobalUnlock(dib_handle);
+
+  HGLOBAL png_handle = nullptr;
+  ComPtr<IStream> png_stream;
+  ComPtr<IWICBitmapEncoder> encoder;
+  ComPtr<IWICBitmapFrameEncode> enc_frame;
+  if (SUCCEEDED(::CreateStreamOnHGlobal(nullptr, TRUE, png_stream.put())) &&
+      SUCCEEDED(factory->CreateEncoder(GUID_ContainerFormatPng, nullptr,
+                                       encoder.put())) &&
+      SUCCEEDED(encoder->Initialize(png_stream.ptr, WICBitmapEncoderNoCache)) &&
+      SUCCEEDED(encoder->CreateNewFrame(enc_frame.put(), nullptr)) &&
+      SUCCEEDED(enc_frame->Initialize(nullptr)) &&
+      SUCCEEDED(enc_frame->SetSize(width, height))) {
+    WICPixelFormatGUID png_format = GUID_WICPixelFormat32bppBGRA;
+    if (SUCCEEDED(enc_frame->SetPixelFormat(&png_format)) &&
+        SUCCEEDED(enc_frame->WriteSource(converter.ptr, nullptr)) &&
+        SUCCEEDED(enc_frame->Commit()) &&
+        SUCCEEDED(encoder->Commit())) {
+      HGLOBAL png_src = nullptr;
+      STATSTG stat{};
+      if (SUCCEEDED(::GetHGlobalFromStream(png_stream.ptr, &png_src)) &&
+          png_src != nullptr &&
+          SUCCEEDED(png_stream->Stat(&stat, STATFLAG_NONAME)) &&
+          stat.cbSize.QuadPart > 0 &&
+          stat.cbSize.QuadPart <= ::GlobalSize(png_src)) {
+        const size_t png_bytes = static_cast<size_t>(stat.cbSize.QuadPart);
+        if (void* locked = ::GlobalLock(png_src); locked != nullptr) {
+          png_handle = AllocClipboardHGlobal(locked, png_bytes);
+          ::GlobalUnlock(png_src);
+        }
+      }
+    }
+  }
+
+  const UINT png_format = ::RegisterClipboardFormatW(L"PNG");
+  if (!::OpenClipboard(hwnd)) {
+    ::GlobalFree(dib_handle);
+    if (png_handle != nullptr) {
+      ::GlobalFree(png_handle);
+    }
+    return false;
+  }
+
+  ::EmptyClipboard();
+  bool ok = false;
+  if (::SetClipboardData(CF_DIB, dib_handle) != nullptr) {
+    dib_handle = nullptr;
+    ok = true;
+  }
+  if (png_format != 0 && png_handle != nullptr) {
+    if (::SetClipboardData(png_format, png_handle) != nullptr) {
+      png_handle = nullptr;
+      ok = true;
+    }
+  }
+  ::CloseClipboard();
+
+  if (dib_handle != nullptr) {
+    ::GlobalFree(dib_handle);
+  }
+  if (png_handle != nullptr) {
+    ::GlobalFree(png_handle);
+  }
+  return ok;
+}
+
 FlutterWindow::FlutterWindow(const flutter::DartProject& project,
                              std::string initial_intent_uri)
     : project_(project),
@@ -236,6 +458,10 @@ void FlutterWindow::OnDestroy() {
   if (sensitive_clipboard_channel_) {
     sensitive_clipboard_channel_->SetMethodCallHandler(nullptr);
     sensitive_clipboard_channel_.reset();
+  }
+  if (image_clipboard_channel_) {
+    image_clipboard_channel_->SetMethodCallHandler(nullptr);
+    image_clipboard_channel_.reset();
   }
   if (intent_channel_) {
     intent_channel_->SetMethodCallHandler(nullptr);
@@ -494,6 +720,37 @@ void FlutterWindow::RegisterNativeChannels() {
             intent_event_sink_.reset();
             return nullptr;
           }));
+
+  image_clipboard_channel_ =
+      std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(
+          messenger, "parfait/image_clipboard", codec);
+  image_clipboard_channel_->SetMethodCallHandler(
+      [this](const flutter::MethodCall<flutter::EncodableValue>& call,
+             std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>>
+                 result) {
+        if (call.method_name() != "copyImage") {
+          result->NotImplemented();
+          return;
+        }
+        const auto* args =
+            std::get_if<flutter::EncodableMap>(call.arguments());
+        if (args == nullptr) {
+          result->Error("INVALID_ARGS", "Expected argument map");
+          return;
+        }
+        const auto it = args->find(flutter::EncodableValue("bytes"));
+        if (it == args->end()) {
+          result->Error("INVALID_ARGS", "Missing bytes");
+          return;
+        }
+        const auto* bytes = std::get_if<std::vector<uint8_t>>(&it->second);
+        if (bytes == nullptr) {
+          result->Error("INVALID_ARGS", "Expected Uint8List bytes");
+          return;
+        }
+        result->Success(flutter::EncodableValue(
+            CopyEncodedImageToClipboard(GetHandle(), *bytes)));
+      });
 }
 
 flutter::EncodableMap FlutterWindow::BuildWindowMetricsMap() const {

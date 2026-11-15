@@ -1,7 +1,7 @@
 part of 'routes.dart';
 
 String _searchPath(BuildContext context, String leaf) =>
-    _searchLeafPath(_stackRootOf(GoRouter.of(context).state.uri.path), leaf);
+    _searchLeafPath(_stackRootOf(_livePathOf(GoRouter.of(context))), leaf);
 
 /// Search leaves live under the search branch itself and under every other
 /// branch's `/search`.
@@ -21,7 +21,7 @@ Future<void> openSearchInput(
   Rect? Function()? anchor,
 }) async {
   final router = GoRouter.of(context);
-  final root = _stackRootOf(router.state.uri.path);
+  final root = _stackRootOf(_livePathOf(router));
   final trigger = anchor?.call();
   if (trigger != null && _hasRail(context)) {
     final outcome = await showDockedSearch(
@@ -78,7 +78,7 @@ Future<void> editSearchFromResults(
     return swapToSearchInput(context, keyword: keyword, type: type);
   }
   final router = GoRouter.of(context);
-  final root = _stackRootOf(router.state.uri.path);
+  final root = _stackRootOf(_livePathOf(router));
   final outcome = await showDockedSearch(
     context,
     anchor: trigger,
@@ -297,5 +297,5 @@ void replaceSearchResults(BuildContext context, SearchQuery query) {
     path: _searchPath(context, 'results'),
     queryParameters: _searchQueryParameters(query),
   ).toString();
-  context.replace(location);
+  unawaited(GoRouter.of(context).replace<void>(location));
 }

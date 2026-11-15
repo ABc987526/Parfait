@@ -1416,5 +1416,33 @@
   "novelSpreadAuto": "Авто",
   "novelSpreadLandscape": "Альбомная",
   "novelSpreadAlways": "Всегда",
-  "novelShowToolbar": "Показать панель"
+  "novelShowToolbar": "Показать панель",
+  "navBack": "Назад",
+  "navForward": "Вперёд",
+  "commandContentFilter": "Фильтр контента",
+  "commandSwitchAccount": "Сменить аккаунт",
+  "menuFile": "Файл",
+  "menuView": "Вид",
+  "menuNavigate": "Навигация",
+  "menuWindow": "Окно",
+  "menuPreferences": "Настройки…",
+  "menuEnterFullScreen": "Войти в полноэкранный режим",
+  "menuExitFullScreen": "Выйти из полноэкранного режима",
+  "viewerPreviousPage": "Предыдущая страница",
+  "viewerNextPage": "Следующая страница",
+  "copyOriginalImage": "Копировать оригинал",
+  "imageCopiedToClipboard": "Оригинал изображения скопирован в буфер обмена",
+  "imageCopyFailed": "Не удалось скопировать оригинал",
+  "batchDownloadOriginal": "Скачать оригиналы",
+  "batchBookmarkPublic": "В публичные",
+  "batchBookmarkPrivate": "В приватные",
+  "batchClearSelection": "Снять выбор",
+  "batchBookmarkEnqueued": "{count, plural, one{В очередь закладок добавлена {count} работа} few{В очередь закладок добавлено {count} работы} many{В очередь закладок добавлено {count} работ} other{В очередь закладок добавлено {count} работ}}",
+  "@batchBookmarkEnqueued": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
 }

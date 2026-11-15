@@ -39,6 +39,9 @@ class MainFlutterWindow: NSWindow {
     MacosSensitiveClipboardBridge.shared.register(
       messenger: flutterViewController.engine.binaryMessenger
     )
+    MacosImageClipboardBridge.shared.register(
+      messenger: flutterViewController.engine.binaryMessenger
+    )
   }
 }
 
@@ -534,6 +537,55 @@ final class MacosTrayBridge: NSObject {
 
   @objc private func handleQuit() {
     channel?.invokeMethod("onTrayAction", arguments: "quit")
+  }
+}
+
+final class MacosImageClipboardBridge {
+  static let shared = MacosImageClipboardBridge()
+
+  private let channelName = "parfait/image_clipboard"
+  private var channel: FlutterMethodChannel?
+
+  func register(messenger: FlutterBinaryMessenger) {
+    let methodChannel = FlutterMethodChannel(
+      name: channelName,
+      binaryMessenger: messenger
+    )
+    channel = methodChannel
+    methodChannel.setMethodCallHandler { call, result in
+      guard call.method == "copyImage" else {
+        result(FlutterMethodNotImplemented)
+        return
+      }
+      guard
+        let args = call.arguments as? [String: Any],
+        let typed = args["bytes"] as? FlutterStandardTypedData
+      else {
+        result(
+          FlutterError(
+            code: "INVALID_ARGS",
+            message: "Missing image bytes",
+            details: nil
+          )
+        )
+        return
+      }
+      result(Self.copyImageData(typed.data))
+    }
+  }
+
+  private static func copyImageData(_ data: Data) -> Bool {
+    guard !data.isEmpty,
+          let image = NSImage(data: data),
+          let tiff = image.tiffRepresentation,
+          let bitmap = NSBitmapImageRep(data: tiff),
+          let png = bitmap.representation(using: .png, properties: [:])
+    else {
+      return false
+    }
+    let pasteboard = NSPasteboard.general
+    pasteboard.clearContents()
+    return pasteboard.setData(png, forType: .png)
   }
 }
 

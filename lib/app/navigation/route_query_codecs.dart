@@ -33,6 +33,16 @@ SearchResultType _searchType(String? raw) => SearchResultType.values.firstWhere(
   orElse: () => SearchResultType.illust,
 );
 
+/// Extracts the active `(keyword, type)` pair when [uri] points at a search
+/// results route, or `null` on any other location.
+({String keyword, SearchResultType type})? searchResultsQueryFromUri(Uri uri) {
+  if (!uri.path.endsWith('/search/results')) return null;
+  return (
+    keyword: uri.queryParameters['q'] ?? '',
+    type: _searchType(uri.queryParameters['type']),
+  );
+}
+
 T _searchEnum<T>(
   Iterable<T> values,
   String? raw,

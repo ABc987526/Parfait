@@ -8,7 +8,8 @@ applies_to:
   - lib/app/scroll_behavior.dart
   - lib/app/format/content_locale.dart
   - lib/features/**/*_page.dart
-reviewed: 2026-10-31
+  - lib/core/bookmark/bookmark_actions.dart
+reviewed: 2026-11-15
 ---
 
 # Feeds: states, grid, pull to refresh, skeletons
@@ -196,6 +197,19 @@ reviewed: 2026-10-31
   any store merge) rebuilt every built card in that frame.
 - **Check:** `test/feed_item_cache_test.dart`
 - **Code:** `lib/app/widgets/feed/feed_item_cache.dart`, `lib/core/entity/stored_entities.dart`, `lib/app/layout/card_columns.dart`, `lib/app/widgets/feed/feed_grid.dart`
+
+### FEED-24 Wide feed multi-selection and batch bookmark or download bar
+- **Rule:** `SelectableFeedHost` enables artwork multi-selection only when viewport
+  width is at least `AppBreakpoints.medium` (600dp) and clears selection when
+  narrowed below 600dp. It supports hover selection badges, `Ctrl`/`Cmd`+Click
+  individual toggles, `Shift`+Click inclusive range selection, `Ctrl`/`Cmd`+A
+  select-all, and Esc or system back dismissal, displaying `FeedBatchActionBar`
+  for bounded-concurrency public/private batch bookmarking
+  (`BookmarkActions.addBatch`) and original downloads.
+- **Why:** Wide desktop and tablet feeds need fast batch triage without polluting
+  compact phone browsing or firing uncapped parallel network writes.
+- **Check:** `test/desktop_ux_phase2_test.dart` "SelectableFeedHost gates >=600dp multi-select, Ctrl/Cmd+Click, Shift range, Ctrl+A, Esc, and batch bookmark/download"
+- **Code:** `lib/app/widgets/feed/feed_selection.dart`, `lib/app/widgets/feed/feed_grid.dart`, `lib/app/widgets/feed/illust_card.dart`, `lib/core/bookmark/bookmark_actions.dart`
 
 ## Pull to refresh
 

@@ -3,7 +3,9 @@
 #include <dlfcn.h>
 #include <flutter_linux/flutter_linux.h>
 
+#include <cstdint>
 #include <cstring>
+#include <limits>
 
 #ifdef GDK_WINDOWING_X11
 #include <gdk/gdkx.h>
@@ -162,6 +164,7 @@ struct _MyApplication {
 
   FlMethodChannel* desktop_window_channel;
   FlMethodChannel* tray_channel;
+  FlMethodChannel* image_clipboard_channel;
   FlMethodChannel* intent_channel;
   FlEventChannel* intent_event_channel;
 
@@ -464,6 +467,71 @@ static void desktop_window_method_cb(FlMethodChannel* channel,
   }
 }
 
+static bool CopyEncodedImageToGtkClipboard(const uint8_t* data, size_t len) {
+  if (data == nullptr || len == 0 ||
+      len > static_cast<size_t>(std::numeric_limits<gsize>::max())) {
+    return false;
+  }
+  g_autoptr(GdkPixbufLoader) loader = gdk_pixbuf_loader_new();
+  g_autoptr(GError) error = nullptr;
+  if (!gdk_pixbuf_loader_write(loader, data, static_cast<gsize>(len), &error)) {
+    return false;
+  }
+  if (!gdk_pixbuf_loader_close(loader, &error)) {
+    return false;
+  }
+  GdkPixbuf* pixbuf = gdk_pixbuf_loader_get_pixbuf(loader);
+  if (pixbuf == nullptr) {
+    return false;
+  }
+  GtkClipboard* clipboard = gtk_clipboard_get(GDK_SELECTION_CLIPBOARD);
+  if (clipboard == nullptr) {
+    return false;
+  }
+  gtk_clipboard_set_image(clipboard, pixbuf);
+  gtk_clipboard_store(clipboard);
+  return true;
+}
+
+static void image_clipboard_method_cb(FlMethodChannel* channel,
+                                      FlMethodCall* method_call,
+                                      gpointer user_data) {
+  (void)channel;
+  (void)user_data;
+  const gchar* method = fl_method_call_get_name(method_call);
+  if (g_strcmp0(method, "copyImage") == 0) {
+    FlValue* args = fl_method_call_get_args(method_call);
+    if (args == nullptr || fl_value_get_type(args) != FL_VALUE_TYPE_MAP) {
+      g_autoptr(GError) error = nullptr;
+      fl_method_call_respond_error(method_call, "INVALID_ARGS",
+                                   "Expected argument map", nullptr, &error);
+      return;
+    }
+    FlValue* bytes_val = fl_value_lookup_string(args, "bytes");
+    if (bytes_val == nullptr ||
+        fl_value_get_type(bytes_val) != FL_VALUE_TYPE_UINT8_LIST) {
+      g_autoptr(GError) error = nullptr;
+      fl_method_call_respond_error(method_call, "INVALID_ARGS",
+                                   "Expected Uint8List bytes", nullptr, &error);
+      return;
+    }
+    const uint8_t* data = fl_value_get_uint8_list(bytes_val);
+    const size_t len = fl_value_get_length(bytes_val);
+    g_autoptr(FlValue) result = fl_value_new_bool(
+        CopyEncodedImageToGtkClipboard(data, len) ? TRUE : FALSE);
+    RespondSuccess(method_call, result);
+    return;
+  }
+
+  g_autoptr(FlMethodResponse) response =
+      FL_METHOD_RESPONSE(fl_method_not_implemented_response_new());
+  g_autoptr(GError) error = nullptr;
+  if (!fl_method_call_respond(method_call, response, &error)) {
+    g_warning("Failed to respond not implemented: %s",
+              error != nullptr ? error->message : "unknown");
+  }
+}
+
 static void tray_method_cb(FlMethodChannel* channel,
                            FlMethodCall* method_call,
                            gpointer user_data) {
@@ -704,6 +772,12 @@ static void my_application_activate(GApplication* application) {
   fl_method_channel_set_method_call_handler(self->tray_channel, tray_method_cb,
                                             self, nullptr);
 
+  self->image_clipboard_channel = fl_method_channel_new(
+      messenger, "parfait/image_clipboard", FL_METHOD_CODEC(codec));
+  fl_method_channel_set_method_call_handler(self->image_clipboard_channel,
+                                            image_clipboard_method_cb, self,
+                                            nullptr);
+
   self->intent_channel = fl_method_channel_new(
       messenger, "parfait/android_intents", FL_METHOD_CODEC(codec));
   fl_method_channel_set_method_call_handler(
@@ -775,6 +849,11 @@ static void my_application_dispose(GObject* object) {
     fl_method_channel_set_method_call_handler(self->tray_channel, nullptr,
                                               nullptr, nullptr);
     g_clear_object(&self->tray_channel);
+  }
+  if (self->image_clipboard_channel != nullptr) {
+    fl_method_channel_set_method_call_handler(self->image_clipboard_channel,
+                                              nullptr, nullptr, nullptr);
+    g_clear_object(&self->image_clipboard_channel);
   }
   if (self->intent_channel != nullptr) {
     fl_method_channel_set_method_call_handler(self->intent_channel, nullptr,

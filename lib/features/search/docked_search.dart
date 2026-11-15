@@ -162,7 +162,7 @@ Rect _rectFor(Rect trigger, Size area) {
     left = trigger.right - width;
   }
   left = left.clamp(_edge, math.max(_edge, area.width - width - _edge));
-  final top = trigger.bottom + _gap;
+  final top = math.max(FuncSpacing.xs, trigger.bottom + _gap);
   final height = math.max(0.0, area.height - top - _edge);
   return Rect.fromLTWH(left, top, width, height);
 }

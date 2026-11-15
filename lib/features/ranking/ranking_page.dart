@@ -5,6 +5,7 @@ import '../../app/layout/deferred_cache_scroll_view.dart';
 import '../../app/navigation/routes.dart';
 import '../../app/pull_to_refresh.dart';
 import '../../app/widgets/feed/feed_grid.dart';
+import '../../app/widgets/feed/feed_selection.dart';
 import '../../app/widgets/feed/feed_states.dart';
 import '../../app/widgets/feed/illust_card.dart';
 import '../../app/widgets/func_bottom_nav.dart';
@@ -120,60 +121,64 @@ class _RankingModeBody extends ConsumerWidget {
         }
 
         final entities = store.getAll(feed.ids);
-        return PullToRefresh(
-          scrollController: scrollController,
-          onRefresh: () => ref
-              .read(rankingFeedControllerProvider(feedKey).notifier)
-              .refresh(),
-          child: LoadMoreListener(
-            itemCount: feed.ids.length,
-            onLoadMore: () => ref
+        return SelectableFeedHost(
+          child: PullToRefresh(
+            scrollController: scrollController,
+            onRefresh: () => ref
                 .read(rankingFeedControllerProvider(feedKey).notifier)
-                .loadMore(),
-            child: SmoothWheelScroll(
-              controller: scrollController,
-              basePhysics: const AlwaysScrollableScrollPhysics(),
-              builder: (context, controller, physics) =>
-                  DeferredCacheScrollView(
-                    key: PageStorageKey('ranking-$_listId'),
-                    controller: controller,
-                    physics: physics,
-                    scrollCacheExtent: kFeedCacheExtent,
-                    restorationId: 'ranking-$_listId',
-                    slivers: [
-                      IllustFeedGrid(
-                        itemIds: [for (final e in entities) e.id],
-                        itemCount: entities.length,
-                        pagerLoadMore: () => ref
-                            .read(
-                              rankingFeedControllerProvider(feedKey).notifier,
-                            )
-                            .loadMore(),
-                        warmTexts: (context, index) =>
-                            IllustCard.warmTexts(context, entities[index]),
-                        items: entities,
-                        itemDeps: _listId,
-                        itemBuilder: (context, index) => IllustCard(
-                          entity: entities[index],
-                          heroScope: 'ranking:$_listId',
-                          rank: index + 1,
-                        ),
-                      ),
-                      SliverToBoxAdapter(
-                        child: FeedTail(
-                          feed: feed,
-                          onRetry: () => ref
+                .refresh(),
+            child: LoadMoreListener(
+              itemCount: feed.ids.length,
+              onLoadMore: () => ref
+                  .read(rankingFeedControllerProvider(feedKey).notifier)
+                  .loadMore(),
+              child: SmoothWheelScroll(
+                controller: scrollController,
+                basePhysics: const AlwaysScrollableScrollPhysics(),
+                builder: (context, controller, physics) =>
+                    DeferredCacheScrollView(
+                      key: PageStorageKey('ranking-$_listId'),
+                      controller: controller,
+                      physics: physics,
+                      scrollCacheExtent: kFeedCacheExtent,
+                      restorationId: 'ranking-$_listId',
+                      slivers: [
+                        IllustFeedGrid(
+                          itemIds: [for (final e in entities) e.id],
+                          itemCount: entities.length,
+                          pagerLoadMore: () => ref
                               .read(
                                 rankingFeedControllerProvider(feedKey).notifier,
                               )
-                              .retryLoadMore(),
-                          errorTitle: context.l10n.rankingLoadMoreFailed,
-                          retryLabel: context.l10n.retry,
+                              .loadMore(),
+                          warmTexts: (context, index) =>
+                              IllustCard.warmTexts(context, entities[index]),
+                          items: entities,
+                          itemDeps: _listId,
+                          itemBuilder: (context, index) => IllustCard(
+                            entity: entities[index],
+                            heroScope: 'ranking:$_listId',
+                            rank: index + 1,
+                          ),
                         ),
-                      ),
-                      const SliverToBoxAdapter(child: FuncNavBarSpacer()),
-                    ],
-                  ),
+                        SliverToBoxAdapter(
+                          child: FeedTail(
+                            feed: feed,
+                            onRetry: () => ref
+                                .read(
+                                  rankingFeedControllerProvider(
+                                    feedKey,
+                                  ).notifier,
+                                )
+                                .retryLoadMore(),
+                            errorTitle: context.l10n.rankingLoadMoreFailed,
+                            retryLabel: context.l10n.retry,
+                          ),
+                        ),
+                        const SliverToBoxAdapter(child: FuncNavBarSpacer()),
+                      ],
+                    ),
+              ),
             ),
           ),
         );

@@ -277,6 +277,46 @@ class _BookmarkActions {
       return false;
     }
   }
+
+  /// Enqueues offline-durable add-bookmark actions for every unique [key] in
+  /// [keys] into `ActionQueue`, skipping entries that have an active pending
+  /// operation in `BookmarkStore`, and triggers an immediate queue pump.
+  Future<int> enqueueBatchAdd(
+    Iterable<BookmarkKey> keys,
+    BookmarkRestrict restrict, {
+    List<String> tags = const [],
+  }) async {
+    final store = _ref.read(bookmarkStoreProvider.notifier);
+    final queue = _ref.read(actionQueueProvider);
+    final seen = <BookmarkKey>{};
+    var queued = 0;
+    for (final key in keys) {
+      if (!seen.add(key)) continue;
+      final op = store.beginAdd(key, restrict, tags: tags);
+      if (op == null) continue;
+      try {
+        await queue.enqueue(
+          owner: op.accountId,
+          type: ActionTypes.bookmarkAdd,
+          dedupeKey: _dedupeKey(key),
+          payload: {
+            'entity': key.type.name,
+            'id': key.id,
+            'restrict': restrict.name,
+            'tags': tags,
+          },
+        );
+        store.markQueued(op);
+        queued += 1;
+      } catch (error) {
+        store.fail(op, error);
+      }
+    }
+    if (queued > 0) {
+      pumpActionQueue(_ref);
+    }
+    return queued;
+  }
 }
 
 final bookmarkActionsProvider = Provider<_BookmarkActions>((ref) {

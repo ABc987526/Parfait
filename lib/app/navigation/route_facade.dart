@@ -27,7 +27,7 @@ String? _stackRootOf(String path) {
 }
 
 String _currentStackRoot(BuildContext context) {
-  final path = GoRouter.of(context).state.uri.path;
+  final path = _livePathOf(GoRouter.of(context));
   return _stackRootOf(path) ?? '/recommended';
 }
 
@@ -175,7 +175,17 @@ String _appPageLocation(GoRouter router, String leaf, {required bool rail}) {
 /// App settings are the fifth home destination: opening them switches the
 /// shell branch rather than pushing a page over it.
 Future<void> openSettings(BuildContext context) async {
-  context.go('/settings');
+  GoRouter.of(context).go('/settings');
+}
+
+/// Pushes the full settings index page on top of the current navigation stack.
+Future<void> openAllSettings(BuildContext context) async {
+  await GoRouter.of(context).push<void>('/settings/all');
+}
+
+/// Pushes the account management page.
+Future<void> openAccountSettings(BuildContext context) async {
+  await GoRouter.of(context).push<void>('/settings/account');
 }
 
 /// The update prompt can be shown above any route, including root overlays.

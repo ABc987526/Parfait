@@ -534,8 +534,7 @@ class _Title extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) =>
-      SelectableText(title, style: _style(context));
+  Widget build(BuildContext context) => Text(title, style: _style(context));
 }
 
 /// The title of a work without a caption, with the translate button at its

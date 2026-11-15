@@ -3313,4 +3313,78 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get novelShowToolbar => 'Показать панель';
+
+  @override
+  String get navBack => 'Назад';
+
+  @override
+  String get navForward => 'Вперёд';
+
+  @override
+  String get commandContentFilter => 'Фильтр контента';
+
+  @override
+  String get commandSwitchAccount => 'Сменить аккаунт';
+
+  @override
+  String get menuFile => 'Файл';
+
+  @override
+  String get menuView => 'Вид';
+
+  @override
+  String get menuNavigate => 'Навигация';
+
+  @override
+  String get menuWindow => 'Окно';
+
+  @override
+  String get menuPreferences => 'Настройки…';
+
+  @override
+  String get menuEnterFullScreen => 'Войти в полноэкранный режим';
+
+  @override
+  String get menuExitFullScreen => 'Выйти из полноэкранного режима';
+
+  @override
+  String get viewerPreviousPage => 'Предыдущая страница';
+
+  @override
+  String get viewerNextPage => 'Следующая страница';
+
+  @override
+  String get copyOriginalImage => 'Копировать оригинал';
+
+  @override
+  String get imageCopiedToClipboard =>
+      'Оригинал изображения скопирован в буфер обмена';
+
+  @override
+  String get imageCopyFailed => 'Не удалось скопировать оригинал';
+
+  @override
+  String get batchDownloadOriginal => 'Скачать оригиналы';
+
+  @override
+  String get batchBookmarkPublic => 'В публичные';
+
+  @override
+  String get batchBookmarkPrivate => 'В приватные';
+
+  @override
+  String get batchClearSelection => 'Снять выбор';
+
+  @override
+  String batchBookmarkEnqueued(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'В очередь закладок добавлено $count работ',
+      many: 'В очередь закладок добавлено $count работ',
+      few: 'В очередь закладок добавлено $count работы',
+      one: 'В очередь закладок добавлена $count работа',
+    );
+    return '$_temp0';
+  }
 }

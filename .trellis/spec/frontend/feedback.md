@@ -10,11 +10,12 @@ applies_to:
   - lib/app/motion/app_overlays.dart
   - lib/app/haptics/**
   - lib/app/clipboard.dart
+  - lib/core/platform/image_clipboard.dart
   - lib/app/widgets/bookmark_switch_button.dart
   - lib/app/widgets/follow_switch_button.dart
   - lib/app/widgets/watchlist_toggle.dart
   - lib/app/widgets/comment_composer.dart
-reviewed: 2026-11-14
+reviewed: 2026-11-15
 ---
 
 # Menus, overlays, prompts, undo and haptics
@@ -204,6 +205,20 @@ reviewed: 2026-11-14
 - **Why:** Copies without confirmation looked like nothing happened.
 - **Check:** `test/architecture/feedback_channels_test.dart` "UI clipboard writes go through copyToClipboard"
 - **Code:** `lib/app/clipboard.dart`
+
+### FB-16 Desktop original image clipboard copy uses ImageClipboard and deferAppSnackBar
+- **Rule:** On desktop platforms (`isDesktopImageClipboardSupported` on Windows,
+  macOS, and Linux), card and detail action sheets expose original-image copy
+  via `copyIllustOriginalImageToClipboard`: read strings and prompt host before
+  any `await` (`deferAppSnackBar`), resolve original image bytes through
+  `imageWorkerProvider`, invoke `MethodChannel('parfait/image_clipboard')`, emit
+  `AppHaptics.success()` on success, and surface `imageCopyFailed` explicitly on
+  failure; non-desktop platforms omit this action.
+- **Why:** Native image copying spans async fetch and OS clipboard codecs;
+  capturing the prompt host upfront guarantees feedback outlives a scrolled or
+  dismissed opener without showing broken controls on mobile.
+- **Check:** `test/desktop_ux_phase2_test.dart` "ImageClipboard channel and copy-image action copy original bytes with desktop-only gating and deferAppSnackBar"
+- **Code:** `lib/core/platform/image_clipboard.dart`, `lib/app/clipboard.dart`, `lib/app/widgets/card_actions/illust_card_actions.dart`, `windows/runner/flutter_window.cpp`, `macos/Runner/MainFlutterWindow.swift`, `linux/runner/my_application.cc`
 
 ## Late callbacks
 

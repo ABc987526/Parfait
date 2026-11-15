@@ -236,11 +236,12 @@ reviewed: 2026-11-15
   `MotionTokens.branchSwitch` rather than swapping it in one frame; only one
   layout is ever in the tree, since both show the same work and one route
   cannot hold the same hero tag twice. The image pager takes a sideways swipe at
-  twice the device's touch slop (`pagingGestureSettings`); at its first or last
-  image it hands the swipe on to the work pager around it through
-  `SwipePagerScope`, and a swipe between images only turns the image. A work not
-  built yet draws the image the grid already decoded on the stage, fitted as
-  the pager fits a page, with the info column on the page's ground (C10).
+  the device's touch slop through `SwipePaging` (`swipePagingMaxDegrees` angle
+  gate inside the outer `SelectionArea`); at its first or last image it hands
+  the swipe on to the work pager around it through `SwipePagerScope`, and a
+  swipe between images only turns the image. A work not built yet draws the
+  image the grid already decoded on the stage, fitted as the pager fits a
+  page, with the info column on the page's ground (C10).
 - **Why:** On a turned phone the single column showed half an image;
   hinge-unaware widths overlapped foldable creases; pointer desktops need
   adjustable column splits while keeping touch tablets hinge-safe. Keeping the
@@ -309,3 +310,22 @@ reviewed: 2026-11-15
   the middle of `performLayout`.
 - **Check:** manual
 - **Code:** `lib/app/widgets/prompt_anchor.dart`
+
+### DETAIL-19 Pointer viewer wheel zoom, multi-page hover scrubber, wide info panel and selectable detail text
+- **Rule:** `ImageViewerPage` zooms around the pointer on mouse wheel ticks and
+  snaps scales within 0.94 to 1.06 cleanly back to `1.0x` (zoomed images absorb
+  wheel ticks rather than turning pages; Shift plus wheel turns pages), shows
+  the bottom hover thumbnail scrubber (`_PageScrubber`) only when `pages >= 2`,
+  and on viewports at least 840dp wide docks artwork metadata into a 320dp
+  trailing `_ViewerInfoPanel` whose author/tag links pop the viewer before
+  navigating. Standalone detail pages wrap selectable metadata in `SelectionArea`
+  while excluding non-text chrome, collapsed `ExpandableText` fade masks, and
+  touch-mode `TagChip`s via `SelectionContainer.disabled`; paged mode
+  (`IllustDetailPagerPage`) hosts the single outer `SelectionArea` outside its
+  slope-gated `_PagerDragRecognizer` (`PageView`) so touch sideways swipes beat
+  selection drags cleanly while mouse drags select across copy.
+- **Why:** Desktop viewing pairs cursor-anchored wheel zoom and persistent wide
+  info panels with arbitrary text selection without breaking touch pill/card
+  or pager swipes, or leaving duplicate routes behind the viewer.
+- **Check:** `test/desktop_ux_phase2_test.dart` "ImageViewer supports wheel zoom with 1.0x snap, multi-page hover scrubber, and wide info panel pop-before-navigate" "SelectionArea wraps detail and comments text while excluding IllustCard, collapsed fade, and touch tags"
+- **Code:** `lib/features/illust/viewer/image_viewer_page.dart`, `lib/features/illust/viewer/image_viewer_chrome.dart`, `lib/features/illust/detail/illust_detail_page.dart`, `lib/features/illust/detail/illust_detail_pager_page.dart`, `lib/features/illust/detail/illust_detail_content.dart`, `lib/app/widgets/expandable_text.dart`, `lib/app/widgets/tag_chips.dart`

@@ -6,13 +6,16 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 
+import '../../../core/entity/illust_entity.dart';
 import '../../../core/settings/app_settings.dart';
 import '../../../core/settings/settings_controller.dart';
+import '../../layout/app_breakpoints.dart';
 import '../../layout/sliver_cache_ramp.dart';
 import '../../layout/sliver_width_builder.dart';
 import '../../motion/motion_tokens.dart';
 import '../../theme/func_semantic_tokens.dart';
 import 'feed_item_cache.dart';
+import 'feed_selection.dart';
 import 'feed_text_warmup.dart';
 
 /// How far beyond the viewport feed children are built and start resolving
@@ -337,6 +340,13 @@ class _IllustFeedGridState extends ConsumerState<IllustFeedGrid> {
       );
     }
     _cards.update(widget.items, widget.itemDeps);
+    final selection = FeedSelectionScope.maybeOf(context);
+    if (selection != null && widget.items != null) {
+      selection.syncItems([
+        for (final item in widget.items!)
+          if (item is IllustEntity) item,
+      ]);
+    }
     final density = ref.watch(feedDensityProvider);
     final horizontal = widget.padding
         .resolve(Directionality.of(context))
@@ -365,18 +375,31 @@ class _IllustFeedGridState extends ConsumerState<IllustFeedGrid> {
                 (context, index) {
                   if (widget.warmTexts != null) _warmup.built(context, index);
                   final ids = widget.itemIds;
-                  final id = ids != null && index < ids.length
+                  final rawItem =
+                      widget.items != null && index < widget.items!.length
+                      ? widget.items![index]
+                      : null;
+                  final entityId = ids != null && index < ids.length
                       ? ids[index]
-                      : index;
+                      : (rawItem is IllustEntity ? rawItem.id : null);
+                  final id = entityId ?? index;
+                  Widget card = _cards.build(
+                    context,
+                    index,
+                    widget.itemBuilder,
+                  );
+                  if (selection != null && entityId != null) {
+                    card = FeedSelectableCardDecorator(
+                      entityId: entityId,
+                      child: card,
+                    );
+                  }
                   // Keyed by work: a slot taking a different work mounts
                   // afresh. Cards land in place, as in Shaft; only their
                   // images fade in.
                   return FeedItemExtent(
                     width: columnWidth,
-                    child: TickerPartition(
-                      key: ValueKey(id),
-                      child: _cards.build(context, index, widget.itemBuilder),
-                    ),
+                    child: TickerPartition(key: ValueKey(id), child: card),
                   );
                 },
                 childCount: widget.itemCount,
@@ -391,6 +414,16 @@ class _IllustFeedGridState extends ConsumerState<IllustFeedGrid> {
         // the single-work route.
         if (widget.itemIds != null) {
           grid = IllustPagerScope(source: _pagerSource, child: grid);
+        }
+        if (selection != null && crossAxisExtent >= AppBreakpoints.medium) {
+          grid = SliverMainAxisGroup(
+            slivers: [
+              SliverToBoxAdapter(
+                child: FeedSelectionHeaderStrip(controller: selection),
+              ),
+              grid,
+            ],
+          );
         }
         return grid;
       },

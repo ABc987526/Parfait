@@ -6,6 +6,7 @@ import '../../l10n/context.dart';
 import '../layout/form_factor.dart';
 import '../motion/motion_tokens.dart';
 import '../theme/func_semantic_tokens.dart';
+import '../window/desktop_command_bar.dart';
 import '../window/desktop_title_bar.dart';
 import 'fit_label.dart';
 import 'func_bottom_nav.dart';
@@ -241,21 +242,26 @@ class ShellRail extends StatelessWidget {
     final size = MediaQuery.sizeOf(context);
     final toggleable =
         canToggle ?? form.canToggleRail(size.width, height: size.height);
+    final hideHeader = DesktopCommandBarScope.isActiveOf(context);
     return Column(
       children: [
-        SizedBox(
-          height: _headerHeight,
-          child: Center(
-            child: toggleable
-                ? IconButton(
-                    onPressed: onToggle,
-                    tooltip: l10n.railExpand,
-                    icon: const Icon(Icons.menu),
-                  )
-                : const _AppIcon(size: FuncSpacing.xxl),
+        if (hideHeader)
+          const SizedBox(height: FuncSpacing.md)
+        else ...[
+          SizedBox(
+            height: _headerHeight,
+            child: Center(
+              child: toggleable
+                  ? IconButton(
+                      onPressed: onToggle,
+                      tooltip: l10n.railExpand,
+                      icon: const Icon(Icons.menu),
+                    )
+                  : const _AppIcon(size: FuncSpacing.xxl),
+            ),
           ),
-        ),
-        const SizedBox(height: FuncSpacing.xl),
+          const SizedBox(height: FuncSpacing.xl),
+        ],
         _destinations(
           (i, selected) => item(
             icon: destinations[i].icon,
@@ -334,30 +340,34 @@ class ShellRail extends StatelessWidget {
         ),
       ),
     );
+    final hideHeader = DesktopCommandBarScope.isActiveOf(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        SizedBox(
-          height: _headerHeight,
-          child: Row(
-            children: [
-              IconButton(
-                onPressed: onToggle,
-                tooltip: l10n.railCollapse,
-                icon: const Icon(Icons.menu_open),
-              ),
-              const SizedBox(width: FuncSpacing.xs),
-              const _AppIcon(size: FuncSpacing.xl + FuncSpacing.xs),
-              const SizedBox(width: FuncSpacing.md),
-              Text(
-                'Parfait',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-              ),
-            ],
+        if (hideHeader)
+          const SizedBox(height: FuncSpacing.md)
+        else
+          SizedBox(
+            height: _headerHeight,
+            child: Row(
+              children: [
+                IconButton(
+                  onPressed: onToggle,
+                  tooltip: l10n.railCollapse,
+                  icon: const Icon(Icons.menu_open),
+                ),
+                const SizedBox(width: FuncSpacing.xs),
+                const _AppIcon(size: FuncSpacing.xl + FuncSpacing.xs),
+                const SizedBox(width: FuncSpacing.md),
+                Text(
+                  'Parfait',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
         const SizedBox(height: FuncSpacing.xl),
         _destinations(
           (i, selected) => row(

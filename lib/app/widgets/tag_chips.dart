@@ -1,5 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 
+import '../layout/input_modality.dart';
 import '../motion/motion_tokens.dart';
 import '../motion/press_scale.dart';
 import '../theme/func_semantic_tokens.dart';
@@ -151,26 +152,34 @@ class _TagChipState extends State<TagChip> {
         child: Padding(padding: _hitMargin, child: pill),
       ),
     );
-    if (!widget.blockMode) return chip;
-    return Semantics(
-      selected: widget.blocked,
-      child: Stack(
-        children: [
-          chip,
-          Positioned(
-            top: _hitMargin.top - FuncSpacing.xs,
-            right: 0,
-            child: IgnorePointer(
-              child: Icon(
-                Icons.block,
-                size: 15,
-                color: widget.blocked
-                    ? Theme.of(context).colorScheme.primary
-                    : tokens.contentTertiary,
+    final modality =
+        InputModalityScope.maybeOf(context) ??
+        defaultInputModalityFor(Theme.of(context).platform);
+    Widget wrap(Widget child) => modality == InputModality.pointer
+        ? child
+        : SelectionContainer.disabled(child: child);
+    if (!widget.blockMode) return wrap(chip);
+    return wrap(
+      Semantics(
+        selected: widget.blocked,
+        child: Stack(
+          children: [
+            chip,
+            Positioned(
+              top: _hitMargin.top - FuncSpacing.xs,
+              right: 0,
+              child: IgnorePointer(
+                child: Icon(
+                  Icons.block,
+                  size: 15,
+                  color: widget.blocked
+                      ? Theme.of(context).colorScheme.primary
+                      : tokens.contentTertiary,
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
