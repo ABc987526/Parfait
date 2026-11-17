@@ -44,6 +44,8 @@ import '../../../app/widgets/artwork_controls.dart';
 import '../../../app/widgets/entity_row.dart' show EntityBadge;
 import '../../../app/widgets/feed/feed_states.dart' show FeedLoading;
 import '../../../app/widgets/errors/error_details.dart';
+import '../../../app/window/desktop_command_bar.dart';
+import '../../../app/window/desktop_title_bar.dart';
 import '../../../l10n/context.dart';
 import '../../../app/theme/func_semantic_tokens.dart';
 import '../detail/widgets/detail_page_counter.dart' show PageCountPill;
@@ -197,6 +199,8 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
   bool _scrubberHovered = false;
   bool _infoPanelOpen = false;
   Timer? _chromeHideTimer;
+  DesktopCommandBarController? _commandBarController;
+  ModalRoute<dynamic>? _observedRoute;
 
   int get _pageCount => _pagesOf(widget);
 
@@ -230,6 +234,41 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
       (_) => _prefetchNeighbours(_activePage),
     );
     if (!_viewerSessionChromeVisible) _setSystemChrome(visible: false);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final nextController = DesktopCommandBarScope.controllerOf(context);
+    if (!identical(_commandBarController, nextController)) {
+      _commandBarController?.setHidden(this, false);
+      _commandBarController = nextController;
+    }
+    final nextRoute = ModalRoute.of(context);
+    if (!identical(_observedRoute, nextRoute)) {
+      _observedRoute?.animation?.removeStatusListener(_onRouteAnimationStatus);
+      _observedRoute = nextRoute;
+      _observedRoute?.animation?.addStatusListener(_onRouteAnimationStatus);
+    }
+    _syncCommandBarHidden();
+  }
+
+  void _onRouteAnimationStatus(AnimationStatus status) {
+    _syncCommandBarHidden();
+  }
+
+  void _syncCommandBarHidden() {
+    final controller = _commandBarController;
+    if (controller == null) return;
+    final route = _observedRoute;
+    final animStatus = route?.animation?.status;
+    final active =
+        mounted &&
+        (route == null ||
+            (route.isActive &&
+                animStatus != AnimationStatus.reverse &&
+                animStatus != AnimationStatus.dismissed));
+    controller.setHidden(this, active);
   }
 
   @override
@@ -272,6 +311,10 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
 
   @override
   void dispose() {
+    _observedRoute?.animation?.removeStatusListener(_onRouteAnimationStatus);
+    _observedRoute = null;
+    _commandBarController?.setHidden(this, false);
+    _commandBarController = null;
     _chromeHideTimer?.cancel();
     _prefetchDemand?.clearPrefetchWindow(this);
     unawaited(_downloadEvents?.cancel());
@@ -649,6 +692,9 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
   bool _isWideInfoLayout(BuildContext context) =>
       MediaQuery.sizeOf(context).width >= AppBreakpoints.expanded;
 
+  bool _wideInfoPanelOpen(BuildContext context) =>
+      _infoPanelOpen && widget.entity != null && _isWideInfoLayout(context);
+
   void _openFromInfoPanel(Future<void> Function(BuildContext context) open) {
     final navContext = Navigator.of(context).context;
     final hasRouter = GoRouter.maybeOf(context) != null;
@@ -831,16 +877,19 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
         : ref
               .watch(illustDownloadControllerProvider)
               .stateFor(entity.id, _activePage);
+    final wideInfoOpen = _wideInfoPanelOpen(context);
     // The fullscreen viewer deliberately keeps an opaque black canvas so
     // artwork and its white chrome match the replica surface.
     return PopScope<void>(
-      // canPop carries only the zoom leg (revision ②): hidden chrome is a
-      // view state, not a gate — with chrome hidden the system back leaves
-      // the route directly. Sheets/menus pushed on top still intercept back
-      // themselves, and explicit exits pop imperatively below.
-      canPop: !_activeZoomed,
+      // Close an open wide info panel first, then unzoom, before popping the
+      // viewer route. Hidden chrome remains a view state, not a back gate.
+      canPop: !wideInfoOpen && !_activeZoomed,
       onPopInvokedWithResult: (didPop, _) {
         if (didPop || !mounted) return;
+        if (_wideInfoPanelOpen(context)) {
+          setState(() => _infoPanelOpen = false);
+          return;
+        }
         // System back while zoomed: reset to fit and stay on the route.
         _resetZoom();
       },
@@ -987,19 +1036,22 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
                           ),
                         ),
                       ),
-                      if (_isWideInfoLayout(context) &&
-                          _infoPanelOpen &&
-                          entity != null)
-                        _ViewerInfoPanel(
-                          entity: entity,
-                          onClose: () => setState(() => _infoPanelOpen = false),
-                          onSaveAll: () => unawaited(_downloadAll(entity)),
-                          onOpenDetail: () => Navigator.of(context).pop<void>(),
-                          onOpenAuthor: () => _openFromInfoPanel(
-                            (ctx) => openUser(ctx, entity.user.id),
-                          ),
-                          onOpenTag: (tag) => _openFromInfoPanel(
-                            (ctx) => openTagSearch(ctx, tag),
+                      if (_isWideInfoLayout(context) && entity != null)
+                        _ViewerInfoPanelSlot(
+                          open: _infoPanelOpen,
+                          child: _ViewerInfoPanel(
+                            entity: entity,
+                            onClose: () =>
+                                setState(() => _infoPanelOpen = false),
+                            onSaveAll: () => unawaited(_downloadAll(entity)),
+                            onOpenDetail: () =>
+                                Navigator.of(context).pop<void>(),
+                            onOpenAuthor: () => _openFromInfoPanel(
+                              (ctx) => openUser(ctx, entity.user.id),
+                            ),
+                            onOpenTag: (tag) => _openFromInfoPanel(
+                              (ctx) => openTagSearch(ctx, tag),
+                            ),
                           ),
                         ),
                     ],
@@ -1029,8 +1081,8 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
     const SingleActivator(LogicalKeyboardKey.digit0): _resetZoom,
     const SingleActivator(LogicalKeyboardKey.numpad0): _resetZoom,
     const SingleActivator(LogicalKeyboardKey.keyF): _toggleChrome,
-    const SingleActivator(LogicalKeyboardKey.escape): _imperativePop,
-    const SingleActivator(LogicalKeyboardKey.backspace): _imperativePop,
+    const SingleActivator(LogicalKeyboardKey.escape): _handleBackShortcut,
+    const SingleActivator(LogicalKeyboardKey.backspace): _handleBackShortcut,
     const SingleActivator(LogicalKeyboardKey.keyS): _saveActivePageIfAny,
     const SingleActivator(LogicalKeyboardKey.keyI): _showInfoIfAny,
   };
@@ -1077,6 +1129,14 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
       end.setEntry(1, 3, end.entry(1, 3).clamp(minTy, 0.0));
     }
     _animateZoom(target, end);
+  }
+
+  void _handleBackShortcut() {
+    if (_wideInfoPanelOpen(context)) {
+      setState(() => _infoPanelOpen = false);
+      return;
+    }
+    _imperativePop();
   }
 
   /// Imperative pop — explicit exits (back button, Esc/Backspace) always
@@ -1241,12 +1301,15 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
   /// Top chrome: back affordance + the `n / total` counter, the viewer's
   /// only page counter. Tapping it opens the thumbnail jump sheet.
   Widget _buildTopBar(BuildContext context) {
+    final leadingInset =
+        DesktopChromeMetrics.maybeOf(context)?.leadingInset ?? 0;
     return Material(
-      color: Colors.transparent,
+      color: FuncTokens.transparent,
       child: SafeArea(
         bottom: false,
         child: Row(
           children: [
+            if (leadingInset > 0) SizedBox(width: leadingInset),
             // Imperative pop: explicit exits never route through the
             // system-back intercept chain (W1 split).
             BackButton(onPressed: _imperativePop),
@@ -1291,7 +1354,7 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
         _pageCount >= 4 ||
         (modality == InputModality.pointer && _pageCount >= 2);
     return Material(
-      color: Colors.transparent,
+      color: FuncTokens.transparent,
       child: SafeArea(
         top: false,
         child: Column(
@@ -1370,4 +1433,108 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
   bool _isZoomed(int page) =>
       _transformationFor(page).value.getMaxScaleOnAxis() >
       1.0 + precisionErrorTolerance;
+}
+
+class _ViewerInfoPanelSlot extends StatefulWidget {
+  const _ViewerInfoPanelSlot({required this.open, required this.child});
+
+  final bool open;
+  final Widget child;
+
+  @override
+  State<_ViewerInfoPanelSlot> createState() => _ViewerInfoPanelSlotState();
+}
+
+class _ViewerInfoPanelSlotState extends State<_ViewerInfoPanelSlot>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final CurvedAnimation _curve;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(vsync: this, value: widget.open ? 1 : 0)
+      ..addStatusListener(_onStatus);
+    _curve = CurvedAnimation(
+      parent: _controller,
+      curve: MotionTokens.chromeCurve,
+      reverseCurve: MotionTokens.chromeCurve.flipped,
+    );
+  }
+
+  void _onStatus(AnimationStatus status) {
+    if (status == AnimationStatus.dismissed && mounted) {
+      setState(() {});
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final duration = MotionTokens.resolve(context, MotionTokens.chrome);
+    _controller.duration = duration;
+    _controller.reverseDuration = duration;
+    if (duration == Duration.zero) {
+      _controller.value = widget.open ? 1 : 0;
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _ViewerInfoPanelSlot oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.open == widget.open) return;
+    final duration = MotionTokens.resolve(context, MotionTokens.chrome);
+    _controller.duration = duration;
+    _controller.reverseDuration = duration;
+    if (duration == Duration.zero) {
+      _controller.value = widget.open ? 1 : 0;
+      return;
+    }
+    if (widget.open) {
+      unawaited(_controller.forward());
+    } else {
+      unawaited(_controller.reverse());
+    }
+  }
+
+  @override
+  void dispose() {
+    _curve.dispose();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!widget.open && _controller.isDismissed) {
+      return const SizedBox.shrink();
+    }
+    return ExcludeSemantics(
+      excluding: !widget.open,
+      child: ExcludeFocus(
+        excluding: !widget.open,
+        child: IgnorePointer(
+          ignoring: !widget.open,
+          child: ClipRect(
+            child: AnimatedBuilder(
+              animation: _curve,
+              builder: (context, child) {
+                final t = _curve.value.clamp(0.0, 1.0);
+                return Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  widthFactor: t,
+                  child: Opacity(
+                    opacity: t,
+                    alwaysIncludeSemantics: true,
+                    child: child,
+                  ),
+                );
+              },
+              child: widget.child,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

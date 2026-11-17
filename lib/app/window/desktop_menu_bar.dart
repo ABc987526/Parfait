@@ -69,6 +69,7 @@ List<PlatformMenuItem> buildDesktopPlatformMenus({
   required bool railExpanded,
   required bool isFullScreen,
   required VoidCallback onToggleRail,
+  bool canToggleRail = true,
   VoidCallback? onToggleFullScreen,
   VoidCallback? onMinimize,
   VoidCallback? onZoom,
@@ -92,8 +93,9 @@ List<PlatformMenuItem> buildDesktopPlatformMenus({
               onSelected: preHome
                   ? null
                   : () {
-                      final nav = _navContextOf(router);
-                      if (nav != null) unawaited(openAllSettings(nav));
+                      if (liveRouterUri(router).path != '/settings/all') {
+                        router.go('/settings/all');
+                      }
                     },
             ),
           ],
@@ -215,7 +217,7 @@ List<PlatformMenuItem> buildDesktopPlatformMenus({
       menus: [
         PlatformMenuItem(
           label: railExpanded ? l10n.railCollapse : l10n.railExpand,
-          onSelected: preHome ? null : onToggleRail,
+          onSelected: preHome || !canToggleRail ? null : onToggleRail,
         ),
         PlatformMenuItemGroup(
           members: [
@@ -322,12 +324,15 @@ class _DesktopMenuBarState extends ConsumerState<DesktopMenuBar> {
     final chrome = DesktopChromeMetrics.maybeOf(context);
     final actions =
         chrome?.actions ?? DesktopWindowScope.maybeOf(context)?.actions;
-    final settings = ref.watch(settingsProvider).value ?? widget.settings;
+    final railChoice =
+        ref.watch(railExpandedProvider) ?? widget.settings.railExpanded;
     final size = MediaQuery.sizeOf(context);
-    final railExpanded = FormFactor.of(context).railExpanded(
+    final form = FormFactor.of(context);
+    final canToggleRail = form.canToggleRail(size.width, height: size.height);
+    final railExpanded = form.railExpanded(
       size.width,
-      choice: settings.railExpanded,
       height: size.height,
+      choice: railChoice,
     );
     final history = ForwardHistoryStack.ofRouter(widget.router);
     final includeSystemQuit =
@@ -341,6 +346,7 @@ class _DesktopMenuBarState extends ConsumerState<DesktopMenuBar> {
           l10n: l10n,
           router: widget.router,
           railExpanded: railExpanded,
+          canToggleRail: canToggleRail,
           isFullScreen: chrome?.isFullScreen ?? false,
           onToggleRail: () {
             final next = !railExpanded;

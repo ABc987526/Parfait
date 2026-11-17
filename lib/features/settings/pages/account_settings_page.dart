@@ -143,6 +143,11 @@ class _AccountSettingsPageState extends ConsumerState<AccountSettingsPage> {
                                 title: Text(account.name),
                                 subtitle: Text(
                                   _accountSubtitle(context, account),
+                                  style: TextStyle(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
+                                  ),
                                 ),
                                 trailing: Row(
                                   mainAxisSize: MainAxisSize.min,

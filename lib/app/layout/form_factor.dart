@@ -62,23 +62,25 @@ enum FormFactor {
   /// Whether the shell rail exposes an explicit expand/collapse control at
   /// [width]×[height].
   bool canToggleRail(double width, {double height = double.infinity}) =>
-      this == pc ||
-      (this == touch &&
-          width >= AppBreakpoints.expanded &&
-          height >= AppBreakpoints.compactHeight);
+      hasRail(width) &&
+      (this == pc ||
+          (this == touch &&
+              width >= AppBreakpoints.expanded &&
+              height >= AppBreakpoints.compactHeight));
 
-  /// Whether the rail is open into its labelled panel: on a PC as the user
-  /// last left it ([choice]) or expanded from [AppBreakpoints.extraLarge];
-  /// on large touch screens ([canToggleRail]) collapsed by default until the
-  /// user expands it (`NAV-20`).
+  /// Whether the rail is open into its labelled panel: requires
+  /// [canToggleRail] (forcing collapsed when narrower/shorter), on a PC as the
+  /// user last left it ([choice]) or expanded from [AppBreakpoints.large]
+  /// (`1200dp`); on large touch screens collapsed by default until the user
+  /// expands it (`NAV-20`).
   bool railExpanded(
     double width, {
     required bool? choice,
     double height = double.infinity,
   }) {
-    if (this == pc) return choice ?? width >= AppBreakpoints.extraLarge;
-    if (canToggleRail(width, height: height)) return choice ?? false;
-    return false;
+    if (!canToggleRail(width, height: height)) return false;
+    if (this == pc) return choice ?? width >= AppBreakpoints.large;
+    return choice ?? false;
   }
 }
 

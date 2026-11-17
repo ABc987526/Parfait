@@ -97,8 +97,14 @@ class MotionSettingsPage extends ConsumerWidget {
                 ),
               ],
             ),
-            // Android-only: the haptics driver is a no-op elsewhere.
-            if (defaultTargetPlatform == TargetPlatform.android)
+            // Android always exposes haptic strength; iOS exposes it when the
+            // device reports Taptic / Core Haptics capability.
+            if (defaultTargetPlatform == TargetPlatform.android ||
+                (defaultTargetPlatform == TargetPlatform.iOS &&
+                    switch (ref.watch(hapticsCapabilityProvider)) {
+                      AsyncData(:final value) => value.tier != HapticsTier.none,
+                      _ => false,
+                    }))
               _HapticStrengthGroup(selected: settings.hapticStrength),
           ],
         ),

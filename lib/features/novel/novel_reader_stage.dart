@@ -514,6 +514,7 @@ class _NovelReaderStageState extends ConsumerState<NovelReaderStage>
                               availableWidth: constraints.maxWidth,
                               textScaler: MediaQuery.textScalerOf(context),
                             );
+                            final hintStyle = _hintStyle(context, palette);
                             return Center(
                               child: SizedBox(
                                 width: width,
@@ -521,12 +522,25 @@ class _NovelReaderStageState extends ConsumerState<NovelReaderStage>
                                   padding: EdgeInsets.symmetric(
                                     horizontal: style.horizontalPadding,
                                   ),
-                                  child: Text(
-                                    '${novel.title} · ${_page + 1}/$_pageCount · $percent%'
-                                    '${bilingual && translatingPage ? ' · ${l10n.novelTranslating}' : ''}',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: _hintStyle(context, palette),
+                                  child: MergeSemantics(
+                                    child: Row(
+                                      children: [
+                                        Flexible(
+                                          child: Text(
+                                            novel.title,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: hintStyle,
+                                          ),
+                                        ),
+                                        Text(
+                                          ' · ${_page + 1}/$_pageCount · $percent%'
+                                          '${bilingual && translatingPage ? ' · ${l10n.novelTranslating}' : ''}',
+                                          maxLines: 1,
+                                          style: hintStyle,
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ),

@@ -14,6 +14,7 @@ import '../../app/navigation/routes.dart';
 import '../../app/person_avatar.dart';
 import '../../app/pixiv_image.dart';
 import '../../app/pull_to_refresh.dart';
+import '../../app/theme/category_colors.dart';
 import '../../app/theme/func_semantic_tokens.dart';
 import '../../app/widgets/app_top_bar.dart';
 import '../../app/widgets/edge_icon_buttons.dart';
@@ -23,6 +24,8 @@ import '../../app/widgets/feed/feed_grid.dart'
 import '../../app/widgets/feed/feed_states.dart';
 import '../../app/widgets/func_bottom_nav.dart';
 import '../../app/widgets/person_card.dart';
+import '../../app/widgets/settings/settings_group.dart';
+import '../../app/widgets/settings/settings_tile.dart';
 import '../../app/widgets/settings_load_error.dart';
 import '../../app/window/desktop_command_bar.dart' show DesktopCommandBarScope;
 import '../../core/auth/account.dart';
@@ -112,19 +115,20 @@ class _MeDashboardPageState extends ConsumerState<MeDashboardPage> {
         messageKey: 'accountReadFailed',
       );
     }
+    final neutralTone = neutralCategoryTone(Theme.of(context).colorScheme);
     final settingsEntry = (
       icon: Icons.settings_outlined,
       label: context.l10n.settingsTitle,
       onTap: () => openSettingsPage(context, settingsIndexPath),
       count: null,
-      accented: true,
+      tone: neutralTone,
     );
     final aboutEntry = (
       icon: settingsPageIcons[SettingsPageRef.about]!,
       label: context.l10n.aboutSettings,
       onTap: () => openSettingsPage(context, SettingsPageRef.about.path),
       count: null,
-      accented: false,
+      tone: neutralTone,
     );
     final history = _RecentHistory(key: _historyKey);
     if (!wide) {
@@ -141,20 +145,21 @@ class _MeDashboardPageState extends ConsumerState<MeDashboardPage> {
               padding: EdgeInsets.symmetric(horizontal: FuncSpacing.lg),
               child: _ContentShortcuts(),
             ),
-            const SizedBox(height: FuncSpacing.md),
+            const SizedBox(height: FuncSpacing.xl),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: FuncSpacing.lg),
-              child: _GroupedPanel(
+              child: _MeEntryGroup(
                 children: [
                   _MeRow(
                     icon: settingsEntry.icon,
                     label: settingsEntry.label,
+                    tone: settingsEntry.tone,
                     onTap: settingsEntry.onTap,
                   ),
                   _MeRow(
                     icon: aboutEntry.icon,
                     label: aboutEntry.label,
-                    accented: false,
+                    tone: aboutEntry.tone,
                     onTap: aboutEntry.onTap,
                   ),
                 ],
@@ -238,92 +243,61 @@ class _AccountHeader extends StatelessWidget {
     final url = value?.profileImageUrl;
     return Padding(
       padding: padding,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          borderRadius: FuncShape.panel,
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [tokens.brandTintWeak, tokens.surface],
-          ),
-          border: Border.all(color: tokens.brandHairline),
-        ),
-        child: ClipRRect(
-          borderRadius: FuncShape.panel,
-          child: PersonCard(
-            onTap: value == null
-                ? () => openLogin(context)
-                : () => openMe(context),
-            tapHint: value == null ? null : l10n.meOpenProfile,
-            endPadding: PersonCard.padding - EdgeIconButtons.glyphInset,
-            trailing: value == null
-                ? null
-                : IconButton(
-                    tooltip: l10n.accountManagement,
-                    icon: const Icon(Icons.manage_accounts_outlined),
-                    onPressed: () =>
-                        openSettingsPage(context, SettingsPageRef.account.path),
-                  ),
-            child: Row(
-              children: [
-                DecoratedBox(
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: colors.primary.withValues(alpha: 0.48),
-                      width: 2,
-                    ),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(FuncSpacing.xxs),
-                    child: SizedBox.square(
-                      dimension: _avatarDiameter,
-                      child: PersonAvatar(
-                        imageUrl: url == null || url.isEmpty ? null : url,
-                        radius: _avatarDiameter / 2,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: FuncSpacing.lg),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+      child: PersonCard(
+        onTap: value == null ? () => openLogin(context) : () => openMe(context),
+        tapHint: value == null ? null : l10n.meOpenProfile,
+        endPadding: PersonCard.padding - EdgeIconButtons.glyphInset,
+        trailing: value == null
+            ? null
+            : IconButton(
+                tooltip: l10n.accountManagement,
+                icon: const Icon(Icons.manage_accounts_outlined),
+                onPressed: () =>
+                    openSettingsPage(context, SettingsPageRef.account.path),
+              ),
+        child: Row(
+          children: [
+            SizedBox.square(
+              dimension: _avatarDiameter,
+              child: PersonAvatar(
+                imageUrl: url == null || url.isEmpty ? null : url,
+                radius: _avatarDiameter / 2,
+              ),
+            ),
+            const SizedBox(width: FuncSpacing.lg),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
                     children: [
-                      Row(
-                        children: [
-                          Flexible(
-                            child: Text(
-                              value?.name ?? l10n.signedOut,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: tokens.display,
-                            ),
-                          ),
-                          if (value?.isPremium ?? false) ...[
-                            const SizedBox(width: FuncSpacing.sm),
-                            const _PremiumBadge(),
-                          ],
-                        ],
-                      ),
-                      const SizedBox(height: FuncSpacing.xs),
-                      Text(
-                        value == null
-                            ? l10n.login
-                            : l10n.labelValue(
-                                l10n.profileId,
-                                '${value.userId}',
-                              ),
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: colors.onSurfaceVariant,
+                      Flexible(
+                        child: Text(
+                          value?.name ?? l10n.signedOut,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: tokens.display,
                         ),
                       ),
+                      if (value?.isPremium ?? false) ...[
+                        const SizedBox(width: FuncSpacing.sm),
+                        const _PremiumBadge(),
+                      ],
                     ],
                   ),
-                ),
-              ],
+                  const SizedBox(height: FuncSpacing.xs),
+                  Text(
+                    value == null
+                        ? l10n.login
+                        : l10n.labelValue(l10n.profileId, '${value.userId}'),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: colors.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );
@@ -854,10 +828,10 @@ typedef _Entry = ({
   String label,
   VoidCallback onTap,
   int? count,
-  bool accented,
+  CategoryTone tone,
 });
 
-/// The user's own content, a row or Bento card each; then any destinations
+/// The user's own content, a [SettingsCard] row each; then any destinations
 /// moved off the bottom bar and trailing entries ([settings], [about]).
 class _ContentShortcuts extends ConsumerWidget {
   const _ContentShortcuts({
@@ -871,6 +845,9 @@ class _ContentShortcuts extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
+    final scheme = Theme.of(context).colorScheme;
+    final libraryTone = categoryTone(scheme, CategoryHue.blue);
+    final downloadTone = categoryTone(scheme, CategoryHue.green);
     final activeTasks = ref.watch(_activeDownloadCountProvider).value ?? 0;
     final offBar = ref.watch(homeArrangementProvider).hidden;
     final signedIn = ref.watch(
@@ -884,21 +861,21 @@ class _ContentShortcuts extends ConsumerWidget {
         label: l10n.profileBookmarked,
         onTap: () => unawaited(openMe(context, tab: MeTab.bookmarks)),
         count: null,
-        accented: true,
+        tone: libraryTone,
       ),
       (
         icon: Icons.people_outline,
         label: l10n.profileFollowing,
         onTap: () => unawaited(openMe(context, tab: MeTab.following)),
         count: null,
-        accented: true,
+        tone: libraryTone,
       ),
       (
         icon: Icons.library_books_outlined,
         label: l10n.watchlistTitle,
         onTap: () => unawaited(openWatchlist(context)),
         count: null,
-        accented: true,
+        tone: libraryTone,
       ),
       // Pixiv keeps them with the account.
       if (signedIn)
@@ -907,21 +884,21 @@ class _ContentShortcuts extends ConsumerWidget {
           label: l10n.novelMarkers,
           onTap: () => unawaited(openNovelMarkers(context)),
           count: null,
-          accented: true,
+          tone: libraryTone,
         ),
       (
         icon: Icons.bookmark_border,
         label: l10n.watchLaterTitle,
         onTap: () => unawaited(openWatchLater(context)),
         count: null,
-        accented: true,
+        tone: libraryTone,
       ),
       (
         icon: Icons.menu_book_outlined,
         label: l10n.localNovelsTitle,
         onTap: () => unawaited(openLocalNovels(context)),
         count: null,
-        accented: true,
+        tone: libraryTone,
       ),
       for (final destination in HomeDestination.values)
         if (offBar.contains(destination))
@@ -930,7 +907,7 @@ class _ContentShortcuts extends ConsumerWidget {
             label: homeDestinationLabel(context, destination),
             onTap: () => openHomeDestination(context, destination),
             count: null,
-            accented: true,
+            tone: libraryTone,
           ),
     ];
     final downloadEntry = (
@@ -938,7 +915,7 @@ class _ContentShortcuts extends ConsumerWidget {
       label: l10n.downloaderSettings,
       onTap: () => unawaited(openDownloadTasks(context)),
       count: activeTasks,
-      accented: true,
+      tone: downloadTone,
     );
     if (asGrid) {
       return Row(
@@ -946,7 +923,7 @@ class _ContentShortcuts extends ConsumerWidget {
         children: [
           Expanded(
             flex: 6,
-            child: _GroupedPanel(
+            child: _MeEntryGroup(
               children: [
                 for (final entry in libraryEntries)
                   _MeRow(
@@ -954,7 +931,7 @@ class _ContentShortcuts extends ConsumerWidget {
                     label: entry.label,
                     onTap: entry.onTap,
                     count: entry.count,
-                    accented: entry.accented,
+                    tone: entry.tone,
                   ),
               ],
             ),
@@ -965,20 +942,20 @@ class _ContentShortcuts extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _GroupedPanel(
+                _MeEntryGroup(
                   children: [
                     _MeRow(
                       icon: downloadEntry.icon,
                       label: downloadEntry.label,
                       onTap: downloadEntry.onTap,
                       count: downloadEntry.count,
-                      accented: downloadEntry.accented,
+                      tone: downloadEntry.tone,
                     ),
                   ],
                 ),
                 if (trailingEntries.isNotEmpty) ...[
-                  const SizedBox(height: FuncSpacing.lg),
-                  _GroupedPanel(
+                  const SizedBox(height: FuncSpacing.xl),
+                  _MeEntryGroup(
                     children: [
                       for (final entry in trailingEntries)
                         _MeRow(
@@ -986,7 +963,7 @@ class _ContentShortcuts extends ConsumerWidget {
                           label: entry.label,
                           onTap: entry.onTap,
                           count: entry.count,
-                          accented: entry.accented,
+                          tone: entry.tone,
                         ),
                     ],
                   ),
@@ -997,124 +974,112 @@ class _ContentShortcuts extends ConsumerWidget {
         ],
       );
     }
-    final entries = [...libraryEntries, downloadEntry, ...trailingEntries];
-    return _GroupedPanel(
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        for (final entry in entries)
-          _MeRow(
-            icon: entry.icon,
-            label: entry.label,
-            onTap: entry.onTap,
-            count: entry.count,
-            accented: entry.accented,
+        _MeEntryGroup(
+          children: [
+            for (final entry in libraryEntries)
+              _MeRow(
+                icon: entry.icon,
+                label: entry.label,
+                onTap: entry.onTap,
+                count: entry.count,
+                tone: entry.tone,
+              ),
+          ],
+        ),
+        const SizedBox(height: FuncSpacing.xl),
+        _MeEntryGroup(
+          children: [
+            _MeRow(
+              icon: downloadEntry.icon,
+              label: downloadEntry.label,
+              onTap: downloadEntry.onTap,
+              count: downloadEntry.count,
+              tone: downloadEntry.tone,
+            ),
+          ],
+        ),
+        if (trailingEntries.isNotEmpty) ...[
+          const SizedBox(height: FuncSpacing.xl),
+          _MeEntryGroup(
+            children: [
+              for (final entry in trailingEntries)
+                _MeRow(
+                  icon: entry.icon,
+                  label: entry.label,
+                  onTap: entry.onTap,
+                  count: entry.count,
+                  tone: entry.tone,
+                ),
+            ],
           ),
+        ],
       ],
     );
   }
 }
 
-class _GroupedPanel extends StatelessWidget {
-  const _GroupedPanel({required this.children});
+/// Stacks independent [SettingsCard] rows (`surfaceContainer`, [FuncShape.card])
+/// separated by [SettingsGroup.rowGap] (`FuncSpacing.sm`), matching the
+/// settings index without inner hairline dividers.
+class _MeEntryGroup extends StatelessWidget {
+  const _MeEntryGroup({required this.children});
 
   final List<Widget> children;
 
   @override
   Widget build(BuildContext context) {
-    final tokens = FuncSemanticTokens.of(context);
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: tokens.surface,
-        borderRadius: FuncShape.panel,
-        border: Border.all(color: tokens.brandHairline),
-      ),
-      child: ClipRRect(
-        borderRadius: FuncShape.panel,
-        child: Material(
-          type: MaterialType.transparency,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              for (var i = 0; i < children.length; i++) ...[
-                if (i > 0)
-                  Divider(
-                    height: 1,
-                    thickness: 1,
-                    indent: 64,
-                    color: tokens.brandHairline,
-                  ),
-                children[i],
-              ],
-            ],
-          ),
-        ),
-      ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var i = 0; i < children.length; i++) ...[
+          if (i > 0) const SizedBox(height: SettingsGroup.rowGap),
+          SettingsCard(child: children[i]),
+        ],
+      ],
     );
   }
 }
 
-/// A row of the page: a softly tinted sakura icon badge and its label; [count],
-/// when given, renders as a rose pill badge at the end while it is above zero.
+/// A row of the Me page: a `40dp` circular [CategoryTone] icon badge matching
+/// [SettingsTile.topLevel], its label, and an optional active-download [Badge].
 class _MeRow extends StatelessWidget {
   const _MeRow({
     required this.icon,
     required this.label,
     required this.onTap,
+    required this.tone,
     this.count,
-    this.accented = true,
   });
 
   final IconData icon;
   final String label;
   final VoidCallback onTap;
+  final CategoryTone tone;
   final int? count;
-  final bool accented;
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    final tokens = FuncSemanticTokens.of(context);
     final count = this.count;
     return ListTile(
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: FuncSpacing.lg,
-        vertical: FuncSpacing.xxs,
-      ),
-      leading: DecoratedBox(
-        decoration: BoxDecoration(
-          color: accented ? tokens.brandTintWeak : colors.surfaceContainerLow,
-          borderRadius: FuncShape.control,
-          border: Border.all(
-            color: accented ? tokens.brandHairline : tokens.divider,
-          ),
-        ),
-        child: SizedBox.square(
-          dimension: 34,
-          child: Icon(
-            icon,
-            size: 19,
-            color: accented ? colors.primary : colors.onSurfaceVariant,
-          ),
+      leading: SizedBox.square(
+        dimension: SettingsTile.iconDiameter,
+        child: DecoratedBox(
+          decoration: BoxDecoration(color: tone.fill, shape: BoxShape.circle),
+          child: Icon(icon, color: tone.ink),
         ),
       ),
       title: Text(label),
       trailing: count == null
-          ? Icon(
-              Icons.chevron_right,
-              size: 18,
-              color: colors.onSurfaceVariant.withValues(alpha: 0.6),
-            )
+          ? const Icon(Icons.chevron_right)
           : Badge(
               isLabelVisible: count > 0,
-              backgroundColor: tokens.brandTint,
-              textColor: colors.primary,
               label: Text(AppFormat.count(context, count)),
-              child: count > 0
-                  ? null
-                  : Icon(
-                      Icons.chevron_right,
-                      size: 18,
-                      color: colors.onSurfaceVariant.withValues(alpha: 0.6),
-                    ),
+              child: count > 0 ? null : const Icon(Icons.chevron_right),
             ),
       onTap: onTap,
     );

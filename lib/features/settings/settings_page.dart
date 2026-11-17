@@ -14,7 +14,6 @@ import '../../app/theme/category_colors.dart';
 import '../../app/widgets/app_top_bar.dart';
 import '../../app/window/desktop_command_bar.dart' show DesktopCommandBarScope;
 import '../../app/theme/func_semantic_tokens.dart';
-import '../../app/theme/func_tokens.dart';
 import '../../app/widgets/feed/feed_states.dart';
 import '../../app/widgets/settings/settings_anchor.dart';
 import '../../app/widgets/settings/settings_group.dart';
@@ -139,7 +138,10 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         (pageRef == null && rootRef != null);
     if (isNestedChild && rootRef != null) {
       unawaited(
-        navigator.pushNamedAndRemoveUntil<void>(rootRef.path, (_) => false),
+        navigator.pushAndRemoveUntil<void>(
+          _buildDetailRoute(rootRef.path, instant: true),
+          (_) => false,
+        ),
       );
       unawaited(navigator.pushNamed<void>(location));
       return;
@@ -168,8 +170,20 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           ? Duration.zero
           : MotionTokens.resolve(context, MotionTokens.desktopPageTransition),
       pageBuilder: (_, _, _) => page,
-      transitionsBuilder: (_, animation, _, child) =>
-          FadeTransition(opacity: animation, child: child),
+      transitionsBuilder: (_, animation, _, child) {
+        final isReversing = animation.status == AnimationStatus.reverse;
+        final curved = animation.drive(
+          CurveTween(
+            curve: isReversing
+                ? MotionTokens.stateFadeCurve.flipped
+                : MotionTokens.stateFadeCurve,
+          ),
+        );
+        return IgnorePointer(
+          ignoring: isReversing,
+          child: FadeTransition(opacity: curved, child: child),
+        );
+      },
     );
   }
 
@@ -285,6 +299,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     }
 
     final desktopOwned = DesktopCommandBarScope.isActiveOf(context);
+    final showMasterBack =
+        !desktopOwned &&
+        (ModalRoute.of(context)?.impliesAppBarDismissal ?? false);
     final colors = Theme.of(context).colorScheme;
     final tokens = FuncSemanticTokens.of(context);
     final searchField = Padding(
@@ -323,46 +340,70 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           children: [
             SizedBox(
               width: _masterPaneWidth,
-              child: desktopOwned
-                  ? ColoredBox(
-                      color: colors.surfaceContainerLow,
+              child: Scaffold(
+                backgroundColor: colors.surfaceContainerLow,
+                appBar: PreferredSize(
+                  preferredSize: const Size.fromHeight(
+                    kToolbarHeight + 40 + FuncSpacing.xs + FuncSpacing.sm + 1,
+                  ),
+                  child: ColoredBox(
+                    color: colors.surfaceContainerLow,
+                    child: SafeArea(
+                      right: false,
+                      bottom: false,
                       child: Column(
+                        mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(
-                              FuncSpacing.lg,
-                              FuncSpacing.lg,
-                              FuncSpacing.lg,
-                              FuncSpacing.xs,
-                            ),
-                            child: Text(
-                              context.l10n.settingsTitle,
-                              style: Theme.of(context).textTheme.headlineSmall
-                                  ?.copyWith(fontWeight: FontWeight.w700),
+                          SizedBox(
+                            height: kToolbarHeight,
+                            child: Padding(
+                              padding: EdgeInsetsDirectional.fromSTEB(
+                                showMasterBack
+                                    ? FuncSpacing.xs
+                                    : FuncSpacing.lg,
+                                0,
+                                FuncSpacing.lg,
+                                0,
+                              ),
+                              child: Row(
+                                children: [
+                                  if (showMasterBack) ...[
+                                    BackButton(
+                                      onPressed: () =>
+                                          Navigator.maybePop(context),
+                                    ),
+                                    const SizedBox(width: FuncSpacing.xs),
+                                  ],
+                                  Expanded(
+                                    child: Semantics(
+                                      header: true,
+                                      child: Text(
+                                        context.l10n.settingsTitle,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .titleLarge
+                                            ?.copyWith(
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                           searchField,
                           Divider(height: 1, color: tokens.brandHairline),
-                          Expanded(child: body),
                         ],
                       ),
-                    )
-                  : Scaffold(
-                      appBar: AppTopBar(
-                        backgroundColor: colors.surfaceContainerLow,
-                        title: Text(context.l10n.settingsTitle),
-                        bottom: _buildSearchBar(
-                          context,
-                          query,
-                          narrowWrap: false,
-                        ),
-                      ),
-                      body: ColoredBox(
-                        color: colors.surfaceContainerLow,
-                        child: body,
-                      ),
                     ),
+                  ),
+                ),
+                body: body,
+              ),
             ),
             VerticalDivider(
               width: 1,
@@ -536,26 +577,6 @@ class _SettingsGroups extends ConsumerWidget {
   }
 }
 
-Widget _wrapSelectedTile(
-  BuildContext context, {
-  required bool selected,
-  required Widget child,
-}) {
-  if (!selected) return child;
-  final scheme = Theme.of(context).colorScheme;
-  return Material(
-    color: scheme.primaryContainer,
-    borderRadius: FuncShape.card,
-    clipBehavior: Clip.antiAlias,
-    child: ListTileTheme.merge(
-      tileColor: FuncTokens.transparent,
-      textColor: scheme.onPrimaryContainer,
-      iconColor: scheme.onPrimaryContainer,
-      child: child,
-    ),
-  );
-}
-
 /// The settings pages grouped by intent, as the index lists them, each
 /// row with its summary. A group's circles share one category hue, a
 /// different one per neighbouring group; account and about are neutral.
@@ -615,23 +636,20 @@ List<Widget> _indexGroups(
         title: group.title == null ? null : Text(group.title!),
         children: [
           for (final page in group.pages)
-            _wrapSelectedTile(
-              context,
+            SettingsTile.topLevel(
+              setting: page,
+              icon: settingsPageIcons[page],
+              subtitle: _pageSummary(context, ref, settings, page),
+              tone: group.tone,
               selected: selectedPage == page,
-              child: SettingsTile.topLevel(
-                setting: page,
-                icon: settingsPageIcons[page],
-                subtitle: _pageSummary(context, ref, settings, page),
-                tone: group.tone,
-                onTap: () {
-                  final select = onSelectLocation;
-                  if (select != null) {
-                    select(page.path);
-                  } else {
-                    openSettingsPage(context, page.path);
-                  }
-                },
-              ),
+              onTap: () {
+                final select = onSelectLocation;
+                if (select != null) {
+                  select(page.path);
+                } else {
+                  openSettingsPage(context, page.path);
+                }
+              },
             ),
         ],
       ),
@@ -714,22 +732,19 @@ class _DeveloperSettingsGroup extends ConsumerWidget {
     return SettingsGroup(
       title: Text(context.l10n.settingsGroupDeveloper),
       children: [
-        _wrapSelectedTile(
-          context,
+        SettingsTile.topLevel(
+          setting: probe,
+          icon: settingsPageIcons[probe],
+          tone: neutralCategoryTone(Theme.of(context).colorScheme),
           selected: selected,
-          child: SettingsTile.topLevel(
-            setting: probe,
-            icon: settingsPageIcons[probe],
-            tone: neutralCategoryTone(Theme.of(context).colorScheme),
-            onTap: () {
-              final select = onSelectLocation;
-              if (select != null) {
-                select(probe.path);
-              } else {
-                openSettingsPage(context, probe.path);
-              }
-            },
-          ),
+          onTap: () {
+            final select = onSelectLocation;
+            if (select != null) {
+              select(probe.path);
+            } else {
+              openSettingsPage(context, probe.path);
+            }
+          },
         ),
       ],
     );

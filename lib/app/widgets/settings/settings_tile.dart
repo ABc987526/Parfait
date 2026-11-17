@@ -13,6 +13,7 @@ class SettingsTile extends StatelessWidget {
     required this.onTap,
     this.icon,
     this.subtitle,
+    this.selected = false,
   }) : tone = null;
 
   /// An entry of a top-level page (the settings index, the Me tab): the
@@ -25,6 +26,7 @@ class SettingsTile extends StatelessWidget {
     required this.onTap,
     this.icon,
     this.subtitle,
+    this.selected = false,
     required CategoryTone this.tone,
   });
 
@@ -46,35 +48,72 @@ class SettingsTile extends StatelessWidget {
   /// When null the tile renders exactly as before.
   final Widget? subtitle;
 
+  /// Whether this row represents the active master-detail destination.
+  final bool selected;
+
   /// Diameter of the tonal circle behind the icon.
   static const double iconDiameter = 40;
+
+  /// State-layered ink overlay on top of a selected [primaryContainer] row,
+  /// distinguishing pressed (`0.20`), hovered (`0.16`), and focused/default
+  /// (`0.12`) states instead of collapsing them into a flat fill.
+  static WidgetStateProperty<Color?> selectedOverlayColor(ColorScheme scheme) =>
+      WidgetStateProperty.resolveWith((states) {
+        final ink = scheme.onPrimaryContainer;
+        if (states.contains(WidgetState.pressed)) {
+          return ink.withValues(alpha: 0.20);
+        }
+        if (states.contains(WidgetState.hovered)) {
+          return ink.withValues(alpha: 0.16);
+        }
+        if (states.contains(WidgetState.focused)) {
+          return ink.withValues(alpha: 0.12);
+        }
+        return ink.withValues(alpha: 0.12);
+      });
 
   @override
   Widget build(BuildContext context) {
     final icon = this.icon;
     final tone = this.tone;
-    return anchorSettingsRow(
-      setting,
-      ListTile(
-        leading: icon == null
-            ? null
-            : tone == null
-            ? Icon(icon)
-            : SizedBox.square(
-                dimension: iconDiameter,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: tone.fill,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(icon, color: tone.ink),
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final overlay = selected ? selectedOverlayColor(scheme) : null;
+    final pressedColor = overlay?.resolve(const {WidgetState.pressed});
+    Widget tile = ListTile(
+      selected: selected,
+      selectedTileColor: scheme.primaryContainer,
+      selectedColor: scheme.onPrimaryContainer,
+      hoverColor: overlay?.resolve(const {WidgetState.hovered}),
+      focusColor: overlay?.resolve(const {WidgetState.focused}),
+      leading: icon == null
+          ? null
+          : tone == null
+          ? Icon(icon)
+          : SizedBox.square(
+              dimension: iconDiameter,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: tone.fill,
+                  shape: BoxShape.circle,
                 ),
+                child: Icon(icon, color: tone.ink),
               ),
-        title: Text(settingsRowTitle(context, title, setting)),
-        subtitle: subtitle,
-        trailing: const Icon(Icons.chevron_right),
-        onTap: onTap,
-      ),
+            ),
+      title: Text(settingsRowTitle(context, title, setting)),
+      subtitle: subtitle,
+      trailing: const Icon(Icons.chevron_right),
+      onTap: onTap,
     );
+    if (selected && pressedColor != null) {
+      tile = Theme(
+        data: theme.copyWith(
+          highlightColor: pressedColor,
+          splashColor: pressedColor,
+        ),
+        child: tile,
+      );
+    }
+    return anchorSettingsRow(setting, tile);
   }
 }

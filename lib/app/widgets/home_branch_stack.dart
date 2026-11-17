@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
@@ -10,7 +11,6 @@ import '../../core/log.dart';
 import '../../core/navigation/home_destination.dart';
 import '../../core/settings/app_settings.dart';
 import '../../core/settings/settings_controller.dart';
-import '../layout/app_breakpoints.dart';
 import '../layout/form_factor.dart';
 import '../motion/motion_tokens.dart';
 import '../motion/scroll_hide.dart';
@@ -24,6 +24,50 @@ import 'prompt_anchor.dart';
 import 'settings/persist_settings.dart';
 import 'shell_rail.dart';
 import '../window/desktop_command_bar.dart' show DesktopCommandBarScope;
+
+const _settingsSubPathSegments = <String>{
+  'all',
+  'account',
+  'theme',
+  'language',
+  'translate',
+  'motion',
+  'browse',
+  'navigation',
+  'muted',
+  'network',
+  'download',
+  'backup',
+  'tasks',
+  'about',
+  'frame-probe',
+};
+
+bool _isSettingsSubPath(String? path) {
+  if (path == null || !path.startsWith('/settings/')) return false;
+  final rest = path.substring('/settings/'.length);
+  return _settingsSubPathSegments.contains(rest.split('/').first);
+}
+
+String? _branchTopPath(GoRouter router, GlobalKey<NavigatorState> branchKey) {
+  ShellRouteMatch? findBranch(List<RouteMatchBase> matches) {
+    for (final match in matches) {
+      if (match is ShellRouteMatch) {
+        if (match.navigatorKey == branchKey) return match;
+        final nested = findBranch(match.matches);
+        if (nested != null) return nested;
+      }
+    }
+    return null;
+  }
+
+  final config = router.routerDelegate.currentConfiguration;
+  final branch = findBranch(config.matches);
+  if (branch == null || branch.matches.isEmpty) return null;
+  final top = branch.matches.last;
+  if (top is ImperativeRouteMatch) return top.matches.uri.path;
+  return top.matchedLocation;
+}
 
 /// Broadcast signal for branch-level re-taps — a tap on the already-selected
 /// home destination returns that branch to its root and asks the visible page
@@ -165,6 +209,13 @@ class _HomeBranchStackState extends ConsumerState<HomeBranchStack>
   /// exploring, not merely some assistive service reading nodes.
   bool _touchExploration = false;
 
+  /// Router delegate listener so `ShellRail.settingsSelected` updates when
+  /// `/settings/all` (or another settings subpage) is pushed or popped inside
+  /// the settings branch without changing `shell.currentIndex`.
+  GoRouter? _watchedRouter;
+  bool _lastSettingsSubPathActive = false;
+  bool _routerRebuildPending = false;
+
   /// For the write in [dispose], where `ref` is gone.
   late final ProviderContainer _container;
 
@@ -212,9 +263,47 @@ class _HomeBranchStackState extends ConsumerState<HomeBranchStack>
         rail ? MotionTokens.desktopPageTransition : MotionTokens.branchSwitch,
       );
 
+  bool _computeSettingsSubPathActive(GoRouter? router) {
+    if (router == null) return false;
+    final settingsBranch = HomeDestination.me.branchIndex;
+    if (_current != settingsBranch ||
+        settingsBranch >= widget.shell.route.branches.length) {
+      return false;
+    }
+    final topPath = _branchTopPath(
+      router,
+      widget.shell.route.branches[settingsBranch].navigatorKey,
+    );
+    return _isSettingsSubPath(topPath);
+  }
+
+  void _onRouterChanged() {
+    if (!mounted) return;
+    final active = _computeSettingsSubPathActive(_watchedRouter);
+    if (active == _lastSettingsSubPathActive) return;
+    final phase = SchedulerBinding.instance.schedulerPhase;
+    if (phase == SchedulerPhase.persistentCallbacks ||
+        phase == SchedulerPhase.midFrameMicrotasks) {
+      if (_routerRebuildPending) return;
+      _routerRebuildPending = true;
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        _routerRebuildPending = false;
+        if (mounted) setState(() {});
+      });
+      return;
+    }
+    setState(() {});
+  }
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    final router = GoRouter.maybeOf(context);
+    if (!identical(router, _watchedRouter)) {
+      _watchedRouter?.routerDelegate.removeListener(_onRouterChanged);
+      _watchedRouter = router;
+      _watchedRouter?.routerDelegate.addListener(_onRouterChanged);
+    }
     final rail = FormFactor.of(
       context,
     ).hasRail(MediaQuery.sizeOf(context).width);
@@ -267,6 +356,7 @@ class _HomeBranchStackState extends ConsumerState<HomeBranchStack>
 
   @override
   void dispose() {
+    _watchedRouter?.routerDelegate.removeListener(_onRouterChanged);
     _rememberDestination();
     WidgetsBinding.instance.removeObserver(this);
     _reTap.dispose();
@@ -454,6 +544,7 @@ class _HomeBranchStackState extends ConsumerState<HomeBranchStack>
     required bool expanded,
     required bool canToggle,
     required bool desktopOwned,
+    required bool settingsSelected,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return ShellRail(
@@ -472,6 +563,7 @@ class _HomeBranchStackState extends ConsumerState<HomeBranchStack>
       onBookmarks: () => unawaited(openMe(context, tab: MeTab.bookmarks)),
       onDownloads: () => unawaited(openDownloadTasks(context)),
       isDarkMode: isDark,
+      settingsSelected: desktopOwned && settingsSelected,
       onToggleTheme: desktopOwned
           ? () => unawaited(
               persistSettings(
@@ -487,9 +579,18 @@ class _HomeBranchStackState extends ConsumerState<HomeBranchStack>
       onSettings: desktopOwned
           ? () {
               final router = GoRouter.of(context);
-              if (router.state.uri.path != '/settings/all') {
-                unawaited(context.push<void>('/settings/all'));
+              final settingsBranch = HomeDestination.me.branchIndex;
+              final topPath =
+                  settingsBranch < widget.shell.route.branches.length
+                  ? _branchTopPath(
+                      router,
+                      widget.shell.route.branches[settingsBranch].navigatorKey,
+                    )
+                  : null;
+              if (_current == settingsBranch && topPath == '/settings/all') {
+                return;
               }
+              router.go('/settings/all');
             }
           : null,
     );
@@ -569,9 +670,13 @@ class _HomeBranchStackState extends ConsumerState<HomeBranchStack>
     final railShown = rail && !ref.watch(shellRailHiddenProvider);
     final canToggle = form.canToggleRail(width, height: height);
     final railChoice = ref.watch(railExpandedProvider);
-    final expanded = desktopOwned
-        ? (railChoice ?? width >= AppBreakpoints.large)
-        : form.railExpanded(width, height: height, choice: railChoice);
+    final expanded = form.railExpanded(
+      width,
+      height: height,
+      choice: railChoice,
+    );
+    final settingsSelected = _lastSettingsSubPathActive =
+        _computeSettingsSubPathActive(_watchedRouter);
     // The rail opens and closes by width, not in one frame (MOTION-14):
     // the row it takes from the branches and the panel it reveals move
     // together. The first layout starts at its end value, and an
@@ -683,6 +788,7 @@ class _HomeBranchStackState extends ConsumerState<HomeBranchStack>
                               expanded: expanded,
                               canToggle: canToggle,
                               desktopOwned: desktopOwned,
+                              settingsSelected: settingsSelected,
                             ),
                           ),
                         ),

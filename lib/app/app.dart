@@ -324,14 +324,15 @@ class AppChrome extends ConsumerStatefulWidget {
 
 class _AppChromeState extends ConsumerState<AppChrome> {
   final DesktopSystemBarsController _systemBars = DesktopSystemBarsController();
+  final DesktopCommandBarController _commandBar = DesktopCommandBarController();
 
   @override
   void dispose() {
+    _commandBar.dispose();
     _systemBars.dispose();
     super.dispose();
   }
 
-  @override
   @override
   Widget build(BuildContext context) {
     final platform = Theme.of(context).platform;
@@ -384,41 +385,55 @@ class _AppChromeState extends ConsumerState<AppChrome> {
                                       router: widget.router,
                                       child: DesktopCommandBarScope(
                                         active: true,
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.stretch,
-                                          children: [
-                                            if (!isFullScreen)
-                                              DesktopCommandBar(
-                                                settings: widget.settings,
-                                                router: widget.router,
-                                              ),
-                                            Expanded(
-                                              child: Builder(
-                                                builder: (contentContext) {
-                                                  final innerChrome =
-                                                      DesktopChromeMetrics.maybeOf(
-                                                        contentContext,
+                                        controller: _commandBar,
+                                        child: ValueListenableBuilder<bool>(
+                                          valueListenable: _commandBar.hidden,
+                                          builder: (context, commandBarHidden, _) {
+                                            final showCommandBar =
+                                                !isFullScreen &&
+                                                !commandBarHidden;
+                                            return Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.stretch,
+                                              children: [
+                                                if (showCommandBar)
+                                                  DesktopCommandBar(
+                                                    settings: widget.settings,
+                                                    router: widget.router,
+                                                  ),
+                                                Expanded(
+                                                  child: Builder(
+                                                    builder: (contentContext) {
+                                                      final innerChrome =
+                                                          DesktopChromeMetrics.maybeOf(
+                                                            contentContext,
+                                                          );
+                                                      final stripped =
+                                                          MediaQuery.removePadding(
+                                                            context:
+                                                                contentContext,
+                                                            removeTop: true,
+                                                            child: widget.child,
+                                                          );
+                                                      if (innerChrome == null) {
+                                                        return stripped;
+                                                      }
+                                                      return innerChrome.copyWith(
+                                                        titleBarHeight: 0,
+                                                        leadingInset:
+                                                            showCommandBar
+                                                            ? 0
+                                                            : innerChrome
+                                                                  .leadingInset,
+                                                        trailingInset: 0,
+                                                        child: stripped,
                                                       );
-                                                  final stripped =
-                                                      MediaQuery.removePadding(
-                                                        context: contentContext,
-                                                        removeTop: true,
-                                                        child: widget.child,
-                                                      );
-                                                  if (innerChrome == null) {
-                                                    return stripped;
-                                                  }
-                                                  return innerChrome.copyWith(
-                                                    titleBarHeight: 0,
-                                                    leadingInset: 0,
-                                                    trailingInset: 0,
-                                                    child: stripped,
-                                                  );
-                                                },
-                                              ),
-                                            ),
-                                          ],
+                                                    },
+                                                  ),
+                                                ),
+                                              ],
+                                            );
+                                          },
                                         ),
                                       ),
                                     );
