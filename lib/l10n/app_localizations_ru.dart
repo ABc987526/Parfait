@@ -908,6 +908,15 @@ class AppLocalizationsRu extends AppLocalizations {
   String get feedDensityComfortable => 'Свободная';
 
   @override
+  String get desktopDetailMode => 'Просмотр работы на ПК';
+
+  @override
+  String get desktopDetailModeModal => 'Большое окно';
+
+  @override
+  String get desktopDetailModeInspector => 'Боковая панель';
+
+  @override
   String get qualityMedium => 'Среднее';
 
   @override

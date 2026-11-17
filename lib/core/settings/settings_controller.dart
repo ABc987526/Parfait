@@ -101,6 +101,9 @@ class SettingsController extends AsyncNotifier<AppSettings> {
   Future<void> setFeedDensity(FeedDensity density) =>
       _update((settings) => settings.copyWith(feedDensity: density));
 
+  Future<void> setDesktopDetailMode(DesktopDetailMode mode) =>
+      _update((settings) => settings.copyWith(desktopDetailMode: mode));
+
   Future<void> setViewQuality(ViewQuality quality) =>
       _update((settings) => settings.copyWith(viewQuality: quality));
 
@@ -349,6 +352,14 @@ final feedDensityProvider = Provider<FeedDensity>((ref) {
   return ref.watch(
     settingsProvider.select(
       (async) => async.value?.feedDensity ?? FeedDensity.standard,
+    ),
+  );
+});
+
+final desktopDetailModeProvider = Provider<DesktopDetailMode>((ref) {
+  return ref.watch(
+    settingsProvider.select(
+      (async) => async.value?.desktopDetailMode ?? DesktopDetailMode.modal,
     ),
   );
 });

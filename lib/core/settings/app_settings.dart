@@ -183,6 +183,20 @@ enum FeedDensity {
   }
 }
 
+/// How opening an artwork card behaves on wide desktop viewports.
+enum DesktopDetailMode {
+  modal,
+  inspector;
+
+  static DesktopDetailMode? tryFromName(Object? value) {
+    if (value is! String) return null;
+    for (final mode in values) {
+      if (mode.name == value) return mode;
+    }
+    return null;
+  }
+}
+
 /// App haptic strength. [off] plays nothing; on Android the other tiers pick
 /// per-device effects (primitive amplitude, predefined effect, or the
 /// strength-less system constant). Persisted by [name].
@@ -272,6 +286,7 @@ class AppSettings {
     this.echFrontHost = defaultEchFrontHost,
     this.previewQuality = PreviewQuality.medium,
     this.feedDensity = FeedDensity.standard,
+    this.desktopDetailMode = DesktopDetailMode.modal,
     this.viewQuality = ViewQuality.original,
     this.detailQuality = DetailQuality.large,
     this.novelImageQuality = DetailQuality.large,
@@ -372,6 +387,7 @@ class AppSettings {
 
   final PreviewQuality previewQuality;
   final FeedDensity feedDensity;
+  final DesktopDetailMode desktopDetailMode;
   final ViewQuality viewQuality;
   final DetailQuality detailQuality;
 
@@ -550,6 +566,9 @@ class AppSettings {
           : base.previewQuality,
       feedDensity:
           FeedDensity.tryFromName(json['feedDensity']) ?? base.feedDensity,
+      desktopDetailMode:
+          DesktopDetailMode.tryFromName(json['desktopDetailMode']) ??
+          base.desktopDetailMode,
       viewQuality: json['viewQualityCode'] is int
           ? ViewQuality.fromCode(json['viewQualityCode'])
           : legacyScale is bool
@@ -676,6 +695,7 @@ class AppSettings {
       'echFrontHost': echFrontHost,
       'previewQualityCode': previewQuality.code,
       'feedDensity': feedDensity.name,
+      'desktopDetailMode': desktopDetailMode.name,
       'viewQualityCode': viewQuality.code,
       'detailQualityCode': detailQuality.code,
       'novelImageQualityCode': novelImageQuality.code,
@@ -832,6 +852,7 @@ class AppSettings {
     String? echFrontHost,
     PreviewQuality? previewQuality,
     FeedDensity? feedDensity,
+    DesktopDetailMode? desktopDetailMode,
     ViewQuality? viewQuality,
     DetailQuality? detailQuality,
     DetailQuality? novelImageQuality,
@@ -896,6 +917,7 @@ class AppSettings {
       echFrontHost: echFrontHost ?? this.echFrontHost,
       previewQuality: previewQuality ?? this.previewQuality,
       feedDensity: feedDensity ?? this.feedDensity,
+      desktopDetailMode: desktopDetailMode ?? this.desktopDetailMode,
       viewQuality: viewQuality ?? this.viewQuality,
       detailQuality: detailQuality ?? this.detailQuality,
       novelImageQuality: novelImageQuality ?? this.novelImageQuality,

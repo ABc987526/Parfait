@@ -653,9 +653,20 @@ class _ProfileBackground extends StatelessWidget {
           (null, final avatar?) => AmbientWash(
             image: PixivImage.providerFor(context, avatar, decodeWidth: 96),
           ),
-          // Nothing to light the band: a lighter opaque container
-          // separates it from the page colour.
-          (null, null) => ColoredBox(color: colors.surfaceContainerHigh),
+          // Nothing to light the band: a subtle sakura tint wash separates it
+          // cleanly from the page surface (matching Shaft's themed upper chrome).
+          (null, null) => DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  FuncSemanticTokens.of(context).brandTint,
+                  colors.primary.withValues(alpha: 0.14),
+                ],
+              ),
+            ),
+          ),
         },
         Positioned(
           key: const ValueKey('profile-banner-fade'),

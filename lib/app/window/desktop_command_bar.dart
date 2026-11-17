@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,6 +10,7 @@ import '../../core/platform/desktop_window_channel.dart';
 import '../../core/settings/app_settings.dart';
 import '../../core/settings/settings_controller.dart';
 import '../../l10n/context.dart';
+import '../layout/app_breakpoints.dart';
 import '../layout/form_factor.dart';
 import '../motion/app_overlays.dart';
 import '../navigation/forward_history.dart';
@@ -23,8 +23,7 @@ import '../widgets/replica_switch_tile.dart';
 import '../widgets/settings/persist_settings.dart';
 import 'desktop_title_bar.dart';
 
-/// Unified height of the desktop top command bar replacing the double overlay
-/// + page top-bar chrome.
+/// Unified height of the desktop architectural command header.
 const double kDesktopCommandBarHeight = 48.0;
 
 const _preHomePrefixes = ['/welcome', '/login'];
@@ -325,18 +324,6 @@ class _DesktopCommandBarState extends ConsumerState<DesktopCommandBar> {
     }
   }
 
-  Future<void> _toggleRail(bool nextExpanded) async {
-    final navContext = _navContext();
-    if (navContext != null) {
-      await persistSettings(
-        navContext,
-        () => ref.read(settingsProvider.notifier).setRailExpanded(nextExpanded),
-      );
-    } else {
-      await ref.read(settingsProvider.notifier).setRailExpanded(nextExpanded);
-    }
-  }
-
   Future<void> _openFilterPopover() async {
     final navContext = _navContext();
     final anchorContext = _filterButtonKey.currentContext;
@@ -494,9 +481,10 @@ class _DesktopCommandBarState extends ConsumerState<DesktopCommandBar> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = context.l10n;
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
+    final l10n = context.l10n;
+    final tokens = FuncSemanticTokens.of(context);
     final chrome = DesktopChromeMetrics.maybeOf(context);
     final actions =
         chrome?.actions ?? DesktopWindowScope.maybeOf(context)?.actions;
@@ -507,17 +495,6 @@ class _DesktopCommandBarState extends ConsumerState<DesktopCommandBar> {
     final uri = liveRouterUri(widget.router);
     final isPreHome = _isPreHomePath(uri.path);
     final windowSize = MediaQuery.sizeOf(context);
-    final form = FormFactor.of(context);
-    final settings = ref.watch(settingsProvider).value ?? widget.settings;
-    final showRailToggle =
-        !isPreHome &&
-        form.hasRail(windowSize.width) &&
-        form.canToggleRail(windowSize.width, height: windowSize.height);
-    final railExpanded = form.railExpanded(
-      windowSize.width,
-      choice: settings.railExpanded,
-      height: windowSize.height,
-    );
     final history = ForwardHistoryStack.ofRouter(widget.router);
     final leadingInset = chrome?.leadingInset ?? 0;
     final showSimulatedTrafficLights =
@@ -530,179 +507,267 @@ class _DesktopCommandBarState extends ConsumerState<DesktopCommandBar> {
         ? null
         : DesktopCommandActionsAnchor.activeAction();
     final currentAccount = ref.watch(accountStoreProvider).value?.current;
+    final form = FormFactor.of(context);
+    final canToggleRail = form.canToggleRail(
+      windowSize.width,
+      height: windowSize.height,
+    );
+    final railChoice = ref.watch(railExpandedProvider);
+    final railExpanded =
+        railChoice ??
+        (form == FormFactor.pc
+            ? windowSize.width >= AppBreakpoints.large
+            : form.railExpanded(
+                windowSize.width,
+                height: windowSize.height,
+                choice: null,
+              ));
+    final searchWidth = (windowSize.width * 0.27).clamp(210.0, 360.0);
 
-    const iconConstraints = BoxConstraints(minWidth: 34, minHeight: 34);
+    const iconConstraints = BoxConstraints(minWidth: 30, minHeight: 30);
     const iconPadding = EdgeInsets.all(FuncSpacing.xs);
 
     return Material(
       key: const Key('desktop-command-bar'),
-      color: colors.surface,
-      child: Container(
-        height: kDesktopCommandBarHeight,
-        decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(
-              color: colors.outlineVariant.withValues(alpha: 0.55),
-            ),
-          ),
+      color: Color.alphaBlend(
+        tokens.brand.withValues(
+          alpha: theme.brightness == Brightness.dark ? 0.08 : 0.055,
         ),
-        child: Row(
-          children: [
-            if (leadingInset > 0)
-              SizedBox(
-                width: leadingInset,
-                height: kDesktopCommandBarHeight,
-                child: showSimulatedTrafficLights
-                    ? const SimulatedMacTrafficLights(
-                        height: kDesktopCommandBarHeight,
-                      )
-                    : null,
-              ),
-            if (!isPreHome) ...[
-              const SizedBox(width: FuncSpacing.xs),
-              if (showRailToggle)
-                _commandIconButton(
-                  context,
-                  key: const Key('desktop-command-rail-toggle'),
-                  constraints: iconConstraints,
-                  padding: iconPadding,
-                  iconSize: 20,
-                  tooltip: railExpanded ? l10n.railCollapse : l10n.railExpand,
-                  onPressed: () => unawaited(_toggleRail(!railExpanded)),
-                  icon: Icon(railExpanded ? Icons.menu_open : Icons.menu),
-                ),
-              ValueListenableBuilder<ForwardHistoryState>(
-                valueListenable: history.stateListenable,
-                builder: (context, historyState, _) => Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _commandIconButton(
-                      context,
-                      key: const Key('desktop-command-back'),
-                      constraints: iconConstraints,
-                      padding: iconPadding,
-                      iconSize: 19,
-                      tooltip: l10n.navBack,
-                      onPressed: historyState.canGoBack
-                          ? () => unawaited(history.goBack())
+        tokens.surface,
+      ),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border(bottom: BorderSide(color: tokens.brandHairline)),
+        ),
+        child: SizedBox(
+          height: kDesktopCommandBarHeight,
+          child: Stack(
+            fit: StackFit.expand,
+            clipBehavior: Clip.none,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  if (leadingInset > 0)
+                    SizedBox(
+                      width: leadingInset,
+                      height: kDesktopCommandBarHeight,
+                      child: showSimulatedTrafficLights
+                          ? const SimulatedMacTrafficLights(
+                              height: kDesktopCommandBarHeight,
+                            )
                           : null,
-                      icon: const Icon(Icons.arrow_back),
                     ),
-                    _commandIconButton(
-                      context,
-                      key: const Key('desktop-command-forward'),
-                      constraints: iconConstraints,
-                      padding: iconPadding,
-                      iconSize: 19,
-                      tooltip: l10n.navForward,
-                      onPressed: historyState.canGoForward
-                          ? () => unawaited(history.goForward())
-                          : null,
-                      icon: const Icon(Icons.arrow_forward),
-                    ),
-                  ],
-                ),
-              ),
-              _commandIconButton(
-                context,
-                key: const Key('desktop-command-refresh'),
-                constraints: iconConstraints,
-                padding: iconPadding,
-                iconSize: 19,
-                tooltip: l10n.refresh,
-                onPressed: () => PullToRefresh.triggerActive(_navContext()),
-                icon: const Icon(Icons.refresh),
-              ),
-            ],
-            Expanded(
-              child: _DragSpacer(key: _leftDragKey, actions: actions),
-            ),
-            if (!isPreHome)
-              Flexible(
-                flex: 3,
-                fit: FlexFit.loose,
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxWidth: math.min(440, windowSize.width * 0.45),
-                  ),
-                  child: SearchShortcutAnchor(
-                    onTrigger: () => unawaited(_openSearch(uri)),
-                    child: _SearchCommandPill(
-                      key: _searchPillKey,
-                      hint: l10n.searchHint,
-                      keyword: keywordText,
-                      reverseTooltip: l10n.searchReverseImage,
-                      onTapPill: () => unawaited(_openSearch(uri)),
-                      onTapReverse: () {
-                        final navContext = _navContext();
-                        if (navContext != null) {
-                          unawaited(openReverseImageSearch(navContext));
-                        }
-                      },
-                    ),
-                  ),
-                ),
-              ),
-            Expanded(
-              child: _DragSpacer(key: _rightDragKey, actions: actions),
-            ),
-            if (!isPreHome) ...[
-              if (contextAction != null) ...[
-                contextAction,
-                const SizedBox(width: FuncSpacing.xs),
-              ],
-              KeyedSubtree(
-                key: _filterButtonKey,
-                child: _commandIconButton(
-                  context,
-                  key: const Key('desktop-command-filter'),
-                  constraints: iconConstraints,
-                  padding: iconPadding,
-                  iconSize: 19,
-                  tooltip: l10n.commandContentFilter,
-                  onPressed: () => unawaited(_openFilterPopover()),
-                  icon: const Icon(Icons.tune_outlined),
-                ),
-              ),
-              KeyedSubtree(
-                key: _accountButtonKey,
-                child: _maybeWrapTooltip(
-                  context,
-                  message: l10n.commandSwitchAccount,
-                  child: InkWell(
-                    key: const Key('desktop-command-account'),
-                    customBorder: const CircleBorder(),
-                    onTap: () => unawaited(_openAccountPopover()),
-                    child: Padding(
-                      padding: const EdgeInsets.all(FuncSpacing.xs),
-                      child: Semantics(
-                        button: true,
-                        label: l10n.commandSwitchAccount,
-                        child: PersonAvatar(
-                          imageUrl: currentAccount?.profileImageUrl,
-                          radius: 13,
+                  const SizedBox(width: FuncSpacing.md),
+                  if (!isPreHome) ...[
+                    if (canToggleRail) ...[
+                      _commandIconButton(
+                        context,
+                        key: const Key('desktop-command-rail-toggle'),
+                        constraints: iconConstraints,
+                        padding: iconPadding,
+                        iconSize: 18,
+                        tooltip: railExpanded
+                            ? l10n.railCollapse
+                            : l10n.railExpand,
+                        onPressed: () => unawaited(
+                          persistSettings(
+                            context,
+                            () => ref
+                                .read(settingsProvider.notifier)
+                                .setRailExpanded(!railExpanded),
+                          ),
+                        ),
+                        icon: Icon(railExpanded ? Icons.menu_open : Icons.menu),
+                      ),
+                      const SizedBox(width: FuncSpacing.xs),
+                    ],
+                    DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: tokens.brandTintWeak,
+                        borderRadius: FuncShape.pill,
+                        border: Border.all(color: tokens.brandHairline),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: FuncSpacing.sm + FuncSpacing.xxs,
+                          vertical: FuncSpacing.xs,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Image.asset(
+                              'assets/branding/parfait_icon.png',
+                              width: 15,
+                              height: 15,
+                              excludeFromSemantics: true,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Parfait',
+                              style: theme.textTheme.labelMedium?.copyWith(
+                                color: colors.primary,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: -0.2,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
+                    const SizedBox(width: FuncSpacing.sm),
+                    ValueListenableBuilder<ForwardHistoryState>(
+                      valueListenable: history.stateListenable,
+                      builder: (context, historyState, _) => Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _commandIconButton(
+                            context,
+                            key: const Key('desktop-command-back'),
+                            constraints: iconConstraints,
+                            padding: iconPadding,
+                            iconSize: 17,
+                            tooltip: l10n.navBack,
+                            onPressed: historyState.canGoBack
+                                ? () => unawaited(history.goBack())
+                                : null,
+                            icon: const Icon(Icons.arrow_back),
+                          ),
+                          _commandIconButton(
+                            context,
+                            key: const Key('desktop-command-forward'),
+                            constraints: iconConstraints,
+                            padding: iconPadding,
+                            iconSize: 17,
+                            tooltip: l10n.navForward,
+                            onPressed: historyState.canGoForward
+                                ? () => unawaited(history.goForward())
+                                : null,
+                            icon: const Icon(Icons.arrow_forward),
+                          ),
+                        ],
+                      ),
+                    ),
+                    _commandIconButton(
+                      context,
+                      key: const Key('desktop-command-refresh'),
+                      constraints: iconConstraints,
+                      padding: iconPadding,
+                      iconSize: 17,
+                      tooltip: l10n.refresh,
+                      onPressed: () =>
+                          PullToRefresh.triggerActive(_navContext()),
+                      icon: const Icon(Icons.refresh),
+                    ),
+                  ],
+                  Expanded(
+                    child: _DragSpacer(key: _leftDragKey, actions: actions),
+                  ),
+                  if (!isPreHome)
+                    SizedBox(
+                      width: searchWidth,
+                      child: SearchShortcutAnchor(
+                        onTrigger: () => unawaited(_openSearch(uri)),
+                        child: _SearchCommandPill(
+                          key: _searchPillKey,
+                          hint: l10n.searchHint,
+                          keyword: keywordText,
+                          reverseTooltip: l10n.searchReverseImage,
+                          onTapPill: () => unawaited(_openSearch(uri)),
+                          onTapReverse: () {
+                            final navContext = _navContext();
+                            if (navContext != null) {
+                              unawaited(openReverseImageSearch(navContext));
+                            }
+                          },
+                        ),
+                      ),
+                    ),
+                  Expanded(
+                    child: _DragSpacer(key: _rightDragKey, actions: actions),
+                  ),
+                  if (!isPreHome) ...[
+                    if (contextAction != null) ...[
+                      contextAction,
+                      const SizedBox(width: FuncSpacing.xxs),
+                    ],
+                    KeyedSubtree(
+                      key: _filterButtonKey,
+                      child: _commandIconButton(
+                        context,
+                        key: const Key('desktop-command-filter'),
+                        constraints: iconConstraints,
+                        padding: iconPadding,
+                        iconSize: 18,
+                        tooltip: l10n.commandContentFilter,
+                        onPressed: () => unawaited(_openFilterPopover()),
+                        icon: const Icon(Icons.tune_outlined),
+                      ),
+                    ),
+                    const SizedBox(width: FuncSpacing.xxs),
+                    KeyedSubtree(
+                      key: _accountButtonKey,
+                      child: _maybeWrapTooltip(
+                        context,
+                        message: l10n.commandSwitchAccount,
+                        child: InkWell(
+                          key: const Key('desktop-command-account'),
+                          customBorder: const CircleBorder(),
+                          onTap: () => unawaited(_openAccountPopover()),
+                          child: Padding(
+                            padding: const EdgeInsets.all(FuncSpacing.xxs),
+                            child: Semantics(
+                              button: true,
+                              label: l10n.commandSwitchAccount,
+                              child: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: colors.primary.withValues(
+                                      alpha: 0.48,
+                                    ),
+                                    width: 1.5,
+                                  ),
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(
+                                    FuncSpacing.xxs,
+                                  ),
+                                  child: PersonAvatar(
+                                    imageUrl: currentAccount?.profileImageUrl,
+                                    radius: 12,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                  SizedBox(
+                    width: showCustomButtons ? 138.0 + 8.0 : FuncSpacing.md,
+                  ),
+                ],
+              ),
+              if (showCustomButtons)
+                Positioned(
+                  top: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: DesktopWindowCaptionButtons(
+                    height: kDesktopCommandBarHeight,
+                    isMaximized: chrome?.isMaximized ?? false,
+                    isActive: chrome?.isActive ?? true,
+                    nativeHoveredButton: hostMetrics.hoveredButton,
+                    nativePressedButton: hostMetrics.pressedButton,
+                    maximizeKey: _maximizeKey,
+                    actions: actions,
+                    brightnessListenable: null,
                   ),
                 ),
-              ),
-              SizedBox(
-                width: showCustomButtons ? FuncSpacing.xs : FuncSpacing.sm,
-              ),
             ],
-            if (showCustomButtons)
-              DesktopWindowCaptionButtons(
-                height: kDesktopCommandBarHeight,
-                isMaximized: chrome?.isMaximized ?? false,
-                isActive: chrome?.isActive ?? true,
-                nativeHoveredButton: hostMetrics.hoveredButton,
-                nativePressedButton: hostMetrics.pressedButton,
-                maximizeKey: _maximizeKey,
-                actions: actions,
-                brightnessListenable: null,
-              ),
-          ],
+          ),
         ),
       ),
     );
@@ -747,44 +812,69 @@ class _SearchCommandPill extends StatelessWidget {
     final colors = theme.colorScheme;
     final hasKeyword = keyword.isNotEmpty;
 
+    final tokens = FuncSemanticTokens.of(context);
     return Semantics(
       button: true,
       label: hasKeyword ? keyword : hint,
       child: Material(
         key: const Key('desktop-command-search-pill'),
-        color: colors.surfaceContainerHighest.withValues(alpha: 0.72),
-        borderRadius: FuncShape.pill,
+        color: colors.surfaceContainerLow,
+        shape: RoundedRectangleBorder(
+          borderRadius: FuncShape.pill,
+          side: BorderSide(color: tokens.brandHairline),
+        ),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTapPill,
           child: SizedBox(
-            height: 34,
+            height: 32,
             child: Row(
               children: [
                 const SizedBox(width: FuncSpacing.md),
-                Icon(Icons.search, size: 17, color: colors.onSurfaceVariant),
+                Icon(Icons.search, size: 15, color: colors.onSurfaceVariant),
                 const SizedBox(width: FuncSpacing.sm),
                 Expanded(
                   child: Text(
                     hasKeyword ? keyword : hint,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodyMedium?.copyWith(
+                    style: theme.textTheme.bodySmall?.copyWith(
                       color: hasKeyword
                           ? colors.onSurface
                           : colors.onSurfaceVariant,
                     ),
                   ),
                 ),
+                if (!hasKeyword)
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: colors.surfaceContainerHigh,
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: FuncSpacing.xs,
+                        vertical: FuncSpacing.xxs,
+                      ),
+                      child: Text(
+                        'Ctrl K',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                          color: tokens.contentSecondary,
+                        ),
+                      ),
+                    ),
+                  ),
                 _commandIconButton(
                   context,
                   key: const Key('desktop-command-reverse-search'),
                   constraints: const BoxConstraints(
-                    minWidth: 32,
-                    minHeight: 32,
+                    minWidth: 30,
+                    minHeight: 30,
                   ),
                   padding: const EdgeInsets.all(FuncSpacing.xs),
-                  iconSize: 17,
+                  iconSize: 16,
                   tooltip: reverseTooltip,
                   onPressed: onTapReverse,
                   icon: const Icon(Icons.photo_camera_outlined),

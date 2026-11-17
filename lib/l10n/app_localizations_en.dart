@@ -907,6 +907,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get feedDensityComfortable => 'Comfortable';
 
   @override
+  String get desktopDetailMode => 'Desktop detail view';
+
+  @override
+  String get desktopDetailModeModal => 'Stage modal';
+
+  @override
+  String get desktopDetailModeInspector => 'Side inspector';
+
+  @override
   String get qualityMedium => 'Medium';
 
   @override

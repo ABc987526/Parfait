@@ -42,7 +42,8 @@ class IllustGridSkeleton extends ConsumerWidget {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final horizontal = padding.horizontal;
-          final columns = illustColumnsFor(
+          final columns = illustColumnsForContext(
+            context,
             constraints.maxWidth - horizontal,
             density,
           );

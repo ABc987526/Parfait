@@ -1,10 +1,14 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/rendering.dart' show RenderAbstractViewport;
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:visibility_detector/visibility_detector.dart';
+
+import '../../../app/format/app_format.dart';
+import '../../../app/theme/func_tokens.dart';
 
 import '../../../app/navigation/route_animation.dart';
 import '../../../app/pixiv_image.dart';
@@ -679,12 +683,14 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
     final entity = _entityOf(async);
     // The narrow layout opens on the artwork under a see-through bar —
     // the skeleton too, so content arriving never shifts it.
+    final twoPane = AppBreakpoints.useTwoPaneDetailOf(
+      context,
+      HomeShellChrome.contentSizeOf(context),
+    );
+    final rendersContent = entity != null && _rendersContent(async, entity);
+    final hideTwoPaneAppBar = !_downloadMode && twoPane && rendersContent;
     final immersive =
-        !AppBreakpoints.useTwoPaneDetailOf(
-          context,
-          HomeShellChrome.contentSizeOf(context),
-        ) &&
-        (entity == null ? async.isLoading : _rendersContent(async, entity));
+        !twoPane && (entity == null ? async.isLoading : rendersContent);
     return PopScope(
       // While the selection mode is on, system back exits the mode instead
       // of leaving the page, like the selection bar's close button.
@@ -710,7 +716,9 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
           // page under it keeps its size (LAYOUT-10's overlay exception).
           resizeToAvoidBottomInset: false,
           extendBodyBehindAppBar: immersive,
-          appBar: _downloadMode && entity != null
+          appBar: hideTwoPaneAppBar
+              ? null
+              : _downloadMode && entity != null
               ? _buildSelectionAppBar(context, entity)
               : _buildAppBar(context, async, immersive: immersive),
           body: _fadeStates(

@@ -65,7 +65,14 @@ class TagChip extends StatefulWidget {
         null,
         inherited: Theme.of(context).textTheme.bodyMedium,
       ),
-      children: [_span(FuncSemanticTokens.of(context), label, translated)],
+      children: [
+        _span(
+          FuncSemanticTokens.of(context),
+          label,
+          translated,
+          Theme.of(context).colorScheme.primary,
+        ),
+      ],
     ),
     locale: Localizations.maybeLocaleOf(context),
     strutStyle: null,
@@ -76,14 +83,27 @@ class TagChip extends StatefulWidget {
     FuncSemanticTokens tokens,
     String label,
     String? translated,
+    Color accentColor,
   ) => TextSpan(
-    text: '#$label',
-    style: tokens.label.copyWith(color: tokens.contentPrimary),
     children: [
+      TextSpan(
+        text: '#',
+        style: tokens.label.copyWith(
+          color: accentColor.withValues(alpha: 0.78),
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      TextSpan(
+        text: label,
+        style: tokens.label.copyWith(
+          color: accentColor,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
       if (translated != null)
         TextSpan(
           text: ' $translated',
-          style: TextStyle(color: tokens.contentSecondary),
+          style: tokens.caption.copyWith(color: tokens.contentSecondary),
         ),
     ],
   );
@@ -98,17 +118,15 @@ class _TagChipState extends State<TagChip> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     final tokens = FuncSemanticTokens.of(context);
     final pill = DecoratedBox(
       decoration: ShapeDecoration(
-        color: tokens.surface,
+        color: tokens.brandTintWeak,
         shape: StadiumBorder(
           side: _focused
-              ? BorderSide(
-                  color: Theme.of(context).colorScheme.primary,
-                  width: 2,
-                )
-              : BorderSide(color: tokens.divider),
+              ? BorderSide(color: colors.primary, width: 2)
+              : BorderSide(color: tokens.brandTintStroke),
         ),
       ),
       child: ConstrainedBox(
@@ -123,7 +141,12 @@ class _TagChipState extends State<TagChip> {
           child: Center(
             widthFactor: 1,
             child: Text.rich(
-              TagChip._span(tokens, widget.label, widget.translated),
+              TagChip._span(
+                tokens,
+                widget.label,
+                widget.translated,
+                colors.primary,
+              ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),

@@ -12,7 +12,9 @@ import '../../app/motion/motion_tokens.dart';
 import '../../app/navigation/home_shell_metrics.dart';
 import '../../app/theme/category_colors.dart';
 import '../../app/widgets/app_top_bar.dart';
+import '../../app/window/desktop_command_bar.dart' show DesktopCommandBarScope;
 import '../../app/theme/func_semantic_tokens.dart';
+import '../../app/theme/func_tokens.dart';
 import '../../app/widgets/feed/feed_states.dart';
 import '../../app/widgets/settings/settings_anchor.dart';
 import '../../app/widgets/settings/settings_group.dart';
@@ -75,7 +77,7 @@ class SettingsPage extends ConsumerStatefulWidget {
 }
 
 class _SettingsPageState extends ConsumerState<SettingsPage> {
-  static const double _masterPaneWidth = 336;
+  static const double _masterPaneWidth = 292;
 
   final _query = TextEditingController();
   final _indexBodyKey = GlobalKey(debugLabel: 'settings-index-body');
@@ -282,37 +284,104 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       );
     }
 
+    final desktopOwned = DesktopCommandBarScope.isActiveOf(context);
+    final colors = Theme.of(context).colorScheme;
+    final tokens = FuncSemanticTokens.of(context);
+    final searchField = Padding(
+      padding: const EdgeInsets.fromLTRB(
+        FuncSpacing.md,
+        FuncSpacing.xs,
+        FuncSpacing.md,
+        FuncSpacing.sm,
+      ),
+      child: SearchBar(
+        controller: _query,
+        constraints: const BoxConstraints(minHeight: 40, maxHeight: 40),
+        hintText: context.l10n.settingsSearchHint,
+        leading: const Icon(Icons.search, size: 19),
+        trailing: [
+          if (query.isNotEmpty)
+            IconButton(
+              tooltip: context.l10n.searchClear,
+              icon: const Icon(Icons.close, size: 18),
+              onPressed: () => setState(_query.clear),
+            ),
+        ],
+        onChanged: (_) => setState(() {}),
+        textInputAction: TextInputAction.search,
+      ),
+    );
+
     return PopScope(
       canPop: !_detailCanPop,
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop) unawaited(_detailNavigatorKey.currentState?.maybePop());
       },
       child: Material(
-        color: Theme.of(context).colorScheme.surface,
+        color: colors.surface,
         child: Row(
           children: [
             SizedBox(
               width: _masterPaneWidth,
-              child: Scaffold(
-                appBar: AppTopBar(
-                  title: Text(context.l10n.settingsTitle),
-                  bottom: _buildSearchBar(context, query, narrowWrap: false),
-                ),
-                body: body,
-              ),
+              child: desktopOwned
+                  ? ColoredBox(
+                      color: colors.surfaceContainerLow,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(
+                              FuncSpacing.lg,
+                              FuncSpacing.lg,
+                              FuncSpacing.lg,
+                              FuncSpacing.xs,
+                            ),
+                            child: Text(
+                              context.l10n.settingsTitle,
+                              style: Theme.of(context).textTheme.headlineSmall
+                                  ?.copyWith(fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                          searchField,
+                          Divider(height: 1, color: tokens.brandHairline),
+                          Expanded(child: body),
+                        ],
+                      ),
+                    )
+                  : Scaffold(
+                      appBar: AppTopBar(
+                        backgroundColor: colors.surfaceContainerLow,
+                        title: Text(context.l10n.settingsTitle),
+                        bottom: _buildSearchBar(
+                          context,
+                          query,
+                          narrowWrap: false,
+                        ),
+                      ),
+                      body: ColoredBox(
+                        color: colors.surfaceContainerLow,
+                        child: body,
+                      ),
+                    ),
             ),
-            const VerticalDivider(width: 1, thickness: 1),
+            VerticalDivider(
+              width: 1,
+              thickness: 1,
+              color: tokens.brandHairline,
+            ),
             Expanded(
-              child: SettingsDetailScope(
-                onPush: _pushInDetailPane,
-                child: Navigator(
-                  key: _detailNavigatorKey,
-                  observers: [_detailObserver],
-                  onGenerateInitialRoutes: (navigator, initialRoute) => [
-                    _buildDetailRoute(_selectedPage.path, instant: true),
-                  ],
-                  onGenerateRoute: (routeSettings) => _buildDetailRoute(
-                    routeSettings.name ?? SettingsPageRef.account.path,
+              child: EmbeddedHeaderScope(
+                child: SettingsDetailScope(
+                  onPush: _pushInDetailPane,
+                  child: Navigator(
+                    key: _detailNavigatorKey,
+                    observers: [_detailObserver],
+                    onGenerateInitialRoutes: (navigator, initialRoute) => [
+                      _buildDetailRoute(_selectedPage.path, instant: true),
+                    ],
+                    onGenerateRoute: (routeSettings) => _buildDetailRoute(
+                      routeSettings.name ?? SettingsPageRef.account.path,
+                    ),
                   ),
                 ),
               ),
@@ -474,11 +543,16 @@ Widget _wrapSelectedTile(
 }) {
   if (!selected) return child;
   final scheme = Theme.of(context).colorScheme;
-  return ListTileTheme.merge(
-    tileColor: scheme.secondaryContainer.withValues(alpha: 0.55),
-    textColor: scheme.onSecondaryContainer,
-    iconColor: scheme.onSecondaryContainer,
-    child: child,
+  return Material(
+    color: scheme.primaryContainer,
+    borderRadius: FuncShape.card,
+    clipBehavior: Clip.antiAlias,
+    child: ListTileTheme.merge(
+      tileColor: FuncTokens.transparent,
+      textColor: scheme.onPrimaryContainer,
+      iconColor: scheme.onPrimaryContainer,
+      child: child,
+    ),
   );
 }
 

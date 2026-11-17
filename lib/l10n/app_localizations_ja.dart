@@ -888,6 +888,15 @@ class AppLocalizationsJa extends AppLocalizations {
   String get feedDensityComfortable => 'ゆったり';
 
   @override
+  String get desktopDetailMode => 'デスクトップ詳細表示';
+
+  @override
+  String get desktopDetailModeModal => '拡大モーダル';
+
+  @override
+  String get desktopDetailModeInspector => 'サイドプレビュー';
+
+  @override
   String get qualityMedium => '中サイズ';
 
   @override

@@ -89,6 +89,9 @@ import '../widgets/feed/feed_grid.dart';
 import '../widgets/feed/feed_states.dart' show FeedError;
 import '../widgets/func_bottom_nav.dart';
 
+export '../../features/illust/detail/widgets/desktop_gallery_inspector.dart'
+    show DesktopGalleryInspector;
+
 part 'route_branches.dart';
 part 'route_extras.dart';
 part 'route_facade.dart';

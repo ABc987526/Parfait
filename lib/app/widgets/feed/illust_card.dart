@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/bookmark/bookmark_models.dart';
+import '../../../core/bookmark/bookmark_store.dart';
 import '../../../core/entity/illust_entity.dart';
 import '../../../core/image/image_worker_providers.dart';
 import '../../format/app_format.dart';
@@ -28,6 +30,7 @@ import '../../widgets/bookmark_switch_button.dart';
 import '../card_actions/card_action_sheet.dart';
 import '../display_actions.dart';
 import '../entity_row.dart';
+import 'desktop_inspector_scope.dart';
 import 'feed_grid.dart';
 import 'feed_selection.dart';
 import 'feed_text_warmup.dart';
@@ -262,6 +265,14 @@ class _IllustCardBody extends ConsumerWidget {
       );
     }
 
+    final bookmarked = ref.watch(
+      bookmarkStoreProvider.select(
+        (s) =>
+            s[BookmarkKey(BookmarkEntityType.illust, entity.id)]?.shown ??
+            false,
+      ),
+    );
+    final inspector = DesktopInspectorScope.watchOf(context);
     final previewHeight = cardWidth * preview.heightRatio;
     final image = _buildImage(
       preview,
@@ -332,6 +343,8 @@ class _IllustCardBody extends ConsumerWidget {
       }
       if (muted) {
         reveal();
+      } else if (inspector != null) {
+        inspector.onInspect(entity);
       } else {
         openDetail();
       }
@@ -382,6 +395,7 @@ class _IllustCardBody extends ConsumerWidget {
           entity: entity,
           isPointer: isPointer,
           muted: muted,
+          bookmarked: bookmarked,
           child: SizedBox(
             width: cardWidth,
             height: previewHeight,
@@ -400,6 +414,30 @@ class _IllustCardBody extends ConsumerWidget {
                           children: _buildBadges(context),
                         ),
                       ),
+                      if (inspector != null)
+                        ValueListenableBuilder<int?>(
+                          valueListenable: inspector.selectedId,
+                          builder: (context, selectedId, _) {
+                            if (selectedId != entity.id) {
+                              return const SizedBox.shrink();
+                            }
+                            return Positioned.fill(
+                              child: IgnorePointer(
+                                child: DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    borderRadius: FuncShape.card,
+                                    border: Border.all(
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.primary,
+                                      width: 2.2,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
                     ],
                   ),
           ),
@@ -506,8 +544,8 @@ class _IllustCardBody extends ConsumerWidget {
   }
 
   Widget _buildTitle(BuildContext context) {
-    // Beta56 title row: 10px indent, title/user block, bookmark heart on the
-    // right (BookmarkSwitchButton isButton variant).
+    // Clean metadata row below the artwork: 12px indent, title/author stack,
+    // bookmark heart on the right so the image itself stays completely unoccluded.
     return Row(
       children: [
         const SizedBox(width: IllustCard.textIndent),
@@ -684,12 +722,14 @@ class _HoverLayer extends StatefulWidget {
     required this.entity,
     required this.isPointer,
     required this.muted,
+    required this.bookmarked,
     required this.child,
   });
 
   final IllustEntity entity;
   final bool isPointer;
   final bool muted;
+  final bool bookmarked;
   final Widget child;
 
   @override
@@ -717,74 +757,66 @@ class _HoverLayerState extends State<_HoverLayer> {
               widget.child,
               PositionedDirectional(
                 start: 7,
-                end: 46,
-                bottom: 7,
-                child: Align(
-                  alignment: AlignmentDirectional.bottomStart,
-                  child: Material(
-                    color: FuncTokens.imageControl,
-                    borderRadius: FuncShape.badge,
-                    clipBehavior: Clip.antiAlias,
-                    child: InkWell(
-                      onTap: widget.entity.user.id > 0
-                          ? () => unawaited(
-                              openUser(context, widget.entity.user.id),
-                            )
-                          : null,
-                      child: Padding(
-                        padding: const EdgeInsetsDirectional.fromSTEB(
-                          4,
-                          3,
-                          8,
-                          3,
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            PersonAvatar(
-                              imageUrl: widget.entity.user.profileImageUrl,
-                              radius: 10,
+                top: 7,
+                child: Material(
+                  color: FuncTokens.imageControl,
+                  borderRadius: FuncShape.pill,
+                  clipBehavior: Clip.antiAlias,
+                  child: InkWell(
+                    onTap: widget.entity.user.id > 0
+                        ? () => unawaited(
+                            openUser(context, widget.entity.user.id),
+                          )
+                        : null,
+                    child: Padding(
+                      padding: const EdgeInsetsDirectional.fromSTEB(4, 3, 8, 3),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          PersonAvatar(
+                            imageUrl: widget.entity.user.profileImageUrl,
+                            radius: 9,
+                          ),
+                          const SizedBox(width: FuncSpacing.xs),
+                          Flexible(
+                            child: Text(
+                              widget.entity.user.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.labelSmall
+                                  ?.copyWith(color: FuncTokens.white),
                             ),
-                            const SizedBox(width: FuncSpacing.xs),
-                            Flexible(
-                              child: Text(
-                                widget.entity.user.name,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: Theme.of(context).textTheme.labelSmall
-                                    ?.copyWith(color: FuncTokens.white),
-                              ),
-                            ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
                 ),
               ),
-              PositionedDirectional(
-                end: 7,
-                bottom: 7,
-                child: Theme(
-                  data: Theme.of(context).copyWith(
-                    iconButtonTheme: IconButtonThemeData(
-                      style: IconButton.styleFrom(
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        visualDensity: VisualDensity.compact,
-                      ),
-                    ),
-                  ),
+              if (!widget.bookmarked)
+                PositionedDirectional(
+                  end: 7,
+                  bottom: 7,
                   child: Material(
                     color: FuncTokens.imageControl,
                     shape: const CircleBorder(),
                     clipBehavior: Clip.antiAlias,
-                    child: BookmarkSwitchButton(
-                      illustId: widget.entity.id,
-                      title: widget.entity.title,
+                    child: SizedBox.square(
+                      dimension: 28,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: IconTheme(
+                          data: const IconThemeData(color: FuncTokens.white),
+                          child: BookmarkSwitchButton(
+                            illustId: widget.entity.id,
+                            title: widget.entity.title,
+                            isButton: false,
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              ),
             ],
           )
         : widget.child;

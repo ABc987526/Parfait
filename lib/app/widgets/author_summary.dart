@@ -22,6 +22,7 @@ class AuthorSummary extends StatelessWidget {
     this.onTap,
     this.avatarRadius = 24,
     this.avatarKey,
+    this.avatarRingColor,
     this.padding = EdgeInsets.zero,
     this.compact = false,
   });
@@ -32,6 +33,7 @@ class AuthorSummary extends StatelessWidget {
   final VoidCallback? onTap;
   final double avatarRadius;
   final Key? avatarKey;
+  final Color? avatarRingColor;
   final EdgeInsetsGeometry padding;
   final bool compact;
 
@@ -55,11 +57,23 @@ class AuthorSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = FuncSemanticTokens.of(context);
-    final avatar = SizedBox.square(
+    final rawAvatar = SizedBox.square(
       key: avatarKey,
       dimension: avatarRadius * 2,
       child: PersonAvatar(imageUrl: imageUrl, radius: avatarRadius),
     );
+    final avatar = avatarRingColor == null
+        ? rawAvatar
+        : DecoratedBox(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: avatarRingColor!, width: 1.5),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(FuncSpacing.xxs),
+              child: rawAvatar,
+            ),
+          );
     final Widget content;
     if (compact) {
       content = Row(

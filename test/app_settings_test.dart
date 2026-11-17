@@ -463,6 +463,17 @@ void main() {
       damaged: 'dense',
     );
     _expectStored(
+      'desktopDetailMode',
+      read: (s) => s.desktopDetailMode,
+      write: (s, v) => s.copyWith(desktopDetailMode: v),
+      initial: DesktopDetailMode.modal,
+      stored: [
+        (DesktopDetailMode.modal, 'modal'),
+        (DesktopDetailMode.inspector, 'inspector'),
+      ],
+      damaged: 'split',
+    );
+    _expectStored(
       'hapticStrength',
       read: (s) => s.hapticStrength,
       write: (s, v) => s.copyWith(hapticStrength: v),

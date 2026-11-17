@@ -1,24 +1,31 @@
 import 'package:material_ui/material_ui.dart';
 
 abstract final class FuncTokens {
-  /// The brand pink, a cherry-blossom pink taken from an illustration's
-  /// hair: fills (filled buttons, the follow button) under white text, in
-  /// both themes.
+  /// The brand pink, a cherry-blossom pink taken from Misono Mika's hair:
+  /// fills (filled buttons, the follow button) under white text in both themes.
   static const Color primary = Color(0xFFE077A6);
 
-  /// The light theme's accent for text, icons and indicators: [primary]
-  /// deepened the way the illustration shades it, warmer as it darkens, so
-  /// it reads on the page.
-  static const Color lightAccent = Color(0xFFB44673);
+  /// Kept equal to [primary] so fills stay unified across states.
+  static const Color mikaHighlight = primary;
 
-  /// The dark theme's accent for text, icons and indicators: the hair's own
-  /// pink, lighter than the fill.
+  /// Soft rose tint layers calibrated to Mika's hair ramp.
+  static const Color lightBrandTint = Color(0x1EE077A6);
+  static const Color darkBrandTint = Color(0x29EBA6C6);
+
+  /// Auxiliary tones (gold/lilac tokens retained for semantic compatibility).
+  static const Color lightMikaGold = Color(0xFFB8863B);
+  static const Color darkMikaGold = Color(0xFFE2B96F);
+  static const Color lightMikaLilac = Color(0xFF7E7494);
+  static const Color darkMikaLilac = Color(0xFFA69CB8);
+
+  /// Light text accent (#B44673, 358 deg) and dark hair-pink text accent
+  /// (#EBA6C6, 350 deg) from task/11-09-accent-mika-pink.
+  static const Color lightAccent = Color(0xFFB44673);
   static const Color darkAccent = Color(0xFFEBA6C6);
 
-  /// Selection (`primaryContainer` / `onPrimaryContainer`): the hair's
-  /// midtone under a deep rose on the light theme, a deep rose under the
-  /// hair's highlight on the dark. Tokens, not M3's generated tones, which
-  /// drift toward purple.
+  /// Selection (`primaryContainer` / `onPrimaryContainer`): Mika's hair
+  /// midtone (#F5D6E4) under deep rose (#6D3047) on light; deep rose (#5C3443)
+  /// under hair highlight (#FEE8F3) on dark.
   static const Color lightPrimaryContainer = Color(0xFFF5D6E4);
   static const Color lightOnPrimaryContainer = Color(0xFF6D3047);
   static const Color darkPrimaryContainer = Color(0xFF5C3443);
@@ -30,16 +37,11 @@ abstract final class FuncTokens {
 
   static const Color white = Color(0xFFFFFFFF);
 
-  /// The text neutrals carry the brand's hue at a very low chroma (warm
-  /// grays); their lightness, and so every contrast ratio, is the plain
-  /// grays'. The page and container ladder carries the hair's pink at a
-  /// little more chroma, so the pages read pink; lightness unchanged.
+  /// Neutrals and surface ladders carrying Mika's hair hue (346 deg light,
+  /// 350 deg dark) with subtle chroma so pages read warm-sakura yet restrained.
   static const Color darkBackground = Color(0xFF1C1619);
   static const Color darkText = Color(0xFFD8D4D4);
   static const Color darkSubdued = Color(0xFF655F60);
-
-  /// Secondary *text* must stay readable (the low-alpha subdued colors are
-  /// for borders/dividers and were never meant to carry glyphs).
   static const Color darkTextSecondary = Color(0xFFADA7A8);
 
   static const Color lightBackground = Color(0xFFFFF9FE);
@@ -50,10 +52,13 @@ abstract final class FuncTokens {
   static const Color transparent = Color(0x00000000);
   static const Color imageOverlay = Color(0x3DFFFFFF);
 
-  /// Container ladder above the page ([lightBackground]/[darkBackground],
-  /// also `surface`/`surfaceContainerLowest`). Each higher step moves away
-  /// from the page — darker in light, lighter in dark — so layered surfaces
-  /// (cards → dialogs → pickers) stay distinguishable on both themes.
+  /// Translucent frosted glass aligned with the Mika canvas tiers.
+  static const Color lightGlassSurface = Color(0xEBFFF9FE);
+  static const Color darkGlassSurface = Color(0xE81C1619);
+  static const Color lightGlassBorder = Color(0x1E6D3047);
+  static const Color darkGlassBorder = Color(0x26EBA6C6);
+
+  /// Original Mika container ladders above [lightBackground]/[darkBackground].
   static const Color lightContainerLow = Color(0xFFFFF6FB);
   static const Color lightContainer = Color(0xFFFCEFF6);
   static const Color lightContainerHigh = Color(0xFFF7E9F0);
@@ -63,22 +68,18 @@ abstract final class FuncTokens {
   static const Color darkContainerHigh = Color(0xFF392E33);
   static const Color darkContainerHighest = Color(0xFF44373C);
 
-  /// Inverted surface for transient chrome (SnackBar) so it stands apart
-  /// from both the page and the containers on it.
+  /// Inverted surface for transient chrome (SnackBar).
   static const Color lightInverseSurface = Color(0xFF342F30);
   static const Color darkInverseSurface = Color(0xFFE8E3E4);
 
-  /// A warm gray, not a ladder step: the SnackBar's text stays untinted.
   static const Color lightOnInverseSurface = Color(0xFFF7F2F2);
   static const Color darkOnInverseSurface = lightInverseSurface;
 
-  /// Hairline separators; intentionally fainter than the subdued text tint.
+  /// Soft warm hairline dividers.
   static const Color darkDivider = Color(0x1FD8D4D4);
   static const Color lightDivider = Color(0x1F3B3737);
 
-  /// The shadow a bar at the screen bottom casts up over the content
-  /// under it: a tight edge and a short tail, a few dp deep. Darker on the
-  /// dark theme, where a faint black disappears into the page.
+  /// Soft bar and layer shadows (warm cocoa #3A2A2E on light).
   static const List<BoxShadow> lightBarShadow = [
     BoxShadow(color: Color(0x1F000000), offset: Offset(0, -1), blurRadius: 2),
     BoxShadow(color: Color(0x0D000000), offset: Offset(0, -1), blurRadius: 5),
@@ -88,9 +89,6 @@ abstract final class FuncTokens {
     BoxShadow(color: Color(0x29000000), offset: Offset(0, -1), blurRadius: 5),
   ];
 
-  /// The soft, diffuse shadow of a layer resting above the page (the
-  /// detail capsule): a close contact edge and a wide spread. On the
-  /// light theme it is the cocoa ink's hue, not black, so it reads warm.
   static const List<BoxShadow> lightLayerLift = [
     BoxShadow(color: Color(0x1A3A2A2E), offset: Offset(0, 1), blurRadius: 3),
     BoxShadow(color: Color(0x2E3A2A2E), offset: Offset(0, 6), blurRadius: 20),
@@ -100,8 +98,6 @@ abstract final class FuncTokens {
     BoxShadow(color: Color(0x8C000000), offset: Offset(0, 8), blurRadius: 24),
   ];
 
-  /// A card that is an object of its own on the page (the detail author
-  /// card): a fainter lift than a layer's.
   static const List<BoxShadow> lightCardLift = [
     BoxShadow(color: Color(0x143A2A2E), offset: Offset(0, 1), blurRadius: 2),
     BoxShadow(color: Color(0x123A2A2E), offset: Offset(0, 3), blurRadius: 10),
@@ -110,8 +106,7 @@ abstract final class FuncTokens {
     BoxShadow(color: Color(0x4D000000), offset: Offset(0, 1), blurRadius: 3),
   ];
 
-  /// `colorScheme.shadow`, cast by Material elevation (menus, dialogs,
-  /// sheets, prompts): the cocoa ink on light, like [lightLayerLift].
+  /// `colorScheme.shadow`.
   static const Color lightShadow = Color(0xFF3A2A2E);
   static const Color darkShadow = Color(0xFF000000);
 

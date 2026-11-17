@@ -36,8 +36,11 @@ class ShellRail extends StatelessWidget {
     required this.form,
     required this.expanded,
     required this.onToggle,
-    required this.onBookmarks,
-    required this.onDownloads,
+    this.onBookmarks,
+    this.onDownloads,
+    this.onSettings,
+    this.onToggleTheme,
+    this.isDarkMode,
     this.canToggle,
   });
 
@@ -51,45 +54,35 @@ class ShellRail extends StatelessWidget {
 
   /// Opens or closes the rail; shown on PCs and large touch layouts.
   final VoidCallback onToggle;
-  final VoidCallback onBookmarks;
-  final VoidCallback onDownloads;
+  final VoidCallback? onBookmarks;
+  final VoidCallback? onDownloads;
+  final VoidCallback? onSettings;
+  final VoidCallback? onToggleTheme;
+  final bool? isDarkMode;
   final bool? canToggle;
 
-  static const double width = 88;
-  static const double expandedWidth = 256;
+  static const double width = 74;
+  static const double expandedWidth = 204;
 
-  static const double _headerHeight = 48;
-  static const double _itemWidth = 72;
-  static const double _itemMinHeight = 64;
-  static const double _rowHeight = 48;
-  static const double _ruleWidth = 44;
-  static const double _iconSize = 24;
-  static const double _itemRadius = 22;
-
-  /// The selected entry's fill: the theme colour at 15%.
-  static const double _selectedAlpha = 0.15;
+  static const double _headerHeight = 44;
+  static const double _itemWidth = 60;
+  static const double _itemMinHeight = 52;
+  static const double _rowHeight = 42;
+  static const double _ruleWidth = 36;
+  static const double _iconSize = 20;
+  static const double _itemRadius = 10;
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final tokens = FuncSemanticTokens.of(context);
     final navTheme = NavigationBarTheme.of(context);
     final rtl = Directionality.of(context) == TextDirection.rtl;
+    final hairline = BorderSide(color: tokens.brandHairline);
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: navTheme.backgroundColor ?? colors.surface,
-        // The bars' shadow, turned to fall on the content beside the rail.
-        boxShadow: [
-          for (final shadow in FuncSemanticTokens.of(context).barShadow)
-            BoxShadow(
-              color: shadow.color,
-              offset: Offset(
-                rtl ? shadow.offset.dy : -shadow.offset.dy,
-                shadow.offset.dx,
-              ),
-              blurRadius: shadow.blurRadius,
-              spreadRadius: shadow.spreadRadius,
-            ),
-        ],
+        color: navTheme.backgroundColor ?? colors.surfaceContainerLow,
+        border: BorderDirectional(end: hairline),
       ),
       // The content lays out at the panel's width even while the shell
       // animates the rail's width; clip it at the rail's current edge so the
@@ -104,13 +97,10 @@ class ShellRail extends StatelessWidget {
           // The labels stop growing past the bottom bar's 1.3 ceiling.
           child: MediaQuery.withClampedTextScaling(
             maxScaleFactor: 1.3,
-            // The rail lays its content out at the wider form's width even
-            // while the shell animates the rail's width between the two, and
-            // the collapsed form keeps to its own column at the start edge.
-            // The shell clips the overflow, so the panel slides out from that
-            // edge instead of being squeezed into the narrower one.
+            // Anchor rail entries cleanly to the top edge rather than floating
+            // halfway down tall desktop monitors.
             child: OverflowBox(
-              alignment: AlignmentDirectional.centerStart,
+              alignment: AlignmentDirectional.topStart,
               minWidth: expandedWidth,
               maxWidth: expandedWidth,
               child: LayoutBuilder(
@@ -121,7 +111,9 @@ class ShellRail extends StatelessWidget {
                     ),
                     child: Padding(
                       padding: EdgeInsets.symmetric(
-                        horizontal: expanded ? FuncSpacing.md : 0,
+                        horizontal: expanded
+                            ? FuncSpacing.sm + FuncSpacing.xxs
+                            : 0,
                         vertical: FuncSpacing.sm,
                       ),
                       // The column and the panel cross-fade while the rail's
@@ -136,7 +128,7 @@ class ShellRail extends StatelessWidget {
                           switchInCurve: MotionTokens.chromeCurve,
                           switchOutCurve: MotionTokens.chromeCurve,
                           layoutBuilder: (current, previous) => Stack(
-                            alignment: AlignmentDirectional.centerStart,
+                            alignment: AlignmentDirectional.topStart,
                             children: [
                               for (final child in previous) child,
                               ?current,
@@ -145,12 +137,24 @@ class ShellRail extends StatelessWidget {
                           child: KeyedSubtree(
                             key: ValueKey(expanded),
                             child: expanded
-                                ? _panel(context)
+                                ? _panel(
+                                    context,
+                                    minHeight:
+                                        (constraints.maxHeight -
+                                                FuncSpacing.sm * 2)
+                                            .clamp(0.0, double.infinity),
+                                  )
                                 : Align(
-                                    alignment: AlignmentDirectional.centerStart,
+                                    alignment: AlignmentDirectional.topStart,
                                     child: SizedBox(
                                       width: width,
-                                      child: _column(context),
+                                      child: _column(
+                                        context,
+                                        minHeight:
+                                            (constraints.maxHeight -
+                                                    FuncSpacing.sm * 2)
+                                                .clamp(0.0, double.infinity),
+                                      ),
                                     ),
                                   ),
                           ),
@@ -181,7 +185,7 @@ class ShellRail extends StatelessWidget {
         context,
       ).iconTheme?.resolve({if (selected) WidgetState.selected})?.color;
 
-  Widget _column(BuildContext context) {
+  Widget _column(BuildContext context, {required double minHeight}) {
     final l10n = context.l10n;
     // One label size for every entry, shrunk until the widest fits.
     final fit = LabelFit.group(
@@ -243,7 +247,10 @@ class ShellRail extends StatelessWidget {
     final toggleable =
         canToggle ?? form.canToggleRail(size.width, height: size.height);
     final hideHeader = DesktopCommandBarScope.isActiveOf(context);
-    return Column(
+    final isDark =
+        isDarkMode ?? Theme.of(context).brightness == Brightness.dark;
+    final top = Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
         if (hideHeader)
           const SizedBox(height: FuncSpacing.md)
@@ -271,33 +278,83 @@ class ShellRail extends StatelessWidget {
           ),
           gap: FuncSpacing.sm,
         ),
-        Container(
-          width: _ruleWidth,
-          height: 1,
-          margin: const EdgeInsets.only(
-            top: FuncSpacing.xs,
-            bottom: FuncSpacing.lg + FuncSpacing.xs,
+        if (!hideHeader && (onBookmarks != null || onDownloads != null)) ...[
+          Container(
+            width: _ruleWidth,
+            height: 1,
+            margin: const EdgeInsets.only(
+              top: FuncSpacing.xs,
+              bottom: FuncSpacing.lg + FuncSpacing.xs,
+            ),
+            color: FuncSemanticTokens.of(context).brandHairline,
           ),
-          color: Theme.of(context).colorScheme.outlineVariant,
-        ),
-        item(
-          icon: Icons.favorite_border,
-          label: l10n.railBookmarks,
-          selected: false,
-          onTap: onBookmarks,
-        ),
-        const SizedBox(height: FuncSpacing.sm),
-        item(
-          icon: Icons.downloading_outlined,
-          label: l10n.railDownloads,
-          selected: false,
-          onTap: onDownloads,
-        ),
+          if (onBookmarks != null)
+            item(
+              icon: Icons.favorite_border,
+              label: l10n.railBookmarks,
+              selected: false,
+              onTap: onBookmarks!,
+            ),
+          if (onDownloads != null) ...[
+            const SizedBox(height: FuncSpacing.sm),
+            item(
+              icon: Icons.downloading_outlined,
+              label: l10n.railDownloads,
+              selected: false,
+              onTap: onDownloads!,
+            ),
+          ],
+        ],
       ],
+    );
+    if (!hideHeader || (onToggleTheme == null && onSettings == null)) {
+      return top;
+    }
+    return ConstrainedBox(
+      constraints: BoxConstraints(minHeight: minHeight),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          top,
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: _ruleWidth,
+                height: 1,
+                margin: const EdgeInsets.symmetric(vertical: FuncSpacing.sm),
+                color: FuncSemanticTokens.of(context).brandHairline,
+              ),
+              if (onToggleTheme != null)
+                IconButton(
+                  key: const Key('rail-theme-toggle'),
+                  tooltip:
+                      '${l10n.themeSettings} · ${isDark ? l10n.dark : l10n.light}',
+                  onPressed: onToggleTheme,
+                  icon: Icon(
+                    isDark
+                        ? Icons.dark_mode_outlined
+                        : Icons.light_mode_outlined,
+                    size: _iconSize,
+                  ),
+                ),
+              if (onSettings != null) ...[
+                const SizedBox(height: FuncSpacing.xxs),
+                IconButton(
+                  key: const Key('rail-settings'),
+                  tooltip: l10n.settingsTitle,
+                  onPressed: onSettings,
+                  icon: const Icon(Icons.settings_outlined, size: _iconSize),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _panel(BuildContext context) {
+  Widget _panel(BuildContext context, {required double minHeight}) {
     final l10n = context.l10n;
     final labelSize = Theme.of(context).textTheme.labelLarge?.fontSize;
     Widget row({
@@ -308,12 +365,15 @@ class ShellRail extends StatelessWidget {
     }) => _RailEntry(
       selected: selected,
       onTap: onTap,
-      shape: const StadiumBorder(),
+      accentBar: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(_itemRadius)),
+      ),
       child: SizedBox(
         height: _rowHeight,
         child: Padding(
           padding: const EdgeInsetsDirectional.only(
-            start: FuncSpacing.lg,
+            start: FuncSpacing.md + FuncSpacing.xxs,
             end: FuncSpacing.md,
           ),
           child: Row(
@@ -340,13 +400,19 @@ class ShellRail extends StatelessWidget {
         ),
       ),
     );
+    final size = MediaQuery.sizeOf(context);
+    final toggleable =
+        canToggle ?? form.canToggleRail(size.width, height: size.height);
     final hideHeader = DesktopCommandBarScope.isActiveOf(context);
-    return Column(
+    final isDark =
+        isDarkMode ?? Theme.of(context).brightness == Brightness.dark;
+    final top = Column(
+      mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (hideHeader)
-          const SizedBox(height: FuncSpacing.md)
-        else
+          const SizedBox(height: FuncSpacing.xs)
+        else ...[
           SizedBox(
             height: _headerHeight,
             child: Row(
@@ -359,16 +425,21 @@ class ShellRail extends StatelessWidget {
                 const SizedBox(width: FuncSpacing.xs),
                 const _AppIcon(size: FuncSpacing.xl + FuncSpacing.xs),
                 const SizedBox(width: FuncSpacing.md),
-                Text(
-                  'Parfait',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
+                Expanded(
+                  child: Text(
+                    'Parfait',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ],
             ),
           ),
-        const SizedBox(height: FuncSpacing.xl),
+          const SizedBox(height: FuncSpacing.xl),
+        ],
         _destinations(
           (i, selected) => row(
             icon: destinations[i].icon,
@@ -379,26 +450,85 @@ class ShellRail extends StatelessWidget {
           gap: FuncSpacing.xs,
           stretch: true,
         ),
-        Divider(
-          height: FuncSpacing.xl,
-          indent: FuncSpacing.lg,
-          endIndent: FuncSpacing.lg,
-          color: Theme.of(context).colorScheme.outlineVariant,
-        ),
-        row(
-          icon: Icons.favorite_border,
-          label: l10n.railBookmarks,
-          selected: false,
-          onTap: onBookmarks,
-        ),
-        const SizedBox(height: FuncSpacing.xs),
-        row(
-          icon: Icons.downloading_outlined,
-          label: l10n.railDownloads,
-          selected: false,
-          onTap: onDownloads,
-        ),
+        if (!hideHeader && (onBookmarks != null || onDownloads != null)) ...[
+          Divider(
+            height: FuncSpacing.xl,
+            indent: FuncSpacing.lg,
+            endIndent: FuncSpacing.lg,
+            color: FuncSemanticTokens.of(context).brandHairline,
+          ),
+          if (onBookmarks != null)
+            row(
+              icon: Icons.favorite_border,
+              label: l10n.railBookmarks,
+              selected: false,
+              onTap: onBookmarks!,
+            ),
+          if (onDownloads != null) ...[
+            const SizedBox(height: FuncSpacing.xs),
+            row(
+              icon: Icons.downloading_outlined,
+              label: l10n.railDownloads,
+              selected: false,
+              onTap: onDownloads!,
+            ),
+          ],
+        ],
       ],
+    );
+    if (!hideHeader ||
+        (onToggleTheme == null && onSettings == null && !toggleable)) {
+      return top;
+    }
+    return ConstrainedBox(
+      constraints: BoxConstraints(minHeight: minHeight),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          top,
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Divider(
+                height: FuncSpacing.xl,
+                indent: FuncSpacing.sm,
+                endIndent: FuncSpacing.sm,
+                color: FuncSemanticTokens.of(context).brandHairline,
+              ),
+              if (onToggleTheme != null) ...[
+                row(
+                  icon: isDark
+                      ? Icons.dark_mode_outlined
+                      : Icons.light_mode_outlined,
+                  label:
+                      '${l10n.themeSettings} · ${isDark ? l10n.dark : l10n.light}',
+                  selected: false,
+                  onTap: onToggleTheme!,
+                ),
+                const SizedBox(height: FuncSpacing.xxs),
+              ],
+              if (onSettings != null) ...[
+                row(
+                  icon: Icons.settings_outlined,
+                  label: l10n.settingsTitle,
+                  selected: false,
+                  onTap: onSettings!,
+                ),
+                const SizedBox(height: FuncSpacing.xxs),
+              ],
+              if (toggleable)
+                row(
+                  icon: Icons.menu_open,
+                  label: l10n.railCollapse,
+                  selected: false,
+                  onTap: onToggle,
+                ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -454,24 +584,61 @@ class _RailEntry extends StatelessWidget {
     required this.onTap,
     required this.shape,
     required this.child,
+    this.accentBar = false,
   });
 
   final bool selected;
   final VoidCallback onTap;
-  final ShapeBorder shape;
+  final RoundedRectangleBorder shape;
   final Widget child;
+  final bool accentBar;
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final tokens = FuncSemanticTokens.of(context);
+    final selectedBg = accentBar
+        ? (theme.brightness == Brightness.dark
+              ? colors.surfaceContainerHigh
+              : tokens.surface)
+        : tokens.brandTint;
+    final effectiveShape = shape.copyWith(
+      side: selected
+          ? BorderSide(
+              color: accentBar ? tokens.brandHairline : tokens.brandTintStroke,
+            )
+          : BorderSide.none,
+    );
     return Semantics(
       button: true,
       child: Material(
-        color: selected
-            ? colors.primary.withValues(alpha: ShellRail._selectedAlpha)
-            : Colors.transparent,
-        shape: shape,
-        child: InkWell(customBorder: shape, onTap: onTap, child: child),
+        color: selected ? selectedBg : Colors.transparent,
+        shape: effectiveShape,
+        child: InkWell(
+          customBorder: effectiveShape,
+          onTap: onTap,
+          child: accentBar && selected
+              ? Stack(
+                  alignment: AlignmentDirectional.centerStart,
+                  children: [
+                    child,
+                    PositionedDirectional(
+                      start: 5,
+                      top: 10,
+                      bottom: 10,
+                      width: 3.5,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: colors.primary,
+                          borderRadius: FuncShape.pill,
+                        ),
+                      ),
+                    ),
+                  ],
+                )
+              : child,
+        ),
       ),
     );
   }

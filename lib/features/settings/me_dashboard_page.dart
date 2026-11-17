@@ -24,6 +24,7 @@ import '../../app/widgets/feed/feed_states.dart';
 import '../../app/widgets/func_bottom_nav.dart';
 import '../../app/widgets/person_card.dart';
 import '../../app/widgets/settings_load_error.dart';
+import '../../app/window/desktop_command_bar.dart' show DesktopCommandBarScope;
 import '../../core/auth/account.dart';
 import '../../core/auth/account_store.dart';
 import '../../core/navigation/home_destination.dart';
@@ -50,7 +51,7 @@ class MeDashboardPage extends ConsumerStatefulWidget {
 }
 
 class _MeDashboardPageState extends ConsumerState<MeDashboardPage> {
-  static const _wideMaxWidth = 1080.0;
+  static const _wideMaxWidth = 1120.0;
 
   /// Preserves `_RecentHistoryState` (keep-alive covers & reorder animations)
   /// when crossing the narrow/wide breakpoint (`SET-07`).
@@ -60,6 +61,7 @@ class _MeDashboardPageState extends ConsumerState<MeDashboardPage> {
   Widget build(BuildContext context) {
     final accounts = ref.watch(accountStoreProvider);
     final size = HomeShellChrome.contentSizeOf(context);
+    final desktopOwned = DesktopCommandBarScope.isActiveOf(context);
     final wide =
         size.width >= AppBreakpoints.expanded &&
         size.height >= AppBreakpoints.compactHeight;
@@ -75,12 +77,14 @@ class _MeDashboardPageState extends ConsumerState<MeDashboardPage> {
         // every time the IME animates (e.g. the push that hides the search
         // keyboard) — a relayout storm across all five live branches.
         resizeToAvoidBottomInset: false,
-        // Settings open from the row at the page's end, not the bar.
-        appBar: AppTopBar(
-          contentWidth: wide ? _wideMaxWidth : ContentWidths.settings,
-          title: Text(context.l10n.homeMe),
-        ),
-        body: _body(context, accounts, wide: wide),
+        // Settings open from the end row / Bento grid, not the bar.
+        appBar: desktopOwned
+            ? null
+            : AppTopBar(
+                contentWidth: wide ? _wideMaxWidth : ContentWidths.settings,
+                title: Text(context.l10n.homeMe),
+              ),
+        body: _body(context, accounts, wide: wide, desktopOwned: desktopOwned),
       ),
     );
   }
@@ -89,6 +93,7 @@ class _MeDashboardPageState extends ConsumerState<MeDashboardPage> {
     BuildContext context,
     AsyncValue<AccountState> accounts, {
     required bool wide,
+    required bool desktopOwned,
   }) {
     void reload() => ref.read(accountStoreProvider.notifier).reload();
     if (accounts.hasError) {
@@ -107,15 +112,19 @@ class _MeDashboardPageState extends ConsumerState<MeDashboardPage> {
         messageKey: 'accountReadFailed',
       );
     }
-    final settingsRow = _MeRow(
+    final settingsEntry = (
       icon: Icons.settings_outlined,
       label: context.l10n.settingsTitle,
       onTap: () => openSettingsPage(context, settingsIndexPath),
+      count: null,
+      accented: true,
     );
-    final aboutRow = _MeRow(
+    final aboutEntry = (
       icon: settingsPageIcons[SettingsPageRef.about]!,
       label: context.l10n.aboutSettings,
       onTap: () => openSettingsPage(context, SettingsPageRef.about.path),
+      count: null,
+      accented: false,
     );
     final history = _RecentHistory(key: _historyKey);
     if (!wide) {
@@ -128,10 +137,29 @@ class _MeDashboardPageState extends ConsumerState<MeDashboardPage> {
           children: [
             _AccountHeader(account: state?.current),
             history,
-            const _ContentShortcuts(),
-            const Divider(indent: FuncSpacing.lg, endIndent: FuncSpacing.lg),
-            settingsRow,
-            aboutRow,
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: FuncSpacing.lg),
+              child: _ContentShortcuts(),
+            ),
+            const SizedBox(height: FuncSpacing.md),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: FuncSpacing.lg),
+              child: _GroupedPanel(
+                children: [
+                  _MeRow(
+                    icon: settingsEntry.icon,
+                    label: settingsEntry.label,
+                    onTap: settingsEntry.onTap,
+                  ),
+                  _MeRow(
+                    icon: aboutEntry.icon,
+                    label: aboutEntry.label,
+                    accented: false,
+                    onTap: aboutEntry.onTap,
+                  ),
+                ],
+              ),
+            ),
             const FuncNavBarSpacer(),
           ],
         ),
@@ -143,33 +171,34 @@ class _MeDashboardPageState extends ConsumerState<MeDashboardPage> {
         constraints: const BoxConstraints(maxWidth: _wideMaxWidth),
         child: ListView(
           key: const ValueKey('me-wide-dashboard'),
-          padding: const EdgeInsets.only(
-            top: FuncSpacing.sm,
-            bottom: FuncSpacing.xl,
+          padding: EdgeInsets.fromLTRB(
+            FuncSpacing.xl,
+            desktopOwned ? FuncSpacing.lg : FuncSpacing.sm,
+            FuncSpacing.xl,
+            FuncSpacing.xl,
           ),
           children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  flex: 5,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      _AccountHeader(account: state?.current),
-                      history,
-                      const Divider(
-                        indent: FuncSpacing.lg,
-                        endIndent: FuncSpacing.lg,
-                      ),
-                      settingsRow,
-                      aboutRow,
-                    ],
+            if (desktopOwned) ...[
+              Padding(
+                padding: const EdgeInsets.only(
+                  left: FuncSpacing.xs,
+                  bottom: FuncSpacing.sm,
+                ),
+                child: Text(
+                  context.l10n.homeMe,
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.3,
                   ),
                 ),
-                const SizedBox(width: FuncSpacing.md),
-                const Expanded(flex: 6, child: _ContentShortcuts()),
-              ],
+              ),
+            ],
+            _AccountHeader(account: state?.current, padding: EdgeInsets.zero),
+            const SizedBox(height: FuncSpacing.lg),
+            history,
+            _ContentShortcuts(
+              asGrid: true,
+              trailingEntries: [settingsEntry, aboutEntry],
             ),
             const FuncNavBarSpacer(),
           ],
@@ -184,9 +213,18 @@ class _MeDashboardPageState extends ConsumerState<MeDashboardPage> {
 /// managing and switching accounts is a button of its own inside it.
 /// Signed out, the card is one button to the login, with no manage button.
 class _AccountHeader extends StatelessWidget {
-  const _AccountHeader({required this.account});
+  const _AccountHeader({
+    required this.account,
+    this.padding = const EdgeInsets.fromLTRB(
+      FuncSpacing.lg,
+      FuncSpacing.sm,
+      FuncSpacing.lg,
+      FuncSpacing.lg,
+    ),
+  });
 
   final Account? account;
+  final EdgeInsetsGeometry padding;
 
   static const _avatarDiameter = 72.0;
 
@@ -194,70 +232,98 @@ class _AccountHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final tokens = FuncSemanticTokens.of(context);
     final value = account;
     final url = value?.profileImageUrl;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        FuncSpacing.lg,
-        FuncSpacing.sm,
-        FuncSpacing.lg,
-        FuncSpacing.lg,
-      ),
-      child: PersonCard(
-        onTap: value == null ? () => openLogin(context) : () => openMe(context),
-        tapHint: value == null ? null : l10n.meOpenProfile,
-        endPadding: PersonCard.padding - EdgeIconButtons.glyphInset,
-        trailing: value == null
-            ? null
-            : IconButton(
-                tooltip: l10n.accountManagement,
-                icon: const Icon(Icons.manage_accounts_outlined),
-                onPressed: () =>
-                    openSettingsPage(context, SettingsPageRef.account.path),
-              ),
-        child: Row(
-          children: [
-            SizedBox.square(
-              dimension: _avatarDiameter,
-              child: PersonAvatar(
-                imageUrl: url == null || url.isEmpty ? null : url,
-                radius: _avatarDiameter / 2,
-              ),
-            ),
-            const SizedBox(width: FuncSpacing.lg),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Flexible(
-                        child: Text(
-                          value?.name ?? l10n.signedOut,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: FuncSemanticTokens.of(context).display,
-                        ),
-                      ),
-                      if (value?.isPremium ?? false) ...[
-                        const SizedBox(width: FuncSpacing.sm),
-                        const _PremiumBadge(),
-                      ],
-                    ],
+      padding: padding,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: FuncShape.panel,
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [tokens.brandTintWeak, tokens.surface],
+          ),
+          border: Border.all(color: tokens.brandHairline),
+        ),
+        child: ClipRRect(
+          borderRadius: FuncShape.panel,
+          child: PersonCard(
+            onTap: value == null
+                ? () => openLogin(context)
+                : () => openMe(context),
+            tapHint: value == null ? null : l10n.meOpenProfile,
+            endPadding: PersonCard.padding - EdgeIconButtons.glyphInset,
+            trailing: value == null
+                ? null
+                : IconButton(
+                    tooltip: l10n.accountManagement,
+                    icon: const Icon(Icons.manage_accounts_outlined),
+                    onPressed: () =>
+                        openSettingsPage(context, SettingsPageRef.account.path),
                   ),
-                  const SizedBox(height: FuncSpacing.xs),
-                  Text(
-                    value == null
-                        ? l10n.login
-                        : l10n.labelValue(l10n.profileId, '${value.userId}'),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
+            child: Row(
+              children: [
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: colors.primary.withValues(alpha: 0.48),
+                      width: 2,
                     ),
                   ),
-                ],
-              ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(FuncSpacing.xxs),
+                    child: SizedBox.square(
+                      dimension: _avatarDiameter,
+                      child: PersonAvatar(
+                        imageUrl: url == null || url.isEmpty ? null : url,
+                        radius: _avatarDiameter / 2,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: FuncSpacing.lg),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              value?.name ?? l10n.signedOut,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: tokens.display,
+                            ),
+                          ),
+                          if (value?.isPremium ?? false) ...[
+                            const SizedBox(width: FuncSpacing.sm),
+                            const _PremiumBadge(),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: FuncSpacing.xs),
+                      Text(
+                        value == null
+                            ? l10n.login
+                            : l10n.labelValue(
+                                l10n.profileId,
+                                '${value.userId}',
+                              ),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colors.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -788,12 +854,19 @@ typedef _Entry = ({
   String label,
   VoidCallback onTap,
   int? count,
+  bool accented,
 });
 
-/// The user's own content, a row each; then the home destinations the user
-/// took off the bar.
+/// The user's own content, a row or Bento card each; then any destinations
+/// moved off the bottom bar and trailing entries ([settings], [about]).
 class _ContentShortcuts extends ConsumerWidget {
-  const _ContentShortcuts();
+  const _ContentShortcuts({
+    this.asGrid = false,
+    this.trailingEntries = const [],
+  });
+
+  final bool asGrid;
+  final List<_Entry> trailingEntries;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -805,24 +878,27 @@ class _ContentShortcuts extends ConsumerWidget {
         (async) => async.value?.usableCurrent != null,
       ),
     );
-    final List<_Entry> entries = [
+    final List<_Entry> libraryEntries = [
       (
         icon: Icons.favorite_border,
         label: l10n.profileBookmarked,
         onTap: () => unawaited(openMe(context, tab: MeTab.bookmarks)),
         count: null,
+        accented: true,
       ),
       (
         icon: Icons.people_outline,
         label: l10n.profileFollowing,
         onTap: () => unawaited(openMe(context, tab: MeTab.following)),
         count: null,
+        accented: true,
       ),
       (
         icon: Icons.library_books_outlined,
         label: l10n.watchlistTitle,
         onTap: () => unawaited(openWatchlist(context)),
         count: null,
+        accented: true,
       ),
       // Pixiv keeps them with the account.
       if (signedIn)
@@ -831,24 +907,21 @@ class _ContentShortcuts extends ConsumerWidget {
           label: l10n.novelMarkers,
           onTap: () => unawaited(openNovelMarkers(context)),
           count: null,
+          accented: true,
         ),
       (
         icon: Icons.bookmark_border,
         label: l10n.watchLaterTitle,
         onTap: () => unawaited(openWatchLater(context)),
         count: null,
+        accented: true,
       ),
       (
         icon: Icons.menu_book_outlined,
         label: l10n.localNovelsTitle,
         onTap: () => unawaited(openLocalNovels(context)),
         count: null,
-      ),
-      (
-        icon: Icons.downloading_outlined,
-        label: l10n.downloaderSettings,
-        onTap: () => unawaited(openDownloadTasks(context)),
-        count: activeTasks,
+        accented: true,
       ),
       for (final destination in HomeDestination.values)
         if (offBar.contains(destination))
@@ -857,9 +930,75 @@ class _ContentShortcuts extends ConsumerWidget {
             label: homeDestinationLabel(context, destination),
             onTap: () => openHomeDestination(context, destination),
             count: null,
+            accented: true,
           ),
     ];
-    return Column(
+    final downloadEntry = (
+      icon: Icons.downloading_outlined,
+      label: l10n.downloaderSettings,
+      onTap: () => unawaited(openDownloadTasks(context)),
+      count: activeTasks,
+      accented: true,
+    );
+    if (asGrid) {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            flex: 6,
+            child: _GroupedPanel(
+              children: [
+                for (final entry in libraryEntries)
+                  _MeRow(
+                    icon: entry.icon,
+                    label: entry.label,
+                    onTap: entry.onTap,
+                    count: entry.count,
+                    accented: entry.accented,
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(width: FuncSpacing.lg),
+          Expanded(
+            flex: 4,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _GroupedPanel(
+                  children: [
+                    _MeRow(
+                      icon: downloadEntry.icon,
+                      label: downloadEntry.label,
+                      onTap: downloadEntry.onTap,
+                      count: downloadEntry.count,
+                      accented: downloadEntry.accented,
+                    ),
+                  ],
+                ),
+                if (trailingEntries.isNotEmpty) ...[
+                  const SizedBox(height: FuncSpacing.lg),
+                  _GroupedPanel(
+                    children: [
+                      for (final entry in trailingEntries)
+                        _MeRow(
+                          icon: entry.icon,
+                          label: entry.label,
+                          onTap: entry.onTap,
+                          count: entry.count,
+                          accented: entry.accented,
+                        ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+    final entries = [...libraryEntries, downloadEntry, ...trailingEntries];
+    return _GroupedPanel(
       children: [
         for (final entry in entries)
           _MeRow(
@@ -867,41 +1006,115 @@ class _ContentShortcuts extends ConsumerWidget {
             label: entry.label,
             onTap: entry.onTap,
             count: entry.count,
+            accented: entry.accented,
           ),
       ],
     );
   }
 }
 
-/// A row of the page: a neutral icon and its label; [count], when given,
-/// as a badge at the end while it is above zero.
+class _GroupedPanel extends StatelessWidget {
+  const _GroupedPanel({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = FuncSemanticTokens.of(context);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: tokens.surface,
+        borderRadius: FuncShape.panel,
+        border: Border.all(color: tokens.brandHairline),
+      ),
+      child: ClipRRect(
+        borderRadius: FuncShape.panel,
+        child: Material(
+          type: MaterialType.transparency,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (var i = 0; i < children.length; i++) ...[
+                if (i > 0)
+                  Divider(
+                    height: 1,
+                    thickness: 1,
+                    indent: 64,
+                    color: tokens.brandHairline,
+                  ),
+                children[i],
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A row of the page: a softly tinted sakura icon badge and its label; [count],
+/// when given, renders as a rose pill badge at the end while it is above zero.
 class _MeRow extends StatelessWidget {
   const _MeRow({
     required this.icon,
     required this.label,
     required this.onTap,
     this.count,
+    this.accented = true,
   });
 
   final IconData icon;
   final String label;
   final VoidCallback onTap;
   final int? count;
+  final bool accented;
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final tokens = FuncSemanticTokens.of(context);
     final count = this.count;
     return ListTile(
-      leading: Icon(
-        icon,
-        color: Theme.of(context).colorScheme.onSurfaceVariant,
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: FuncSpacing.lg,
+        vertical: FuncSpacing.xxs,
+      ),
+      leading: DecoratedBox(
+        decoration: BoxDecoration(
+          color: accented ? tokens.brandTintWeak : colors.surfaceContainerLow,
+          borderRadius: FuncShape.control,
+          border: Border.all(
+            color: accented ? tokens.brandHairline : tokens.divider,
+          ),
+        ),
+        child: SizedBox.square(
+          dimension: 34,
+          child: Icon(
+            icon,
+            size: 19,
+            color: accented ? colors.primary : colors.onSurfaceVariant,
+          ),
+        ),
       ),
       title: Text(label),
       trailing: count == null
-          ? null
+          ? Icon(
+              Icons.chevron_right,
+              size: 18,
+              color: colors.onSurfaceVariant.withValues(alpha: 0.6),
+            )
           : Badge(
               isLabelVisible: count > 0,
+              backgroundColor: tokens.brandTint,
+              textColor: colors.primary,
               label: Text(AppFormat.count(context, count)),
+              child: count > 0
+                  ? null
+                  : Icon(
+                      Icons.chevron_right,
+                      size: 18,
+                      color: colors.onSurfaceVariant.withValues(alpha: 0.6),
+                    ),
             ),
       onTap: onTap,
     );

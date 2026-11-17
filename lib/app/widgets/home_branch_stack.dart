@@ -8,7 +8,9 @@ import '../../core/debug/frame_probe.dart';
 import '../../core/platform/app_root_pipeline_owner.dart';
 import '../../core/log.dart';
 import '../../core/navigation/home_destination.dart';
+import '../../core/settings/app_settings.dart';
 import '../../core/settings/settings_controller.dart';
+import '../layout/app_breakpoints.dart';
 import '../layout/form_factor.dart';
 import '../motion/motion_tokens.dart';
 import '../motion/scroll_hide.dart';
@@ -21,6 +23,7 @@ import 'func_bottom_nav.dart';
 import 'prompt_anchor.dart';
 import 'settings/persist_settings.dart';
 import 'shell_rail.dart';
+import '../window/desktop_command_bar.dart' show DesktopCommandBarScope;
 
 /// Broadcast signal for branch-level re-taps — a tap on the already-selected
 /// home destination returns that branch to its root and asks the visible page
@@ -450,7 +453,9 @@ class _HomeBranchStackState extends ConsumerState<HomeBranchStack>
     required FormFactor form,
     required bool expanded,
     required bool canToggle,
+    required bool desktopOwned,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return ShellRail(
       destinations: homeDestinations(context, shown),
       selectedIndex: homeBarIndexOf(shown, _current),
@@ -466,6 +471,27 @@ class _HomeBranchStackState extends ConsumerState<HomeBranchStack>
       ),
       onBookmarks: () => unawaited(openMe(context, tab: MeTab.bookmarks)),
       onDownloads: () => unawaited(openDownloadTasks(context)),
+      isDarkMode: isDark,
+      onToggleTheme: desktopOwned
+          ? () => unawaited(
+              persistSettings(
+                context,
+                () => ref
+                    .read(settingsProvider.notifier)
+                    .selectTheme(
+                      isDark ? AppSettings.lightTheme : AppSettings.darkTheme,
+                    ),
+              ),
+            )
+          : null,
+      onSettings: desktopOwned
+          ? () {
+              final router = GoRouter.of(context);
+              if (router.state.uri.path != '/settings/all') {
+                unawaited(context.push<void>('/settings/all'));
+              }
+            }
+          : null,
     );
   }
 
@@ -538,15 +564,14 @@ class _HomeBranchStackState extends ConsumerState<HomeBranchStack>
     final height = size.height;
     final form = FormFactor.of(context);
     final rail = _rail = form.hasRail(width);
-    // An immersive page (the novel reader) takes the rail's room too, as it
-    // covers the bottom bar on a phone.
+    final desktopOwned = DesktopCommandBarScope.isActiveOf(context);
+    // An immersive page (the novel reader) takes the rail's room too.
     final railShown = rail && !ref.watch(shellRailHiddenProvider);
     final canToggle = form.canToggleRail(width, height: height);
-    final expanded = form.railExpanded(
-      width,
-      height: height,
-      choice: ref.watch(railExpandedProvider),
-    );
+    final railChoice = ref.watch(railExpandedProvider);
+    final expanded = desktopOwned
+        ? (railChoice ?? width >= AppBreakpoints.large)
+        : form.railExpanded(width, height: height, choice: railChoice);
     // The rail opens and closes by width, not in one frame (MOTION-14):
     // the row it takes from the branches and the panel it reveals move
     // together. The first layout starts at its end value, and an
@@ -657,6 +682,7 @@ class _HomeBranchStackState extends ConsumerState<HomeBranchStack>
                               form: form,
                               expanded: expanded,
                               canToggle: canToggle,
+                              desktopOwned: desktopOwned,
                             ),
                           ),
                         ),

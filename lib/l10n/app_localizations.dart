@@ -1721,6 +1721,24 @@ abstract class AppLocalizations {
   /// **'宽松'**
   String get feedDensityComfortable;
 
+  /// No description provided for @desktopDetailMode.
+  ///
+  /// In zh, this message translates to:
+  /// **'桌面端详情样式'**
+  String get desktopDetailMode;
+
+  /// No description provided for @desktopDetailModeModal.
+  ///
+  /// In zh, this message translates to:
+  /// **'大图弹窗'**
+  String get desktopDetailModeModal;
+
+  /// No description provided for @desktopDetailModeInspector.
+  ///
+  /// In zh, this message translates to:
+  /// **'侧栏预览'**
+  String get desktopDetailModeInspector;
+
   /// No description provided for @qualityMedium.
   ///
   /// In zh, this message translates to:

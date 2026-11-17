@@ -30,7 +30,6 @@ class _DetailOverlayFrameState extends State<DetailOverlayFrame> {
         canPop && AppBreakpoints.useBoundedDetailOverlayOf(context, outerSize);
     if (!bounded) return content;
 
-    final colors = Theme.of(context).colorScheme;
     final tokens = FuncSemanticTokens.of(context);
     final outerChrome = HomeShellChrome.maybeOf(context);
     final outerMedia = MediaQuery.of(context);
@@ -42,17 +41,17 @@ class _DetailOverlayFrameState extends State<DetailOverlayFrame> {
           key: const ValueKey('detail-overlay-scrim'),
           behavior: HitTestBehavior.opaque,
           onTap: () => unawaited(Navigator.maybePop(context)),
-          child: ColoredBox(color: colors.scrim.withValues(alpha: 0.52)),
+          child: const ColoredBox(color: Color(0x990C0B0E)),
         ),
         SafeArea(
           child: Padding(
             padding: const EdgeInsets.symmetric(
-              horizontal: FuncSpacing.xl,
-              vertical: FuncSpacing.lg,
+              horizontal: FuncSpacing.lg,
+              vertical: FuncSpacing.md,
             ),
             child: Center(
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1480),
+                constraints: const BoxConstraints(maxWidth: 1680),
                 child: LayoutBuilder(
                   builder: (context, constraints) {
                     final cardSize = Size(
@@ -85,7 +84,7 @@ class _DetailOverlayFrameState extends State<DetailOverlayFrame> {
                     return DecoratedBox(
                       decoration: BoxDecoration(
                         borderRadius: FuncShape.dialog,
-                        border: Border.all(color: colors.outlineVariant),
+                        border: Border.all(color: tokens.brandHairline),
                         boxShadow: tokens.layerLift,
                       ),
                       child: ClipRRect(

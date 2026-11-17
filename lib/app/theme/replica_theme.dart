@@ -166,6 +166,8 @@ ThemeData replicaTheme(
 
   final theme = ThemeData(
     brightness: brightness,
+    splashFactory: NoSplash.splashFactory,
+    highlightColor: FuncTokens.transparent,
     // No bundled font: the platform family renders everything, with the
     // engine's system fallback chain covering scripts it lacks.
     fontFamilyFallback: fontFamilyFallback,
@@ -176,6 +178,7 @@ ThemeData replicaTheme(
         textTheme,
         brand: brand,
         onBrand: onBrand,
+        accent: accent,
       ),
     ],
     // The prompt card (PromptHost) takes its surface, shape, elevation and
@@ -187,9 +190,7 @@ ThemeData replicaTheme(
         ).copyWith(
           backgroundColor: inverseSurface,
           actionTextColor: colorScheme.inversePrimary,
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.all(Radius.circular(12)),
-          ),
+          shape: const RoundedRectangleBorder(borderRadius: FuncShape.card),
         ),
     scaffoldBackgroundColor: background,
     cardColor: colorScheme.surfaceContainer,
@@ -273,18 +274,14 @@ ThemeData replicaTheme(
       color: colorScheme.surfaceContainer,
       surfaceTintColor: FuncTokens.transparent,
       elevation: 0,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.all(Radius.circular(12)),
-      ),
+      shape: const RoundedRectangleBorder(borderRadius: FuncShape.card),
     ),
     chipTheme: ChipThemeData(
       backgroundColor: colorScheme.surfaceContainer,
       selectedColor: colorScheme.primaryContainer,
       checkmarkColor: colorScheme.onPrimaryContainer,
       side: BorderSide(color: colorScheme.outline),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.all(Radius.circular(8)),
-      ),
+      shape: const RoundedRectangleBorder(borderRadius: FuncShape.badge),
     ),
     dialogTheme: DialogThemeData(
       backgroundColor: colorScheme.surfaceContainerHigh,
@@ -292,9 +289,7 @@ ThemeData replicaTheme(
       elevation: _layerElevation,
       // M3's dialog and sheet defaults cast a transparent shadow.
       shadowColor: colorScheme.shadow,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.all(Radius.circular(28)),
-      ),
+      shape: const RoundedRectangleBorder(borderRadius: FuncShape.dialog),
     ),
     bottomSheetTheme: BottomSheetThemeData(
       backgroundColor: colorScheme.surfaceContainer,
@@ -305,9 +300,7 @@ ThemeData replicaTheme(
       shadowColor: colorScheme.shadow,
       showDragHandle: true,
       dragHandleColor: colorScheme.onSurfaceVariant,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
+      shape: const RoundedRectangleBorder(borderRadius: FuncShape.sheet),
     ),
     menuTheme: const MenuThemeData(
       style: MenuStyle(elevation: WidgetStatePropertyAll(_layerElevation)),

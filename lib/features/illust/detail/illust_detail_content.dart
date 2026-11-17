@@ -1,16 +1,8 @@
 part of 'illust_detail_page.dart';
 
-/// A short first illustration on a narrow screen, alone or opening a set,
-/// sits where centering it in this share of the viewport puts it: a very
-/// wide image at the top was hard to see and to tap. Its slot ends with the
-/// image, so the title follows right under it. Manga reads page after
-/// page, so its first page keeps its natural height.
-const _shortFirstImageSlotFactor = 0.7;
-
 /// Where the first image sits in the detail scroll. The narrow layout
-/// starts the artwork below the status bar, which the top bar keeps opaque;
-/// it may run under the see-through toolbar, so overlays on it start below
-/// the toolbar, and the bar draws in as it leaves.
+/// starts edge-to-edge from the top of the viewport; overlays on it sit below
+/// the transparent top chrome, and the bar draws in as the artwork leaves.
 class _FirstImageLayout {
   _FirstImageLayout._({
     required this.useTwoPane,
@@ -49,16 +41,11 @@ class _FirstImageLayout {
         entity.type == IllustType.illust &&
         !entity.isUgoira &&
         panoramaHeight == null;
-    final band = slots
-        ? math.max(
-                0.0,
-                viewport.height * _shortFirstImageSlotFactor - natural,
-              ) /
-              2
-        : 0.0;
+    // Start narrow detail artworks edge-to-edge under the status bar.
+    const band = 0.0;
     return _FirstImageLayout._(
       useTwoPane: useTwoPane,
-      statusInset: useTwoPane ? 0 : MediaQuery.paddingOf(context).top,
+      statusInset: 0,
       topChrome: MediaQuery.paddingOf(context).top + kToolbarHeight,
       collapsible: collapsible,
       shownPages: collapsible && !expanded ? 1 : entity.pageCount,
@@ -428,6 +415,10 @@ extension _IllustDetailContent on _IllustDetailPageState {
         ),
       ),
     );
+    final tokens = FuncSemanticTokens.of(context);
+    final showPageDock =
+        !_downloadMode && !entity.isUgoira && entity.pageCount > 1;
+    final wideDesktopModal = MediaQuery.sizeOf(context).width >= 960;
     final content = GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () {
@@ -435,52 +426,126 @@ extension _IllustDetailContent on _IllustDetailPageState {
       },
       child: twoPane
           ? AdaptiveTwoPane(
-              // The stage tints the letterbox around the artwork, so the
-              // page counter sits on the stage rather than on blank page:
-              // the work's own ambient light (THEME-19), or a plain tier
-              // while pages are being selected.
+              secondaryFraction: wideDesktopModal ? 0.30 : 0.38,
+              secondaryMaxWidth: wideDesktopModal ? 420 : 460,
+              // The stage frames the artwork over rich ambient wash light,
+              // leaving room for a floating back button and multi-page dock.
               primary: SelectionContainer.disabled(
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    if (!_downloadMode)
+                    if (!_downloadMode) ...[
                       AmbientWash(
-                        blur: 40,
+                        blur: 52,
                         image: PixivImage.providerFor(
                           context,
                           widget.heroImageUrl ?? entity.imageUrls.medium,
                           decodeWidth: 96,
                         ),
-                      )
-                    else
+                      ),
+                      DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: RadialGradient(
+                            center: Alignment.center,
+                            radius: 1.05,
+                            colors: [
+                              FuncTokens.transparent,
+                              const Color(0x470C0914),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ] else
                       ColoredBox(
                         color: Theme.of(
                           context,
                         ).colorScheme.surfaceContainerLow,
                       ),
-                    DetailImagePager(
-                      entity: entity,
-                      detailUrlFor: detailUrlFor,
-                      downloadMode: _downloadMode,
-                      selectedPages: _selectedPages ?? const <int>{},
-                      onToggleSelect: _togglePageSelected,
-                      onLongPress: _enterDownloadMode,
-                      heroTag: illustHeroTag(widget.heroScope, entity.id),
-                      heroScope: widget.heroScope,
-                      initialPage: _imageIndex,
-                      onPageChanged: (page) => _imageIndex = page,
-                      heroImageUrl: widget.heroImageUrl,
-                      heroImageDecodeWidth: widget.heroImageDecodeWidth,
+                    Padding(
+                      padding: EdgeInsets.fromLTRB(
+                        FuncSpacing.lg,
+                        FuncSpacing.lg,
+                        FuncSpacing.lg,
+                        showPageDock
+                            ? FuncSpacing.xxxl + FuncSpacing.sm
+                            : FuncSpacing.lg,
+                      ),
+                      child: DetailImagePager(
+                        entity: entity,
+                        detailUrlFor: detailUrlFor,
+                        downloadMode: _downloadMode,
+                        selectedPages: _selectedPages ?? const <int>{},
+                        onToggleSelect: _togglePageSelected,
+                        onLongPress: _enterDownloadMode,
+                        heroTag: illustHeroTag(widget.heroScope, entity.id),
+                        heroScope: widget.heroScope,
+                        initialPage: _imageIndex,
+                        onPageChanged: (page) => _imageIndex = page,
+                        heroImageUrl: widget.heroImageUrl,
+                        heroImageDecodeWidth: widget.heroImageDecodeWidth,
+                      ),
                     ),
+                    if (!_downloadMode)
+                      Positioned(
+                        top: 14,
+                        left: 14,
+                        child: HeroChrome(
+                          child: ClipOval(
+                            child: BackdropFilter(
+                              filter: ui.ImageFilter.blur(
+                                sigmaX: 12,
+                                sigmaY: 12,
+                              ),
+                              child: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  color: const Color(0x78140E1C),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: FuncTokens.white.withValues(
+                                      alpha: 0.24,
+                                    ),
+                                  ),
+                                ),
+                                child: IconButton(
+                                  tooltip: MaterialLocalizations.of(
+                                    context,
+                                  ).backButtonTooltip,
+                                  onPressed: () =>
+                                      unawaited(Navigator.maybePop(context)),
+                                  icon: const Icon(
+                                    Icons.arrow_back,
+                                    color: FuncTokens.white,
+                                    size: 20,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    if (showPageDock)
+                      Positioned(
+                        bottom: 14,
+                        left: 0,
+                        right: 0,
+                        child: Center(
+                          child: HeroChrome(
+                            child: _DetailStagePageDock(
+                              pageCount: entity.pageCount,
+                              activePage: _imageIndex,
+                            ),
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
-              // The inspector pane owns the pinned artist card + persistent
-              // actions (bookmark, download, share, ⋮) above the scrolling
-              // metadata column so artwork stages stay unobstructed across both
-              // side-by-side splits and vertical tabletop hinges.
-              secondary: ColoredBox(
-                color: Theme.of(context).scaffoldBackgroundColor,
+              // Quiet architectural metadata inspector docked cleanly beside the stage.
+              secondary: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: tokens.surface,
+                  border: Border(left: BorderSide(color: tokens.brandHairline)),
+                ),
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
@@ -490,11 +555,9 @@ extension _IllustDetailContent on _IllustDetailPageState {
                         SelectionContainer.disabled(
                           child: _buildInspectorHeader(context, ref, entity),
                         ),
-                        const Divider(height: 1),
+                        Divider(height: 1, color: tokens.brandHairline),
                         Expanded(
                           child: Scrollbar(
-                            // Shown on touch too; the mouse one would be a
-                            // second.
                             child: ScrollConfiguration(
                               behavior: ScrollConfiguration.of(
                                 context,
@@ -608,6 +671,7 @@ extension _IllustDetailContent on _IllustDetailPageState {
     IllustEntity entity,
   ) {
     final colors = Theme.of(context).colorScheme;
+    final tokens = FuncSemanticTokens.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         FuncSpacing.lg,
@@ -625,19 +689,46 @@ extension _IllustDetailContent on _IllustDetailPageState {
             key: const ValueKey('detail-inspector-action-bar'),
             children: [
               DecoratedBox(
-                decoration: ShapeDecoration(
-                  color: colors.secondaryContainer,
-                  shape: const CircleBorder(),
+                decoration: BoxDecoration(
+                  color: tokens.brandTint,
+                  borderRadius: FuncShape.pill,
+                  border: Border.all(color: tokens.brandTintStroke),
                 ),
-                child: BookmarkSwitchButton(
-                  illustId: entity.id,
-                  title: entity.title,
+                child: Padding(
+                  padding: const EdgeInsets.only(
+                    left: FuncSpacing.xs,
+                    right: FuncSpacing.md,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      BookmarkSwitchButton(
+                        illustId: entity.id,
+                        title: entity.title,
+                      ),
+                      Text(
+                        AppFormat.count(context, entity.totalBookmarks),
+                        style: tokens.numeric.copyWith(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w600,
+                          color: colors.primary,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              const SizedBox(width: FuncSpacing.xs),
-              DetailDownloadButton(
-                entity: entity,
-                onPressed: () => unawaited(_downloadAll(entity)),
+              const SizedBox(width: FuncSpacing.sm),
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  color: colors.surfaceContainerLow,
+                  borderRadius: FuncShape.pill,
+                  border: Border.all(color: tokens.brandHairline),
+                ),
+                child: DetailDownloadButton(
+                  entity: entity,
+                  onPressed: () => unawaited(_downloadAll(entity)),
+                ),
               ),
               const Spacer(),
               Builder(
@@ -652,6 +743,65 @@ extension _IllustDetailContent on _IllustDetailPageState {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _DetailStagePageDock extends StatelessWidget {
+  const _DetailStagePageDock({
+    required this.pageCount,
+    required this.activePage,
+  });
+
+  final int pageCount;
+  final int activePage;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = FuncSemanticTokens.of(context);
+    final (duration, curve) = MotionTokens.springCurve(
+      context,
+      MotionSpring.effectsFast,
+    );
+    final shownCount = math.min(pageCount, 8);
+    return ClipRRect(
+      borderRadius: FuncShape.control,
+      child: BackdropFilter(
+        filter: ui.ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: const Color(0x9E141216),
+            borderRadius: FuncShape.control,
+            border: Border.all(color: const Color(0x28FFFFFF)),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: FuncSpacing.md,
+              vertical: FuncSpacing.sm,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (var i = 0; i < shownCount; i++) ...[
+                  AnimatedContainer(
+                    duration: duration,
+                    curve: curve,
+                    width: i == activePage ? 18 : 6,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      borderRadius: FuncShape.pill,
+                      color: i == activePage
+                          ? tokens.brand
+                          : FuncTokens.white.withValues(alpha: 0.35),
+                    ),
+                  ),
+                  if (i < shownCount - 1) const SizedBox(width: 6),
+                ],
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

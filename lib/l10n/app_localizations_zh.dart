@@ -871,6 +871,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get feedDensityComfortable => '宽松';
 
   @override
+  String get desktopDetailMode => '桌面端详情样式';
+
+  @override
+  String get desktopDetailModeModal => '大图弹窗';
+
+  @override
+  String get desktopDetailModeInspector => '侧栏预览';
+
+  @override
   String get qualityMedium => '中图';
 
   @override

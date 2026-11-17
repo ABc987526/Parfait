@@ -9,6 +9,7 @@ import '../motion/hero_transition.dart'
 import '../motion/motion_tokens.dart';
 import '../system_ui.dart';
 import '../theme/func_semantic_tokens.dart';
+import '../window/desktop_command_bar.dart' show DesktopCommandBarScope;
 import '../window/desktop_title_bar.dart';
 import 'app_tab_bar.dart';
 import 'artwork_controls.dart';
@@ -177,33 +178,66 @@ class _AppTopBarState extends State<AppTopBar> {
   Widget _buildBarWithInset(BuildContext context, double drawn) =>
       LayoutBuilder(
         builder: (context, constraints) {
-          final width = widget.contentWidth;
+          final embedded = EmbeddedHeaderScope.isActiveOf(context);
+          final width = embedded ? null : widget.contentWidth;
           final inset = width == null
               ? 0.0
               : ((constraints.maxWidth - width) / 2).clamp(
                   0.0,
                   double.infinity,
                 );
-          return _buildBar(context, drawn, inset);
+          return _buildBar(context, drawn, inset, embedded: embedded);
         },
       );
 
   /// [drawn] is the bar's presence: 1 the normal bar, 0 fully immersed.
   /// [inset] is the space between the page's edge and the content column.
-  Widget _buildBar(BuildContext context, double drawn, double inset) {
+  Widget _buildBar(
+    BuildContext context,
+    double drawn,
+    double inset, {
+    bool embedded = false,
+  }) {
     final theme = Theme.of(context);
     final barTheme = theme.appBarTheme;
+    final tokens = theme.extension<FuncSemanticTokens>();
+    final isDark = theme.brightness == Brightness.dark;
+    final useBrandedHeader =
+        !embedded &&
+        tokens != null &&
+        widget.backgroundColor == null &&
+        widget.immersion == null &&
+        !DesktopCommandBarScope.isActiveOf(context);
+    final Color? brandedSurface = !useBrandedHeader
+        ? null
+        : isDark
+        ? Color.alphaBlend(
+            theme.colorScheme.primary.withValues(alpha: 0.16),
+            theme.scaffoldBackgroundColor,
+          )
+        : Color.lerp(theme.colorScheme.primary, tokens.brand, 0.45)!;
+    final Color? brandedForeground = !useBrandedHeader
+        ? null
+        : isDark
+        ? theme.colorScheme.onSurface
+        : tokens.onBrand;
     final surface =
         widget.backgroundColor ??
+        brandedSurface ??
         barTheme.backgroundColor ??
         theme.colorScheme.surface;
-    final foreground = barTheme.foregroundColor ?? theme.colorScheme.onSurface;
+    final foreground =
+        brandedForeground ??
+        barTheme.foregroundColor ??
+        theme.colorScheme.onSurface;
     final immersed = drawn < 1;
     // Over artwork the controls take the shared artwork look; it fades
     // back to the theme's as the bar's surface takes over.
     final lift = immersed && widget.overArtwork ? 1 - drawn : 0.0;
     final liftedIcons = lift == 0
-        ? null
+        ? (brandedForeground == null
+              ? null
+              : IconThemeData(color: brandedForeground))
         : IconThemeData.lerp(
             IconThemeData(color: foreground),
             ArtworkControls.iconTheme(context, halo: surface),
@@ -293,26 +327,67 @@ class _AppTopBarState extends State<AppTopBar> {
             ? toolbarTitle
             : Opacity(opacity: drawn, child: toolbarTitle),
         excludeHeaderSemantics: widget.tabsBesideTitle || titleIsTabs,
-        titleSpacing: inset > 0 && leading == null
+        titleSpacing: embedded && leading == null
+            ? FuncSpacing.xl
+            : inset > 0 && leading == null
             ? inset + (widget.titleSpacing ?? NavigationToolbar.kMiddleSpacing)
             : widget.titleSpacing,
         actions: actions,
         actionsPadding: actionsPadding,
         bottom: widget.tabsBesideTitle ? null : bottom,
-        backgroundColor: immersed
+        backgroundColor: embedded
+            ? theme.scaffoldBackgroundColor
+            : immersed
             ? surface.withValues(alpha: surface.a * drawn)
-            : widget.backgroundColor,
-        foregroundColor: immersed ? foreground : null,
+            : brandedSurface ?? widget.backgroundColor,
+        foregroundColor: embedded
+            ? theme.colorScheme.onSurface
+            : immersed
+            ? foreground
+            : brandedForeground,
+        titleTextStyle: embedded
+            ? theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: theme.colorScheme.onSurface,
+              )
+            : brandedForeground == null
+            ? null
+            : (barTheme.titleTextStyle ?? theme.textTheme.titleMedium)
+                  ?.copyWith(color: brandedForeground),
         iconTheme: liftedIcons,
         actionsIconTheme: liftedIcons,
-        // The status strip is the page surface, so its icons follow the
-        // theme like the navigation bar's.
-        systemOverlayStyle: immersed
-            ? funcSystemBarsStyle(theme.brightness)
+        shape: tokens != null && ((useBrandedHeader && isDark) || embedded)
+            ? Border(bottom: BorderSide(color: tokens.brandHairline))
+            : null,
+        // Keep status bar icons crisp white over the Shaft-inspired themed header.
+        systemOverlayStyle: immersed || useBrandedHeader
+            ? funcSystemBarsStyle(
+                useBrandedHeader ? Brightness.dark : theme.brightness,
+              )
             : null,
         notificationPredicate: widget.notificationPredicate,
       ),
     );
+    final themedToolbar = !useBrandedHeader
+        ? toolbar
+        : Theme(
+            data: theme.copyWith(
+              tabBarTheme: theme.tabBarTheme.copyWith(
+                labelColor: isDark ? theme.colorScheme.primary : tokens.onBrand,
+                unselectedLabelColor: isDark
+                    ? Color.lerp(
+                        theme.colorScheme.onSurfaceVariant,
+                        theme.colorScheme.onSurface,
+                        0.35,
+                      )!
+                    : tokens.onBrand.withValues(alpha: 0.78),
+                indicatorColor: isDark
+                    ? theme.colorScheme.primary
+                    : tokens.onBrand,
+              ),
+            ),
+            child: toolbar,
+          );
     return Stack(
       fit: StackFit.passthrough,
       children: [
@@ -322,14 +397,16 @@ class _AppTopBarState extends State<AppTopBar> {
             top: 0,
             right: 0,
             height: statusInset,
-            child: _entering(ColoredBox(color: surface)),
+            child: _entering(
+              ColoredBox(color: surface.withValues(alpha: surface.a * drawn)),
+            ),
           ),
         if (widget.entrance == null)
-          toolbar
+          themedToolbar
         else
           HeroChrome(
             holdable: () => !widget.occludesContent,
-            child: _entering(toolbar),
+            child: _entering(themedToolbar),
           ),
       ],
     );
@@ -380,4 +457,27 @@ class ScrollEdgeShadow extends StatelessWidget {
       ],
     );
   }
+}
+
+/// Marks top bars hosted inside an embedded desktop detail pane (such as the
+/// right navigator of master-detail settings) so they render as flat,
+/// left-aligned workspace headers rather than mobile colored bars.
+class EmbeddedHeaderScope extends InheritedWidget {
+  const EmbeddedHeaderScope({
+    super.key,
+    this.active = true,
+    required super.child,
+  });
+
+  final bool active;
+
+  static bool isActiveOf(BuildContext context) =>
+      context
+          .dependOnInheritedWidgetOfExactType<EmbeddedHeaderScope>()
+          ?.active ??
+      false;
+
+  @override
+  bool updateShouldNotify(EmbeddedHeaderScope oldWidget) =>
+      active != oldWidget.active;
 }

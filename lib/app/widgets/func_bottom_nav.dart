@@ -8,7 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/navigation/home_destination.dart';
 import '../../core/navigation/route_observer.dart';
 import '../../l10n/context.dart';
-import '../motion/hero_transition.dart' show LiftableBar, LiftableShadow;
+import '../motion/hero_transition.dart' show LiftableBar;
 import '../motion/motion_tokens.dart';
 import '../motion/scroll_hide.dart';
 import '../icons/app_icons.dart';
@@ -16,6 +16,7 @@ import '../layout/app_breakpoints.dart';
 import '../navigation/frozen_while_hidden.dart';
 import '../navigation/home_shell_metrics.dart';
 import '../theme/func_semantic_tokens.dart';
+import '../theme/func_tokens.dart';
 import 'fit_label.dart';
 import 'prompt_anchor.dart';
 
@@ -81,12 +82,10 @@ class FuncBottomNav extends StatelessWidget {
   final ValueChanged<int> onSelected;
 
   static const double _height = 56;
+  static const double _capsuleHeight = 56;
 
-  /// Rendered height the bar occupies at rest: the fixed row plus the
-  /// bottom safe-area inset [SafeArea] adds underneath it. The shell's
-  /// chrome slot, branch-page spacers and the Hero landing clip all derive
-  /// from this one formula, so they agree on the first frame without
-  /// measuring the laid-out bar.
+  /// Rendered height the bar occupies at rest: a fixed row plus the bottom
+  /// safe-area inset.
   static double restingExtent(double bottomSafeInset) =>
       _height + bottomSafeInset;
 
@@ -100,7 +99,7 @@ class FuncBottomNav extends StatelessWidget {
   /// label, and the gap between the two.
   static const double _rowInset = 16.0;
   static const double _rowGap = 8.0;
-  static const double _iconSize = 24.0;
+  static const double _iconSize = 22.0;
 
   /// Room for a side-by-side label: its share of the bar less the icon,
   /// the gap and the padding, so the centred group never outgrows the bar.
@@ -111,16 +110,18 @@ class FuncBottomNav extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final navTheme = NavigationBarTheme.of(context);
+    final tokens = FuncSemanticTokens.of(context);
     return LiftableBar(
-      child: LiftableShadow(
-        shadows: FuncSemanticTokens.of(context).barShadow,
-        child: Material(
+      child: DecoratedBox(
+        decoration: BoxDecoration(
           color: navTheme.backgroundColor ?? colors.surface,
+          border: Border(top: BorderSide(color: tokens.brandHairline)),
+          boxShadow: tokens.barShadow,
+        ),
+        child: Material(
+          color: FuncTokens.transparent,
           child: SafeArea(
             top: false,
-            // The labels are exempt from the user's text scale past
-            // NavigationBar's own 1.3 ceiling — measurement and drawing read
-            // the same clamped scaler inside.
             child: MediaQuery.withClampedTextScaling(
               maxScaleFactor: 1.3,
               child: SizedBox(
@@ -131,13 +132,7 @@ class FuncBottomNav extends StatelessWidget {
                   container: true,
                   child: LayoutBuilder(
                     builder: (context, constraints) {
-                      // The ambient default lives below this widget's Material —
-                      // read it here so labels inherit the app font, not whatever
-                      // style floats above the shell.
                       final ambient = DefaultTextStyle.of(context).style;
-                      // The theme's label style merged over the ambient keeps the
-                      // inherited font family. The selected weight is the wider
-                      // one, so the fit measured in it holds for every label.
                       final measureStyle = ambient.merge(
                         navTheme.labelTextStyle?.resolve(const {
                           WidgetState.selected,
@@ -145,10 +140,6 @@ class FuncBottomNav extends StatelessWidget {
                       );
                       final itemWidth =
                           constraints.maxWidth / destinations.length;
-                      // Uniform label scale: every destination shares one
-                      // size, shrunk until the widest translation fits its
-                      // slot, down to LabelFit.minScale; past that the labels
-                      // ellipsize.
                       LabelFit fitIn(double slotWidth) => LabelFit.group(
                         labels: [for (final d in destinations) d.label],
                         style: LabelFit.paintedStyle(context, measureStyle),
@@ -157,9 +148,6 @@ class FuncBottomNav extends StatelessWidget {
                         slotWidth: slotWidth,
                         locale: Localizations.maybeLocaleOf(context),
                       );
-                      // A wide bar puts each label beside its icon unless a
-                      // label would not fit there; then the items stack, as
-                      // on a narrow bar, and the labels get the cell's width.
                       var sideBySide =
                           constraints.maxWidth >= AppBreakpoints.medium;
                       var labelSlot = _rowLabelSlot(itemWidth);
@@ -330,6 +318,7 @@ class _FuncBottomNavItemState extends State<_FuncBottomNavItem>
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final tokens = FuncSemanticTokens.of(context);
     final navTheme = NavigationBarTheme.of(context);
     final idleIcon = navTheme.iconTheme?.resolve(_idleStates)?.color;
     final selectedIcon = navTheme.iconTheme?.resolve(_selectedStates)?.color;
@@ -365,16 +354,35 @@ class _FuncBottomNavItemState extends State<_FuncBottomNavItem>
             padding: const EdgeInsets.symmetric(
               horizontal: FuncBottomNav._rowInset,
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                icon,
-                const SizedBox(width: FuncBottomNav._rowGap),
-                ConstrainedBox(
-                  constraints: BoxConstraints(maxWidth: rowLabelWidth),
-                  child: label,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: Color.lerp(Colors.transparent, tokens.brandTintWeak, t),
+                borderRadius: FuncShape.pill,
+                border: t > 0.05
+                    ? Border.all(
+                        color: tokens.brandTintStroke.withValues(
+                          alpha: t * 0.7,
+                        ),
+                      )
+                    : null,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: FuncSpacing.sm,
+                  vertical: FuncSpacing.xs,
                 ),
-              ],
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    icon,
+                    const SizedBox(width: FuncBottomNav._rowGap),
+                    ConstrainedBox(
+                      constraints: BoxConstraints(maxWidth: rowLabelWidth),
+                      child: label,
+                    ),
+                  ],
+                ),
+              ),
             ),
           );
         }
@@ -400,7 +408,7 @@ class _FuncBottomNavItemState extends State<_FuncBottomNavItem>
         children: [
           if (rowLabelWidth != null)
             SizedBox(
-              height: FuncBottomNav._height,
+              height: FuncBottomNav._capsuleHeight,
               child: InkWell(
                 customBorder: const StadiumBorder(),
                 overlayColor: overlay,
@@ -410,7 +418,7 @@ class _FuncBottomNavItemState extends State<_FuncBottomNavItem>
             )
           else
             InkResponse(
-              radius: FuncBottomNav._height / 2,
+              radius: FuncBottomNav._capsuleHeight / 2,
               overlayColor: overlay,
               onTap: widget.onTap,
               child: SizedBox.expand(child: content),

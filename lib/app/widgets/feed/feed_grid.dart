@@ -10,6 +10,7 @@ import '../../../core/entity/illust_entity.dart';
 import '../../../core/settings/app_settings.dart';
 import '../../../core/settings/settings_controller.dart';
 import '../../layout/app_breakpoints.dart';
+import '../../layout/form_factor.dart';
 import '../../layout/sliver_cache_ramp.dart';
 import '../../layout/sliver_width_builder.dart';
 import '../../motion/motion_tokens.dart';
@@ -230,6 +231,23 @@ int illustColumnsFor(double crossAxisExtent, FeedDensity density) {
   );
 }
 
+/// Column count for a masonry grid with the given cross-axis extent at
+/// [density]. On desktop (`FormFactor.pc`) default `standard` density breathes
+/// wider (~216dp minimum card extent) so 1440px monitors show ~5 spacious
+/// columns instead of 7 narrow strips.
+int illustColumnsForContext(
+  BuildContext context,
+  double crossAxisExtent,
+  FeedDensity density,
+) {
+  if (FormFactor.of(context) == FormFactor.pc &&
+      density == FeedDensity.standard) {
+    if (crossAxisExtent <= 0) return 2;
+    return math.max(2, (crossAxisExtent / 216).floor());
+  }
+  return illustColumnsFor(crossAxisExtent, density);
+}
+
 /// Shared masonry sliver used by every feed (recommended, ranking, new,
 /// search, history, profile, related). Column count derives from the actual
 /// cross-axis extent the sliver receives — under the wide NavigationRail the
@@ -239,10 +257,10 @@ class IllustFeedGrid extends ConsumerStatefulWidget {
   /// Feed defaults shared with [IllustGridSkeleton]: the skeleton reads
   /// these so a loading feed already occupies the same slots.
   static const defaultPadding = EdgeInsets.symmetric(
-    horizontal: FuncSpacing.sm,
+    horizontal: FuncSpacing.lg - FuncSpacing.xxs,
   );
-  static const defaultMainAxisSpacing = FuncSpacing.xs;
-  static const defaultCrossAxisSpacing = FuncSpacing.sm;
+  static const defaultMainAxisSpacing = 12.0;
+  static const defaultCrossAxisSpacing = 12.0;
 
   const IllustFeedGrid({
     super.key,
@@ -264,14 +282,7 @@ class IllustFeedGrid extends ConsumerStatefulWidget {
   final double mainAxisSpacing;
   final double crossAxisSpacing;
 
-  /// Stable entity ids aligned with [itemBuilder]'s index order. Supplying
-  /// them does two things positional identity cannot: the staggered
-  /// entrance marks entities (not slots) as played, and
-  /// keys the card subtree so a refresh mounts a new card when an entity
-  /// changes position — without keys, every card's subtree is re-bound to
-  /// whatever entity landed on its old position.
-  /// They also become the detail pager's work list — opening a card lets
-  /// the user swipe sideways through the feed.
+  /// Stable entity ids aligned with [itemBuilder]'s index order.
   final List<int>? itemIds;
 
   /// Feed's next-page hook for the work-to-work detail pager: swiping
@@ -353,7 +364,11 @@ class _IllustFeedGridState extends ConsumerState<IllustFeedGrid> {
         .horizontal;
     return SliverWidthBuilder(
       builder: (context, crossAxisExtent) {
-        final columns = illustColumnsFor(crossAxisExtent - horizontal, density);
+        final columns = illustColumnsForContext(
+          context,
+          crossAxisExtent - horizontal,
+          density,
+        );
         final columnWidth =
             (crossAxisExtent -
                 horizontal -

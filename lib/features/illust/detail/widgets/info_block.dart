@@ -97,32 +97,41 @@ class InfoBlock extends StatelessWidget {
         _KeptPart(
           key: anchorKey,
           child: Padding(
-            padding: const EdgeInsets.only(top: FuncSpacing.lg),
-            // Official client order: the work title leads the meta block,
-            // wraps without a line cap, and stays selectable — a one-line
-            // AppBar title could only ellipsise. Without a caption the
-            // title carries the translate button.
-            child: entity.caption.isEmpty
-                ? Padding(
-                    padding: _buttonRowMargin,
-                    child: _TranslatableTitle(title: entity.title),
-                  )
-                : _inMargin(_Title(title: entity.title)),
-          ),
-        ),
-        _KeptPart(
-          child: Padding(
-            padding: _margin.copyWith(top: FuncSpacing.sm),
-            child: _MarksAndStats(entity: entity),
+            padding: EdgeInsets.only(
+              top: showAuthor ? FuncSpacing.sm : FuncSpacing.md,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Official client order: the work title leads the meta block,
+                // wraps without a line cap, and stays selectable — a one-line
+                // AppBar title could only ellipsise. Without a caption the
+                // title carries the translate button.
+                entity.caption.isEmpty
+                    ? Padding(
+                        padding: _buttonRowMargin,
+                        child: _TranslatableTitle(title: entity.title),
+                      )
+                    : _inMargin(_Title(title: entity.title)),
+              ],
+            ),
           ),
         ),
         if (showAuthor)
           _KeptPart(
             child: Padding(
-              padding: _margin.copyWith(top: FuncSpacing.md),
+              padding: _margin.copyWith(top: FuncSpacing.sm),
               child: DetailAuthorCard(entity: entity),
             ),
           ),
+        _KeptPart(
+          child: Padding(
+            padding: _margin.copyWith(
+              top: showAuthor ? FuncSpacing.md : FuncSpacing.sm,
+            ),
+            child: DetailMarksAndStats(entity: entity),
+          ),
+        ),
         if (entity.caption.isNotEmpty)
           _KeptPart(
             key: const Key('illust-detail-caption'),
@@ -194,11 +203,14 @@ class DetailAuthorCard extends ConsumerWidget {
     final author = entity.user;
     // The author is an object of its own on the page: its card rests on a
     // faint lift (THEME-20).
+    final colors = Theme.of(context).colorScheme;
+    final tokens = FuncSemanticTokens.of(context);
     return LayoutBuilder(
       builder: (context, constraints) => DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: FuncShape.card,
-          boxShadow: FuncSemanticTokens.of(context).cardLift,
+          color: tokens.surface,
+          border: Border.all(color: tokens.brandHairline),
         ),
         child: PersonCard(
           key: const Key('illust-author-row'),
@@ -224,6 +236,7 @@ class DetailAuthorCard extends ConsumerWidget {
             account: _handle(author),
             imageUrl: author.profileImageUrl,
             avatarRadius: 20,
+            avatarRingColor: colors.primary.withValues(alpha: 0.45),
           ),
         ),
       ),
@@ -342,64 +355,129 @@ class _Mark extends StatelessWidget {
 
 /// What the work is marked as and how it was received, under the title:
 /// the marks (AI-generated, R-18, R-18G; only those it has), then views,
-/// bookmarks and the full posting time, wrapping as whole items. Every
-/// list payload carries these, so the line is complete on a neighbour
-/// page before it is swiped in; the comment count only the detail API has
-/// sits on the comments section. Screen readers hear one node: the marks,
-/// then the stats as one sentence.
-class _MarksAndStats extends StatelessWidget {
-  const _MarksAndStats({required this.entity});
+/// bookmarks and the full posting time, styled as a rounded sakura-tinted
+/// stats tray without hard table rules.
+class DetailMarksAndStats extends StatelessWidget {
+  const DetailMarksAndStats({super.key, required this.entity});
 
   final IllustEntity entity;
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final style = MetaFact.styleOf(context);
+    final colors = Theme.of(context).colorScheme;
+    final tokens = FuncSemanticTokens.of(context);
     final views = AppFormat.count(context, entity.totalView);
     final bookmarks = AppFormat.count(context, entity.totalBookmarks);
     final created = DateTime.tryParse(entity.createDate ?? '');
-    final date = created == null
-        ? null
-        : AppFormat.date(context, created, withTime: true);
+    final date = created == null ? null : AppFormat.date(context, created);
     final marks = [
       if (entity.isAi) _Mark(l10n.badgeAi),
       if (entity.isR18) const _Mark('R-18'),
       if (entity.isR18G) const _Mark('R-18G'),
     ];
-    return MergeSemantics(
-      key: const Key('illust-detail-stats'),
-      child: Wrap(
-        spacing: FuncSpacing.md,
-        runSpacing: FuncSpacing.xs,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          if (marks.isNotEmpty)
+
+    Widget statCell({
+      required String label,
+      required String value,
+      bool emphasize = false,
+    }) => Expanded(
+      child: Container(
+        margin: emphasize
+            ? const EdgeInsets.all(FuncSpacing.xs)
+            : const EdgeInsets.symmetric(vertical: FuncSpacing.xxs),
+        padding: const EdgeInsets.symmetric(
+          horizontal: FuncSpacing.sm + FuncSpacing.xxs,
+          vertical: FuncSpacing.sm,
+        ),
+        decoration: emphasize
+            ? BoxDecoration(
+                color: tokens.brandTintWeak,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: tokens.brandHairline),
+              )
+            : null,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
             Row(
               mainAxisSize: MainAxisSize.min,
+              children: [
+                if (emphasize) ...[
+                  Icon(Icons.favorite_outline, size: 12, color: colors.primary),
+                  const SizedBox(width: 4),
+                ],
+                Flexible(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: tokens.caption.copyWith(fontSize: 11),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 2),
+            Text(
+              value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: tokens.numeric.copyWith(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w600,
+                color: emphasize ? colors.primary : tokens.contentPrimary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    return MergeSemantics(
+      key: const Key('illust-detail-stats'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (marks.isNotEmpty) ...[
+            Wrap(
               spacing: FuncSpacing.xs,
+              runSpacing: FuncSpacing.xs,
               children: marks,
             ),
-          Semantics(
-            label: date == null
-                ? l10n.detailMetaCountsSemantics(views, bookmarks)
-                : l10n.detailStatsSemantics(views, bookmarks, date),
-            child: ExcludeSemantics(
-              child: MetaFact(
-                icon: Icons.visibility_outlined,
-                text: views,
-                style: style,
+            const SizedBox(height: FuncSpacing.sm),
+          ],
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: colors.surfaceContainerLow,
+              borderRadius: FuncShape.card,
+              border: Border.all(color: tokens.brandHairline),
+            ),
+            child: Semantics(
+              label: date == null
+                  ? l10n.detailMetaCountsSemantics(views, bookmarks)
+                  : l10n.detailStatsSemantics(views, bookmarks, date),
+              child: ExcludeSemantics(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: FuncSpacing.xs,
+                  ),
+                  child: Row(
+                    children: [
+                      statCell(label: l10n.detailStatViews, value: views),
+                      statCell(
+                        label: l10n.detailStatBookmarks,
+                        value: bookmarks,
+                        emphasize: true,
+                      ),
+                      if (date != null)
+                        statCell(label: l10n.searchDuration, value: date),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
-          ExcludeSemantics(
-            child: MetaFact(
-              icon: Icons.favorite_outline,
-              text: bookmarks,
-              style: style,
-            ),
-          ),
-          if (date != null) ExcludeSemantics(child: Text(date, style: style)),
         ],
       ),
     );

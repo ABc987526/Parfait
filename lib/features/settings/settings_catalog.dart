@@ -145,6 +145,11 @@ enum Setting implements SettingsEntry {
       'feedDensityComfortable',
     ],
   ),
+  desktopDetailMode(
+    SettingsPageRef.browse,
+    'desktopDetailMode',
+    optionKeys: ['desktopDetailModeModal', 'desktopDetailModeInspector'],
+  ),
   previewQuality(
     SettingsPageRef.browse,
     'previewQuality',

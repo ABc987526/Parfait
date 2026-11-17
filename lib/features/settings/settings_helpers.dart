@@ -19,15 +19,30 @@ import 'saf_tree_name.dart';
 
 export '../../app/widgets/settings/persist_settings.dart';
 
-/// The settings column cap (D1): on wide surfaces the page body is centered
-/// at [ContentWidths.settings]; below the cap the constraint is a no-op, so
-/// there is no breakpoint branch.
-Widget settingsNarrowBody(Widget child) => Center(
-  child: ConstrainedBox(
-    constraints: const BoxConstraints(maxWidth: ContentWidths.settings),
-    child: child,
-  ),
-);
+/// The settings column cap (D1): centered at [ContentWidths.settings] on
+/// standalone pages, or left-aligned and comfortably wider (780dp) inside the
+/// wide master-detail settings pane so forms use the desktop space cleanly.
+Widget settingsNarrowBody(Widget child) => _SettingsNarrowBody(child: child);
+
+class _SettingsNarrowBody extends StatelessWidget {
+  const _SettingsNarrowBody({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final embedded = SettingsDetailScope.maybeOf(context) != null;
+    return Align(
+      alignment: embedded ? AlignmentDirectional.topStart : Alignment.topCenter,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: embedded ? 780 : ContentWidths.settings,
+        ),
+        child: child,
+      ),
+    );
+  }
+}
 
 /// Draft-form leave guard (same PopScope contract as ProfileEditPage):
 /// a clean form pops directly; a dirty one asks via [confirmDiscardDraft]
