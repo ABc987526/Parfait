@@ -7,6 +7,7 @@ import '../../app/widgets/app_top_bar.dart';
 import '../../app/widgets/feed/desktop_gallery_controls.dart';
 import '../../app/widgets/feed/feed_grid.dart';
 import '../../app/widgets/feed/feed_selection.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/widgets/novel_entry.dart';
@@ -303,14 +304,13 @@ class _SearchResultPageState extends ConsumerState<SearchResultPage>
 
   @override
   Widget build(BuildContext context) {
-    // The user tab has no filters: the bar goes away and the app bar gets
-    // shorter.
+    // The user tab has no filters: the summary bar collapses in the body
+    // without changing the top bar's height.
     final showFilters = _selectedType != SearchResultType.user;
     final filterLabels = showFilters
         ? searchFilterLabels(context, _filtersFor(_selectedType))
         : const <String>[];
     _syncFilterSummary(filterLabels);
-    final summaryHeight = _filterSummaryController.value * _filterBarHeight;
     final tabBar = AppTabBar(
       controller: _tabController,
       onTap: (index) {
@@ -375,13 +375,15 @@ class _SearchResultPageState extends ConsumerState<SearchResultPage>
       tapHint: context.l10n.searchModifyQuery,
       onTap: () => _editQuery(fieldContext),
     );
-    // The wide header keeps the type tabs on the title row and the query
-    // at the end of the bar (R9); the filter summary still sits under it.
-    // A phone keeps the query in the title over the tabs.
+    // On wide tablet headers without DesktopCommandBar, lead with the query
+    // capsule before the tabs and keep the filter button at the trailing edge
+    // so opening the 400dp right-hand filter drawer never covers the query.
     final wide = PageHeader.isWide(context);
     final hasCommandBar = DesktopCommandBarScope.isActiveOf(context);
     final hideWideSearchControls = wide && hasCommandBar;
     final showGalleryControls = _selectedType == SearchResultType.illust;
+    final impliesDismissal =
+        ModalRoute.of(context)?.impliesAppBarDismissal ?? false;
     return DesktopCommandActionsAnchor(
       action: hideWideSearchControls
           ? Padding(
@@ -397,64 +399,67 @@ class _SearchResultPageState extends ConsumerState<SearchResultPage>
         resizeToAvoidBottomInset: false,
         appBar: AppTopBar(
           titleSpacing: 0,
-          title: wide ? tabBar : Builder(builder: keywordField),
-          bottom: wide
-              ? (summary == null
-                    ? null
-                    : PreferredSize(
-                        preferredSize: Size.fromHeight(summaryHeight),
-                        child: summary,
-                      ))
-              : PreferredSize(
-                  preferredSize: Size.fromHeight(
-                    tabBar.preferredSize.height + summaryHeight,
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [tabBar, ?summary],
-                  ),
+          title: !wide
+              ? Builder(builder: keywordField)
+              : hideWideSearchControls
+              ? tabBar
+              : Row(
+                  children: [
+                    Padding(
+                      padding: EdgeInsetsDirectional.only(
+                        start: impliesDismissal ? 0 : FuncSpacing.lg,
+                        end: FuncSpacing.md,
+                      ),
+                      child: SizedBox(
+                        width: PageHeader.searchFieldWidth(context),
+                        child: Builder(builder: keywordField),
+                      ),
+                    ),
+                    Expanded(child: tabBar),
+                  ],
                 ),
+          bottom: wide ? null : tabBar,
           actions: [
             if (hasCommandBar)
               DesktopGalleryControls(visible: showGalleryControls),
             if (hideWideSearchControls && showGalleryControls)
               const SizedBox(width: FuncSpacing.sm),
-            if (!hideWideSearchControls) ...[
-              filterButton,
-              if (wide)
-                Padding(
-                  padding: const EdgeInsetsDirectional.only(
-                    start: FuncSpacing.sm,
-                    end: FuncSpacing.lg,
-                  ),
-                  child: SizedBox(
-                    width: PageHeader.searchFieldWidth(context),
-                    child: Builder(builder: keywordField),
-                  ),
+            if (!hideWideSearchControls)
+              Padding(
+                padding: EdgeInsetsDirectional.only(
+                  end: wide ? FuncSpacing.xs : 0,
                 ),
-            ],
+                child: filterButton,
+              ),
           ],
         ),
         body: DesktopInspectableGallery(
           active: showGalleryControls,
-          child: Builder(
-            builder: (context) {
-              _notificationContext = context;
-              return TabSwipeSwitcher(
-                tabController: _tabController,
-                prepareTab: _prepareTab,
-                child: TabSlideStack(
-                  controller: _tabController,
-                  children: [
-                    for (final type in SearchResultType.values)
-                      if (_loadedTypes.contains(type))
-                        _bodyFor(type)
-                      else
-                        const SizedBox.shrink(),
-                  ],
+          child: Column(
+            children: [
+              ?summary,
+              Expanded(
+                child: Builder(
+                  builder: (context) {
+                    _notificationContext = context;
+                    return TabSwipeSwitcher(
+                      tabController: _tabController,
+                      prepareTab: _prepareTab,
+                      child: TabSlideStack(
+                        controller: _tabController,
+                        children: [
+                          for (final type in SearchResultType.values)
+                            if (_loadedTypes.contains(type))
+                              _bodyFor(type)
+                            else
+                              const SizedBox.shrink(),
+                        ],
+                      ),
+                    );
+                  },
                 ),
-              );
-            },
+              ),
+            ],
           ),
         ),
       ),
@@ -808,30 +813,37 @@ class _FilterSummaryBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: _filterBarHeight,
-      // Full width: the chips start at the edge instead of centring.
-      width: double.infinity,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.fromLTRB(
-          FuncSpacing.lg,
-          0,
-          FuncSpacing.lg,
-          FuncSpacing.sm,
+    final scheme = Theme.of(context).colorScheme;
+    final tokens = FuncSemanticTokens.of(context);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLow,
+        border: Border(bottom: BorderSide(color: tokens.brandHairline)),
+      ),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(
+          minHeight: _filterBarHeight,
+          minWidth: double.infinity,
         ),
-        child: Row(
-          children: [
-            for (final label in labels) ...[
-              ActionChip(label: Text(label), onPressed: onEdit),
-              const SizedBox(width: FuncSpacing.sm),
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(
+            horizontal: FuncSpacing.lg,
+            vertical: FuncSpacing.xs,
+          ),
+          child: Row(
+            children: [
+              for (final label in labels) ...[
+                ActionChip(label: Text(label), onPressed: onEdit),
+                const SizedBox(width: FuncSpacing.sm),
+              ],
+              ActionChip(
+                avatar: const Icon(Icons.filter_alt_off_outlined, size: 16),
+                label: Text(context.l10n.searchReset),
+                onPressed: onClear,
+              ),
             ],
-            ActionChip(
-              avatar: const Icon(Icons.filter_alt_off_outlined, size: 16),
-              label: Text(context.l10n.searchReset),
-              onPressed: onClear,
-            ),
-          ],
+          ),
         ),
       ),
     );

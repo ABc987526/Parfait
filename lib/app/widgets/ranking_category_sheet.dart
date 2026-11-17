@@ -136,13 +136,18 @@ class _RankingCategorySheetState<M extends RankingCategory>
     final l10n = context.l10n;
     final theme = Theme.of(context);
     final page = _page;
+    final wide = useWideOverlay(context);
+    final pointer = usePointerOverlay(context);
+    final showHeaderClose = wide && (pointer || !_editing || page != null);
     final header = Padding(
       // The end meets the grid's edge: a tonal button's edge is its
       // container, a text button's is its label, inset by the padding.
       padding: EdgeInsets.fromLTRB(
         FuncSpacing.xl,
-        FuncSpacing.lg,
-        _editing ? FuncSpacing.xl : FuncSpacing.md,
+        wide ? FuncSpacing.md : FuncSpacing.lg,
+        showHeaderClose
+            ? FuncSpacing.sm
+            : (_editing ? FuncSpacing.xl : FuncSpacing.md),
         FuncSpacing.xs,
       ),
       child: Row(
@@ -153,31 +158,40 @@ class _RankingCategorySheetState<M extends RankingCategory>
               style: theme.textTheme.titleLarge,
             ),
           ),
-          if (_editing)
+          if (_editing && !pointer)
             FilledButton.tonal(
               onPressed: _finishEditing,
               child: Text(l10n.rankingEditDone),
             )
-          else
+          else if (!_editing)
             TextButton.icon(
               onPressed: () => setState(() => _editing = true),
               icon: const Icon(Icons.edit_outlined),
               label: Text(l10n.rankingEdit),
             ),
+          if (showHeaderClose) ...[
+            const SizedBox(width: FuncSpacing.xs),
+            IconButton(
+              tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
+              onPressed: () => Navigator.of(context).maybePop(),
+              icon: const Icon(Icons.close),
+            ),
+          ],
         ],
       ),
     );
     final body = _editing
-        ? _editor(context, blocked)
+        ? _editor(context, blocked, pointer: pointer)
         : _browser(context, page!);
     return ConstrainedBox(
       constraints: BoxConstraints(
         maxHeight: MediaQuery.heightOf(context) * _maxHeightFactor,
       ),
-      // While editing, a vertical drag never moves the sheet: it would
-      // fight the long-press drag and could close the sheet mid-edit.
+      // While editing on a bottom sheet, a vertical drag never moves the
+      // sheet: it would fight the long-press drag and could close mid-edit.
+      // Wide bounded dialogs have no sheet drag to intercept.
       child: GestureDetector(
-        onVerticalDragStart: _editing ? (_) {} : null,
+        onVerticalDragStart: (_editing && !wide) ? (_) {} : null,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -241,11 +255,22 @@ class _RankingCategorySheetState<M extends RankingCategory>
     );
   }
 
-  Widget _editor(BuildContext context, bool Function(M) blocked) {
+  Widget _editor(
+    BuildContext context,
+    bool Function(M) blocked, {
+    required bool pointer,
+  }) {
     final l10n = context.l10n;
     final theme = Theme.of(context);
     final draft = _draft;
     final all = [...draft.shown, ...draft.hidden];
+    final restoreButton = TextButton.icon(
+      onPressed: draft == widget.catalog.defaults
+          ? null
+          : () => _save(widget.catalog.defaults),
+      icon: const Icon(Icons.restart_alt),
+      label: Text(l10n.restoreDefault),
+    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -304,24 +329,41 @@ class _RankingCategorySheetState<M extends RankingCategory>
               onTap: () => _save(draft.show(mode)),
             ),
           ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-            FuncSpacing.md,
-            FuncSpacing.md,
-            FuncSpacing.md,
-            0,
-          ),
-          child: Align(
-            alignment: AlignmentDirectional.centerStart,
-            child: TextButton.icon(
-              onPressed: draft == widget.catalog.defaults
-                  ? null
-                  : () => _save(widget.catalog.defaults),
-              icon: const Icon(Icons.restart_alt),
-              label: Text(l10n.restoreDefault),
+        if (pointer)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              FuncSpacing.xl,
+              FuncSpacing.md,
+              FuncSpacing.xl,
+              0,
+            ),
+            child: OverflowBar(
+              alignment: MainAxisAlignment.end,
+              spacing: FuncSpacing.sm,
+              overflowSpacing: FuncSpacing.sm,
+              overflowAlignment: OverflowBarAlignment.end,
+              children: [
+                restoreButton,
+                FilledButton(
+                  onPressed: _finishEditing,
+                  child: Text(l10n.rankingEditDone),
+                ),
+              ],
+            ),
+          )
+        else
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              FuncSpacing.md,
+              FuncSpacing.md,
+              FuncSpacing.md,
+              0,
+            ),
+            child: Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: restoreButton,
             ),
           ),
-        ),
       ],
     );
   }

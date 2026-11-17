@@ -49,6 +49,7 @@ class SearchInputEngine extends ConsumerStatefulWidget {
     this.initialNovelFilters,
     this.onTypeChanged,
     this.onShortcut,
+    this.workspaceField = false,
   });
 
   final String initialKeyword;
@@ -70,6 +71,10 @@ class SearchInputEngine extends ConsumerStatefulWidget {
   /// What an id or a link in the draft opens; the docked panel handles it
   /// itself so the panel can close first (R10).
   final ValueChanged<SearchShortcut>? onShortcut;
+
+  /// Whether the field sits inline inside a desktop workspace column rather
+  /// than inside a mobile/docked stadium header bar.
+  final bool workspaceField;
 
   final SearchInputEngineBuilder builder;
 
@@ -274,10 +279,12 @@ class SearchInputEngineState extends ConsumerState<SearchInputEngine>
       valueListenable: _textController,
       builder: (context, value, _) {
         if (value.text.isEmpty) return const SizedBox.shrink();
+        final iconColor = Theme.of(context).colorScheme.onSurfaceVariant;
         return IconButton(
           tooltip: context.l10n.searchClear,
+          style: IconButton.styleFrom(foregroundColor: iconColor),
           onPressed: _clear,
-          icon: const Icon(Icons.clear),
+          icon: Icon(Icons.clear, color: iconColor),
         );
       },
     );
@@ -291,28 +298,46 @@ class SearchInputEngineState extends ConsumerState<SearchInputEngine>
   /// pills lie between the field's fill and its text, so the bar paints
   /// no fill of its own.
   Widget _buildSearchBar(BuildContext context) {
-    final bar = SearchBar(
-      controller: _textController,
-      focusNode: _focusNode,
-      // The theme's flat field, sized like [SearchFieldButton] on the
-      // guide and the result page: the field reads as one across both
-      // pushes.
-      constraints: const BoxConstraints(
-        minHeight: SearchFieldButton.height,
-        maxWidth: SearchFieldButton.maxWidth,
+    final scheme = Theme.of(context).colorScheme;
+    final iconColor = scheme.onSurfaceVariant;
+    final bar = IconTheme.merge(
+      data: IconThemeData(color: iconColor),
+      child: SearchBar(
+        controller: _textController,
+        focusNode: _focusNode,
+        // The theme's flat field, sized like [SearchFieldButton] on the
+        // guide and the result page: the field reads as one across both
+        // pushes.
+        constraints: const BoxConstraints(
+          minHeight: SearchFieldButton.height,
+          maxWidth: SearchFieldButton.maxWidth,
+        ),
+        backgroundColor: const WidgetStatePropertyAll(FuncTokens.transparent),
+        hintText: context.l10n.searchBarHint,
+        leading: Icon(Icons.search, color: iconColor),
+        trailing: [_clearSearchAction()],
+        onSubmitted: (_) => _submit(),
+        textInputAction: TextInputAction.search,
       ),
-      backgroundColor: const WidgetStatePropertyAll(FuncTokens.transparent),
-      hintText: context.l10n.searchBarHint,
-      leading: const Icon(Icons.search),
-      trailing: [_clearSearchAction()],
-      onSubmitted: (_) => _submit(),
-      textInputAction: TextInputAction.search,
     );
+    final decoration = widget.workspaceField
+        ? ShapeDecoration(
+            color: scheme.surfaceContainerLow,
+            shape: RoundedRectangleBorder(
+              borderRadius: FuncShape.control,
+              side: BorderSide(
+                color: FuncSemanticTokens.of(context).brandHairline,
+              ),
+            ),
+          )
+        : ShapeDecoration(
+            color: SearchBarTheme.of(
+              context,
+            ).backgroundColor?.resolve(const {}),
+            shape: const StadiumBorder(),
+          );
     return DecoratedBox(
-      decoration: ShapeDecoration(
-        color: SearchBarTheme.of(context).backgroundColor?.resolve(const {}),
-        shape: const StadiumBorder(),
-      ),
+      decoration: decoration,
       child: ValueListenableBuilder<TextEditingValue>(
         valueListenable: _textController,
         builder: (context, value, bar) => SearchKeywordPills(

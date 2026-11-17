@@ -78,6 +78,7 @@ Future<void> showCardActionSheet(BuildContext context, IllustEntity entity) {
         final state = CardActionState.ofRef(ref);
         final providers = ProviderScope.containerOf(sheetContext);
         final l10n = sheetContext.l10n;
+        final wide = useWideOverlay(sheetContext);
         return SafeArea(
           top: false,
           // The sheet announces which work its actions apply to.
@@ -91,7 +92,17 @@ Future<void> showCardActionSheet(BuildContext context, IllustEntity entity) {
               // actions moves the sheet (see showAppBottomSheet).
               primary: false,
               children: [
-                _SheetHeader(entity),
+                _SheetHeader(
+                  entity,
+                  onClose: wide
+                      ? () => Navigator.of(sheetContext).maybePop()
+                      : null,
+                ),
+                if (wide)
+                  Divider(
+                    height: 1,
+                    color: FuncSemanticTokens.of(sheetContext).divider,
+                  ),
                 for (final action in actions)
                   Semantics(
                     button: true,
@@ -123,11 +134,12 @@ Future<void> showCardActionSheet(BuildContext context, IllustEntity entity) {
 /// Thumbnail, title and author of the work the actions apply to. A work the
 /// card shows blurred (muted, not revealed) keeps its image hidden here.
 class _SheetHeader extends ConsumerWidget {
-  const _SheetHeader(this.entity);
+  const _SheetHeader(this.entity, {this.onClose});
 
   static const double thumbnailSize = 48;
 
   final IllustEntity entity;
+  final VoidCallback? onClose;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -141,10 +153,10 @@ class _SheetHeader extends ConsumerWidget {
         );
     final url = entity.squareUrlAt(0);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
+      padding: EdgeInsets.fromLTRB(
         FuncSpacing.lg,
         FuncSpacing.sm,
-        FuncSpacing.lg,
+        onClose != null ? FuncSpacing.sm : FuncSpacing.lg,
         FuncSpacing.sm,
       ),
       child: Row(
@@ -192,6 +204,14 @@ class _SheetHeader extends ConsumerWidget {
               ),
             ),
           ),
+          if (onClose != null) ...[
+            const SizedBox(width: FuncSpacing.xs),
+            IconButton(
+              tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
+              onPressed: onClose,
+              icon: const Icon(Icons.close),
+            ),
+          ],
         ],
       ),
     );

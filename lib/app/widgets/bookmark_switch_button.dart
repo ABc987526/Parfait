@@ -584,6 +584,27 @@ class _BookmarkEditSheetState extends ConsumerState<_BookmarkEditSheet> {
     final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
     final availableHeight = MediaQuery.heightOf(context) - keyboardInset;
     final desktop = useWideOverlay(context);
+    final pointer = usePointerOverlay(context);
+    final sheetTitle = widget.initiallyBookmarked
+        ? l10n.bookmarkEditTitle
+        : _bookmarkText(
+            context,
+            widget.isNovel ? 'bookmarkNovel' : 'bookmarkIllust',
+          );
+    final cancelButton = OutlinedButton(
+      onPressed: () => unawaited(_attemptClose()),
+      child: Text(l10n.cancel),
+    );
+    // Disabled until the existing bookmark's detail has prefilled: confirming
+    // earlier would overwrite a private/tagged bookmark with the default
+    // public+empty-tags values. Also disabled while a submit is in flight to
+    // dedupe taps.
+    final confirmButton = FilledButton(
+      onPressed: (awaitingPrefill || _submitting)
+          ? null
+          : () => unawaited(_confirm()),
+      child: Text(l10n.confirm),
+    );
     Widget sheet = Align(
       // heightFactor shrink-wraps vertically: a bare Center would expand to
       // the sheet slot's max height. On expanded surfaces the form column
@@ -611,7 +632,35 @@ class _BookmarkEditSheetState extends ConsumerState<_BookmarkEditSheet> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const SizedBox(height: FuncSpacing.lg),
+                  if (desktop)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        FuncSpacing.xl,
+                        FuncSpacing.md,
+                        FuncSpacing.sm,
+                        FuncSpacing.xs,
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              sheetTitle,
+                              style: Theme.of(context).textTheme.titleLarge
+                                  ?.copyWith(fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          IconButton(
+                            tooltip: MaterialLocalizations.of(
+                              context,
+                            ).closeButtonTooltip,
+                            onPressed: () => unawaited(_attemptClose()),
+                            icon: const Icon(Icons.close),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    const SizedBox(height: FuncSpacing.lg),
                   // Everything above the confirm row scrolls: at a large
                   // font with the keyboard up, the header and switch alone
                   // outgrow the sheet.
@@ -623,19 +672,14 @@ class _BookmarkEditSheetState extends ConsumerState<_BookmarkEditSheet> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            widget.initiallyBookmarked
-                                ? l10n.bookmarkEditTitle
-                                : _bookmarkText(
-                                    context,
-                                    widget.isNovel
-                                        ? 'bookmarkNovel'
-                                        : 'bookmarkIllust',
-                                  ),
-                            style: Theme.of(context).textTheme.headlineSmall
-                                ?.copyWith(fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(height: FuncSpacing.sm),
+                          if (!desktop) ...[
+                            Text(
+                              sheetTitle,
+                              style: Theme.of(context).textTheme.headlineSmall
+                                  ?.copyWith(fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: FuncSpacing.sm),
+                          ],
                           Text(
                             widget.title,
                             style: FuncSemanticTokens.of(context).title,
@@ -814,30 +858,24 @@ class _BookmarkEditSheetState extends ConsumerState<_BookmarkEditSheet> {
                     padding: const EdgeInsets.symmetric(
                       horizontal: FuncSpacing.xl,
                     ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: () => unawaited(_attemptClose()),
-                            child: Text(l10n.cancel),
+                    child: pointer
+                        ? SizedBox(
+                            width: double.infinity,
+                            child: OverflowBar(
+                              alignment: MainAxisAlignment.end,
+                              spacing: FuncSpacing.sm,
+                              overflowSpacing: FuncSpacing.sm,
+                              overflowAlignment: OverflowBarAlignment.end,
+                              children: [cancelButton, confirmButton],
+                            ),
+                          )
+                        : Row(
+                            children: [
+                              Expanded(child: cancelButton),
+                              const SizedBox(width: FuncSpacing.md),
+                              Expanded(child: confirmButton),
+                            ],
                           ),
-                        ),
-                        const SizedBox(width: FuncSpacing.md),
-                        Expanded(
-                          // Disabled until the existing bookmark's detail has
-                          // prefilled: confirming earlier would overwrite a
-                          // private/tagged bookmark with the default
-                          // public+empty-tags values. Also disabled while a
-                          // submit is in flight to dedupe taps.
-                          child: FilledButton(
-                            onPressed: (awaitingPrefill || _submitting)
-                                ? null
-                                : () => unawaited(_confirm()),
-                            child: Text(l10n.confirm),
-                          ),
-                        ),
-                      ],
-                    ),
                   ),
                   const SizedBox(height: FuncSpacing.lg),
                 ],
@@ -849,15 +887,14 @@ class _BookmarkEditSheetState extends ConsumerState<_BookmarkEditSheet> {
     );
     // Drag-to-dismiss bypasses PopScope entirely: BottomSheet.onClosing
     // calls Navigator.pop() directly, and imperative pops never consult
-    // popDisposition. While dirty the sheet content claims vertical drags
-    // itself and routes a downward release through the same _attemptClose
-    // confirmation. The inner scroll view still wins drags that start
-    // inside it, so scrolling is unaffected. The detector is always there,
-    // so a draft turning dirty does not rebuild the form and lose its
-    // scroll position.
+    // popDisposition. While dirty on a bottom sheet, the sheet content claims
+    // vertical drags itself and routes a downward release through the same
+    // _attemptClose confirmation; wide bounded dialogs have no sheet drag.
+    // The detector stays mounted so a draft turning dirty does not rebuild
+    // the form and lose its scroll position.
     sheet = GestureDetector(
       behavior: HitTestBehavior.translucent,
-      onVerticalDragEnd: _closableFreely
+      onVerticalDragEnd: (desktop || _closableFreely)
           ? null
           : (details) {
               if ((details.primaryVelocity ?? 0) > 0) {

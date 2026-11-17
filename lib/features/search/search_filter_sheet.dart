@@ -190,21 +190,25 @@ class _SearchFilterSheetState extends ConsumerState<_SearchFilterSheet> {
     // the IME so the field being typed in and the apply bar stay in sight.
     final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
     final availableHeight = MediaQuery.heightOf(context) - keyboardInset;
+    final wide = useWideOverlay(context);
+    final tokens = FuncSemanticTokens.of(context);
     return Padding(
       padding: EdgeInsets.only(bottom: keyboardInset),
       child: ConstrainedBox(
         constraints: BoxConstraints(
-          maxHeight: availableHeight * _maxHeightFactor,
+          maxHeight: wide
+              ? availableHeight
+              : availableHeight * _maxHeightFactor,
         ),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: wide ? MainAxisSize.max : MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(
+              padding: EdgeInsets.fromLTRB(
                 FuncSpacing.xl,
-                FuncSpacing.lg,
-                FuncSpacing.md,
+                wide ? FuncSpacing.md : FuncSpacing.lg,
+                wide ? FuncSpacing.sm : FuncSpacing.md,
                 FuncSpacing.xs,
               ),
               child: Row(
@@ -219,57 +223,72 @@ class _SearchFilterSheetState extends ConsumerState<_SearchFilterSheet> {
                     onPressed: _reset,
                     child: Text(context.l10n.searchReset),
                   ),
+                  if (wide)
+                    IconButton(
+                      tooltip: MaterialLocalizations.of(
+                        context,
+                      ).closeButtonTooltip,
+                      onPressed: () => Navigator.of(context).maybePop(),
+                      icon: const Icon(Icons.close),
+                    ),
                 ],
               ),
             ),
             Flexible(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(
-                  FuncSpacing.xl,
-                  0,
-                  FuncSpacing.xl,
-                  FuncSpacing.lg,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    ..._matchGroup(context),
-                    _groupGap,
-                    ..._timeGroup(context),
-                    _groupGap,
-                    ..._workGroup(context),
-                    _groupGap,
-                    ..._countGroup(context),
-                  ],
+              fit: wide ? FlexFit.tight : FlexFit.loose,
+              child: _BottomScrollFade(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(
+                    FuncSpacing.xl,
+                    FuncSpacing.xs,
+                    FuncSpacing.xl,
+                    FuncSpacing.xl,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ..._matchGroup(context),
+                      _groupGap,
+                      ..._timeGroup(context),
+                      _groupGap,
+                      ..._workGroup(context),
+                      _groupGap,
+                      ..._countGroup(context),
+                    ],
+                  ),
                 ),
               ),
             ),
-            const Divider(height: 1),
-            // Fixed under the scrolling groups: applying never needs a
-            // scroll to the end.
-            SafeArea(
-              top: false,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: FuncSpacing.xl,
-                  vertical: FuncSpacing.md,
-                ),
-                child: _ActionBar(
-                  apply: FilledButton(
-                    onPressed: _canApply
-                        ? () => _pop(makeDefault: false)
-                        : null,
-                    child: Text(context.l10n.searchApply),
+            // Fixed under the scrolling groups with a crisp 1dp top border:
+            // applying never needs a scroll to the end.
+            DecoratedBox(
+              decoration: BoxDecoration(
+                border: Border(top: BorderSide(color: tokens.divider)),
+              ),
+              child: SafeArea(
+                top: false,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: FuncSpacing.xl,
+                    vertical: FuncSpacing.md,
                   ),
-                  setDefault: widget.offerSetDefault
-                      ? OutlinedButton(
-                          onPressed: _canApply
-                              ? () => _pop(makeDefault: true)
-                              : null,
-                          child: Text(context.l10n.searchSetDefault),
-                        )
-                      : null,
-                  setDefaultLabel: context.l10n.searchSetDefault,
+                  child: _ActionBar(
+                    apply: FilledButton(
+                      onPressed: _canApply
+                          ? () => _pop(makeDefault: false)
+                          : null,
+                      child: Text(context.l10n.searchApply),
+                    ),
+                    setDefault: widget.offerSetDefault
+                        ? OutlinedButton(
+                            onPressed: _canApply
+                                ? () => _pop(makeDefault: true)
+                                : null,
+                            child: Text(context.l10n.searchSetDefault),
+                          )
+                        : null,
+                    setDefaultLabel: context.l10n.searchSetDefault,
+                  ),
                 ),
               ),
             ),
@@ -525,6 +544,15 @@ class _ActionBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final setDefault = this.setDefault;
+    if (usePointerOverlay(context)) {
+      return OverflowBar(
+        alignment: MainAxisAlignment.end,
+        spacing: FuncSpacing.sm,
+        overflowSpacing: FuncSpacing.sm,
+        overflowAlignment: OverflowBarAlignment.end,
+        children: [?setDefault, apply],
+      );
+    }
     if (setDefault == null) return apply;
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -561,9 +589,70 @@ class _ActionBar extends StatelessWidget {
   }
 }
 
-/// Groups of related filters stand apart by space alone, well past the
+/// Fades the bottom edge of the filter scroll view while more sections remain
+/// below the fold, so partially visible rows never look hard-sliced above the
+/// fixed action bar.
+class _BottomScrollFade extends StatefulWidget {
+  const _BottomScrollFade({required this.child});
+
+  final Widget child;
+
+  static const _fadeHeight = FuncSpacing.xl;
+  static const _edgeSlop = 0.5;
+
+  @override
+  State<_BottomScrollFade> createState() => _BottomScrollFadeState();
+}
+
+class _BottomScrollFadeState extends State<_BottomScrollFade> {
+  var _hasMoreBelow = false;
+
+  bool _onMetrics(ScrollMetrics metrics) {
+    if (metrics.axis != Axis.vertical) return false;
+    final more = metrics.extentAfter > _BottomScrollFade._edgeSlop;
+    if (more != _hasMoreBelow && mounted) {
+      setState(() => _hasMoreBelow = more);
+    }
+    return false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Keep ShaderMask permanently mounted (like ScrollEdgeFade) so flipping
+    // _hasMoreBelow never reparents SingleChildScrollView or resets its
+    // ScrollPosition and focused TextField.
+    return NotificationListener<ScrollMetricsNotification>(
+      onNotification: (notification) => _onMetrics(notification.metrics),
+      child: NotificationListener<ScrollUpdateNotification>(
+        onNotification: (notification) => _onMetrics(notification.metrics),
+        child: ShaderMask(
+          blendMode: BlendMode.dstIn,
+          shaderCallback: (bounds) {
+            final stop = bounds.height <= 0
+                ? 0.0
+                : (1.0 - _BottomScrollFade._fadeHeight / bounds.height).clamp(
+                    0.5,
+                    1.0,
+                  );
+            const shown = Color(0xFF000000);
+            const hidden = Color(0x00000000);
+            return LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [shown, shown, _hasMoreBelow ? hidden : shown],
+              stops: [0.0, stop, 1.0],
+            ).createShader(bounds);
+          },
+          child: widget.child,
+        ),
+      ),
+    );
+  }
+}
+
+/// Groups of related filters stand apart by space alone, past the
 /// [FuncSpacing.md] between the sections inside a group: no rules.
-const _groupGap = SizedBox(height: FuncSpacing.xxl);
+const _groupGap = SizedBox(height: FuncSpacing.lg);
 
 class _SectionTitle extends StatelessWidget {
   const _SectionTitle(this.text);
@@ -743,6 +832,7 @@ class _DateFilterTile extends StatelessWidget {
     final errorText = this.errorText;
     return ListTile(
       contentPadding: EdgeInsets.zero,
+      visualDensity: VisualDensity.compact,
       title: Text(label),
       subtitle: errorText == null
           ? Text(value)
