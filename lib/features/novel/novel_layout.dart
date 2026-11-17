@@ -1,5 +1,6 @@
 import 'dart:collection';
 import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:material_ui/material_ui.dart';
 
@@ -44,6 +45,21 @@ class NovelLayoutStyle {
   }) => math.min(
     availableWidth,
     textScaler.scale(fontSize) * 40 + horizontalPadding * 2,
+  );
+
+  /// Comfortable book-page column width for one leaf of a two-page spread:
+  /// ~23 CJK glyphs (~46–50 Latin/Cyrillic characters) plus page margins,
+  /// clamped so small fonts keep classic pocketbook proportions and large
+  /// fonts never push the spread back against the window edges.
+  double spreadContentWidth({
+    required double availableWidth,
+    required TextScaler textScaler,
+  }) => math.min(
+    availableWidth,
+    (textScaler.scale(fontSize) * 23 + horizontalPadding * 2).clamp(
+      380.0,
+      540.0,
+    ),
   );
 
   /// A translation reads a step smaller and lighter than its paragraph.

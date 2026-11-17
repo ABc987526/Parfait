@@ -120,6 +120,34 @@ class NovelReader extends StatefulWidget {
   /// the [NovelLayoutBudgetExceeded] error path.
   final NovelLayoutBudget budget;
 
+  static const double spreadMinWidth = 960;
+  static const double spreadMinAspectRatio = 1.15;
+
+  /// Whether paginated two-page spread layout is active for [viewport] and
+  /// [settings]. Shared with `NovelReaderStage` so the passive footer aligns
+  /// with the active single-column or two-page stage geometry.
+  static bool shouldSpreadFor({
+    required Size viewport,
+    required NovelReaderSettings settings,
+    bool hasBookSplit = false,
+  }) {
+    if (settings.pageTurn == NovelPageTurn.scroll) return false;
+    return switch (settings.spreadMode) {
+      NovelSpreadMode.off => false,
+      NovelSpreadMode.auto =>
+        hasBookSplit ||
+            (!viewport.height.isInfinite &&
+                viewport.width >= spreadMinWidth &&
+                viewport.width > viewport.height * spreadMinAspectRatio),
+      NovelSpreadMode.landscape =>
+        hasBookSplit ||
+            (!viewport.height.isInfinite &&
+                viewport.width > viewport.height &&
+                viewport.width >= 600),
+      NovelSpreadMode.always => viewport.width >= 560,
+    };
+  }
+
   @override
   State<NovelReader> createState() => _NovelReaderState();
 }
@@ -138,9 +166,9 @@ class _NovelReaderState extends State<NovelReader> with WidgetsBindingObserver {
   /// A committed-nowhere layout failure (budget overflow, deterministic
   /// engine error) — rendered as a retryable error state instead of an
   /// unhandled async exception.
-  static const double _spreadMinWidth = 960;
-  static const double _spreadMinAspectRatio = 1.15;
-  static const double _spreadGap = 16;
+  static const double _spreadGap = 44;
+  static const double _minHingeGap = 16;
+  static const double _spreadSpineAlpha = 0.09;
   static const double _wheelTurnThreshold = 48;
   static const int _wheelIdleResetMs = 300;
   static const int _wheelTurnCooldownMs = 150;
@@ -179,11 +207,6 @@ class _NovelReaderState extends State<NovelReader> with WidgetsBindingObserver {
 
   bool get _scrolls => widget.settings.pageTurn == NovelPageTurn.scroll;
 
-  static bool _isSpreadViewport(BoxConstraints constraints) =>
-      !constraints.maxHeight.isInfinite &&
-      constraints.maxWidth >= _spreadMinWidth &&
-      constraints.maxWidth > constraints.maxHeight * _spreadMinAspectRatio;
-
   void _scheduleOriginCheck() {
     if (_originCheckScheduled) return;
     _originCheckScheduled = true;
@@ -207,7 +230,7 @@ class _NovelReaderState extends State<NovelReader> with WidgetsBindingObserver {
     if (spec.posture != FoldPosture.book || hinge == null) return null;
     final localLeft = hinge.left - _originDx;
     final localRight = hinge.right - _originDx;
-    final gap = math.max(_spreadGap, localRight - localLeft);
+    final gap = math.max(_minHingeGap, localRight - localLeft);
     final rightWidth = constraints.maxWidth - (localLeft + gap);
     if (localLeft < 180 || rightWidth < 180) return null;
     return (leftWidth: localLeft, gap: gap, rightWidth: rightWidth);
@@ -216,20 +239,11 @@ class _NovelReaderState extends State<NovelReader> with WidgetsBindingObserver {
   bool _shouldSpread(
     BoxConstraints constraints, {
     required ({double leftWidth, double gap, double rightWidth})? bookSplit,
-  }) {
-    if (_scrolls) return false;
-    return switch (widget.settings.spreadMode) {
-      NovelSpreadMode.off => false,
-      NovelSpreadMode.auto =>
-        bookSplit != null || _isSpreadViewport(constraints),
-      NovelSpreadMode.landscape =>
-        bookSplit != null ||
-            (!constraints.maxHeight.isInfinite &&
-                constraints.maxWidth > constraints.maxHeight &&
-                constraints.maxWidth >= 600),
-      NovelSpreadMode.always => constraints.maxWidth >= 560,
-    };
-  }
+  }) => NovelReader.shouldSpreadFor(
+    viewport: Size(constraints.maxWidth, constraints.maxHeight),
+    settings: widget.settings,
+    hasBookSplit: bookSplit != null,
+  );
 
   int _viewIndexForPage(int page) => _spread ? page ~/ 2 : page;
 
@@ -448,10 +462,15 @@ class _NovelReaderState extends State<NovelReader> with WidgetsBindingObserver {
             : bookSplit != null
             ? math.min(bookSplit.leftWidth, bookSplit.rightWidth)
             : math.max(0.0, (constraints.maxWidth - _spreadGap) / 2);
-        final layoutWidth = _style.contentWidth(
-          availableWidth: columnBudget,
-          textScaler: textScaler,
-        );
+        final layoutWidth = spread
+            ? _style.spreadContentWidth(
+                availableWidth: columnBudget,
+                textScaler: textScaler,
+              )
+            : _style.contentWidth(
+                availableWidth: columnBudget,
+                textScaler: textScaler,
+              );
         final viewport = Size(layoutWidth, constraints.maxHeight);
         _lastViewportHeight = constraints.maxHeight;
         _scheduleLayout(
@@ -536,9 +555,34 @@ class _NovelReaderState extends State<NovelReader> with WidgetsBindingObserver {
     );
   }
 
+  /// Strips leading blank body lines introduced by `\n\n` around an author's
+  /// `[newpage]` marker when painting a paginated page, so both leaves of a
+  /// spread share one clean top baseline without altering [NovelLayout] or
+  /// [NovelScrollColumn] metrics.
+  static NovelLayoutPage _trimmedPageForDisplay(NovelLayoutPage page) {
+    if (page.breakBefore != NovelPageBreak.newPage) return page;
+    final firstContent = page.lines.indexWhere(
+      (line) =>
+          line.kind != NovelLineKind.body ||
+          line.image != null ||
+          line.text.trim().isNotEmpty,
+    );
+    if (firstContent <= 0) return page;
+    return NovelLayoutPage(
+      index: page.index,
+      lines: page.lines.sublist(firstContent),
+      startAnchor: page.startAnchor,
+      endAnchor: page.endAnchor,
+      startCharacter: page.startCharacter,
+      endCharacter: page.endCharacter,
+      chapterTitle: page.chapterTitle,
+      breakBefore: page.breakBefore,
+    );
+  }
+
   Widget _buildPageViewItem(NovelLayout layout, int viewIndex, Color color) {
     Widget buildSingle(NovelLayoutPage page) => _NovelPage(
-      page: page,
+      page: _trimmedPageForDisplay(page),
       style: _style,
       color: color,
       novel: widget.novel,
@@ -560,7 +604,7 @@ class _NovelReaderState extends State<NovelReader> with WidgetsBindingObserver {
     final split = _bookSplit;
     if (split != null) {
       return Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SizedBox(
             width: split.leftWidth,
@@ -586,18 +630,34 @@ class _NovelReaderState extends State<NovelReader> with WidgetsBindingObserver {
         ],
       );
     }
-    return Center(
-      child: FittedBox(
-        fit: BoxFit.scaleDown,
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: Alignment.topCenter,
+      child: SizedBox(
+        width: columnWidth * 2 + _spreadGap,
+        height: layout.key.viewport.height,
         child: Row(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             SizedBox(
               width: columnWidth,
               child: buildSingle(layout.pages[leftIndex]),
             ),
-            const SizedBox(width: _spreadGap),
+            SizedBox(
+              width: _spreadGap,
+              child: Center(
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    top: _style.verticalPadding,
+                    bottom: _style.verticalPadding * 1.5,
+                  ),
+                  child: ColoredBox(
+                    color: color.withValues(alpha: _spreadSpineAlpha),
+                    child: const SizedBox(width: 1, height: double.infinity),
+                  ),
+                ),
+              ),
+            ),
             SizedBox(
               width: columnWidth,
               child: rightIndex < layout.pages.length
