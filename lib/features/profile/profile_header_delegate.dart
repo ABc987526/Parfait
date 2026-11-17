@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 
@@ -13,6 +14,7 @@ import '../../app/pixiv_image.dart';
 import '../../app/motion/hero_transition.dart' show LiftableBar;
 import '../../app/system_ui.dart';
 import '../../app/theme/func_semantic_tokens.dart';
+import '../../app/window/desktop_command_bar.dart';
 import '../../core/user/user_entity.dart';
 import '../../app/widgets/ambient_wash.dart';
 import '../../app/widgets/app_menu_button.dart';
@@ -1061,7 +1063,11 @@ class _HeaderBackButtonState extends State<_HeaderBackButton> {
 
   @override
   Widget build(BuildContext context) {
-    if (!_canPop) return const SizedBox.shrink();
+    if (!_canPop ||
+        (DesktopCommandBarScope.isActiveOf(context) &&
+            !EmbeddedHeaderScope.isActiveOf(context))) {
+      return const SizedBox.shrink();
+    }
     final tooltip = MaterialLocalizations.of(context).backButtonTooltip;
     // The platform's back glyph, as every BackButton (U1); over artwork
     // only the colours change.
@@ -1120,18 +1126,47 @@ class ReplicaProfileTabsDelegate extends SliverPersistentHeaderDelegate {
     double shrinkOffset,
     bool overlapsContent,
   ) {
+    final theme = Theme.of(context);
+    final tokens = theme.extension<FuncSemanticTokens>();
+    final scrollBehavior = ScrollConfiguration.of(context);
+    final tabDragBehavior = scrollBehavior.copyWith(
+      dragDevices: {
+        ...scrollBehavior.dragDevices,
+        PointerDeviceKind.touch,
+        PointerDeviceKind.mouse,
+        PointerDeviceKind.trackpad,
+      },
+    );
     return LiftableBar(
       child: ScrollEdgeShadow(
         visible: scrolled,
         child: Material(
           key: const ValueKey('profile-tabs'),
-          color: Theme.of(context).scaffoldBackgroundColor,
-          child: SizedBox(
-            height: kToolbarHeight,
-            child: AppTabBar(
-              controller: controller,
-              onTap: onTabTap,
-              labels: labels,
+          color: theme.scaffoldBackgroundColor,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              border: scrolled
+                  ? null
+                  : Border(
+                      bottom: BorderSide(
+                        color: tokens?.brandHairline ?? theme.dividerColor,
+                      ),
+                    ),
+            ),
+            child: SafeArea(
+              top: false,
+              bottom: false,
+              child: SizedBox(
+                height: kToolbarHeight,
+                child: ScrollConfiguration(
+                  behavior: tabDragBehavior,
+                  child: AppTabBar(
+                    controller: controller,
+                    onTap: onTabTap,
+                    labels: labels,
+                  ),
+                ),
+              ),
             ),
           ),
         ),

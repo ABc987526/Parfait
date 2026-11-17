@@ -58,7 +58,7 @@ class DesktopGalleryControls extends ConsumerWidget {
 
     IconData densityIcon(FeedDensity value) => switch (value) {
       FeedDensity.comfortable => Icons.view_agenda_outlined,
-      FeedDensity.standard => Icons.grid_view_outlined,
+      FeedDensity.standard => Icons.view_quilt_outlined,
       FeedDensity.compact => Icons.view_comfy_outlined,
     };
 

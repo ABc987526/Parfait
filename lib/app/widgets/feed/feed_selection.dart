@@ -13,8 +13,11 @@ import '../../../l10n/context.dart';
 import '../../haptics/app_haptics.dart';
 import '../../layout/app_breakpoints.dart';
 import '../../layout/input_modality.dart';
+import '../../motion/app_overlays.dart';
+import '../../motion/motion_tokens.dart';
 import '../../navigation/routes.dart';
 import '../../theme/func_semantic_tokens.dart';
+import '../../window/desktop_command_bar.dart';
 import '../app_snack_bar.dart';
 import '../errors/error_details.dart';
 
@@ -304,7 +307,8 @@ abstract final class FeedSelectionAnchor {
 }
 
 /// Hosts `>= 600dp` multi-selection state, `Ctrl/Cmd+A` + `Escape` fallback
-/// shortcuts, and the floating bottom [FeedBatchActionBar] for an illust feed.
+/// shortcuts, and the contextual [FeedBatchActionBar] (inline top strip on
+/// pointer desktop, thumb-reachable bottom pill on touch tablets).
 class SelectableFeedHost extends StatefulWidget {
   const SelectableFeedHost({super.key, required this.child});
 
@@ -316,6 +320,7 @@ class SelectableFeedHost extends StatefulWidget {
 
 class _SelectableFeedHostState extends State<SelectableFeedHost> {
   final _controller = FeedSelectionController();
+  final _childKey = GlobalKey();
 
   @override
   void initState() {
@@ -338,6 +343,11 @@ class _SelectableFeedHostState extends State<SelectableFeedHost> {
         _controller.syncEnabledFromLayout(
           constraints.maxWidth >= AppBreakpoints.medium,
         );
+        final useTopInlineBar =
+            (DesktopCommandBarScope.isActiveOf(context) ||
+                usePointerOverlay(context)) &&
+            constraints.hasBoundedHeight;
+        final feedChild = KeyedSubtree(key: _childKey, child: widget.child);
         return FeedSelectionScope(
           controller: _controller,
           child: Shortcuts(
@@ -358,21 +368,33 @@ class _SelectableFeedHostState extends State<SelectableFeedHost> {
                   _controller,
                 ),
               },
-              child: Stack(
-                fit: StackFit.passthrough,
-                children: [
-                  widget.child,
-                  PositionedDirectional(
-                    start: FuncSpacing.lg,
-                    end: FuncSpacing.lg,
-                    bottom:
-                        MediaQuery.paddingOf(context).bottom + FuncSpacing.lg,
-                    child: Center(
-                      child: FeedBatchActionBar(controller: _controller),
+              child: useTopInlineBar
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        FeedBatchActionBar(
+                          controller: _controller,
+                          inlineTop: true,
+                        ),
+                        Expanded(child: feedChild),
+                      ],
+                    )
+                  : Stack(
+                      fit: StackFit.passthrough,
+                      children: [
+                        feedChild,
+                        PositionedDirectional(
+                          start: FuncSpacing.lg,
+                          end: FuncSpacing.lg,
+                          bottom:
+                              MediaQuery.paddingOf(context).bottom +
+                              FuncSpacing.lg,
+                          child: Center(
+                            child: FeedBatchActionBar(controller: _controller),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
-              ),
             ),
           ),
         );
@@ -487,24 +509,127 @@ class FeedSelectionHeaderStrip extends StatelessWidget {
   }
 }
 
-/// Floating bottom action bar rendered by [SelectableFeedHost] while items
+/// Contextual batch action bar rendered by [SelectableFeedHost] while items
 /// are selected (`Download Original`, `Public Bookmark`, `Private Bookmark`,
-/// `Clear Selection`).
+/// `Clear Selection`): an inline top toolbar on desktop pointer layouts and a
+/// floating bottom pill on touch tablets.
 class FeedBatchActionBar extends ConsumerWidget {
-  const FeedBatchActionBar({super.key, required this.controller});
+  const FeedBatchActionBar({
+    super.key,
+    required this.controller,
+    this.inlineTop = false,
+  });
 
   final FeedSelectionController controller;
+  final bool inlineTop;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return ListenableBuilder(
+    final (duration, curve) = MotionTokens.springCurve(
+      context,
+      MotionSpring.spatialFast,
+    );
+    final content = ListenableBuilder(
       listenable: controller,
       builder: (context, _) {
         if (!controller.hasSelection) {
           return const SizedBox.shrink();
         }
         final l10n = context.l10n;
-        final colors = Theme.of(context).colorScheme;
+        final theme = Theme.of(context);
+        final colors = theme.colorScheme;
+        final tokens = theme.extension<FuncSemanticTokens>();
+        final actions = <Widget>[
+          TextButton.icon(
+            onPressed: controller.selectAll,
+            icon: const Icon(Icons.select_all, size: 18),
+            label: Text(l10n.selectAll),
+          ),
+          TextButton.icon(
+            onPressed: () =>
+                unawaited(_downloadSelected(context, ref, controller)),
+            icon: const Icon(Icons.download_outlined, size: 18),
+            label: Text(l10n.batchDownloadOriginal),
+          ),
+          TextButton.icon(
+            onPressed: () => unawaited(
+              _bookmarkSelected(
+                context,
+                ref,
+                controller,
+                BookmarkRestrict.public,
+              ),
+            ),
+            icon: const Icon(Icons.favorite_border, size: 18),
+            label: Text(l10n.batchBookmarkPublic),
+          ),
+          TextButton.icon(
+            onPressed: () => unawaited(
+              _bookmarkSelected(
+                context,
+                ref,
+                controller,
+                BookmarkRestrict.private,
+              ),
+            ),
+            icon: const Icon(Icons.lock_outline, size: 18),
+            label: Text(l10n.batchBookmarkPrivate),
+          ),
+          IconButton(
+            onPressed: controller.clearSelection,
+            icon: const Icon(Icons.close, size: 18),
+            tooltip: l10n.batchClearSelection,
+          ),
+        ];
+
+        if (inlineTop) {
+          return Material(
+            key: const Key('feed-batch-action-bar'),
+            color: colors.surfaceContainerLow,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(
+                    color: tokens?.brandHairline ?? colors.outlineVariant,
+                  ),
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: FuncSpacing.lg - FuncSpacing.xxs,
+                  vertical: FuncSpacing.xxs,
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.check_circle, size: 18, color: colors.primary),
+                    const SizedBox(width: FuncSpacing.sm),
+                    Text(
+                      l10n.selectedCount(controller.selectedCount),
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        color: colors.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(width: FuncSpacing.md),
+                    Expanded(
+                      child: Align(
+                        alignment: AlignmentDirectional.centerEnd,
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: actions,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }
+
         return Material(
           key: const Key('feed-batch-action-bar'),
           color: colors.surfaceContainerHigh,
@@ -525,54 +650,22 @@ class FeedBatchActionBar extends ConsumerWidget {
               children: [
                 Text(
                   l10n.selectedCount(controller.selectedCount),
-                  style: Theme.of(context).textTheme.labelLarge,
+                  style: theme.textTheme.labelLarge,
                 ),
                 const SizedBox(width: FuncSpacing.xs),
-                TextButton.icon(
-                  onPressed: controller.selectAll,
-                  icon: const Icon(Icons.select_all, size: 18),
-                  label: Text(l10n.selectAll),
-                ),
-                TextButton.icon(
-                  onPressed: () =>
-                      unawaited(_downloadSelected(context, ref, controller)),
-                  icon: const Icon(Icons.download_outlined, size: 18),
-                  label: Text(l10n.batchDownloadOriginal),
-                ),
-                TextButton.icon(
-                  onPressed: () => unawaited(
-                    _bookmarkSelected(
-                      context,
-                      ref,
-                      controller,
-                      BookmarkRestrict.public,
-                    ),
-                  ),
-                  icon: const Icon(Icons.favorite_border, size: 18),
-                  label: Text(l10n.batchBookmarkPublic),
-                ),
-                TextButton.icon(
-                  onPressed: () => unawaited(
-                    _bookmarkSelected(
-                      context,
-                      ref,
-                      controller,
-                      BookmarkRestrict.private,
-                    ),
-                  ),
-                  icon: const Icon(Icons.lock_outline, size: 18),
-                  label: Text(l10n.batchBookmarkPrivate),
-                ),
-                IconButton(
-                  onPressed: controller.clearSelection,
-                  icon: const Icon(Icons.close, size: 18),
-                  tooltip: l10n.batchClearSelection,
-                ),
+                ...actions,
               ],
             ),
           ),
         );
       },
+    );
+    if (!inlineTop) return content;
+    return AnimatedSize(
+      duration: duration,
+      curve: curve,
+      alignment: Alignment.topCenter,
+      child: content,
     );
   }
 
@@ -698,23 +791,29 @@ class _FeedSelectableCardDecoratorState
                   controller.hasSelection ||
                   (_hovered && modality == InputModality.pointer));
           return Stack(
+            clipBehavior: Clip.none,
             children: [
               FeedSelectionCornerScope(occupied: showBadge, child: child!),
               if (selected)
-                Positioned.fill(
+                Positioned(
+                  left: -FuncSpacing.xs,
+                  top: -FuncSpacing.xs,
+                  right: -FuncSpacing.xs,
+                  bottom: -(FuncSpacing.xs + FuncSpacing.xxs),
                   child: IgnorePointer(
                     child: DecoratedBox(
                       decoration: BoxDecoration(
-                        borderRadius: FuncShape.card,
-                        border: Border.all(color: colors.primary, width: 2.5),
+                        color: colors.primary.withValues(alpha: 0.06),
+                        borderRadius: FuncShape.panel,
+                        border: Border.all(color: colors.primary, width: 2),
                       ),
                     ),
                   ),
                 ),
               if (showBadge)
                 PositionedDirectional(
-                  top: FuncSpacing.xs,
-                  start: FuncSpacing.xs,
+                  top: FuncSpacing.xs + FuncSpacing.xxs,
+                  start: FuncSpacing.xs + FuncSpacing.xxs,
                   child: Semantics(
                     button: true,
                     selected: selected,

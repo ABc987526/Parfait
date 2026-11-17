@@ -4,8 +4,6 @@ import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/bookmark/bookmark_models.dart';
-import '../../../core/bookmark/bookmark_store.dart';
 import '../../../core/entity/illust_entity.dart';
 import '../../../core/image/image_worker_providers.dart';
 import '../../format/app_format.dart';
@@ -16,9 +14,7 @@ import '../../../core/settings/app_settings.dart';
 import '../../../core/settings/settings_controller.dart';
 import '../../../l10n/context.dart';
 import '../../layout/input_modality.dart';
-import '../../person_avatar.dart';
 import '../../theme/func_semantic_tokens.dart';
-import '../../theme/func_tokens.dart';
 import '../../motion/hero_transition.dart';
 import '../../motion/motion_tokens.dart';
 import '../smooth_wheel_scroll.dart';
@@ -265,13 +261,6 @@ class _IllustCardBody extends ConsumerWidget {
       );
     }
 
-    final bookmarked = ref.watch(
-      bookmarkStoreProvider.select(
-        (s) =>
-            s[BookmarkKey(BookmarkEntityType.illust, entity.id)]?.shown ??
-            false,
-      ),
-    );
     final inspector = DesktopInspectorScope.watchOf(context);
     final previewHeight = cardWidth * preview.heightRatio;
     final image = _buildImage(
@@ -407,10 +396,8 @@ class _IllustCardBody extends ConsumerWidget {
         // bounds, so the extra clip only cost a saveLayer per card per
         // frame while scrolling.
         child: _HoverLayer(
-          entity: entity,
           isPointer: isPointer,
           muted: muted,
-          bookmarked: bookmarked,
           child: SizedBox(
             width: cardWidth,
             height: previewHeight,
@@ -743,23 +730,19 @@ class _StandInPrefetchState extends ConsumerState<_StandInPrefetch> {
   Widget build(BuildContext context) => widget.child;
 }
 
-/// The M3 hover state layer over the preview, subtle border highlight, quick
-/// author/bookmark hover pills and link cursor: with a mouse the card otherwise
-/// gave no sign it opens. Touch never hovers, so on a phone this is an empty
-/// decoration and the card body never rebuilds for it.
+/// The M3 hover state layer over the preview, subtle border highlight, and
+/// link cursor: with a mouse the card otherwise gave no sign it opens. Touch
+/// never hovers, so on a phone this is an empty decoration and the card body
+/// never rebuilds for it.
 class _HoverLayer extends StatefulWidget {
   const _HoverLayer({
-    required this.entity,
     required this.isPointer,
     required this.muted,
-    required this.bookmarked,
     required this.child,
   });
 
-  final IllustEntity entity;
   final bool isPointer;
   final bool muted;
-  final bool bookmarked;
   final Widget child;
 
   @override
@@ -778,88 +761,7 @@ class _HoverLayerState extends State<_HoverLayer> {
 
   @override
   Widget build(BuildContext context) {
-    final showPointerChrome = _hovered && widget.isPointer && !widget.muted;
     final colorScheme = Theme.of(context).colorScheme;
-    final child = showPointerChrome
-        ? Stack(
-            fit: StackFit.passthrough,
-            children: [
-              widget.child,
-              PositionedDirectional(
-                start: widget.entity.isUgoira ? 38 : 7,
-                bottom: 7,
-                end: (!widget.bookmarked || widget.entity.isAi) ? 40 : 7,
-                child: Align(
-                  alignment: AlignmentDirectional.bottomStart,
-                  child: Material(
-                    color: FuncTokens.imageControl,
-                    borderRadius: FuncShape.pill,
-                    clipBehavior: Clip.antiAlias,
-                    child: InkWell(
-                      onTap: widget.entity.user.id > 0
-                          ? () => unawaited(
-                              openUser(context, widget.entity.user.id),
-                            )
-                          : null,
-                      child: Padding(
-                        padding: const EdgeInsetsDirectional.fromSTEB(
-                          4,
-                          3,
-                          8,
-                          3,
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            PersonAvatar(
-                              imageUrl: widget.entity.user.profileImageUrl,
-                              radius: 9,
-                            ),
-                            const SizedBox(width: FuncSpacing.xs),
-                            Flexible(
-                              child: Text(
-                                widget.entity.user.name,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: Theme.of(context).textTheme.labelSmall
-                                    ?.copyWith(color: FuncTokens.white),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              if (!widget.bookmarked)
-                PositionedDirectional(
-                  end: 7,
-                  bottom: 7,
-                  child: Material(
-                    color: FuncTokens.imageControl,
-                    shape: const CircleBorder(),
-                    clipBehavior: Clip.antiAlias,
-                    child: SizedBox.square(
-                      dimension: 28,
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: IconTheme(
-                          data: const IconThemeData(color: FuncTokens.white),
-                          child: BookmarkSwitchButton(
-                            illustId: widget.entity.id,
-                            title: widget.entity.title,
-                            isButton: false,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          )
-        : widget.child;
-
     return ScrollAwareHoverRegion(
       cursor: SystemMouseCursors.click,
       onHover: _setHovered,
@@ -877,7 +779,7 @@ class _HoverLayerState extends State<_HoverLayer> {
                 borderRadius: FuncShape.card,
               )
             : const BoxDecoration(),
-        child: child,
+        child: widget.child,
       ),
     );
   }

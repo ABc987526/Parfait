@@ -2,9 +2,11 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:material_ui/material_ui.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../app/motion/app_overlays.dart';
 import '../../app/motion/motion_tokens.dart';
 import '../../app/motion/reveal.dart';
@@ -19,9 +21,12 @@ import '../../app/icons/app_icons.dart';
 import '../../app/widgets/app_snack_bar.dart';
 import '../../app/widgets/app_tab_bar.dart';
 import '../../app/widgets/app_top_bar.dart';
+import '../../app/widgets/feed/desktop_gallery_controls.dart';
 import '../../app/widgets/feed/feed_states.dart';
+import '../../app/widgets/fit_label.dart';
 import '../../app/widgets/replica_scaffold.dart';
 import '../../app/widgets/follow_switch_button.dart';
+import '../../app/window/desktop_command_bar.dart';
 import '../../core/auth/account_store.dart';
 import '../../core/download/author_works_enumerator.dart';
 import '../../core/network/api_error.dart';
@@ -432,7 +437,7 @@ class _UserPageState extends ConsumerState<UserPage>
       _ProfileTab.series => user.totalIllustSeries,
       _ => null,
     };
-    return count == null ? null : _WorksTotal(count: count);
+    return count == null || count <= 0 ? null : _WorksTotal(count: count);
   }
 
   /// Opens [tab] — or, when it is already open, scrolls it to the top. Null
@@ -781,157 +786,280 @@ class _UserPageState extends ConsumerState<UserPage>
   }) {
     final l10n = context.l10n;
     final theme = Theme.of(context);
+    final tokens = theme.extension<FuncSemanticTokens>();
+    final hairline = tokens?.brandHairline ?? theme.colorScheme.outlineVariant;
+    final useDesktopChrome = DesktopCommandBarScope.isActiveOf(context);
     final bio = user.comment?.trim();
     final stats = _headerStats(user);
+    final overflowMenu = ProfileSecondaryMenuButton(
+      isMe: widget.isMe,
+      isFollowed: followed,
+      onFollowPrivately: onFollowPrivately,
+      onDownloadAll: onDownloadAll,
+      onCopyLink: onCopyLink,
+      isMuted: muted,
+      onToggleMute: onToggleMute,
+    );
+    const sidebarWidth = 332.0;
+    const sidebarInnerWidth = sidebarWidth - 4 * FuncSpacing.lg;
+    const minInlineNameWidth = 96.0;
+    final hasEditAction = widget.isMe && widget.onEditProfile != null;
+    final hasFollowAction = !widget.isMe;
+    final actionLabel = hasEditAction
+        ? l10n.profileEditTitle
+        : (hasFollowAction ? (followed ? l10n.followed : l10n.follow) : null);
+    final labelStyle = LabelFit.paintedStyle(
+      context,
+      (theme.textTheme.labelLarge ?? const TextStyle()).copyWith(
+        fontWeight: FontWeight.w600,
+      ),
+    );
+    final actionLabelWidth = actionLabel == null
+        ? 0.0
+        : LabelFit.measureLabel(
+            actionLabel,
+            labelStyle,
+            MediaQuery.textScalerOf(context),
+            Directionality.of(context),
+            locale: Localizations.maybeLocaleOf(context),
+          );
+    final primaryActionWidth = hasEditAction
+        ? actionLabelWidth + 2 * FuncSpacing.xl
+        : (hasFollowAction
+              ? math.max(116.0, actionLabelWidth + 2 * FuncSpacing.md)
+              : 0.0);
+    final inlineActionsWidth =
+        kMinInteractiveDimension +
+        (primaryActionWidth > 0 ? FuncSpacing.xs + primaryActionWidth : 0.0);
+    final stackHeaderActions =
+        sidebarInnerWidth - inlineActionsWidth < minInlineNameWidth;
+    final shareButton = Builder(
+      builder: (buttonContext) => IconButton(
+        tooltip: l10n.profileShare,
+        onPressed: () => unawaited(_shareProfile(buttonContext, ref, user)),
+        icon: const Icon(Icons.share_outlined),
+      ),
+    );
+    final Widget? primaryAction = hasEditAction
+        ? FilledButton.tonal(
+            onPressed: widget.onEditProfile,
+            child: Text(
+              l10n.profileEditTitle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          )
+        : (hasFollowAction
+              ? FollowSwitchButton(
+                  userId: user.id,
+                  userName: user.name,
+                  userAccount: user.account,
+                )
+              : null);
+    final scrollBehavior = ScrollConfiguration.of(context);
+    final tabDragBehavior = scrollBehavior.copyWith(
+      dragDevices: {
+        ...scrollBehavior.dragDevices,
+        PointerDeviceKind.touch,
+        PointerDeviceKind.mouse,
+        PointerDeviceKind.trackpad,
+      },
+    );
     return KeyedSubtree(
       key: const ValueKey('profile-wide-split'),
       child: Column(
         children: [
-          AppTopBar(
-            title: Text(
-              user.name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            actions: [
-              ProfileSecondaryMenuButton(
-                isMe: widget.isMe,
-                isFollowed: followed,
-                onFollowPrivately: onFollowPrivately,
-                onDownloadAll: onDownloadAll,
-                onCopyLink: onCopyLink,
-                isMuted: muted,
-                onToggleMute: onToggleMute,
+          if (!useDesktopChrome)
+            AppTopBar(
+              title: Text(
+                user.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
-            ],
-          ),
+              actions: [overflowMenu],
+            ),
           staleBanner,
           Expanded(
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 SizedBox(
-                  width: 332,
+                  width: sidebarWidth,
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.all(FuncSpacing.lg),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        SizedBox(
-                          height: 108 + 28,
-                          child: Stack(
-                            clipBehavior: Clip.none,
-                            children: [
-                              Positioned(
-                                top: 0,
-                                left: 0,
-                                right: 0,
-                                height: 108,
-                                child: ClipRRect(
-                                  borderRadius: FuncShape.card,
-                                  child: ProfileBannerBackground(user: user),
-                                ),
-                              ),
-                              PositionedDirectional(
-                                start: FuncSpacing.sm,
-                                bottom: 0,
-                                child: KeyedSubtree(
-                                  key: const ValueKey(
-                                    'profile-expanded-avatar',
-                                  ),
-                                  child: PersonAvatar(
-                                    imageUrl: user.profileImageUrl,
-                                    radius: 36,
-                                    ring: true,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: FuncSpacing.md),
-                        Row(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surface,
+                        borderRadius: FuncShape.card,
+                        border: Border.all(color: hairline),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: FuncShape.card,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Flexible(
-                              fit: FlexFit.loose,
-                              child: Text(
-                                key: const ValueKey('profile-expanded-name'),
-                                user.name,
-                                style: theme.textTheme.titleLarge?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                            SizedBox(
+                              height: 108 + 28,
+                              child: Stack(
+                                clipBehavior: Clip.none,
+                                children: [
+                                  Positioned(
+                                    top: 0,
+                                    left: 0,
+                                    right: 0,
+                                    height: 108,
+                                    child: ProfileBannerBackground(user: user),
+                                  ),
+                                  PositionedDirectional(
+                                    start: FuncSpacing.lg,
+                                    bottom: 0,
+                                    child: KeyedSubtree(
+                                      key: const ValueKey(
+                                        'profile-expanded-avatar',
+                                      ),
+                                      child: PersonAvatar(
+                                        imageUrl: user.profileImageUrl,
+                                        radius: 36,
+                                        ring: true,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                            Builder(
-                              builder: (buttonContext) => IconButton(
-                                tooltip: l10n.profileShare,
-                                onPressed: () => unawaited(
-                                  _shareProfile(buttonContext, ref, user),
-                                ),
-                                icon: const Icon(Icons.share_outlined),
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(
+                                FuncSpacing.lg,
+                                FuncSpacing.md,
+                                FuncSpacing.lg,
+                                FuncSpacing.lg,
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (stackHeaderActions)
+                                    Text(
+                                      key: const ValueKey(
+                                        'profile-expanded-name',
+                                      ),
+                                      user.name,
+                                      style: theme.textTheme.titleLarge
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    )
+                                  else
+                                    Row(
+                                      children: [
+                                        Flexible(
+                                          fit: FlexFit.loose,
+                                          child: Text(
+                                            key: const ValueKey(
+                                              'profile-expanded-name',
+                                            ),
+                                            user.name,
+                                            style: theme.textTheme.titleLarge
+                                                ?.copyWith(
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                        shareButton,
+                                        if (primaryAction != null) ...[
+                                          const SizedBox(width: FuncSpacing.xs),
+                                          primaryAction,
+                                        ],
+                                      ],
+                                    ),
+                                  if (user.account.isNotEmpty) ...[
+                                    const SizedBox(height: FuncSpacing.xxs),
+                                    Text(
+                                      '@${user.account}',
+                                      style: theme.textTheme.bodyMedium
+                                          ?.copyWith(
+                                            color: theme
+                                                .colorScheme
+                                                .onSurfaceVariant,
+                                          ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                  if (stackHeaderActions) ...[
+                                    const SizedBox(height: FuncSpacing.sm),
+                                    Row(
+                                      children: [
+                                        shareButton,
+                                        if (primaryAction != null) ...[
+                                          const SizedBox(width: FuncSpacing.xs),
+                                          Flexible(child: primaryAction),
+                                        ],
+                                      ],
+                                    ),
+                                  ],
+                                  if (stats.isNotEmpty) ...[
+                                    const SizedBox(height: FuncSpacing.sm),
+                                    ProfileStatRow(stats: stats),
+                                  ],
+                                  if (bio != null && bio.isNotEmpty) ...[
+                                    const SizedBox(height: FuncSpacing.md),
+                                    SelectableText(
+                                      bio,
+                                      style: theme.textTheme.bodyMedium,
+                                    ),
+                                  ],
+                                ],
                               ),
                             ),
-                            const SizedBox(width: FuncSpacing.xs),
-                            if (widget.isMe && widget.onEditProfile != null)
-                              FilledButton.tonal(
-                                onPressed: widget.onEditProfile,
-                                child: Text(l10n.profileEditTitle),
-                              )
-                            else if (!widget.isMe)
-                              FollowSwitchButton(
-                                userId: user.id,
-                                userName: user.name,
-                                userAccount: user.account,
-                              ),
                           ],
                         ),
-                        if (user.account.isNotEmpty) ...[
-                          const SizedBox(height: FuncSpacing.xxs),
-                          Text(
-                            '@${user.account}',
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                        if (stats.isNotEmpty) ...[
-                          const SizedBox(height: FuncSpacing.sm),
-                          ProfileStatRow(stats: stats),
-                        ],
-                        if (bio != null && bio.isNotEmpty) ...[
-                          const SizedBox(height: FuncSpacing.md),
-                          const Divider(),
-                          const SizedBox(height: FuncSpacing.sm),
-                          SelectableText(
-                            bio,
-                            style: theme.textTheme.bodyMedium,
-                          ),
-                        ],
-                      ],
+                      ),
                     ),
                   ),
                 ),
-                const VerticalDivider(width: 1),
+                VerticalDivider(width: 1, thickness: 1, color: hairline),
                 Expanded(
                   child: Column(
                     children: [
                       Material(
                         key: const ValueKey('profile-tabs'),
                         color: theme.scaffoldBackgroundColor,
-                        child: SizedBox(
-                          height: kToolbarHeight,
-                          child: AppTabBar(
-                            controller: tabController,
-                            onTap: _onTabTap,
-                            labels: [for (final tab in _tabs) _tabLabel(tab)],
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            border: Border(bottom: BorderSide(color: hairline)),
+                          ),
+                          child: SizedBox(
+                            height: useDesktopChrome ? 52 : kToolbarHeight,
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: ScrollConfiguration(
+                                    behavior: tabDragBehavior,
+                                    child: AppTabBar(
+                                      controller: tabController,
+                                      onTap: _onTabTap,
+                                      labels: [
+                                        for (final tab in _tabs) _tabLabel(tab),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                if (useDesktopChrome) ...[
+                                  DesktopGalleryControls(
+                                    visible: _showsIllustGallery(_selectedTab),
+                                  ),
+                                  overflowMenu,
+                                  const SizedBox(width: FuncSpacing.xs),
+                                ],
+                              ],
+                            ),
                           ),
                         ),
                       ),
-                      const Divider(height: 1),
                       Expanded(
                         child: DesktopInspectableGallery(
                           active: _showsIllustGallery(_selectedTab),

@@ -18,6 +18,7 @@ import '../../app/widgets/edge_icon_buttons.dart';
 import '../../app/widgets/errors/error_details.dart';
 import '../../app/widgets/entity_row.dart';
 import '../../app/widgets/feed/feed_states.dart';
+import '../../app/widgets/smooth_wheel_scroll.dart';
 import '../../core/localnovel/local_novel_decoder.dart';
 import '../../core/localnovel/local_novel_repository.dart';
 import '../../core/localnovel/local_novel_store.dart';
@@ -48,6 +49,7 @@ class _LocalNovelsPageState extends ConsumerState<LocalNovelsPage> {
     final async = ref.watch(localNovelStoreProvider);
     return Scaffold(
       appBar: AppTopBar(
+        contentWidth: ContentWidths.management,
         title: Text(context.l10n.localNovelsTitle),
         actions: [
           IconButton(
@@ -73,7 +75,7 @@ class _LocalNovelsPageState extends ConsumerState<LocalNovelsPage> {
             data: (novels) {
               if (novels.isEmpty) {
                 return FeedEmpty(
-                  icon: Icons.menu_book_outlined,
+                  icon: Icons.auto_stories_outlined,
                   title: context.l10n.localNovelsEmpty,
                   actionLabel: context.l10n.localNovelsImport,
                   actionIcon: Icons.file_open_outlined,
@@ -84,12 +86,16 @@ class _LocalNovelsPageState extends ConsumerState<LocalNovelsPage> {
                 onRefresh: () async => ref.invalidate(localNovelStoreProvider),
                 child: RemovalScope(
                   controller: _removals,
-                  child: ListView.builder(
-                    restorationId: 'local-novels',
-                    itemCount: novels.length,
-                    itemBuilder: (context, index) => Removable(
-                      id: novels[index].id,
-                      child: _LocalNovelTile(novel: novels[index]),
+                  child: SmoothWheelScroll(
+                    builder: (context, controller, physics) => ListView.builder(
+                      controller: controller,
+                      physics: physics,
+                      restorationId: 'local-novels',
+                      itemCount: novels.length,
+                      itemBuilder: (context, index) => Removable(
+                        id: novels[index].id,
+                        child: _LocalNovelTile(novel: novels[index]),
+                      ),
                     ),
                   ),
                 ),
@@ -173,7 +179,7 @@ class _LocalNovelTile extends ConsumerWidget {
           color: Theme.of(context).colorScheme.surfaceContainer,
           borderRadius: FuncShape.control,
         ),
-        child: const Icon(Icons.menu_book_outlined),
+        child: const Icon(Icons.auto_stories_outlined),
       ),
       title: novel.title,
       meta: meta,

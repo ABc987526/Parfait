@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../app/layout/app_breakpoints.dart';
 import '../../app/layout/content_widths.dart';
 import '../../app/motion/app_overlays.dart';
 import '../../app/motion/reveal.dart';
@@ -12,6 +11,7 @@ import '../../app/person_avatar.dart';
 import '../../app/pixiv_image.dart';
 import '../../app/widgets/app_top_bar.dart';
 import '../../app/widgets/feed/feed_states.dart';
+import '../../app/window/desktop_command_bar.dart';
 import '../../core/platform/platform_caps.dart';
 import '../../core/reverse_image/desktop_image_input.dart';
 import '../../core/auth/account_store.dart';
@@ -200,6 +200,9 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
     final contentMaxWidth = _profileEditContentMaxWidth(
       MediaQuery.widthOf(context),
     );
+    final suppressBack =
+        DesktopCommandBarScope.isActiveOf(context) &&
+        !EmbeddedHeaderScope.isActiveOf(context);
     return PopScope(
       canPop: !hasUnsaved,
       onPopInvokedWithResult: (didPop, _) {
@@ -207,12 +210,16 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
       },
       child: Scaffold(
         appBar: AppTopBar(
+          contentWidth: ContentWidths.form,
           title: Text(context.l10n.profileEditTitle),
-          leading: IconButton(
-            tooltip: MaterialLocalizations.of(context).backButtonTooltip,
-            onPressed: _attemptPop,
-            icon: const Icon(Icons.arrow_back),
-          ),
+          automaticallyImplyLeading: false,
+          leading: suppressBack
+              ? null
+              : IconButton(
+                  tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+                  onPressed: _attemptPop,
+                  icon: const BackButtonIcon(),
+                ),
         ),
         body: Center(
           child: ConstrainedBox(
@@ -720,9 +727,7 @@ class _EditBadge extends StatelessWidget {
 }
 
 double _profileEditContentMaxWidth(double availableWidth) =>
-    availableWidth >= AppBreakpoints.large
-    ? ContentWidths.form
-    : availableWidth;
+    availableWidth >= ContentWidths.form ? ContentWidths.form : availableWidth;
 
 class _Notice extends StatelessWidget {
   const _Notice({required this.icon, required this.text});

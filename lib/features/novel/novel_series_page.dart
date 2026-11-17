@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../app/layout/card_columns.dart';
+import '../../app/layout/content_widths.dart';
 import '../../app/layout/deferred_cache_scroll_view.dart';
 import '../../app/navigation/routes.dart';
 import '../../app/pull_to_refresh.dart';
@@ -37,27 +38,74 @@ import '../../l10n/context.dart';
 /// and reading actions, then its novels in series order, each under its
 /// 「第 n 话」. A restricted novel keeps its place and says why it cannot
 /// open.
-class NovelSeriesFeedPage extends ConsumerWidget {
+class NovelSeriesFeedPage extends ConsumerStatefulWidget {
   const NovelSeriesFeedPage({super.key, required this.seriesId});
 
   final int seriesId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<NovelSeriesFeedPage> createState() =>
+      _NovelSeriesFeedPageState();
+}
+
+class _NovelSeriesFeedPageState extends ConsumerState<NovelSeriesFeedPage> {
+  final _titleReveal = ValueNotifier<double>(0);
+
+  @override
+  void dispose() {
+    _titleReveal.dispose();
+    super.dispose();
+  }
+
+  bool _onScroll(ScrollNotification notification) {
+    if (notification.depth == 0 && notification.metrics.axis == Axis.vertical) {
+      final next = ((notification.metrics.pixels - 36.0) / 52.0).clamp(
+        0.0,
+        1.0,
+      );
+      if ((next - _titleReveal.value).abs() > 0.005) {
+        _titleReveal.value = next;
+      }
+    }
+    return false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final seriesId = widget.seriesId;
     final l10n = context.l10n;
     final async = ref.watch(novelSeriesFeedProvider(seriesId));
     final controller = ref.read(novelSeriesFeedProvider(seriesId).notifier);
     final info = ref.watch(novelSeriesInfoProvider(seriesId));
     final header = info.header;
+    final feedValue = async.asData?.value;
+    final hasHeaderTitle =
+        header?.title != null &&
+        feedValue != null &&
+        !feedValue.showInitialError &&
+        !feedValue.showInitialSpinner;
+    final titleText = Text(
+      header?.title ?? l10n.novelSeries,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
     Widget skeleton() =>
         NovelListSkeleton(label: l10n.contentLoading, overline: true);
     return Scaffold(
       appBar: AppTopBar(
-        title: Text(
-          header?.title ?? l10n.novelSeries,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
+        title: hasHeaderTitle
+            ? ValueListenableBuilder<double>(
+                valueListenable: _titleReveal,
+                builder: (context, reveal, child) => Opacity(
+                  opacity: reveal,
+                  child: ExcludeSemantics(
+                    excluding: reveal < 0.5,
+                    child: child,
+                  ),
+                ),
+                child: titleText,
+              )
+            : titleText,
       ),
       body: async.when(
         loading: skeleton,
@@ -105,52 +153,58 @@ class NovelSeriesFeedPage extends ConsumerWidget {
             child: LoadMoreListener(
               itemCount: feed.ids.length,
               onLoadMore: controller.loadMore,
-              child: SmoothWheelScroll(
-                basePhysics: const AlwaysScrollableScrollPhysics(),
-                builder: (context, scroll, physics) => DeferredCacheScrollView(
-                  key: PageStorageKey('novel-series-$seriesId'),
-                  physics: physics,
-                  scrollCacheExtent: kFeedCacheExtent,
-                  restorationId: 'novel-series-$seriesId',
-                  controller: scroll,
-                  slivers: [
-                    if (header != null)
-                      SliverToBoxAdapter(
-                        child: _SeriesHeader(series: header, info: info),
-                      ),
-                    if (rows.isEmpty)
-                      SliverFillRemaining(
-                        hasScrollBody: false,
-                        child: FeedEmpty(
-                          icon: Icons.library_books_outlined,
-                          title: l10n.seriesEmpty,
-                        ),
-                      )
-                    else
-                      SliverCardList(
-                        itemCount: rows.length,
-                        items: rows,
-                        // Where each row's 「第 n 话」 comes from.
-                        itemDeps: info.entries,
-                        itemBuilder: (context, index) => switch (rows[index]) {
-                          final NovelEntity novel => _NovelRow(
-                            novel: novel,
-                            order: info.entries[novel.id]?.contentOrder,
+              child: NotificationListener<ScrollNotification>(
+                onNotification: _onScroll,
+                child: SmoothWheelScroll(
+                  basePhysics: const AlwaysScrollableScrollPhysics(),
+                  builder: (context, scroll, physics) =>
+                      DeferredCacheScrollView(
+                        key: PageStorageKey('novel-series-$seriesId'),
+                        physics: physics,
+                        scrollCacheExtent: kFeedCacheExtent,
+                        restorationId: 'novel-series-$seriesId',
+                        controller: scroll,
+                        slivers: [
+                          if (header != null)
+                            SliverToBoxAdapter(
+                              child: _SeriesHeader(series: header, info: info),
+                            ),
+                          if (rows.isEmpty)
+                            SliverFillRemaining(
+                              hasScrollBody: false,
+                              child: FeedEmpty(
+                                icon: Icons.library_books_outlined,
+                                title: l10n.seriesEmpty,
+                              ),
+                            )
+                          else
+                            SliverCardList(
+                              itemCount: rows.length,
+                              items: rows,
+                              // Where each row's 「第 n 话」 comes from.
+                              itemDeps: info.entries,
+                              itemBuilder: (context, index) =>
+                                  switch (rows[index]) {
+                                    final NovelEntity novel => _NovelRow(
+                                      novel: novel,
+                                      order:
+                                          info.entries[novel.id]?.contentOrder,
+                                    ),
+                                    final row => _RestrictedRow(
+                                      entry: row as NovelSeriesEntry,
+                                    ),
+                                  },
+                            ),
+                          SliverToBoxAdapter(
+                            child: FeedTail(
+                              feed: feed,
+                              onRetry: controller.retryLoadMore,
+                              errorTitle: l10n.seriesLoadMoreFailed,
+                              retryLabel: l10n.retry,
+                            ),
                           ),
-                          final row => _RestrictedRow(
-                            entry: row as NovelSeriesEntry,
-                          ),
-                        },
+                        ],
                       ),
-                    SliverToBoxAdapter(
-                      child: FeedTail(
-                        feed: feed,
-                        onRetry: controller.retryLoadMore,
-                        errorTitle: l10n.seriesLoadMoreFailed,
-                        retryLabel: l10n.retry,
-                      ),
-                    ),
-                  ],
                 ),
               ),
             ),
@@ -269,41 +323,48 @@ class _SeriesHeaderState extends ConsumerState<_SeriesHeader> {
       if (detail.isConcluded) l10n.novelSeriesConcluded,
       if (detail.isOriginal) l10n.novelSeriesOriginal,
     ].join(' · ');
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        FuncSpacing.lg,
-        FuncSpacing.sm,
-        FuncSpacing.lg,
-        FuncSpacing.md,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (series.title case final title?)
-            Text(
-              title,
-              style: theme.textTheme.titleLarge,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          if (user != null)
-            AuthorRow(
-              userId: user.id,
-              name: user.name,
-              avatarUrl: user.profileImageUrl,
-            ),
-          if (facts.isNotEmpty) Text(facts, style: theme.textTheme.bodySmall),
-          const SizedBox(height: FuncSpacing.md),
-          _SeriesActions(series: series, info: widget.info),
-          if (detail.caption.isNotEmpty) ...[
-            const SizedBox(height: FuncSpacing.sm),
-            ExpandableText(
-              TextSpan(text: detail.caption),
-              maxLines: 3,
-              style: theme.textTheme.bodySmall,
-            ),
-          ],
-        ],
+    return Align(
+      alignment: AlignmentDirectional.topStart,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: ContentWidths.article),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            FuncSpacing.lg,
+            FuncSpacing.sm,
+            FuncSpacing.lg,
+            FuncSpacing.md,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (series.title case final title?)
+                Text(
+                  title,
+                  style: theme.textTheme.titleLarge,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              if (user != null)
+                AuthorRow(
+                  userId: user.id,
+                  name: user.name,
+                  avatarUrl: user.profileImageUrl,
+                ),
+              if (facts.isNotEmpty)
+                Text(facts, style: theme.textTheme.bodySmall),
+              const SizedBox(height: FuncSpacing.md),
+              _SeriesActions(series: series, info: widget.info),
+              if (detail.caption.isNotEmpty) ...[
+                const SizedBox(height: FuncSpacing.sm),
+                ExpandableText(
+                  TextSpan(text: detail.caption),
+                  maxLines: 3,
+                  style: theme.textTheme.bodySmall,
+                ),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }

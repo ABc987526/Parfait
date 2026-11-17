@@ -16,6 +16,7 @@ import '../../app/widgets/entity_row.dart';
 import '../../app/widgets/page_header.dart';
 import '../../app/widgets/errors/error_details.dart';
 import '../../app/widgets/feed/feed_states.dart';
+import '../../app/widgets/smooth_wheel_scroll.dart';
 import '../../core/auth/account_store.dart';
 import '../../core/errors/error_category.dart';
 import '../../core/log.dart';
@@ -41,6 +42,7 @@ class WatchlistPage extends StatelessWidget {
       length: 2,
       child: Scaffold(
         appBar: AppTopBar(
+          contentWidth: ContentWidths.management,
           title: Text(context.l10n.watchlistTitle),
           tabsBesideTitle: PageHeader.isWide(context),
           // The feeds sit one Scrollable deep inside the TabBarView's
@@ -97,14 +99,18 @@ class _WatchlistFeedBody extends ConsumerWidget {
                 itemCount: feed.entries.length,
                 onLoadMore: () =>
                     ref.read(watchlistFeedProvider(type).notifier).loadMore(),
-                child: ListView.builder(
-                  itemCount: feed.entries.length + 1,
-                  itemBuilder: (context, index) {
-                    if (index == feed.entries.length) {
-                      return _LoadMoreFooter(feed: feed);
-                    }
-                    return _WatchlistEntryTile(entry: feed.entries[index]);
-                  },
+                child: SmoothWheelScroll(
+                  builder: (context, controller, physics) => ListView.builder(
+                    controller: controller,
+                    physics: physics,
+                    itemCount: feed.entries.length + 1,
+                    itemBuilder: (context, index) {
+                      if (index == feed.entries.length) {
+                        return _LoadMoreFooter(feed: feed);
+                      }
+                      return _WatchlistEntryTile(entry: feed.entries[index]);
+                    },
+                  ),
                 ),
               ),
             );

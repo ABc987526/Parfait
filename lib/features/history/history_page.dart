@@ -15,6 +15,7 @@ import '../../app/layout/deferred_cache_scroll_view.dart';
 import '../../app/layout/input_modality.dart';
 import '../../app/widgets/app_top_bar.dart';
 import '../../app/widgets/errors/error_details.dart';
+import '../../app/widgets/feed/desktop_gallery_controls.dart';
 import '../../app/widgets/feed/feed_grid.dart';
 import '../../app/widgets/feed/feed_states.dart';
 import '../../app/widgets/feed/illust_card.dart';
@@ -262,6 +263,9 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
             : AppTopBar(
                 title: Text(context.l10n.historySettings),
                 actions: [
+                  DesktopGalleryControls(
+                    visible: accountId != null && !_managing,
+                  ),
                   // Spelled out like every list's manage entry: an icon
                   // alone did not read as "manage".
                   if (accountId != null)
@@ -519,8 +523,11 @@ class _HistoryBody extends ConsumerWidget {
                     restorationId: 'history-$accountId',
                     slivers: [
                       IllustFeedGrid(
-                        padding: const EdgeInsets.all(FuncSpacing.sm),
-                        mainAxisSpacing: FuncSpacing.sm,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: FuncSpacing.lg - FuncSpacing.xxs,
+                          vertical: FuncSpacing.sm,
+                        ),
+                        mainAxisSpacing: IllustFeedGrid.defaultMainAxisSpacing,
                         itemCount: entries.length,
                         warmTexts: (context, index) {
                           final record = entries[index].record;
@@ -815,7 +822,7 @@ class _NovelHistoryEntry extends StatelessWidget {
                             ? ColoredBox(
                                 color: colorScheme.surfaceContainer,
                                 child: const Icon(
-                                  Icons.menu_book_outlined,
+                                  Icons.auto_stories_outlined,
                                   size: 42,
                                 ),
                               )
@@ -831,7 +838,7 @@ class _NovelHistoryEntry extends StatelessWidget {
                     const Positioned(
                       left: 7,
                       top: 7,
-                      child: EntityBadge(icon: Icons.menu_book_outlined),
+                      child: EntityBadge(icon: Icons.auto_stories_outlined),
                     ),
                   ],
                 ),

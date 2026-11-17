@@ -35,7 +35,9 @@ import '../../l10n/context.dart';
 import '../../app/motion/reveal.dart';
 import '../../app/theme/func_semantic_tokens.dart';
 import '../../app/widgets/app_choice_chip.dart';
+import '../../app/layout/app_breakpoints.dart';
 import '../../app/layout/content_widths.dart';
+import '../../app/window/desktop_command_bar.dart';
 
 part 'reverse_image_search_widgets.dart';
 
@@ -190,14 +192,21 @@ class _ReverseImageSearchPageState
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(reverseImageSearchControllerProvider(_session));
+    final suppressBack =
+        DesktopCommandBarScope.isActiveOf(context) &&
+        !EmbeddedHeaderScope.isActiveOf(context);
     return Scaffold(
       appBar: AppTopBar(
+        contentWidth: ContentWidths.form,
         title: Text(context.l10n.searchReverseImage),
-        leading: IconButton(
-          tooltip: MaterialLocalizations.of(context).backButtonTooltip,
-          onPressed: _cancelAndPop,
-          icon: const Icon(Icons.arrow_back),
-        ),
+        automaticallyImplyLeading: false,
+        leading: suppressBack
+            ? null
+            : IconButton(
+                tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+                onPressed: _cancelAndPop,
+                icon: const BackButtonIcon(),
+              ),
       ),
       body: SafeArea(
         child: Column(
@@ -280,12 +289,37 @@ class _ReverseImageSearchPageState
   }
 
   Widget _idle(BuildContext context, ReverseImageFlowState state) {
+    final pickButton = FilledButton.icon(
+      onPressed: _controller.pick,
+      icon: const Icon(Icons.photo_library_outlined),
+      label: Text(context.l10n.searchReversePick),
+    );
+    final wide = MediaQuery.widthOf(context) >= AppBreakpoints.medium;
+    if (wide) {
+      return Align(
+        alignment: const Alignment(0, -0.15),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(FuncSpacing.xl),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.image_search_outlined, size: 72),
+              const SizedBox(height: FuncSpacing.lg),
+              Text(
+                context.l10n.searchReverseIntro,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: FuncSpacing.lg),
+              _engineChips(context, state),
+              const SizedBox(height: FuncSpacing.xl),
+              pickButton,
+            ],
+          ),
+        ),
+      );
+    }
     return _WithBottomAction(
-      action: FilledButton.icon(
-        onPressed: _controller.pick,
-        icon: const Icon(Icons.photo_library_outlined),
-        label: Text(context.l10n.searchReversePick),
-      ),
+      action: pickButton,
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(FuncSpacing.xl),
         child: Column(

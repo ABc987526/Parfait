@@ -73,6 +73,7 @@ class SpotlightArticlePage extends ConsumerWidget {
     );
     return Scaffold(
       appBar: AppTopBar(
+        contentWidth: ContentWidths.article,
         title: Text(
           entry?.title ?? context.l10n.spotlightTitle,
           maxLines: 1,
@@ -94,19 +95,25 @@ class SpotlightArticlePage extends ConsumerWidget {
         ],
       ),
       body: async.when(
-        loading: () => const FeedLoading(),
+        loading: () => const ContentWidthCap(
+          maxWidth: ContentWidths.article,
+          child: FeedLoading(),
+        ),
         error: (error, _) => error is ApiChallengeRequired
             ? SpotlightChallengeView(
                 uri: PixivSpotlightRepository.articleUri(_url),
                 contentBuilder: (body) =>
                     _articleBody(context, body, entry?.thumbnailUrl),
               )
-            : FeedError(
-                title: context.l10n.spotlightArticleLoadFailed,
-                error: error,
-                retryLabel: context.l10n.retry,
-                onRetry: () => ref.invalidate(
-                  spotlightArticleBodyProvider((id: articleId, url: _url)),
+            : ContentWidthCap(
+                maxWidth: ContentWidths.article,
+                child: FeedError(
+                  title: context.l10n.spotlightArticleLoadFailed,
+                  error: error,
+                  retryLabel: context.l10n.retry,
+                  onRetry: () => ref.invalidate(
+                    spotlightArticleBodyProvider((id: articleId, url: _url)),
+                  ),
                 ),
               ),
         // Article-width cap (a ContentWidths role, not a breakpoint): the

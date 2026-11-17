@@ -4,13 +4,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../app/layout/card_columns.dart';
+import '../../app/layout/deferred_cache_scroll_view.dart';
 import '../../app/navigation/routes.dart';
 import '../../app/pull_to_refresh.dart';
+import '../../app/theme/func_semantic_tokens.dart';
 import '../../app/widgets/app_top_bar.dart';
 import '../../app/widgets/errors/error_details.dart';
+import '../../app/widgets/feed/feed_grid.dart';
 import '../../app/widgets/feed/feed_states.dart';
 import '../../app/widgets/feed/load_more_listener.dart';
 import '../../app/widgets/novel_entry.dart';
+import '../../app/widgets/smooth_wheel_scroll.dart';
 import '../../core/entity/stored_entities.dart';
 import '../../core/network/api_error.dart';
 import '../../core/novel/novel_entity.dart';
@@ -60,37 +64,46 @@ class NovelMarkersPage extends ConsumerWidget {
             child: LoadMoreListener(
               itemCount: feed.ids.length,
               onLoadMore: controller.loadMore,
-              child: CustomScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                slivers: [
-                  if (novels.isEmpty)
-                    SliverFillRemaining(
-                      hasScrollBody: false,
-                      child: FeedEmpty(
-                        icon: Icons.bookmarks_outlined,
-                        title: l10n.novelMarkersEmpty,
+              child: SmoothWheelScroll(
+                basePhysics: const AlwaysScrollableScrollPhysics(),
+                builder: (context, scroll, physics) => DeferredCacheScrollView(
+                  controller: scroll,
+                  physics: physics,
+                  scrollCacheExtent: kFeedCacheExtent,
+                  restorationId: 'novel-markers',
+                  slivers: [
+                    if (novels.isEmpty)
+                      SliverFillRemaining(
+                        hasScrollBody: false,
+                        child: FeedEmpty(
+                          icon: Icons.bookmarks_outlined,
+                          title: l10n.novelMarkersEmpty,
+                        ),
+                      )
+                    else ...[
+                      SliverPadding(
+                        padding: const EdgeInsets.only(top: FuncSpacing.xs),
+                        sliver: SliverCardList(
+                          itemCount: novels.length,
+                          firstId: novels.first.id,
+                          warmTexts: (context, index) =>
+                              NovelEntry.warmTexts(context, novels[index]),
+                          items: novels,
+                          itemBuilder: (context, index) =>
+                              _MarkedNovelRow(novel: novels[index]),
+                        ),
                       ),
-                    )
-                  else ...[
-                    SliverCardList(
-                      itemCount: novels.length,
-                      firstId: novels.first.id,
-                      warmTexts: (context, index) =>
-                          NovelEntry.warmTexts(context, novels[index]),
-                      items: novels,
-                      itemBuilder: (context, index) =>
-                          _MarkedNovelRow(novel: novels[index]),
-                    ),
-                    SliverToBoxAdapter(
-                      child: FeedTail(
-                        feed: feed,
-                        onRetry: controller.retryLoadMore,
-                        errorTitle: l10n.novelMarkersLoadFailed,
-                        retryLabel: l10n.retry,
+                      SliverToBoxAdapter(
+                        child: FeedTail(
+                          feed: feed,
+                          onRetry: controller.retryLoadMore,
+                          errorTitle: l10n.novelMarkersLoadFailed,
+                          retryLabel: l10n.retry,
+                        ),
                       ),
-                    ),
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
           );

@@ -452,65 +452,58 @@ class _DownloadTasksPageState extends ConsumerState<DownloadTasksPage> {
                   ],
                 ],
               ),
-        body: tasks.isEmpty
-            ? FeedEmpty(title: context.l10n.downloadTasksEmpty)
-            // Management-list cap (parent §5.5).
-            : Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(
-                    maxWidth: ContentWidths.management,
-                  ),
-                  child: RemovalScope(
-                    controller: _removals,
-                    child: CustomScrollView(
-                      restorationId: 'download-tasks',
-                      slivers: [
-                        SliverPadding(
-                          // A group header brings _groupGap above it; the
-                          // surfaces keep the old cards' spacing.
-                          padding: EdgeInsets.fromLTRB(
-                            FuncSpacing.md,
-                            entries.first is _GroupedEntry
-                                ? FuncSpacing.sm + FuncSpacing.xs - _groupGap
-                                : FuncSpacing.sm,
-                            FuncSpacing.md,
-                            entries.last is _GroupedEntry
-                                ? FuncSpacing.sm + FuncSpacing.xs
-                                : FuncSpacing.sm,
-                          ),
-                          // One surface per group, drawn around its rows as
-                          // they are laid out: the outline follows rows
-                          // growing in, folding away and leaving. A task on
-                          // its own is a plain row.
-                          sliver: SliverSurfaceList.builder(
-                            groups: [
-                              for (final entry in entries)
-                                if (entry case _GroupedEntry(:final groupId))
-                                  groupId
-                                else
-                                  null,
-                            ],
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.surfaceContainer,
-                            borderRadius: FuncShape.card,
-                            leadingGap: _groupGap,
-                            findChildIndexCallback: (key) =>
-                                _indexOfKey(entries, key),
-                            itemBuilder: (context, index) => _row(
-                              entries[index],
-                              orderedTaskIds: orderedTaskIds,
-                              afterSurface:
-                                  index > 0 &&
-                                  entries[index - 1] is _GroupedEntry,
-                            ),
+        body: ContentWidthCap(
+          maxWidth: ContentWidths.management,
+          child: tasks.isEmpty
+              ? FeedEmpty(title: context.l10n.downloadTasksEmpty)
+              : RemovalScope(
+                  controller: _removals,
+                  child: CustomScrollView(
+                    restorationId: 'download-tasks',
+                    slivers: [
+                      SliverPadding(
+                        // A group header brings _groupGap above it; the
+                        // surfaces keep the page's 16dp margin (LAYOUT-14).
+                        padding: EdgeInsets.fromLTRB(
+                          FuncSpacing.lg,
+                          entries.first is _GroupedEntry
+                              ? FuncSpacing.sm + FuncSpacing.xs - _groupGap
+                              : FuncSpacing.sm,
+                          FuncSpacing.lg,
+                          entries.last is _GroupedEntry
+                              ? FuncSpacing.sm + FuncSpacing.xs
+                              : FuncSpacing.sm,
+                        ),
+                        // One surface per group, drawn around its rows as
+                        // they are laid out: the outline follows rows
+                        // growing in, folding away and leaving. A task on
+                        // its own is a plain row.
+                        sliver: SliverSurfaceList.builder(
+                          groups: [
+                            for (final entry in entries)
+                              if (entry case _GroupedEntry(:final groupId))
+                                groupId
+                              else
+                                null,
+                          ],
+                          color: Theme.of(context).colorScheme.surfaceContainer,
+                          borderRadius: FuncShape.card,
+                          leadingGap: _groupGap,
+                          findChildIndexCallback: (key) =>
+                              _indexOfKey(entries, key),
+                          itemBuilder: (context, index) => _row(
+                            entries[index],
+                            orderedTaskIds: orderedTaskIds,
+                            afterSurface:
+                                index > 0 &&
+                                entries[index - 1] is _GroupedEntry,
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
+        ),
       ),
     );
   }

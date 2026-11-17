@@ -33,6 +33,7 @@ import '../../app/widgets/watchlist_toggle.dart';
 import '../../l10n/context.dart';
 import '../../app/theme/func_semantic_tokens.dart';
 import '../../app/layout/card_columns.dart';
+import '../../app/layout/content_widths.dart';
 import '../../app/widgets/feed/load_more_listener.dart';
 
 /// One illust series: a header (cover/title/author/work count/caption) plus
@@ -40,22 +41,68 @@ import '../../app/widgets/feed/load_more_listener.dart';
 /// are rows, not a grid: a reader looks for "which episode", so the number
 /// and the title lead and the cover only identifies.
 
-class IllustSeriesPage extends ConsumerWidget {
+class IllustSeriesPage extends ConsumerStatefulWidget {
   const IllustSeriesPage({super.key, required this.seriesId});
 
   final int seriesId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<IllustSeriesPage> createState() => _IllustSeriesPageState();
+}
+
+class _IllustSeriesPageState extends ConsumerState<IllustSeriesPage> {
+  final _titleReveal = ValueNotifier<double>(0);
+
+  @override
+  void dispose() {
+    _titleReveal.dispose();
+    super.dispose();
+  }
+
+  bool _onScroll(ScrollNotification notification) {
+    if (notification.depth == 0 && notification.metrics.axis == Axis.vertical) {
+      final next = ((notification.metrics.pixels - 36.0) / 52.0).clamp(
+        0.0,
+        1.0,
+      );
+      if ((next - _titleReveal.value).abs() > 0.005) {
+        _titleReveal.value = next;
+      }
+    }
+    return false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final seriesId = widget.seriesId;
     final async = ref.watch(illustSeriesFeedProvider(seriesId));
     final detail = ref.watch(illustSeriesStoreProvider)[seriesId];
+    final feedValue = async.asData?.value;
+    final hasHeaderTitle =
+        detail != null &&
+        feedValue != null &&
+        !feedValue.showInitialError &&
+        !feedValue.showInitialSpinner;
+    final titleText = Text(
+      detail?.title ?? context.l10n.seriesTitle,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
     return Scaffold(
       appBar: AppTopBar(
-        title: Text(
-          detail?.title ?? context.l10n.seriesTitle,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
+        title: hasHeaderTitle
+            ? ValueListenableBuilder<double>(
+                valueListenable: _titleReveal,
+                builder: (context, reveal, child) => Opacity(
+                  opacity: reveal,
+                  child: ExcludeSemantics(
+                    excluding: reveal < 0.5,
+                    child: child,
+                  ),
+                ),
+                child: titleText,
+              )
+            : titleText,
       ),
       body: DesktopInspectableGallery(
         child: async.when(
@@ -94,57 +141,62 @@ class IllustSeriesPage extends ConsumerWidget {
                 onLoadMore: () => ref
                     .read(illustSeriesFeedProvider(seriesId).notifier)
                     .loadMore(),
-                child: SmoothWheelScroll(
-                  basePhysics: const AlwaysScrollableScrollPhysics(),
-                  builder: (context, controller, physics) =>
-                      DeferredCacheScrollView(
-                        key: PageStorageKey('series-$seriesId'),
-                        physics: physics,
-                        scrollCacheExtent: kFeedCacheExtent,
-                        restorationId: 'series-$seriesId',
-                        controller: controller,
-                        slivers: [
-                          if (detail != null)
-                            SliverToBoxAdapter(
-                              child: _SeriesHeader(detail: detail),
-                            ),
-                          if (entities.isEmpty)
-                            SliverFillRemaining(
-                              hasScrollBody: false,
-                              child: FeedEmpty(
-                                icon: Icons.collections_bookmark_outlined,
-                                title: context.l10n.seriesEmpty,
+                child: NotificationListener<ScrollNotification>(
+                  onNotification: _onScroll,
+                  child: SmoothWheelScroll(
+                    basePhysics: const AlwaysScrollableScrollPhysics(),
+                    builder: (context, controller, physics) =>
+                        DeferredCacheScrollView(
+                          key: PageStorageKey('series-$seriesId'),
+                          physics: physics,
+                          scrollCacheExtent: kFeedCacheExtent,
+                          restorationId: 'series-$seriesId',
+                          controller: controller,
+                          slivers: [
+                            if (detail != null)
+                              SliverToBoxAdapter(
+                                child: _SeriesHeader(detail: detail),
                               ),
-                            )
-                          else
-                            SliverCardList(
-                              itemCount: entities.length,
-                              items: entities,
-                              // What the episode numbers count from.
-                              itemDeps: (detail, entities.first.id),
-                              itemBuilder: (context, index) => _EpisodeRow(
-                                entity: entities[index],
-                                episode: _episodeNumber(
-                                  index,
-                                  entities,
-                                  detail,
+                            if (entities.isEmpty)
+                              SliverFillRemaining(
+                                hasScrollBody: false,
+                                child: FeedEmpty(
+                                  icon: Icons.collections_bookmark_outlined,
+                                  title: context.l10n.seriesEmpty,
+                                ),
+                              )
+                            else
+                              SliverCardList(
+                                itemCount: entities.length,
+                                items: entities,
+                                // What the episode numbers count from.
+                                itemDeps: (detail, entities.first.id),
+                                itemBuilder: (context, index) => _EpisodeRow(
+                                  entity: entities[index],
+                                  episode: _episodeNumber(
+                                    index,
+                                    entities,
+                                    detail,
+                                  ),
                                 ),
                               ),
+                            SliverToBoxAdapter(
+                              child: FeedTail(
+                                feed: feed,
+                                onRetry: () => ref
+                                    .read(
+                                      illustSeriesFeedProvider(
+                                        seriesId,
+                                      ).notifier,
+                                    )
+                                    .retryLoadMore(),
+                                errorTitle: context.l10n.seriesLoadMoreFailed,
+                                retryLabel: context.l10n.retry,
+                              ),
                             ),
-                          SliverToBoxAdapter(
-                            child: FeedTail(
-                              feed: feed,
-                              onRetry: () => ref
-                                  .read(
-                                    illustSeriesFeedProvider(seriesId).notifier,
-                                  )
-                                  .retryLoadMore(),
-                              errorTitle: context.l10n.seriesLoadMoreFailed,
-                              retryLabel: context.l10n.retry,
-                            ),
-                          ),
-                        ],
-                      ),
+                          ],
+                        ),
+                  ),
                 ),
               ),
             );
@@ -284,73 +336,79 @@ class _SeriesHeader extends ConsumerWidget {
     final recent = accountId == null
         ? null
         : recentOpenMap[SeriesRecentOpenStore.keyFor(accountId, detail.id)];
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        FuncSpacing.lg,
-        FuncSpacing.sm,
-        FuncSpacing.lg,
-        FuncSpacing.md,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+    return Align(
+      alignment: AlignmentDirectional.topStart,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: ContentWidths.article),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            FuncSpacing.lg,
+            FuncSpacing.sm,
+            FuncSpacing.lg,
+            FuncSpacing.md,
+          ),
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (cover != null)
-                DecoratedBox(
-                  position: DecorationPosition.foreground,
-                  decoration: BoxDecoration(
-                    borderRadius: FuncShape.control,
-                    border: theme.brightness == Brightness.light
-                        ? Border.all(
-                            color: FuncSemanticTokens.of(context).divider,
-                          )
-                        : null,
-                  ),
-                  child: ClipRRect(
-                    borderRadius: FuncShape.control,
-                    child: PixivImage(
-                      url: cover,
-                      width: 88,
-                      height: 88,
-                      memCacheWidth: PixivImage.decodeWidthOf(context, 88),
-                    ),
-                  ),
-                ),
-              if (cover != null) const SizedBox(width: FuncSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      detail.title,
-                      style: theme.textTheme.titleLarge,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    AuthorRow(userId: detail.userId, name: detail.userName),
-                    if (detail.workCount != null)
-                      Text(
-                        context.l10n.seriesWorksCount(detail.workCount!),
-                        style: theme.textTheme.bodySmall,
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (cover != null)
+                    DecoratedBox(
+                      position: DecorationPosition.foreground,
+                      decoration: BoxDecoration(
+                        borderRadius: FuncShape.control,
+                        border: theme.brightness == Brightness.light
+                            ? Border.all(
+                                color: FuncSemanticTokens.of(context).divider,
+                              )
+                            : null,
                       ),
-                  ],
-                ),
+                      child: ClipRRect(
+                        borderRadius: FuncShape.control,
+                        child: PixivImage(
+                          url: cover,
+                          width: 88,
+                          height: 88,
+                          memCacheWidth: PixivImage.decodeWidthOf(context, 88),
+                        ),
+                      ),
+                    ),
+                  if (cover != null) const SizedBox(width: FuncSpacing.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          detail.title,
+                          style: theme.textTheme.titleLarge,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        AuthorRow(userId: detail.userId, name: detail.userName),
+                        if (detail.workCount != null)
+                          Text(
+                            context.l10n.seriesWorksCount(detail.workCount!),
+                            style: theme.textTheme.bodySmall,
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
+              const SizedBox(height: FuncSpacing.md),
+              _SeriesActions(detail: detail, recent: recent),
+              if (detail.caption.isNotEmpty) ...[
+                const SizedBox(height: FuncSpacing.sm),
+                ExpandableText(
+                  TextSpan(text: detail.caption),
+                  maxLines: 3,
+                  style: theme.textTheme.bodySmall,
+                ),
+              ],
             ],
           ),
-          const SizedBox(height: FuncSpacing.md),
-          _SeriesActions(detail: detail, recent: recent),
-          if (detail.caption.isNotEmpty) ...[
-            const SizedBox(height: FuncSpacing.sm),
-            ExpandableText(
-              TextSpan(text: detail.caption),
-              maxLines: 3,
-              style: theme.textTheme.bodySmall,
-            ),
-          ],
-        ],
+        ),
       ),
     );
   }

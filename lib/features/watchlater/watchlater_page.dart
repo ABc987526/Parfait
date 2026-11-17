@@ -13,6 +13,7 @@ import '../../app/navigation/routes.dart';
 import '../../app/pull_to_refresh.dart';
 import '../../app/widgets/app_top_bar.dart';
 import '../../app/widgets/errors/error_details.dart';
+import '../../app/widgets/feed/desktop_gallery_controls.dart';
 import '../../app/widgets/feed/feed_grid.dart';
 import '../../app/widgets/feed/feed_states.dart';
 import '../../app/widgets/feed/illust_card.dart';
@@ -217,6 +218,9 @@ class _WatchLaterPageState extends ConsumerState<WatchLaterPage> {
             : AppTopBar(
                 title: Text(l10n.watchLaterTitle),
                 actions: [
+                  DesktopGalleryControls(
+                    visible: list.isNotEmpty && !_managing,
+                  ),
                   // Spelled out like every list's manage entry.
                   if (list.isNotEmpty)
                     TextButton(
@@ -253,8 +257,13 @@ class _WatchLaterPageState extends ConsumerState<WatchLaterPage> {
                               restorationId: 'watchlater',
                               slivers: [
                                 IllustFeedGrid(
-                                  padding: const EdgeInsets.all(FuncSpacing.sm),
-                                  mainAxisSpacing: FuncSpacing.sm,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal:
+                                        FuncSpacing.lg - FuncSpacing.xxs,
+                                    vertical: FuncSpacing.sm,
+                                  ),
+                                  mainAxisSpacing:
+                                      IllustFeedGrid.defaultMainAxisSpacing,
                                   itemIds: [for (final e in list) e.entity.id],
                                   itemCount: list.length,
                                   warmTexts: (context, index) =>
