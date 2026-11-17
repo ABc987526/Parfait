@@ -10,13 +10,12 @@ void main() {
     'edit/unbookmark-undo-home',
     location: '/recommended',
     notes:
-        'Tap the heart of a bookmarked card: the heart empties, the prompt '
-        'with Undo slides in above the bottom bar; Undo fills the heart '
-        'again and the prompt leaves.',
+        'Tap the heart of a bookmarked card: the heart empties quietly with a '
+        'dip (no Undo snackbar); tapping the empty heart again fills it back.',
     script: (film, router) async {
       await film.tap(find.byIcon(Icons.favorite_sharp).first);
       await film.frames(20);
-      await film.tap(find.text('撤销'));
+      await film.tap(find.byIcon(Icons.favorite_outline_sharp).first);
     },
   );
 
@@ -72,7 +71,7 @@ void main() {
         'square corner and no 2dp step when the row is gone.',
     script: (film, router) async {
       await film.tap(find.byIcon(Icons.delete_outline).last);
-      await film.tap(find.text('确定'));
+      await film.tap(find.text('移除'));
       await film.frames(10);
     },
   );
@@ -84,7 +83,7 @@ void main() {
         'Unmuting a tag: the row leaves, the prompt with Undo enters; Undo '
         'puts the row back in place.',
     script: (film, router) async {
-      await film.tap(find.byIcon(Icons.visibility_outlined));
+      await film.tap(find.text('解除屏蔽'));
       await film.frames(20);
       await film.tap(find.text('撤销'));
     },

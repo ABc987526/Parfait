@@ -211,7 +211,6 @@ void main() {
   for (final (shape, id) in [
     ('wide', 1500),
     ('tall-crop', 1501),
-    ('square-thumb', 1502),
     ('panorama', 1503),
     ('past-capsule', 1504),
   ]) {
@@ -241,6 +240,35 @@ void main() {
       },
     );
   }
+  // Square-cropped feed previews (hasHero: false) open via standard slide
+  // transition without a Hero flight, avoiding square-to-tall aspect snaps.
+  testFilm(
+    'nav/hero-interrupt-square-thumb',
+    location: '/recommended',
+    setup: shapes,
+    notes:
+        'Square-cropped card (1502, hasHero: false): opens via standard '
+        'route slide without Hero flight and returns cleanly when popped '
+        'mid-transition.',
+    script: (film, router) async {
+      final card = film.tester.getCenter(
+        find.bySemanticsLabel(RegExp('^illust 1502,')).first,
+      );
+      for (final at in [3, 8, 14]) {
+        await _open(film, card);
+        await film.frames(at);
+        await _systemBack();
+        await film.untilSettled();
+      }
+      for (final at in [4, 4, 4, 4]) {
+        await _open(film, card);
+        await film.frames(at);
+        await _systemBack();
+        await film.frames(at);
+      }
+      await film.untilSettled();
+    },
+  );
 
   testFilm(
     'nav/hero-interrupt-under-tabs',

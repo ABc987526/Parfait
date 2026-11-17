@@ -1249,6 +1249,82 @@ void main() {
     await tester.pumpAndSettle();
   });
 
+  testWidgets(
+    'iOS canvas drag dismiss launches Hero return flight on release',
+    (tester) async {
+      setViewSize(tester, const Size(400, 800));
+      late BuildContext root;
+      late NavigatorState nav;
+      final heroes = HeroController();
+      addTearDown(heroes.dispose);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData(platform: TargetPlatform.iOS),
+          home: Builder(
+            builder: (context) {
+              root = context;
+              return Navigator(
+                observers: [heroes],
+                onGenerateRoute: (_) => FuncPage<void>(
+                  child: Scaffold(
+                    body: Align(
+                      alignment: Alignment.topLeft,
+                      child: Hero(
+                        tag: 'drag-hero',
+                        transitionOnUserGestures: true,
+                        flightShuttleBuilder: illustHeroFlightShuttleBuilder,
+                        child: const SizedBox.square(
+                          dimension: 120,
+                          child: ColoredBox(color: Colors.red),
+                        ),
+                      ),
+                    ),
+                  ),
+                ).createRoute(root),
+              );
+            },
+          ),
+        ),
+      );
+      nav = tester.state<NavigatorState>(find.byType(Navigator).last);
+      unawaited(
+        nav.push(
+          FuncPage<void>(
+            sharedElement: true,
+            child: Scaffold(
+              body: Align(
+                alignment: Alignment.topCenter,
+                child: Hero(
+                  tag: 'drag-hero',
+                  flightShuttleBuilder: illustHeroFlightShuttleBuilder,
+                  child: const SizedBox.square(
+                    dimension: 320,
+                    child: ColoredBox(color: Colors.blue),
+                  ),
+                ),
+              ),
+            ),
+          ).createRoute(root),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final drag = await tester.startGesture(const Offset(20, 300));
+      await drag.moveBy(const Offset(30, 0));
+      await drag.moveBy(const Offset(160, 0));
+      await tester.pump();
+      expect(nav.userGestureInProgress, isTrue);
+
+      await drag.up();
+      await tester.pump();
+      expect(nav.userGestureInProgress, isFalse);
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(find.byType(HeroRectClip), findsOneWidget);
+      await tester.pumpAndSettle();
+      expect(find.byType(HeroRectClip), findsNothing);
+    },
+  );
+
   test('a failed anomaly write is logged and the next one lands', () async {
     installPreferencesForTest(_ListWriteFailsOnce());
     final log = HeroAnomalyLog(SharedPreferencesAsync());

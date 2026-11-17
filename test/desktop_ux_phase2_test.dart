@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart'
     show TargetPlatform, debugDefaultTargetPlatformOverride;
 import 'package:flutter/gestures.dart';
-import 'package:flutter/rendering.dart' show SelectionRegistrar;
+import 'package:flutter/rendering.dart' show SelectionRegistrar, SemanticsNode;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -11,6 +11,7 @@ import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:parfait/app/app.dart' show AppChrome;
 import 'package:parfait/app/clipboard.dart';
 import 'package:parfait/app/layout/form_factor.dart';
 import 'package:parfait/app/layout/input_modality.dart';
@@ -1075,7 +1076,7 @@ void main() {
   );
 
   testWidgets(
-    'Pointer IllustCard keeps immediate PressScale, omits touch long-press, and reveals quick author and bookmark hover pills',
+    'Pointer IllustCard keeps immediate PressScale, omits touch long-press, and uses subtle hover highlight without duplicate pills',
     (tester) async {
       debugDefaultTargetPlatformOverride = TargetPlatform.windows;
       try {
@@ -1110,7 +1111,7 @@ void main() {
         );
         expect(detector.onLongPress, isNull);
 
-        // Mouse hover reveals quick author + bookmark hover pills.
+        // Hover highlights the card border/overlay without duplicating footer controls.
         expect(
           find.descendant(
             of: find.byType(IllustCard),
@@ -1142,21 +1143,21 @@ void main() {
             of: find.byType(IllustCard),
             matching: find.byType(PersonAvatar),
           ),
-          findsOneWidget,
+          findsNothing,
         );
         expect(
           find.descendant(
             of: find.byType(IllustCard),
             matching: find.text(entity.user.name),
           ),
-          findsNWidgets(2),
+          findsOneWidget,
         );
         expect(
           find.descendant(
             of: find.byType(IllustCard),
             matching: find.byType(BookmarkSwitchButton),
           ),
-          findsNWidgets(2),
+          findsOneWidget,
         );
       } finally {
         debugDefaultTargetPlatformOverride = null;
@@ -1279,6 +1280,80 @@ void main() {
         await tester.pumpWidget(const SizedBox());
         await tester.pump();
       } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    },
+  );
+
+  testWidgets(
+    'AppChrome isolates Router BlockSemantics so DesktopCommandBar remains reachable in semantics',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+      try {
+        await seedSettings(AppSettings.defaults());
+        await seedAccounts([testerAccount], currentId: testerAccount.id);
+        final credStore = FakeCredentialStore(
+          values: {
+            testerAccount.id: const Credential(
+              accessToken: 't',
+              refreshToken: 'r',
+            ),
+          },
+        );
+        final router = GoRouter(
+          initialLocation: '/recommended',
+          routes: [
+            GoRoute(
+              path: '/recommended',
+              builder: (_, _) => const Scaffold(body: Text('home body')),
+            ),
+          ],
+        );
+        addTearDown(router.dispose);
+
+        await tester.pumpWidget(
+          localizedRouterApp(
+            router,
+            overrides: accountProviderOverrides(credentialStore: credStore),
+            builder: (context, child) => AppChrome(
+              settings: AppSettings.defaults(),
+              router: router,
+              child: child!,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final refresh = find.byKey(const Key('desktop-command-refresh'));
+        expect(refresh, findsOneWidget);
+        final node = tester.getSemantics(refresh);
+        expect(node.flagsCollection.isButton, isTrue);
+        final rootNode = tester
+            .binding
+            .renderViews
+            .first
+            .owner!
+            .semanticsOwner!
+            .rootSemanticsNode!;
+        var reachedButtonFromRoot = false;
+        var foundRefreshTooltip = false;
+        bool visit(SemanticsNode current) {
+          if (current.id == node.id) {
+            reachedButtonFromRoot = true;
+          }
+          if (current.tooltip.isNotEmpty) {
+            foundRefreshTooltip = true;
+          }
+          current.visitChildren(visit);
+          return true;
+        }
+
+        visit(rootNode);
+        expect(reachedButtonFromRoot, isTrue);
+        expect(foundRefreshTooltip, isTrue);
+      } finally {
+        semantics.dispose();
         debugDefaultTargetPlatformOverride = null;
       }
     },

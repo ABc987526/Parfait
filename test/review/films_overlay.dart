@@ -25,7 +25,7 @@ void main() {
         'The search filter sheet rising and being dragged down to close; '
         'its top edge and the status bar area on every frame.',
     script: (film, router) async {
-      await film.tap(find.byIcon(Icons.tune));
+      await film.tap(find.byIcon(Icons.tune_outlined));
       await film.swipe(find.text('筛选').last, const Offset(0, 900), count: 12);
     },
   );

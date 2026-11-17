@@ -99,7 +99,6 @@ const _systemUiOwner = 'lib/app/system_ui.dart';
 /// overlay surfaces — the app overlay contract (sheet spring, dialog token +
 /// reduced-motion gate) does not restyle them.
 const _overlayAllowList = <String, Set<String>>{
-  'lib/features/settings/pages/about_settings_page.dart': {'showLicensePage'},
   'lib/features/search/search_filter_sheet.dart': {'showDatePicker'},
   'lib/features/ranking/ranking_date.dart': {'showDatePicker'},
 };

@@ -53,7 +53,7 @@ void main() {
       // appended every page mid-flight in one blur.
       for (var i = 0; i < 5; i++) {
         await film.swipe(
-          find.byType(CustomScrollView),
+          find.byWidgetPredicate((w) => w is CustomScrollView),
           const Offset(0, -900),
           count: 15,
           hold: 4,

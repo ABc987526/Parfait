@@ -55,7 +55,7 @@ void main() {
         preferences.writeGate = Future<void>.error(StateError('disk full'))
           ..ignore();
 
-        await tester.tap(find.text('确定'));
+        await tester.tap(find.text('移除'));
         await tester.pump();
         if (closed) {
           // The stack is replaced, without a transition, while the row

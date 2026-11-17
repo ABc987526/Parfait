@@ -1,9 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:parfait/app/layout/form_factor.dart';
 import 'package:parfait/app/widgets/app_tab_bar.dart';
+import 'package:parfait/app/widgets/fit_label.dart';
 import 'package:parfait/app/widgets/follow_switch_button.dart';
 import 'package:parfait/app/widgets/func_bottom_nav.dart';
+import 'package:parfait/app/widgets/shell_rail.dart';
 import 'package:parfait/core/auth/account.dart';
 import 'package:parfait/core/auth/account_store.dart';
 import 'package:parfait/core/auth/credential.dart';
@@ -155,6 +158,63 @@ void main() {
       );
     }
   });
+
+  testWidgets(
+    'compact ShellRail keeps every label untruncated across locales',
+    (tester) async {
+      tester.view
+        ..physicalSize = const Size(1180, 820)
+        ..devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      for (final locale in AppLocalizations.supportedLocales) {
+        await tester.pumpWidget(
+          localeLayoutApp(
+            locale: locale,
+            home: Scaffold(
+              body: Row(
+                children: [
+                  SizedBox(
+                    width: ShellRail.width,
+                    child: ShellRail(
+                      destinations: [
+                        for (final key in _bottomBar)
+                          FuncBottomNavDestination(
+                            icon: Icons.circle_outlined,
+                            label: l10nLookupFor(locale, key),
+                          ),
+                      ],
+                      selectedIndex: 0,
+                      onSelected: (_) {},
+                      form: FormFactor.touch,
+                      expanded: false,
+                      onToggle: () {},
+                      onBookmarks: () {},
+                      onDownloads: () {},
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+        await settleLayout(tester);
+        expectLocaleLayoutIntact(
+          tester,
+          locale: locale,
+          profile: LayoutProfile.regular,
+        );
+        for (final label in tester.widgetList<FitLabel>(
+          find.byType(FitLabel),
+        )) {
+          expect(
+            label.fit.truncates,
+            isFalse,
+            reason: '${locale.toLanguageTag()} ${label.text} truncated',
+          );
+        }
+      }
+    },
+  );
 
   localeLayoutMatrix('ranking date bar', (tester, locale, profile) async {
     await _pumpControl(
