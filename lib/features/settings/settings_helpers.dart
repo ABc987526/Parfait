@@ -235,7 +235,11 @@ String downloadDestinationLabel(
   DownloadDestination destination,
 ) {
   return switch (destination.kind) {
-    DownloadDestinationKind.pixivAlbum => context.l10n.saveLocationPixivAlbum,
+    DownloadDestinationKind.pixivAlbum =>
+      context.l10n.saveLocationPixivAlbum.replaceFirst(
+        '（默认）',
+        '（\u2060默\u2060认\u2060）',
+      ),
     DownloadDestinationKind.customAlbum =>
       '${context.l10n.saveLocationCustomAlbum} '
           '(${destination.customAlbumName})',

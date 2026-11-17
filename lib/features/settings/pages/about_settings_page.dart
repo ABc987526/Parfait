@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:file_selector/file_selector.dart';
+import 'package:flutter/foundation.dart' show LicenseEntry, LicenseRegistry;
 import 'package:flutter/services.dart';
 import 'package:flutter_displaymode/flutter_displaymode.dart';
 import 'package:material_ui/material_ui.dart';
@@ -138,18 +139,12 @@ class _AboutSettingsPageState extends ConsumerState<AboutSettingsPage> {
                     onTap: _onVersionTap,
                   ),
                 ),
-                FutureBuilder<PackageInfo>(
-                  future: _packageInfo,
-                  builder: (context, snapshot) => SettingsTile(
-                    icon: Icons.menu_book_outlined,
-                    setting: Setting.aboutLicense,
-                    subtitle: Text(context.l10n.aboutLicenseText),
-                    onTap: () => showLicensePage(
-                      context: context,
-                      applicationName: appName,
-                      applicationVersion: snapshot.data?.version,
-                    ),
-                  ),
+                SettingsTile(
+                  icon: Icons.auto_stories_outlined,
+                  setting: Setting.aboutLicense,
+                  subtitle: Text(context.l10n.aboutLicenseText),
+                  onTap: () =>
+                      openSettingsPage(context, '/settings/about/licenses'),
                 ),
                 SettingsActionTile(
                   icon: Icons.code,
@@ -315,10 +310,15 @@ class _AboutUpdateSectionState extends State<_AboutUpdateSection> {
         }
         if (capability.storeManaged ||
             capability.flavor == UpdateFlavor.fdroid) {
+          final android = Theme.of(context).platform == TargetPlatform.android;
           return SettingsActionTile(
-            icon: Icons.store_outlined,
+            icon: android ? Icons.store_outlined : Icons.warning_amber_outlined,
             title: Text(context.l10n.aboutCheckUpdate),
-            subtitle: Text(context.l10n.aboutUpdateStore),
+            subtitle: Text(
+              android
+                  ? context.l10n.aboutUpdateStore
+                  : context.l10n.aboutUpdateUnavailable,
+            ),
           );
         }
         if (!capability.enabled) {
@@ -577,6 +577,162 @@ class _ExternalLinkText extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Open-source licenses page wrapped in [AppTopBar] so mobile and desktop keep
+/// the app's unified header instead of Flutter's default [LicensePage] chrome.
+class LicensesSettingsPage extends StatefulWidget {
+  const LicensesSettingsPage({super.key, this.applicationVersion});
+
+  final String? applicationVersion;
+
+  @override
+  State<LicensesSettingsPage> createState() => _LicensesSettingsPageState();
+}
+
+class _LicensesSettingsPageState extends State<LicensesSettingsPage> {
+  late final Future<_LicenseCatalog> _catalog = _load();
+
+  Future<_LicenseCatalog> _load() async {
+    final results = await Future.wait<Object>([
+      PackageInfo.fromPlatform(),
+      LicenseRegistry.licenses.toList(),
+    ]);
+    final info = results[0] as PackageInfo;
+    final entries = results[1] as List<LicenseEntry>;
+    final byPackage = <String, List<String>>{};
+    for (final entry in entries) {
+      final buffer = StringBuffer();
+      for (final paragraph in entry.paragraphs) {
+        if (paragraph.text.isEmpty) continue;
+        if (buffer.isNotEmpty) buffer.write('\n\n');
+        if (paragraph.indent > 0) {
+          buffer.write('  ' * paragraph.indent);
+        }
+        buffer.write(paragraph.text);
+      }
+      final block = buffer.toString();
+      if (block.isEmpty) continue;
+      for (final package in entry.packages) {
+        (byPackage[package] ??= []).add(block);
+      }
+    }
+    final packages = byPackage.entries.toList()
+      ..sort((a, b) => a.key.toLowerCase().compareTo(b.key.toLowerCase()));
+    return _LicenseCatalog(version: info.version, packages: packages);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final materialL10n = MaterialLocalizations.of(context);
+    final embedded = SettingsDetailScope.maybeOf(context) != null;
+    final contentWidth = embedded ? 780.0 : ContentWidths.settings;
+    return Scaffold(
+      appBar: AppTopBar(
+        contentWidth: contentWidth,
+        title: Text(materialL10n.licensesPageTitle),
+      ),
+      body: settingsNarrowBody(
+        FutureBuilder<_LicenseCatalog>(
+          future: _catalog,
+          builder: (context, snapshot) {
+            final data = snapshot.data;
+            if (data == null) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            final effectiveVersion = widget.applicationVersion ?? data.version;
+            return ListView(
+              padding: const EdgeInsets.only(
+                top: FuncSpacing.sm,
+                bottom: FuncSpacing.xl,
+              ),
+              children: [
+                _AppHeader(
+                  name: 'Parfait',
+                  attribution: Text(
+                    effectiveVersion.isEmpty
+                        ? context.l10n.aboutLicenseText
+                        : '$effectiveVersion\n${context.l10n.aboutLicenseText}',
+                  ),
+                ),
+                SettingsGroup(
+                  children: [
+                    for (final entry in data.packages)
+                      SettingsTile(
+                        title: entry.key,
+                        subtitle: Text(
+                          materialL10n.licensesPackageDetailText(
+                            entry.value.length,
+                          ),
+                        ),
+                        onTap: () => unawaited(
+                          Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => _PackageLicensesPage(
+                                packageName: entry.key,
+                                blocks: entry.value,
+                                contentWidth: contentWidth,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _LicenseCatalog {
+  const _LicenseCatalog({required this.version, required this.packages});
+
+  final String version;
+  final List<MapEntry<String, List<String>>> packages;
+}
+
+class _PackageLicensesPage extends StatelessWidget {
+  const _PackageLicensesPage({
+    required this.packageName,
+    required this.blocks,
+    required this.contentWidth,
+  });
+
+  final String packageName;
+  final List<String> blocks;
+  final double contentWidth;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppTopBar(contentWidth: contentWidth, title: Text(packageName)),
+      body: settingsNarrowBody(
+        ListView(
+          padding: const EdgeInsets.only(
+            top: FuncSpacing.sm,
+            bottom: FuncSpacing.xl,
+          ),
+          children: [
+            SettingsGroup(
+              children: [
+                for (final block in blocks)
+                  SettingsGroupContent(
+                    child: SelectableText(
+                      block,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

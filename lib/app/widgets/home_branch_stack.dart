@@ -11,6 +11,7 @@ import '../../core/log.dart';
 import '../../core/navigation/home_destination.dart';
 import '../../core/settings/app_settings.dart';
 import '../../core/settings/settings_controller.dart';
+import '../layout/app_breakpoints.dart';
 import '../layout/form_factor.dart';
 import '../motion/motion_tokens.dart';
 import '../motion/scroll_hide.dart';
@@ -670,13 +671,19 @@ class _HomeBranchStackState extends ConsumerState<HomeBranchStack>
     final railShown = rail && !ref.watch(shellRailHiddenProvider);
     final canToggle = form.canToggleRail(width, height: height);
     final railChoice = ref.watch(railExpandedProvider);
-    final expanded = form.railExpanded(
-      width,
-      height: height,
-      choice: railChoice,
-    );
     final settingsSelected = _lastSettingsSubPathActive =
         _computeSettingsSubPathActive(_watchedRouter);
+    // Keep desktop `Me` and `Settings` locked visually to the compact `74dp`
+    // rail (without mutating persisted `railExpandedProvider`) so switching
+    // between them never triggers a `130dp` full-width jump around the 280dp
+    // workspace index rail.
+    final collapseForWorkspace =
+        desktopOwned &&
+        (_current == HomeDestination.me.branchIndex || settingsSelected) &&
+        width >= AppBreakpoints.expanded;
+    final expanded = collapseForWorkspace
+        ? false
+        : form.railExpanded(width, height: height, choice: railChoice);
     // The rail opens and closes by width, not in one frame (MOTION-14):
     // the row it takes from the branches and the panel it reveals move
     // together. The first layout starts at its end value, and an

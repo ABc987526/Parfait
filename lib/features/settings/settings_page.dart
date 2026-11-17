@@ -5,21 +5,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 
-import '../../app/layout/app_breakpoints.dart';
 import '../../app/layout/content_widths.dart';
 import '../../app/layout/deferred_cache_scroll_view.dart';
 import '../../app/motion/motion_tokens.dart';
-import '../../app/navigation/home_shell_metrics.dart';
 import '../../app/theme/category_colors.dart';
 import '../../app/widgets/app_top_bar.dart';
-import '../../app/window/desktop_command_bar.dart' show DesktopCommandBarScope;
-import '../../app/theme/func_semantic_tokens.dart';
 import '../../app/widgets/feed/feed_states.dart';
+import '../../app/widgets/master_detail_workspace.dart';
 import '../../app/widgets/settings/settings_anchor.dart';
 import '../../app/widgets/settings/settings_group.dart';
 import '../../app/widgets/settings/settings_tile.dart';
 import '../../app/widgets/settings_load_error.dart';
 import '../../app/widgets/smooth_wheel_scroll.dart';
+import '../../app/theme/func_semantic_tokens.dart';
 import '../../core/auth/account_store.dart';
 import '../../core/translation/translation_service.dart';
 import '../../core/debug/frame_probe.dart';
@@ -65,27 +63,82 @@ export 'pages/navigation_settings_page.dart';
 export 'pages/theme_settings_page.dart';
 export 'pages/translate_settings_page.dart';
 
+/// Wraps a settings leaf route so wide desktop/tablet viewports open inside
+/// [MasterDetailWorkspace] with the target section active rather than dropping
+/// into an isolated single-column page.
+class SettingsAdaptiveHost extends StatelessWidget {
+  const SettingsAdaptiveHost({
+    super.key,
+    required this.location,
+    required this.narrowPage,
+  });
+
+  final String location;
+  final Widget narrowPage;
+
+  @override
+  Widget build(BuildContext context) {
+    if (MasterDetailWorkspace.canDisplay(context)) {
+      return SettingsPage(initialLocation: location);
+    }
+    return narrowPage;
+  }
+}
+
 /// All settings, grouped by intent, with a search over every setting
-/// (`/settings/all`, opened from the "me" dashboard). While the search has
-/// text, its results replace the groups.
+/// (`/settings/all`, opened from the "me" dashboard or shell rail). While the
+/// search has text, its results replace the groups.
 class SettingsPage extends ConsumerStatefulWidget {
-  const SettingsPage({super.key});
+  const SettingsPage({super.key, this.initialLocation});
+
+  /// Optional deep-link location (e.g. `/settings/about`, `/settings/network`,
+  /// `/settings/all?section=account`) used to initialize the detail pane on
+  /// wide master-detail workspaces.
+  final String? initialLocation;
 
   @override
   ConsumerState<SettingsPage> createState() => _SettingsPageState();
 }
 
 class _SettingsPageState extends ConsumerState<SettingsPage> {
-  static const double _masterPaneWidth = 292;
-
   final _query = TextEditingController();
   final _indexBodyKey = GlobalKey(debugLabel: 'settings-index-body');
   final _detailNavigatorKey = GlobalKey<NavigatorState>(
     debugLabel: 'settings-detail',
   );
   late final _detailObserver = _DetailStackObserver(_syncDetailCanPop);
-  SettingsPageRef _selectedPage = SettingsPageRef.account;
+  late SettingsPageRef _selectedPage;
+  late String _initialDetailLocation;
+  late bool _initialIsNestedChild;
   bool _detailCanPop = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final target = _resolveInitialTarget(widget.initialLocation);
+    _selectedPage = target.rootRef;
+    _initialDetailLocation = target.detailLocation;
+    _initialIsNestedChild = target.isNestedChild;
+  }
+
+  @override
+  void didUpdateWidget(covariant SettingsPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialLocation != oldWidget.initialLocation &&
+        widget.initialLocation != null) {
+      final target = _resolveInitialTarget(widget.initialLocation);
+      _initialDetailLocation = target.detailLocation;
+      _initialIsNestedChild = target.isNestedChild;
+      if (MasterDetailWorkspace.canDisplay(context) &&
+          _detailNavigatorKey.currentState != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _openInDetailPane(target.detailLocation);
+        });
+      } else if (_selectedPage != target.rootRef) {
+        setState(() => _selectedPage = target.rootRef);
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -93,11 +146,58 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     super.dispose();
   }
 
-  static bool _useMasterDetail(BuildContext context) {
-    final contentWidth = HomeShellChrome.contentSizeOf(context).width;
-    final viewport = MediaQuery.sizeOf(context);
-    return contentWidth >= AppBreakpoints.expanded &&
-        viewport.width >= viewport.height * 0.75;
+  ({SettingsPageRef rootRef, String detailLocation, bool isNestedChild})
+  _resolveInitialTarget(String? rawLocation) {
+    if (rawLocation == null || rawLocation.isEmpty) {
+      return (
+        rootRef: SettingsPageRef.account,
+        detailLocation: SettingsPageRef.account.path,
+        isNestedChild: false,
+      );
+    }
+    final uri = Uri.parse(rawLocation);
+    final section = uri.queryParameters['section'];
+    if (section != null && section.isNotEmpty) {
+      for (final candidate in SettingsPageRef.values) {
+        if (candidate.name == section ||
+            candidate.path == '/settings/$section') {
+          final root = candidate.parent ?? candidate;
+          final focus = uri.queryParameters[focusQuery];
+          final loc = focus == null
+              ? candidate.path
+              : Uri(
+                  path: candidate.path,
+                  queryParameters: {focusQuery: focus},
+                ).toString();
+          return (
+            rootRef: root,
+            detailLocation: loc,
+            isNestedChild: candidate.parent != null,
+          );
+        }
+      }
+    }
+    if (uri.path == '/settings/all' || uri.path == '/settings') {
+      return (
+        rootRef: SettingsPageRef.account,
+        detailLocation: SettingsPageRef.account.path,
+        isNestedChild: false,
+      );
+    }
+    final pageRef = _pageRefForPath(uri.path);
+    final rootRef =
+        pageRef?.parent ??
+        pageRef ??
+        _rootRefForSubPath(uri.path) ??
+        SettingsPageRef.account;
+    final isNestedChild =
+        (pageRef != null && pageRef.parent != null) ||
+        (pageRef == null && _rootRefForSubPath(uri.path) != null);
+    return (
+      rootRef: rootRef,
+      detailLocation: rawLocation,
+      isNestedChild: isNestedChild,
+    );
   }
 
   void _syncDetailCanPop() {
@@ -131,11 +231,13 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     if (rootRef != null && rootRef != _selectedPage) {
       setState(() => _selectedPage = rootRef);
     }
-    final navigator = _detailNavigatorKey.currentState;
-    if (navigator == null) return;
     final isNestedChild =
         (pageRef != null && pageRef.parent != null) ||
         (pageRef == null && rootRef != null);
+    _initialDetailLocation = location;
+    _initialIsNestedChild = isNestedChild;
+    final navigator = _detailNavigatorKey.currentState;
+    if (navigator == null) return;
     if (isNestedChild && rootRef != null) {
       unawaited(
         navigator.pushAndRemoveUntil<void>(
@@ -147,6 +249,16 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       return;
     }
     unawaited(navigator.pushNamedAndRemoveUntil<void>(location, (_) => false));
+  }
+
+  List<Route<dynamic>> _buildInitialDetailRoutes() {
+    if (_initialIsNestedChild && _initialDetailLocation != _selectedPage.path) {
+      return [
+        _buildDetailRoute(_selectedPage.path, instant: true),
+        _buildDetailRoute(_initialDetailLocation, instant: true),
+      ];
+    }
+    return [_buildDetailRoute(_initialDetailLocation, instant: true)];
   }
 
   Future<void> _pushInDetailPane(String location) {
@@ -213,41 +325,33 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       '/settings/backup' => const BackupSettingsPage(),
       '/settings/tasks' => const DownloadTasksPage(),
       '/settings/about' => const AboutSettingsPage(),
-      '/settings/about/licenses' => FutureBuilder<PackageInfo>(
-        future: PackageInfo.fromPlatform(),
-        builder: (context, snapshot) => LicensePage(
-          applicationName: 'Parfait',
-          applicationVersion: snapshot.data?.version,
-        ),
-      ),
+      '/settings/about/licenses' => const LicensesSettingsPage(),
       '/settings/frame-probe' => const FrameProbePage(),
       _ => const AccountSettingsPage(),
     };
   }
 
-  PreferredSizeWidget _buildSearchBar(
+  Widget _buildSearchField(
     BuildContext context,
     String query, {
-    bool narrowWrap = true,
+    required EdgeInsetsGeometry padding,
+    bool compact = false,
   }) {
-    final field = Padding(
-      padding: const EdgeInsets.fromLTRB(
-        FuncSpacing.lg,
-        0,
-        FuncSpacing.lg,
-        FuncSpacing.sm,
-      ),
-      // The search page's field: one look for every search.
+    return Padding(
+      padding: padding,
       child: SearchBar(
         controller: _query,
-        constraints: const BoxConstraints(minHeight: 48),
+        constraints: BoxConstraints(
+          minHeight: compact ? 40 : 48,
+          maxHeight: compact ? 40 : double.infinity,
+        ),
         hintText: context.l10n.settingsSearchHint,
-        leading: const Icon(Icons.search),
+        leading: Icon(Icons.search, size: compact ? 19 : null),
         trailing: [
           if (query.isNotEmpty)
             IconButton(
               tooltip: context.l10n.searchClear,
-              icon: const Icon(Icons.close),
+              icon: Icon(Icons.close, size: compact ? 18 : null),
               onPressed: () => setState(_query.clear),
             ),
         ],
@@ -255,18 +359,15 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         textInputAction: TextInputAction.search,
       ),
     );
-    return PreferredSize(
-      preferredSize: const Size.fromHeight(_searchBarExtent),
-      child: narrowWrap ? settingsNarrowBody(field) : field,
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     final settings = ref.watch(settingsProvider);
     final query = _query.text;
-    final masterDetail = _useMasterDetail(context);
-    final body = KeyedSubtree(
+    final masterDetail = MasterDetailWorkspace.canDisplay(context);
+
+    final Widget body = KeyedSubtree(
       key: _indexBodyKey,
       child: settings.when(
         loading: () => const FeedLoading(),
@@ -274,16 +375,25 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           error: error,
           onRetry: () => ref.read(settingsProvider.notifier).reload(),
         ),
-        data: (settings) => query.trim().isEmpty
-            ? _SettingsGroups(
-                settings: settings,
-                selectedPage: masterDetail ? _selectedPage : null,
-                onSelectLocation: masterDetail ? _openInDetailPane : null,
-              )
-            : _SearchResults(
-                query: query,
-                onSelectLocation: masterDetail ? _openInDetailPane : null,
-              ),
+        data: (resolvedSettings) => _SettingsIndexList(
+          settings: resolvedSettings,
+          query: query,
+          selectedPage: masterDetail ? _selectedPage : null,
+          showChevron: !masterDetail,
+          onSelectLocation: masterDetail ? _openInDetailPane : null,
+          header: masterDetail
+              ? null
+              : _buildSearchField(
+                  context,
+                  query,
+                  padding: const EdgeInsets.fromLTRB(
+                    FuncSpacing.lg,
+                    0,
+                    FuncSpacing.lg,
+                    FuncSpacing.sm,
+                  ),
+                ),
+        ),
       ),
     );
 
@@ -292,142 +402,41 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         appBar: AppTopBar(
           contentWidth: ContentWidths.settings,
           title: Text(context.l10n.settingsTitle),
-          bottom: _buildSearchBar(context, query),
         ),
         body: body,
       );
     }
-
-    final desktopOwned = DesktopCommandBarScope.isActiveOf(context);
-    final showMasterBack =
-        !desktopOwned &&
-        (ModalRoute.of(context)?.impliesAppBarDismissal ?? false);
-    final colors = Theme.of(context).colorScheme;
-    final tokens = FuncSemanticTokens.of(context);
-    final searchField = Padding(
-      padding: const EdgeInsets.fromLTRB(
-        FuncSpacing.md,
-        FuncSpacing.xs,
-        FuncSpacing.md,
-        FuncSpacing.sm,
-      ),
-      child: SearchBar(
-        controller: _query,
-        constraints: const BoxConstraints(minHeight: 40, maxHeight: 40),
-        hintText: context.l10n.settingsSearchHint,
-        leading: const Icon(Icons.search, size: 19),
-        trailing: [
-          if (query.isNotEmpty)
-            IconButton(
-              tooltip: context.l10n.searchClear,
-              icon: const Icon(Icons.close, size: 18),
-              onPressed: () => setState(_query.clear),
-            ),
-        ],
-        onChanged: (_) => setState(() {}),
-        textInputAction: TextInputAction.search,
-      ),
-    );
 
     return PopScope(
       canPop: !_detailCanPop,
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop) unawaited(_detailNavigatorKey.currentState?.maybePop());
       },
-      child: Material(
-        color: colors.surface,
-        child: Row(
-          children: [
-            SizedBox(
-              width: _masterPaneWidth,
-              child: Scaffold(
-                backgroundColor: colors.surfaceContainerLow,
-                appBar: PreferredSize(
-                  preferredSize: const Size.fromHeight(
-                    kToolbarHeight + 40 + FuncSpacing.xs + FuncSpacing.sm + 1,
-                  ),
-                  child: ColoredBox(
-                    color: colors.surfaceContainerLow,
-                    child: SafeArea(
-                      right: false,
-                      bottom: false,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          SizedBox(
-                            height: kToolbarHeight,
-                            child: Padding(
-                              padding: EdgeInsetsDirectional.fromSTEB(
-                                showMasterBack
-                                    ? FuncSpacing.xs
-                                    : FuncSpacing.lg,
-                                0,
-                                FuncSpacing.lg,
-                                0,
-                              ),
-                              child: Row(
-                                children: [
-                                  if (showMasterBack) ...[
-                                    BackButton(
-                                      onPressed: () =>
-                                          Navigator.maybePop(context),
-                                    ),
-                                    const SizedBox(width: FuncSpacing.xs),
-                                  ],
-                                  Expanded(
-                                    child: Semantics(
-                                      header: true,
-                                      child: Text(
-                                        context.l10n.settingsTitle,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .titleLarge
-                                            ?.copyWith(
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          searchField,
-                          Divider(height: 1, color: tokens.brandHairline),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                body: body,
-              ),
+      child: MasterDetailWorkspace(
+        title: Text(context.l10n.settingsTitle),
+        masterTop: _buildSearchField(
+          context,
+          query,
+          compact: true,
+          padding: const EdgeInsets.fromLTRB(
+            FuncSpacing.md,
+            FuncSpacing.sm,
+            FuncSpacing.md,
+            FuncSpacing.xs,
+          ),
+        ),
+        masterBody: body,
+        detail: SettingsDetailScope(
+          onPush: _pushInDetailPane,
+          child: Navigator(
+            key: _detailNavigatorKey,
+            observers: [_detailObserver],
+            onGenerateInitialRoutes: (navigator, initialRoute) =>
+                _buildInitialDetailRoutes(),
+            onGenerateRoute: (routeSettings) => _buildDetailRoute(
+              routeSettings.name ?? SettingsPageRef.account.path,
             ),
-            VerticalDivider(
-              width: 1,
-              thickness: 1,
-              color: tokens.brandHairline,
-            ),
-            Expanded(
-              child: EmbeddedHeaderScope(
-                child: SettingsDetailScope(
-                  onPush: _pushInDetailPane,
-                  child: Navigator(
-                    key: _detailNavigatorKey,
-                    observers: [_detailObserver],
-                    onGenerateInitialRoutes: (navigator, initialRoute) => [
-                      _buildDetailRoute(_selectedPage.path, instant: true),
-                    ],
-                    onGenerateRoute: (routeSettings) => _buildDetailRoute(
-                      routeSettings.name ?? SettingsPageRef.account.path,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -477,100 +486,110 @@ const settingsPageIcons = <SettingsPageRef, IconData>{
   SettingsPageRef.frameProbe: Icons.monitor_heart_outlined,
 };
 
-/// The search field under the title: the field plus its bottom padding.
-const double _searchBarExtent = 48 + FuncSpacing.sm;
-
-class _SearchResults extends StatelessWidget {
-  const _SearchResults({required this.query, this.onSelectLocation});
-
-  final String query;
-  final ValueChanged<String>? onSelectLocation;
-
-  @override
-  Widget build(BuildContext context) {
-    final results = searchSettings(context.l10n, query);
-    if (results.isEmpty) {
-      return FeedEmpty(
-        icon: Icons.search_off,
-        title: context.l10n.settingsSearchEmpty,
-      );
-    }
-    return settingsNarrowBody(
-      SmoothWheelScroll(
-        builder: (context, controller, physics) => ListView(
-          controller: controller,
-          physics: physics,
-          // The results are a lookup: dragging them puts the keyboard away.
-          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-          padding: const EdgeInsets.only(
-            top: FuncSpacing.sm,
-            bottom: FuncSpacing.xl,
-          ),
-          children: [
-            SettingsGroup(
-              children: [
-                for (final result in results)
-                  SettingsTile(
-                    title: result.label,
-                    subtitle: result.path.isEmpty
-                        ? null
-                        : Text(result.path.join(' › ')),
-                    onTap: () {
-                      final select = onSelectLocation;
-                      if (select != null) {
-                        select(result.location);
-                      } else {
-                        openSettingsPage(context, result.location);
-                      }
-                    },
-                  ),
-              ],
-            ),
-          ],
+List<Widget> _searchResultGroups(
+  BuildContext context,
+  List<SettingsSearchResult> results, {
+  bool showChevron = true,
+  ValueChanged<String>? onSelectLocation,
+}) => [
+  SettingsGroup(
+    children: [
+      for (final result in results)
+        SettingsTile(
+          title: result.label,
+          showChevron: showChevron,
+          subtitle: result.path.isEmpty ? null : Text(result.path.join(' › ')),
+          onTap: () {
+            final select = onSelectLocation;
+            if (select != null) {
+              select(result.location);
+            } else {
+              openSettingsPage(context, result.location);
+            }
+          },
         ),
-      ),
-    );
-  }
-}
+    ],
+  ),
+];
 
-class _SettingsGroups extends ConsumerWidget {
-  const _SettingsGroups({
+class _SettingsIndexList extends ConsumerWidget {
+  const _SettingsIndexList({
     required this.settings,
+    required this.query,
     this.selectedPage,
+    this.showChevron = true,
     this.onSelectLocation,
+    this.header,
   });
 
   final AppSettings settings;
+  final String query;
   final SettingsPageRef? selectedPage;
+  final bool showChevron;
   final ValueChanged<String>? onSelectLocation;
+  final Widget? header;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return settingsNarrowBody(
-      SmoothWheelScroll(
-        builder: (context, controller, physics) => DeferredCacheListView(
-          controller: controller,
-          physics: physics,
-          // A bounded ~15-tile list: prebuilding it, from the second frame,
-          // keeps maxScrollExtent stable during a fling.
-          scrollCacheExtent: const ScrollCacheExtent.pixels(2000),
-          padding: const EdgeInsets.only(
-            top: FuncSpacing.sm,
-            bottom: FuncSpacing.xl,
-          ),
-          children: [
-            ..._indexGroups(
+    final trimmedQuery = query.trim();
+    final List<Widget> items;
+    if (trimmedQuery.isEmpty) {
+      items = [
+        ..._indexGroups(
+          context,
+          ref,
+          settings,
+          selectedPage: selectedPage,
+          showChevron: showChevron,
+          onSelectLocation: onSelectLocation,
+        ),
+        _DeveloperSettingsGroup(
+          selected: selectedPage == SettingsPageRef.frameProbe,
+          showChevron: showChevron,
+          onSelectLocation: onSelectLocation,
+        ),
+      ];
+    } else {
+      final results = searchSettings(context.l10n, query);
+      items = results.isEmpty
+          ? [
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: FuncSpacing.xxl),
+                child: FeedEmpty(
+                  icon: Icons.search_off,
+                  title: context.l10n.settingsSearchEmpty,
+                ),
+              ),
+            ]
+          : _searchResultGroups(
               context,
-              ref,
-              settings,
-              selectedPage: selectedPage,
+              results,
+              showChevron: showChevron,
               onSelectLocation: onSelectLocation,
+            );
+    }
+
+    return NotificationListener<ScrollStartNotification>(
+      onNotification: (notification) {
+        if (trimmedQuery.isNotEmpty && notification.dragDetails != null) {
+          FocusManager.instance.primaryFocus?.unfocus();
+        }
+        return false;
+      },
+      child: settingsNarrowBody(
+        SmoothWheelScroll(
+          builder: (context, controller, physics) => DeferredCacheListView(
+            controller: controller,
+            physics: physics,
+            // A bounded ~15-tile list: prebuilding it, from the second frame,
+            // keeps maxScrollExtent stable during a fling.
+            scrollCacheExtent: const ScrollCacheExtent.pixels(2000),
+            padding: const EdgeInsets.only(
+              top: FuncSpacing.xs,
+              bottom: FuncSpacing.xl,
             ),
-            _DeveloperSettingsGroup(
-              selected: selectedPage == SettingsPageRef.frameProbe,
-              onSelectLocation: onSelectLocation,
-            ),
-          ],
+            children: [?header, ...items],
+          ),
         ),
       ),
     );
@@ -586,6 +605,7 @@ List<Widget> _indexGroups(
   WidgetRef ref,
   AppSettings settings, {
   SettingsPageRef? selectedPage,
+  bool showChevron = true,
   ValueChanged<String>? onSelectLocation,
 }) {
   final l10n = context.l10n;
@@ -593,7 +613,7 @@ List<Widget> _indexGroups(
   final neutral = neutralCategoryTone(scheme);
   CategoryTone hue(double hue) => categoryTone(scheme, hue);
   final groups =
-      <({String? title, CategoryTone tone, List<SettingsPageRef> pages})>[
+      <({String title, CategoryTone tone, List<SettingsPageRef> pages})>[
         (
           title: l10n.accountSettings,
           tone: neutral,
@@ -628,12 +648,12 @@ List<Widget> _indexGroups(
           tone: hue(CategoryHue.orange),
           pages: const [SettingsPageRef.backup],
         ),
-        (title: null, tone: neutral, pages: const [SettingsPageRef.about]),
+        (title: 'Parfait', tone: neutral, pages: const [SettingsPageRef.about]),
       ];
   return [
     for (final group in groups)
       SettingsGroup(
-        title: group.title == null ? null : Text(group.title!),
+        title: Text(group.title),
         children: [
           for (final page in group.pages)
             SettingsTile.topLevel(
@@ -642,6 +662,7 @@ List<Widget> _indexGroups(
               subtitle: _pageSummary(context, ref, settings, page),
               tone: group.tone,
               selected: selectedPage == page,
+              showChevron: showChevron,
               onTap: () {
                 final select = onSelectLocation;
                 if (select != null) {
@@ -697,7 +718,7 @@ Widget _pageSummary(
       return Text(networkModeLabel(context, settings.networkMode));
     case SettingsPageRef.download:
       return Text(
-        '${namingPresetLabel(context, settings.namingRule.preset)} · '
+        '${namingPresetLabel(context, settings.namingRule.preset)}\n'
         '${downloadDestinationLabel(context, settings.downloadDestination)}',
       );
     case SettingsPageRef.backup:
@@ -718,9 +739,14 @@ Widget _pageSummary(
 /// release with the `PIXIV_FRAME_PROBE` dart-define for signed measurement
 /// packages) show it unlocked; default release builds are unchanged.
 class _DeveloperSettingsGroup extends ConsumerWidget {
-  const _DeveloperSettingsGroup({this.selected = false, this.onSelectLocation});
+  const _DeveloperSettingsGroup({
+    this.selected = false,
+    this.showChevron = true,
+    this.onSelectLocation,
+  });
 
   final bool selected;
+  final bool showChevron;
   final ValueChanged<String>? onSelectLocation;
 
   @override
@@ -737,6 +763,7 @@ class _DeveloperSettingsGroup extends ConsumerWidget {
           icon: settingsPageIcons[probe],
           tone: neutralCategoryTone(Theme.of(context).colorScheme),
           selected: selected,
+          showChevron: showChevron,
           onTap: () {
             final select = onSelectLocation;
             if (select != null) {

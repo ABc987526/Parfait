@@ -4,12 +4,12 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../app/format/app_format.dart';
-import '../../app/layout/app_breakpoints.dart';
+import '../../app/layout/content_widths.dart';
 import '../../app/motion/hero_transition.dart';
 import '../../app/motion/motion_tokens.dart';
-import '../../app/navigation/home_shell_metrics.dart';
 import '../../app/navigation/routes.dart';
 import '../../app/person_avatar.dart';
 import '../../app/pixiv_image.dart';
@@ -23,6 +23,7 @@ import '../../app/widgets/feed/feed_grid.dart'
     show IllustPagerAnchor, IllustPagerScope, IllustPagerSource;
 import '../../app/widgets/feed/feed_states.dart';
 import '../../app/widgets/func_bottom_nav.dart';
+import '../../app/widgets/master_detail_workspace.dart';
 import '../../app/widgets/person_card.dart';
 import '../../app/widgets/settings/settings_group.dart';
 import '../../app/widgets/settings/settings_tile.dart';
@@ -30,18 +31,43 @@ import '../../app/widgets/settings_load_error.dart';
 import '../../app/window/desktop_command_bar.dart' show DesktopCommandBarScope;
 import '../../core/auth/account.dart';
 import '../../core/auth/account_store.dart';
-import '../../core/navigation/home_destination.dart';
+import '../../core/bookmark/bookmark_models.dart';
 import '../../core/download/download_providers.dart';
 import '../../core/download/download_task.dart' show isTerminal;
 import '../../core/entity/illust_entity.dart';
 import '../../core/entity/illust_store.dart';
 import '../../core/history/history_models.dart';
 import '../../core/history/history_repository.dart';
+import '../../core/localnovel/local_novel_store.dart';
+import '../../core/navigation/home_destination.dart';
+import '../../core/profile/profile_models.dart';
+import '../../core/settings/settings_controller.dart';
+import '../../core/user/user_repository.dart';
+import '../../core/watchlater/watch_later_store.dart';
 import '../../l10n/context.dart';
+import '../localnovel/local_novels_page.dart';
+import '../novel/novel_markers_page.dart';
+import '../profile/profile_filter_bar.dart';
+import '../profile/profile_illust_feed.dart';
+import '../profile/profile_novel_feed.dart';
+import '../profile/profile_user_feed.dart';
+import '../watchlater/watchlater_page.dart';
+import '../watchlist/watchlist_page.dart';
+import 'pages/download_tasks_page.dart';
 import 'settings_catalog.dart';
 import 'settings_helpers.dart';
 import 'settings_page.dart' show settingsPageIcons;
-import '../../app/layout/content_widths.dart';
+
+enum _MeSection {
+  overview,
+  bookmarks,
+  following,
+  watchlist,
+  novelMarkers,
+  watchLater,
+  localNovels,
+  downloads,
+}
 
 /// The "me" destination, YouTube's way: who is signed in, what they saw
 /// last, the places of their own content as a list, then settings and
@@ -54,50 +80,103 @@ class MeDashboardPage extends ConsumerStatefulWidget {
 }
 
 class _MeDashboardPageState extends ConsumerState<MeDashboardPage> {
-  static const _wideMaxWidth = 1120.0;
-
   /// Preserves `_RecentHistoryState` (keep-alive covers & reorder animations)
   /// when crossing the narrow/wide breakpoint (`SET-07`).
   final _historyKey = GlobalKey();
+  final _detailNavigatorKey = GlobalKey<NavigatorState>(
+    debugLabel: 'me-detail',
+  );
+  _MeSection _selectedSection = _MeSection.overview;
 
-  @override
-  Widget build(BuildContext context) {
-    final accounts = ref.watch(accountStoreProvider);
-    final size = HomeShellChrome.contentSizeOf(context);
-    final desktopOwned = DesktopCommandBarScope.isActiveOf(context);
-    final wide =
-        size.width >= AppBreakpoints.expanded &&
-        size.height >= AppBreakpoints.compactHeight;
-    return RefreshActionAnchor(
-      onRefresh: () {
-        ref.invalidate(_recentHistoryProvider);
-        ref.invalidate(_activeDownloadCountProvider);
-        unawaited(ref.read(accountStoreProvider.notifier).reload());
-      },
-      child: Scaffold(
-        // Root pages own no inline composer: leaving the default `true`
-        // would subscribe this whole subtree to per-frame viewInsets churn
-        // every time the IME animates (e.g. the push that hides the search
-        // keyboard) — a relayout storm across all five live branches.
-        resizeToAvoidBottomInset: false,
-        // Settings open from the end row / Bento grid, not the bar.
-        appBar: desktopOwned
-            ? null
-            : AppTopBar(
-                contentWidth: wide ? _wideMaxWidth : ContentWidths.settings,
-                title: Text(context.l10n.homeMe),
-              ),
-        body: _body(context, accounts, wide: wide, desktopOwned: desktopOwned),
+  void _selectSection(_MeSection section) {
+    if (section == _selectedSection) return;
+    setState(() => _selectedSection = section);
+    final navigator = _detailNavigatorKey.currentState;
+    if (navigator == null) return;
+    unawaited(
+      navigator.pushAndRemoveUntil<void>(
+        _buildDetailRoute(section),
+        (_) => false,
       ),
     );
   }
 
-  Widget _body(
-    BuildContext context,
-    AsyncValue<AccountState> accounts, {
-    required bool wide,
-    required bool desktopOwned,
-  }) {
+  Route<dynamic> _buildDetailRoute(_MeSection section, {bool instant = false}) {
+    return PageRouteBuilder<void>(
+      settings: RouteSettings(name: 'me/${section.name}'),
+      transitionDuration: instant
+          ? Duration.zero
+          : MotionTokens.resolve(context, MotionTokens.desktopPageTransition),
+      reverseTransitionDuration: instant
+          ? Duration.zero
+          : MotionTokens.resolve(context, MotionTokens.desktopPageTransition),
+      pageBuilder: (_, _, _) => _buildWideDetail(section),
+      transitionsBuilder: (_, animation, _, child) {
+        final isReversing = animation.status == AnimationStatus.reverse;
+        final curved = animation.drive(
+          CurveTween(
+            curve: isReversing
+                ? MotionTokens.stateFadeCurve.flipped
+                : MotionTokens.stateFadeCurve,
+          ),
+        );
+        return IgnorePointer(
+          ignoring: isReversing,
+          child: FadeTransition(opacity: curved, child: child),
+        );
+      },
+    );
+  }
+
+  Widget _buildWideDetail(_MeSection section) {
+    return switch (section) {
+      _MeSection.overview => _MeOverviewPane(
+        historyKey: _historyKey,
+        onSelectSection: _selectSection,
+      ),
+      _MeSection.bookmarks => const _MeBookmarksPane(),
+      _MeSection.following => const _MeFollowingPane(),
+      _MeSection.watchlist => const WatchlistPage(),
+      _MeSection.novelMarkers => const NovelMarkersPage(),
+      _MeSection.watchLater => const WatchLaterPage(),
+      _MeSection.localNovels => const LocalNovelsPage(),
+      _MeSection.downloads => const DownloadTasksPage(),
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final accounts = ref.watch(accountStoreProvider);
+    final desktopOwned = DesktopCommandBarScope.isActiveOf(context);
+    final wide = MasterDetailWorkspace.canDisplay(context);
+    return RefreshActionAnchor(
+      onRefresh: () {
+        ref.invalidate(_recentHistoryProvider);
+        ref.invalidate(_downloadStatsProvider);
+        ref.invalidate(watchLaterStoreProvider);
+        ref.invalidate(localNovelStoreProvider);
+        unawaited(ref.read(accountStoreProvider.notifier).reload());
+      },
+      child: wide
+          ? _wideBody(context, accounts, desktopOwned: desktopOwned)
+          : Scaffold(
+              // Root pages own no inline composer: leaving the default `true`
+              // would subscribe this whole subtree to per-frame viewInsets
+              // churn every time the IME animates — a relayout storm across
+              // all five live branches.
+              resizeToAvoidBottomInset: false,
+              appBar: desktopOwned
+                  ? null
+                  : AppTopBar(
+                      contentWidth: ContentWidths.settings,
+                      title: Text(context.l10n.homeMe),
+                    ),
+              body: _narrowBody(context, accounts),
+            ),
+    );
+  }
+
+  Widget _narrowBody(BuildContext context, AsyncValue<AccountState> accounts) {
     void reload() => ref.read(accountStoreProvider.notifier).reload();
     if (accounts.hasError) {
       return SettingsLoadError(
@@ -115,98 +194,97 @@ class _MeDashboardPageState extends ConsumerState<MeDashboardPage> {
         messageKey: 'accountReadFailed',
       );
     }
-    final neutralTone = neutralCategoryTone(Theme.of(context).colorScheme);
-    final settingsEntry = (
-      icon: Icons.settings_outlined,
-      label: context.l10n.settingsTitle,
-      onTap: () => openSettingsPage(context, settingsIndexPath),
-      count: null,
-      tone: neutralTone,
+    return settingsNarrowBody(
+      ListView(
+        padding: const EdgeInsets.only(
+          top: FuncSpacing.sm,
+          bottom: FuncSpacing.xl,
+        ),
+        children: [
+          _AccountHeader(account: state?.current),
+          _RecentHistory(key: _historyKey),
+          const _MeNarrowGroups(),
+          const FuncNavBarSpacer(),
+        ],
+      ),
     );
-    final aboutEntry = (
-      icon: settingsPageIcons[SettingsPageRef.about]!,
-      label: context.l10n.aboutSettings,
-      onTap: () => openSettingsPage(context, SettingsPageRef.about.path),
-      count: null,
-      tone: neutralTone,
-    );
-    final history = _RecentHistory(key: _historyKey);
-    if (!wide) {
-      return settingsNarrowBody(
-        ListView(
-          padding: const EdgeInsets.only(
-            top: FuncSpacing.sm,
-            bottom: FuncSpacing.xl,
-          ),
-          children: [
-            _AccountHeader(account: state?.current),
-            history,
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: FuncSpacing.lg),
-              child: _ContentShortcuts(),
-            ),
-            const SizedBox(height: FuncSpacing.xl),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: FuncSpacing.lg),
-              child: _MeEntryGroup(
-                children: [
-                  _MeRow(
-                    icon: settingsEntry.icon,
-                    label: settingsEntry.label,
-                    tone: settingsEntry.tone,
-                    onTap: settingsEntry.onTap,
-                  ),
-                  _MeRow(
-                    icon: aboutEntry.icon,
-                    label: aboutEntry.label,
-                    tone: aboutEntry.tone,
-                    onTap: aboutEntry.onTap,
-                  ),
-                ],
+  }
+
+  Widget _wideBody(
+    BuildContext context,
+    AsyncValue<AccountState> accounts, {
+    required bool desktopOwned,
+  }) {
+    void reload() => ref.read(accountStoreProvider.notifier).reload();
+    if (accounts.hasError) {
+      return Scaffold(
+        appBar: desktopOwned
+            ? null
+            : AppTopBar(
+                contentWidth: ContentWidths.settings,
+                title: Text(context.l10n.homeMe),
               ),
-            ),
-            const FuncNavBarSpacer(),
-          ],
+        body: SettingsLoadError(
+          error: accounts.error!,
+          onRetry: reload,
+          messageKey: 'accountReadFailed',
         ),
       );
     }
-    return Align(
-      alignment: Alignment.topCenter,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: _wideMaxWidth),
-        child: ListView(
-          key: const ValueKey('me-wide-dashboard'),
-          padding: EdgeInsets.fromLTRB(
-            FuncSpacing.xl,
-            desktopOwned ? FuncSpacing.lg : FuncSpacing.sm,
-            FuncSpacing.xl,
-            FuncSpacing.xl,
-          ),
-          children: [
-            if (desktopOwned) ...[
-              Padding(
-                padding: const EdgeInsets.only(
-                  left: FuncSpacing.xs,
-                  bottom: FuncSpacing.sm,
-                ),
-                child: Text(
-                  context.l10n.homeMe,
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.3,
-                  ),
-                ),
+    if (accounts.isLoading && !accounts.hasValue) {
+      return Scaffold(
+        appBar: desktopOwned
+            ? null
+            : AppTopBar(
+                contentWidth: ContentWidths.settings,
+                title: Text(context.l10n.homeMe),
               ),
-            ],
-            _AccountHeader(account: state?.current, padding: EdgeInsets.zero),
-            const SizedBox(height: FuncSpacing.lg),
-            history,
-            _ContentShortcuts(
-              asGrid: true,
-              trailingEntries: [settingsEntry, aboutEntry],
-            ),
-            const FuncNavBarSpacer(),
+        body: const FeedLoading(),
+      );
+    }
+    final state = accounts.value;
+    if (state?.status == AccountStatus.failure) {
+      return Scaffold(
+        appBar: desktopOwned
+            ? null
+            : AppTopBar(
+                contentWidth: ContentWidths.settings,
+                title: Text(context.l10n.homeMe),
+              ),
+        body: SettingsLoadError(
+          error: state?.error ?? StateError('account state unavailable'),
+          onRetry: reload,
+          messageKey: 'accountReadFailed',
+        ),
+      );
+    }
+    final signedIn = state?.usableCurrent != null;
+    final effectiveSection =
+        !signedIn && _selectedSection == _MeSection.novelMarkers
+        ? _MeSection.overview
+        : _selectedSection;
+    if (effectiveSection != _selectedSection) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _selectSection(effectiveSection);
+      });
+    }
+    return MasterDetailWorkspace(
+      key: const ValueKey('me-wide-dashboard'),
+      title: Text(context.l10n.homeMe),
+      masterTop: _CompactAccountHeader(account: state?.current),
+      masterBody: _MeWideRailGroups(
+        signedIn: signedIn,
+        selected: effectiveSection,
+        includeSettingsEntries: !desktopOwned,
+        onSelectSection: _selectSection,
+      ),
+      detail: HeroControllerScope.none(
+        child: Navigator(
+          key: _detailNavigatorKey,
+          onGenerateInitialRoutes: (_, _) => [
+            _buildDetailRoute(effectiveSection, instant: true),
           ],
+          onGenerateRoute: (_) => _buildDetailRoute(effectiveSection),
         ),
       ),
     );
@@ -218,20 +296,11 @@ class _MeDashboardPageState extends ConsumerState<MeDashboardPage> {
 /// managing and switching accounts is a button of its own inside it.
 /// Signed out, the card is one button to the login, with no manage button.
 class _AccountHeader extends StatelessWidget {
-  const _AccountHeader({
-    required this.account,
-    this.padding = const EdgeInsets.fromLTRB(
-      FuncSpacing.lg,
-      FuncSpacing.sm,
-      FuncSpacing.lg,
-      FuncSpacing.lg,
-    ),
-  });
+  const _AccountHeader({required this.account});
 
   final Account? account;
-  final EdgeInsetsGeometry padding;
 
-  static const _avatarDiameter = 72.0;
+  static const _avatarDiameter = 52.0;
 
   @override
   Widget build(BuildContext context) {
@@ -242,7 +311,12 @@ class _AccountHeader extends StatelessWidget {
     final value = account;
     final url = value?.profileImageUrl;
     return Padding(
-      padding: padding,
+      padding: const EdgeInsets.fromLTRB(
+        FuncSpacing.lg,
+        FuncSpacing.sm,
+        FuncSpacing.lg,
+        FuncSpacing.lg,
+      ),
       child: PersonCard(
         onTap: value == null ? () => openLogin(context) : () => openMe(context),
         tapHint: value == null ? null : l10n.meOpenProfile,
@@ -264,7 +338,7 @@ class _AccountHeader extends StatelessWidget {
                 radius: _avatarDiameter / 2,
               ),
             ),
-            const SizedBox(width: FuncSpacing.lg),
+            const SizedBox(width: FuncSpacing.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -285,7 +359,7 @@ class _AccountHeader extends StatelessWidget {
                       ],
                     ],
                   ),
-                  const SizedBox(height: FuncSpacing.xs),
+                  const SizedBox(height: FuncSpacing.xxs),
                   Text(
                     value == null
                         ? l10n.login
@@ -298,6 +372,98 @@ class _AccountHeader extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Compact `40dp` identity card pinned below the `52dp` master header in the
+/// wide [MasterDetailWorkspace] Me rail.
+class _CompactAccountHeader extends StatelessWidget {
+  const _CompactAccountHeader({required this.account});
+
+  final Account? account;
+
+  static const _avatarDiameter = 40.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final value = account;
+    final url = value?.profileImageUrl;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        FuncSpacing.md,
+        FuncSpacing.sm,
+        FuncSpacing.md,
+        FuncSpacing.xs,
+      ),
+      child: Material(
+        color: colors.surfaceContainer,
+        shape: const RoundedRectangleBorder(borderRadius: FuncShape.card),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: value == null
+              ? () => openLogin(context)
+              : () => openMe(context),
+          child: Padding(
+            padding: const EdgeInsetsDirectional.fromSTEB(
+              FuncSpacing.md,
+              FuncSpacing.sm,
+              FuncSpacing.xs,
+              FuncSpacing.sm,
+            ),
+            child: Row(
+              children: [
+                SizedBox.square(
+                  dimension: _avatarDiameter,
+                  child: PersonAvatar(
+                    imageUrl: url == null || url.isEmpty ? null : url,
+                    radius: _avatarDiameter / 2,
+                  ),
+                ),
+                const SizedBox(width: FuncSpacing.sm),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        value?.name ?? l10n.signedOut,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      Text(
+                        value == null
+                            ? l10n.login
+                            : l10n.labelValue(
+                                l10n.profileId,
+                                '${value.userId}',
+                              ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colors.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (value != null)
+                  IconButton(
+                    tooltip: l10n.accountManagement,
+                    icon: const Icon(Icons.manage_accounts_outlined),
+                    onPressed: () =>
+                        openSettingsPage(context, SettingsPageRef.account.path),
+                  ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -334,18 +500,27 @@ class _PremiumBadge extends StatelessWidget {
   }
 }
 
-/// Download tasks not yet finished. The manager reports every progress
-/// tick; the count is re-emitted only when it moves, so the grid rebuilds
-/// when a task starts or ends, not on every tick.
-final _activeDownloadCountProvider = StreamProvider.autoDispose<int>((
+typedef _DownloadStats = ({int active, int total});
+
+/// Live active and total download counts; emits only when either count changes
+/// so progress ticks never rebuild the dashboard rows.
+final _downloadStatsProvider = StreamProvider.autoDispose<_DownloadStats>((
   ref,
 ) async* {
   final manager = ref.watch(downloadManagerProvider);
-  int count() => manager.tasks.where((task) => !isTerminal(task.status)).length;
-  var last = count();
+  _DownloadStats snapshot() {
+    final tasks = manager.tasks;
+    var active = 0;
+    for (final task in tasks) {
+      if (!isTerminal(task.status)) active++;
+    }
+    return (active: active, total: tasks.length);
+  }
+
+  var last = snapshot();
   yield last;
   await for (final _ in manager.changes) {
-    final next = count();
+    final next = snapshot();
     if (next == last) continue;
     yield last = next;
   }
@@ -574,7 +749,7 @@ class _RecentHistoryState extends ConsumerState<_RecentHistory>
               FuncSpacing.lg + FuncSpacing.lg,
               0,
               FuncSpacing.lg,
-              0,
+              FuncSpacing.xs,
             ),
             child: Row(
               children: [
@@ -591,6 +766,10 @@ class _RecentHistoryState extends ConsumerState<_RecentHistory>
                   ),
                 ),
                 TextButton(
+                  style: TextButton.styleFrom(
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    visualDensity: VisualDensity.compact,
+                  ),
                   onPressed: () => unawaited(openHistory(context)),
                   child: Text(context.l10n.detailViewAll),
                 ),
@@ -821,267 +1000,555 @@ class _RecentCover extends StatelessWidget {
   }
 }
 
-/// One content entry: a row of [_ContentShortcuts]. [count], when given,
-/// is shown at the row's end while it is above zero.
-typedef _Entry = ({
-  IconData icon,
-  String label,
-  VoidCallback onTap,
-  int? count,
-  CategoryTone tone,
-});
+String _downloadSummary(BuildContext context, _DownloadStats stats) {
+  final l10n = context.l10n;
+  if (stats.total == 0) return l10n.downloadTasksEmpty;
+  final totalLabel = l10n.labelValue(
+    l10n.downloadGroupTasks,
+    AppFormat.count(context, stats.total),
+  );
+  if (stats.active == 0) return totalLabel;
+  final activeLabel = l10n.labelValue(
+    l10n.downloadRunning,
+    AppFormat.count(context, stats.active),
+  );
+  return '$activeLabel · $totalLabel';
+}
 
-/// The user's own content, a [SettingsCard] row each; then any destinations
-/// moved off the bottom bar and trailing entries ([settings], [about]).
-class _ContentShortcuts extends ConsumerWidget {
-  const _ContentShortcuts({
-    this.asGrid = false,
-    this.trailingEntries = const [],
-  });
+String _watchLaterSummary(BuildContext context, int? count) {
+  final l10n = context.l10n;
+  if (count == null || count == 0) return l10n.watchLaterEmpty;
+  return l10n.seriesWorksCount(count);
+}
 
-  final bool asGrid;
-  final List<_Entry> trailingEntries;
+String _localNovelsSummary(BuildContext context, int? count) {
+  final l10n = context.l10n;
+  if (count == null || count == 0) return l10n.localNovelsEmpty;
+  return l10n.seriesWorksCount(count);
+}
+
+/// Narrow/single-column Me dashboard groups (`SET-01`, `SET-08`): every group is
+/// titled and every row carries a real double-line summary using `SettingsGroup`
+/// and [SettingsTile.topLevel].
+class _MeNarrowGroups extends ConsumerWidget {
+  const _MeNarrowGroups();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final scheme = Theme.of(context).colorScheme;
-    final libraryTone = categoryTone(scheme, CategoryHue.blue);
-    final downloadTone = categoryTone(scheme, CategoryHue.green);
-    final activeTasks = ref.watch(_activeDownloadCountProvider).value ?? 0;
+    final blueTone = categoryTone(scheme, CategoryHue.blue);
+    final orangeTone = categoryTone(scheme, CategoryHue.orange);
+    final greenTone = categoryTone(scheme, CategoryHue.green);
+    final neutralTone = neutralCategoryTone(scheme);
+    final downloadStats =
+        ref.watch(_downloadStatsProvider).value ?? (active: 0, total: 0);
+    final watchLaterCount = ref.watch(watchLaterStoreProvider).value?.length;
+    final localNovelsCount = ref.watch(localNovelStoreProvider).value?.length;
+    final appSettings = ref.watch(settingsProvider).value;
     final offBar = ref.watch(homeArrangementProvider).hidden;
     final signedIn = ref.watch(
       accountStoreProvider.select(
         (async) => async.value?.usableCurrent != null,
       ),
     );
-    final List<_Entry> libraryEntries = [
-      (
-        icon: Icons.favorite_border,
-        label: l10n.profileBookmarked,
-        onTap: () => unawaited(openMe(context, tab: MeTab.bookmarks)),
-        count: null,
-        tone: libraryTone,
-      ),
-      (
-        icon: Icons.people_outline,
-        label: l10n.profileFollowing,
-        onTap: () => unawaited(openMe(context, tab: MeTab.following)),
-        count: null,
-        tone: libraryTone,
-      ),
-      (
-        icon: Icons.library_books_outlined,
-        label: l10n.watchlistTitle,
-        onTap: () => unawaited(openWatchlist(context)),
-        count: null,
-        tone: libraryTone,
-      ),
-      // Pixiv keeps them with the account.
-      if (signedIn)
-        (
-          icon: Icons.bookmarks_outlined,
-          label: l10n.novelMarkers,
-          onTap: () => unawaited(openNovelMarkers(context)),
-          count: null,
-          tone: libraryTone,
-        ),
-      (
-        icon: Icons.bookmark_border,
-        label: l10n.watchLaterTitle,
-        onTap: () => unawaited(openWatchLater(context)),
-        count: null,
-        tone: libraryTone,
-      ),
-      (
-        icon: Icons.menu_book_outlined,
-        label: l10n.localNovelsTitle,
-        onTap: () => unawaited(openLocalNovels(context)),
-        count: null,
-        tone: libraryTone,
-      ),
-      for (final destination in HomeDestination.values)
-        if (offBar.contains(destination))
-          (
-            icon: homeDestinationIcon(destination),
-            label: homeDestinationLabel(context, destination),
-            onTap: () => openHomeDestination(context, destination),
-            count: null,
-            tone: libraryTone,
-          ),
-    ];
-    final downloadEntry = (
-      icon: Icons.downloading_outlined,
-      label: l10n.downloaderSettings,
-      onTap: () => unawaited(openDownloadTasks(context)),
-      count: activeTasks,
-      tone: downloadTone,
-    );
-    if (asGrid) {
-      return Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            flex: 6,
-            child: _MeEntryGroup(
-              children: [
-                for (final entry in libraryEntries)
-                  _MeRow(
-                    icon: entry.icon,
-                    label: entry.label,
-                    onTap: entry.onTap,
-                    count: entry.count,
-                    tone: entry.tone,
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(width: FuncSpacing.lg),
-          Expanded(
-            flex: 4,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _MeEntryGroup(
-                  children: [
-                    _MeRow(
-                      icon: downloadEntry.icon,
-                      label: downloadEntry.label,
-                      onTap: downloadEntry.onTap,
-                      count: downloadEntry.count,
-                      tone: downloadEntry.tone,
-                    ),
-                  ],
-                ),
-                if (trailingEntries.isNotEmpty) ...[
-                  const SizedBox(height: FuncSpacing.xl),
-                  _MeEntryGroup(
-                    children: [
-                      for (final entry in trailingEntries)
-                        _MeRow(
-                          icon: entry.icon,
-                          label: entry.label,
-                          onTap: entry.onTap,
-                          count: entry.count,
-                          tone: entry.tone,
-                        ),
-                    ],
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
-      );
-    }
+    final settingsSubtitle = appSettings == null
+        ? l10n.settingsBrowseHint
+        : '${themeModeLabel(context, appSettings.themeCode)} · '
+              '${languageDisplayName(appSettings.languageTag)}';
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _MeEntryGroup(
+        SettingsGroup(
+          title: Text(l10n.settingsGroupLibrary),
           children: [
-            for (final entry in libraryEntries)
-              _MeRow(
-                icon: entry.icon,
-                label: entry.label,
-                onTap: entry.onTap,
-                count: entry.count,
-                tone: entry.tone,
+            SettingsTile.topLevel(
+              icon: Icons.favorite_border,
+              title: l10n.profileBookmarked,
+              subtitle: Text(
+                '${l10n.profileIllust} · ${l10n.profileNovel} · '
+                '${l10n.bookmarkTags}',
               ),
+              tone: blueTone,
+              onTap: () => unawaited(openMe(context, tab: MeTab.bookmarks)),
+            ),
+            SettingsTile.topLevel(
+              icon: Icons.people_outline,
+              title: l10n.profileFollowing,
+              subtitle: Text(
+                '${l10n.restrictPublic} · ${l10n.restrictPrivate}',
+              ),
+              tone: blueTone,
+              onTap: () => unawaited(openMe(context, tab: MeTab.following)),
+            ),
+            SettingsTile.topLevel(
+              icon: Icons.library_books_outlined,
+              title: l10n.watchlistTitle,
+              subtitle: Text('${l10n.watchlistManga} · ${l10n.watchlistNovel}'),
+              tone: blueTone,
+              onTap: () => unawaited(openWatchlist(context)),
+            ),
+            // Pixiv keeps novel markers with the signed-in account.
+            if (signedIn)
+              SettingsTile.topLevel(
+                icon: Icons.bookmarks_outlined,
+                title: l10n.novelMarkers,
+                subtitle: Text(
+                  '${l10n.novelReadingProgress} · ${l10n.novelMarker}',
+                ),
+                tone: blueTone,
+                onTap: () => unawaited(openNovelMarkers(context)),
+              ),
+            for (final destination in HomeDestination.values)
+              if (offBar.contains(destination))
+                SettingsTile.topLevel(
+                  icon: homeDestinationIcon(destination),
+                  title: homeDestinationLabel(context, destination),
+                  subtitle: Text(l10n.navigationSettings),
+                  tone: blueTone,
+                  onTap: () => openHomeDestination(context, destination),
+                ),
           ],
         ),
-        const SizedBox(height: FuncSpacing.xl),
-        _MeEntryGroup(
+        SettingsGroup(
+          title: Text(l10n.settingsGroupData),
           children: [
-            _MeRow(
-              icon: downloadEntry.icon,
-              label: downloadEntry.label,
-              onTap: downloadEntry.onTap,
-              count: downloadEntry.count,
-              tone: downloadEntry.tone,
+            SettingsTile.topLevel(
+              icon: Icons.bookmark_border,
+              title: l10n.watchLaterTitle,
+              subtitle: Text(_watchLaterSummary(context, watchLaterCount)),
+              tone: orangeTone,
+              onTap: () => unawaited(openWatchLater(context)),
+            ),
+            SettingsTile.topLevel(
+              icon: Icons.auto_stories_outlined,
+              title: l10n.localNovelsTitle,
+              subtitle: Text(_localNovelsSummary(context, localNovelsCount)),
+              tone: orangeTone,
+              onTap: () => unawaited(openLocalNovels(context)),
+            ),
+            SettingsTile.topLevel(
+              icon: Icons.downloading_outlined,
+              title: l10n.downloaderSettings,
+              subtitle: Text(_downloadSummary(context, downloadStats)),
+              tone: greenTone,
+              trailingBadge: Badge(
+                isLabelVisible: downloadStats.active > 0,
+                label: Text(AppFormat.count(context, downloadStats.active)),
+              ),
+              onTap: () => unawaited(openDownloadTasks(context)),
             ),
           ],
         ),
-        if (trailingEntries.isNotEmpty) ...[
-          const SizedBox(height: FuncSpacing.xl),
-          _MeEntryGroup(
-            children: [
-              for (final entry in trailingEntries)
-                _MeRow(
-                  icon: entry.icon,
-                  label: entry.label,
-                  onTap: entry.onTap,
-                  count: entry.count,
-                  tone: entry.tone,
-                ),
-            ],
-          ),
-        ],
+        SettingsGroup(
+          title: const Text('Parfait'),
+          children: [
+            SettingsTile.topLevel(
+              icon: Icons.settings_outlined,
+              title: l10n.settingsTitle,
+              subtitle: Text(settingsSubtitle),
+              tone: neutralTone,
+              onTap: () => openSettingsPage(context, settingsIndexPath),
+            ),
+            SettingsTile.topLevel(
+              icon: settingsPageIcons[SettingsPageRef.about]!,
+              title: l10n.aboutSettings,
+              subtitle: const _MeVersionSummary(),
+              tone: neutralTone,
+              onTap: () =>
+                  openSettingsPage(context, SettingsPageRef.about.path),
+            ),
+          ],
+        ),
       ],
     );
   }
 }
 
-/// Stacks independent [SettingsCard] rows (`surfaceContainer`, [FuncShape.card])
-/// separated by [SettingsGroup.rowGap] (`FuncSpacing.sm`), matching the
-/// settings index without inner hairline dividers.
-class _MeEntryGroup extends StatelessWidget {
-  const _MeEntryGroup({required this.children});
-
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        for (var i = 0; i < children.length; i++) ...[
-          if (i > 0) const SizedBox(height: SettingsGroup.rowGap),
-          SettingsCard(child: children[i]),
-        ],
-      ],
-    );
-  }
-}
-
-/// A row of the Me page: a `40dp` circular [CategoryTone] icon badge matching
-/// [SettingsTile.topLevel], its label, and an optional active-download [Badge].
-class _MeRow extends StatelessWidget {
-  const _MeRow({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-    required this.tone,
-    this.count,
+/// Wide [MasterDetailWorkspace] left-rail navigation groups for Me (`280dp`,
+/// `showChevron: false`). Touch tablets keep Settings/About here because their
+/// outer `ShellRail` does not render desktop bottom Settings controls.
+class _MeWideRailGroups extends ConsumerWidget {
+  const _MeWideRailGroups({
+    required this.signedIn,
+    required this.selected,
+    required this.includeSettingsEntries,
+    required this.onSelectSection,
   });
 
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-  final CategoryTone tone;
-  final int? count;
+  final bool signedIn;
+  final _MeSection selected;
+  final bool includeSettingsEntries;
+  final ValueChanged<_MeSection> onSelectSection;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final scheme = Theme.of(context).colorScheme;
+    final blueTone = categoryTone(scheme, CategoryHue.blue);
+    final orangeTone = categoryTone(scheme, CategoryHue.orange);
+    final greenTone = categoryTone(scheme, CategoryHue.green);
+    final neutralTone = neutralCategoryTone(scheme);
+    final downloadStats =
+        ref.watch(_downloadStatsProvider).value ?? (active: 0, total: 0);
+    final offBar = ref.watch(homeArrangementProvider).hidden;
+
+    return ListView(
+      padding: const EdgeInsets.only(
+        top: FuncSpacing.xs,
+        bottom: FuncSpacing.xl,
+      ),
+      children: [
+        SettingsGroup(
+          title: Text(l10n.settingsGroupLibrary),
+          children: [
+            SettingsTile.topLevel(
+              icon: Icons.person_outline,
+              title: l10n.accountProfile,
+              tone: blueTone,
+              selected: selected == _MeSection.overview,
+              showChevron: false,
+              onTap: () => onSelectSection(_MeSection.overview),
+            ),
+            SettingsTile.topLevel(
+              icon: Icons.favorite_border,
+              title: l10n.profileBookmarked,
+              tone: blueTone,
+              selected: selected == _MeSection.bookmarks,
+              showChevron: false,
+              onTap: () => onSelectSection(_MeSection.bookmarks),
+            ),
+            SettingsTile.topLevel(
+              icon: Icons.people_outline,
+              title: l10n.profileFollowing,
+              tone: blueTone,
+              selected: selected == _MeSection.following,
+              showChevron: false,
+              onTap: () => onSelectSection(_MeSection.following),
+            ),
+            SettingsTile.topLevel(
+              icon: Icons.library_books_outlined,
+              title: l10n.watchlistTitle,
+              tone: blueTone,
+              selected: selected == _MeSection.watchlist,
+              showChevron: false,
+              onTap: () => onSelectSection(_MeSection.watchlist),
+            ),
+            if (signedIn)
+              SettingsTile.topLevel(
+                icon: Icons.bookmarks_outlined,
+                title: l10n.novelMarkers,
+                tone: blueTone,
+                selected: selected == _MeSection.novelMarkers,
+                showChevron: false,
+                onTap: () => onSelectSection(_MeSection.novelMarkers),
+              ),
+            for (final destination in HomeDestination.values)
+              if (offBar.contains(destination))
+                SettingsTile.topLevel(
+                  icon: homeDestinationIcon(destination),
+                  title: homeDestinationLabel(context, destination),
+                  tone: blueTone,
+                  showChevron: false,
+                  onTap: () => openHomeDestination(context, destination),
+                ),
+          ],
+        ),
+        SettingsGroup(
+          title: Text(l10n.settingsGroupData),
+          children: [
+            SettingsTile.topLevel(
+              icon: Icons.bookmark_border,
+              title: l10n.watchLaterTitle,
+              tone: orangeTone,
+              selected: selected == _MeSection.watchLater,
+              showChevron: false,
+              onTap: () => onSelectSection(_MeSection.watchLater),
+            ),
+            SettingsTile.topLevel(
+              icon: Icons.auto_stories_outlined,
+              title: l10n.localNovelsTitle,
+              tone: orangeTone,
+              selected: selected == _MeSection.localNovels,
+              showChevron: false,
+              onTap: () => onSelectSection(_MeSection.localNovels),
+            ),
+            SettingsTile.topLevel(
+              icon: Icons.downloading_outlined,
+              title: l10n.downloaderSettings,
+              tone: greenTone,
+              selected: selected == _MeSection.downloads,
+              showChevron: false,
+              trailingBadge: Badge(
+                isLabelVisible: downloadStats.active > 0,
+                label: Text(AppFormat.count(context, downloadStats.active)),
+              ),
+              onTap: () => onSelectSection(_MeSection.downloads),
+            ),
+          ],
+        ),
+        if (includeSettingsEntries)
+          SettingsGroup(
+            title: const Text('Parfait'),
+            children: [
+              SettingsTile.topLevel(
+                icon: Icons.settings_outlined,
+                title: l10n.settingsTitle,
+                tone: neutralTone,
+                showChevron: false,
+                onTap: () => openSettingsPage(context, settingsIndexPath),
+              ),
+              SettingsTile.topLevel(
+                icon: settingsPageIcons[SettingsPageRef.about]!,
+                title: l10n.aboutSettings,
+                tone: neutralTone,
+                showChevron: false,
+                onTap: () =>
+                    openSettingsPage(context, SettingsPageRef.about.path),
+              ),
+            ],
+          ),
+      ],
+    );
+  }
+}
+
+/// Default right pane on wide Me workspaces: recent browsing history plus
+/// live local library & download overview cards.
+class _MeOverviewPane extends ConsumerWidget {
+  const _MeOverviewPane({
+    required this.historyKey,
+    required this.onSelectSection,
+  });
+
+  final GlobalKey historyKey;
+  final ValueChanged<_MeSection> onSelectSection;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final scheme = Theme.of(context).colorScheme;
+    final orangeTone = categoryTone(scheme, CategoryHue.orange);
+    final greenTone = categoryTone(scheme, CategoryHue.green);
+    final account = ref.watch(accountStoreProvider).value?.current;
+    final watchLaterCount = ref.watch(watchLaterStoreProvider).value?.length;
+    final localNovelsCount = ref.watch(localNovelStoreProvider).value?.length;
+    final downloadStats =
+        ref.watch(_downloadStatsProvider).value ?? (active: 0, total: 0);
+
+    return Scaffold(
+      appBar: AppTopBar(
+        contentWidth: 780,
+        title: Text(l10n.accountProfile),
+        actions: [
+          TextButton.icon(
+            onPressed: account == null
+                ? () => openLogin(context)
+                : () => openMe(context),
+            icon: const Icon(Icons.open_in_new, size: 18),
+            label: Text(account == null ? l10n.login : l10n.meOpenProfile),
+          ),
+        ],
+      ),
+      body: settingsNarrowBody(
+        ListView(
+          padding: const EdgeInsets.only(
+            top: FuncSpacing.md,
+            bottom: FuncSpacing.xl,
+          ),
+          children: [
+            _RecentHistory(key: historyKey),
+            SettingsGroup(
+              title: Text(l10n.settingsGroupData),
+              children: [
+                SettingsTile.topLevel(
+                  icon: Icons.bookmark_border,
+                  title: l10n.watchLaterTitle,
+                  subtitle: Text(_watchLaterSummary(context, watchLaterCount)),
+                  tone: orangeTone,
+                  onTap: () => onSelectSection(_MeSection.watchLater),
+                ),
+                SettingsTile.topLevel(
+                  icon: Icons.auto_stories_outlined,
+                  title: l10n.localNovelsTitle,
+                  subtitle: Text(
+                    _localNovelsSummary(context, localNovelsCount),
+                  ),
+                  tone: orangeTone,
+                  onTap: () => onSelectSection(_MeSection.localNovels),
+                ),
+                SettingsTile.topLevel(
+                  icon: Icons.downloading_outlined,
+                  title: l10n.downloaderSettings,
+                  subtitle: Text(_downloadSummary(context, downloadStats)),
+                  tone: greenTone,
+                  trailingBadge: Badge(
+                    isLabelVisible: downloadStats.active > 0,
+                    label: Text(AppFormat.count(context, downloadStats.active)),
+                  ),
+                  onTap: () => onSelectSection(_MeSection.downloads),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Dedicated inline bookmarks feed for the wide Me workspace, avoiding nested
+/// `UserPage` profile sidebars inside the detail pane.
+class _MeBookmarksPane extends ConsumerStatefulWidget {
+  const _MeBookmarksPane();
+
+  @override
+  ConsumerState<_MeBookmarksPane> createState() => _MeBookmarksPaneState();
+}
+
+class _MeBookmarksPaneState extends ConsumerState<_MeBookmarksPane> {
+  BookmarkEntityType _kind = BookmarkEntityType.illust;
+  UserRestrict _restrict = UserRestrict.public;
+  String? _tag;
 
   @override
   Widget build(BuildContext context) {
-    final count = this.count;
-    return ListTile(
-      leading: SizedBox.square(
-        dimension: SettingsTile.iconDiameter,
-        child: DecoratedBox(
-          decoration: BoxDecoration(color: tone.fill, shape: BoxShape.circle),
-          child: Icon(icon, color: tone.ink),
-        ),
+    final l10n = context.l10n;
+    final userId = ref.watch(
+      accountStoreProvider.select(
+        (async) => async.value?.usableCurrent?.userId,
       ),
-      title: Text(label),
-      trailing: count == null
-          ? const Icon(Icons.chevron_right)
-          : Badge(
-              isLabelVisible: count > 0,
-              label: Text(AppFormat.count(context, count)),
-              child: count > 0 ? null : const Icon(Icons.chevron_right),
+    );
+    if (userId == null) {
+      return Scaffold(
+        appBar: AppTopBar(title: Text(l10n.profileBookmarked)),
+        body: FeedEmpty(
+          icon: Icons.favorite_border,
+          title: l10n.signedOut,
+          actionLabel: l10n.login,
+          onAction: () => openLogin(context),
+        ),
+      );
+    }
+    final feedKey = ProfileFeedKey(
+      userId: userId,
+      kind: ProfileFeedKind.bookmarks,
+      workType: _kind == BookmarkEntityType.novel
+          ? UserWorkType.novel
+          : UserWorkType.illust,
+      restrict: _restrict,
+      bookmarkTag: _tag,
+    );
+    return Scaffold(
+      appBar: AppTopBar(
+        title: Text(l10n.profileBookmarked),
+        actions: [
+          TextButton(
+            onPressed: () => unawaited(
+              openBookmarkTags(context, kind: _kind, restrict: _restrict),
             ),
-      onTap: onTap,
+            child: Text(l10n.bookmarkTags),
+          ),
+        ],
+      ),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ProfileFilterBar(
+            kind: _kind,
+            onKindChanged: (value) => setState(() {
+              _kind = value;
+              _tag = null;
+            }),
+            restrict: _restrict,
+            onRestrictChanged: (value) => setState(() {
+              _restrict = value;
+              _tag = null;
+            }),
+            tag: _tag,
+            onTagChanged: (value) => setState(() => _tag = value),
+          ),
+          Expanded(
+            child: DesktopInspectableGallery(
+              active: _kind == BookmarkEntityType.illust,
+              child: _kind == BookmarkEntityType.novel
+                  ? ProfileNovelFeed(feedKey: feedKey)
+                  : ProfileIllustFeed(feedKey: feedKey),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Dedicated inline following-creators list for the wide Me workspace.
+class _MeFollowingPane extends ConsumerStatefulWidget {
+  const _MeFollowingPane();
+
+  @override
+  ConsumerState<_MeFollowingPane> createState() => _MeFollowingPaneState();
+}
+
+class _MeFollowingPaneState extends ConsumerState<_MeFollowingPane> {
+  UserRestrict _restrict = UserRestrict.public;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final userId = ref.watch(
+      accountStoreProvider.select(
+        (async) => async.value?.usableCurrent?.userId,
+      ),
+    );
+    if (userId == null) {
+      return Scaffold(
+        appBar: AppTopBar(title: Text(l10n.profileFollowing)),
+        body: FeedEmpty(
+          icon: Icons.people_outline,
+          title: l10n.signedOut,
+          actionLabel: l10n.login,
+          onAction: () => openLogin(context),
+        ),
+      );
+    }
+    return Scaffold(
+      appBar: AppTopBar(title: Text(l10n.profileFollowing)),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ProfileFilterBar(
+            restrict: _restrict,
+            onRestrictChanged: (value) => setState(() => _restrict = value),
+          ),
+          Expanded(
+            child: ProfileUserFeed(
+              feedKey: ProfileFeedKey(
+                userId: userId,
+                kind: ProfileFeedKind.following,
+                restrict: _restrict,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MeVersionSummary extends StatelessWidget {
+  const _MeVersionSummary();
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<PackageInfo>(
+      future: PackageInfo.fromPlatform(),
+      builder: (context, snapshot) {
+        final info = snapshot.data;
+        return Text(info?.version ?? '—');
+      },
     );
   }
 }

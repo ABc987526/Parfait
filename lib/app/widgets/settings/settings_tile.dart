@@ -14,6 +14,8 @@ class SettingsTile extends StatelessWidget {
     this.icon,
     this.subtitle,
     this.selected = false,
+    this.trailingBadge,
+    this.showChevron = true,
   }) : tone = null;
 
   /// An entry of a top-level page (the settings index, the Me tab): the
@@ -28,6 +30,8 @@ class SettingsTile extends StatelessWidget {
     this.subtitle,
     this.selected = false,
     required CategoryTone this.tone,
+    this.trailingBadge,
+    this.showChevron = true,
   });
 
   /// The circle's colors; null on a sub-page, whose icon is bare.
@@ -50,6 +54,14 @@ class SettingsTile extends StatelessWidget {
 
   /// Whether this row represents the active master-detail destination.
   final bool selected;
+
+  /// Optional trailing badge (e.g. active task count) shown beside or in place
+  /// of the chevron.
+  final Widget? trailingBadge;
+
+  /// Whether to show the trailing navigation chevron (`false` in wide
+  /// master-detail left rails to reclaim `28dp` of horizontal text width).
+  final bool showChevron;
 
   /// Diameter of the tonal circle behind the icon.
   static const double iconDiameter = 40;
@@ -80,6 +92,20 @@ class SettingsTile extends StatelessWidget {
     final scheme = theme.colorScheme;
     final overlay = selected ? selectedOverlayColor(scheme) : null;
     final pressedColor = overlay?.resolve(const {WidgetState.pressed});
+    final trailingBadge = this.trailingBadge;
+    final Widget? trailing = switch ((trailingBadge, showChevron)) {
+      (final badge?, true) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          badge,
+          const SizedBox(width: 8),
+          const Icon(Icons.chevron_right),
+        ],
+      ),
+      (final badge?, false) => badge,
+      (null, true) => const Icon(Icons.chevron_right),
+      (null, false) => null,
+    };
     Widget tile = ListTile(
       selected: selected,
       selectedTileColor: scheme.primaryContainer,
@@ -102,7 +128,7 @@ class SettingsTile extends StatelessWidget {
             ),
       title: Text(settingsRowTitle(context, title, setting)),
       subtitle: subtitle,
-      trailing: const Icon(Icons.chevron_right),
+      trailing: trailing,
       onTap: onTap,
     );
     if (selected && pressedColor != null) {

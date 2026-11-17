@@ -274,7 +274,7 @@ enum Setting implements SettingsEntry {
   /// under the same condition.
   bool get available => switch (this) {
     hapticStrength => defaultTargetPlatform == TargetPlatform.android,
-    interfaceForm || closeToTray => _desktop,
+    interfaceForm || closeToTray || desktopDetailMode => _desktop,
     aboutDisplayRefreshRate =>
       !kIsWeb && defaultTargetPlatform == TargetPlatform.android,
     _ => true,

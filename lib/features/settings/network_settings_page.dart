@@ -87,7 +87,7 @@ class NetworkSettingsPage extends ConsumerWidget {
         ListView(
           padding: const EdgeInsets.only(
             top: FuncSpacing.sm,
-            bottom: FuncSpacing.xl,
+            bottom: FuncSpacing.xxxl,
           ),
           children: [
             SettingsGroup(
@@ -317,40 +317,47 @@ class _ImageSourceSectionState extends ConsumerState<_ImageSourceSection> {
             },
           ),
           SettingsGroupContent(
-            child: TextField(
-              controller: _customController,
-              focusNode: _customFocusNode,
-              decoration: InputDecoration(
-                labelText: context.l10n.imageSourceCustom,
-                helperText: context.l10n.imageSourceCustomHint,
-                helperMaxLines: 3,
-              ),
-              onChanged: (_) => setState(() => _customDirty = true),
-            ),
-          ),
-          SettingsGroupContent(
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: Wrap(
-                spacing: 8,
-                children: [
-                  FilledButton(
-                    onPressed: _testingMirror ? null : _saveCustomSource,
-                    child: Text(context.l10n.save),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TextField(
+                  controller: _customController,
+                  focusNode: _customFocusNode,
+                  decoration: InputDecoration(
+                    labelText: context.l10n.imageSourceCustom,
+                    helperText: context.l10n.imageSourceCustomHint,
+                    helperMaxLines: 3,
                   ),
-                  FilledButton.tonalIcon(
-                    onPressed: _testingMirror ? null : _testMirror,
-                    icon: _testingMirror
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.network_check, size: 18),
-                    label: Text(context.l10n.imageSourceApplyAndTest),
+                  onChanged: (_) => setState(() => _customDirty = true),
+                ),
+                const SizedBox(height: FuncSpacing.md),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      FilledButton(
+                        onPressed: _testingMirror ? null : _saveCustomSource,
+                        child: Text(context.l10n.save),
+                      ),
+                      FilledButton.tonalIcon(
+                        onPressed: _testingMirror ? null : _testMirror,
+                        icon: _testingMirror
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.network_check, size: 18),
+                        label: Text(context.l10n.imageSourceApplyAndTest),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ],
@@ -555,7 +562,7 @@ class _NetworkAdvancedSettingsPageState
           ListView(
             padding: const EdgeInsets.only(
               top: FuncSpacing.sm,
-              bottom: FuncSpacing.xl,
+              bottom: FuncSpacing.xxxl,
             ),
             children: [
               // One card: Save commits both fields, so they share it.
@@ -570,11 +577,12 @@ class _NetworkAdvancedSettingsPageState
                           TextField(
                             controller: _dohController,
                             focusNode: _dohFocusNode,
-                            maxLines: 2,
+                            minLines: 2,
+                            maxLines: null,
                             decoration: InputDecoration(
                               labelText: context.l10n.networkDohEndpoints,
                               helperText: context.l10n.networkDohEndpointsHint,
-                              helperMaxLines: 3,
+                              helperMaxLines: 5,
                             ),
                             onChanged: (_) => setState(() => _dohDirty = true),
                           ),

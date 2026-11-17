@@ -443,27 +443,43 @@ List<RouteBase> _settingsSubRoutes(
   return [
     GoRoute(
       path: 'all',
-      pageBuilder: (context, state) =>
-          _settingsPage(context, state, observer, const SettingsPage()),
+      pageBuilder: (context, state) => _settingsPage(
+        context,
+        state,
+        observer,
+        SettingsPage(initialLocation: state.uri.toString()),
+      ),
     ),
     GoRoute(
       path: 'account',
-      pageBuilder: (context, state) =>
-          _settingsPage(context, state, observer, const AccountSettingsPage()),
+      pageBuilder: (context, state) => _adaptiveSettingsPage(
+        context,
+        state,
+        observer,
+        const AccountSettingsPage(),
+      ),
     ),
     GoRoute(
       path: 'theme',
-      pageBuilder: (context, state) =>
-          _settingsPage(context, state, observer, const ThemeSettingsPage()),
+      pageBuilder: (context, state) => _adaptiveSettingsPage(
+        context,
+        state,
+        observer,
+        const ThemeSettingsPage(),
+      ),
     ),
     GoRoute(
       path: 'language',
-      pageBuilder: (context, state) =>
-          _settingsPage(context, state, observer, const LanguageSettingsPage()),
+      pageBuilder: (context, state) => _adaptiveSettingsPage(
+        context,
+        state,
+        observer,
+        const LanguageSettingsPage(),
+      ),
     ),
     GoRoute(
       path: 'translate',
-      pageBuilder: (context, state) => _settingsPage(
+      pageBuilder: (context, state) => _adaptiveSettingsPage(
         context,
         state,
         observer,
@@ -472,7 +488,7 @@ List<RouteBase> _settingsSubRoutes(
       routes: [
         GoRoute(
           path: 'credentials/:provider',
-          pageBuilder: (context, state) => _settingsPage(
+          pageBuilder: (context, state) => _adaptiveSettingsPage(
             context,
             state,
             observer,
@@ -485,17 +501,25 @@ List<RouteBase> _settingsSubRoutes(
     ),
     GoRoute(
       path: 'network',
-      pageBuilder: (context, state) =>
-          _settingsPage(context, state, observer, const NetworkSettingsPage()),
+      pageBuilder: (context, state) => _adaptiveSettingsPage(
+        context,
+        state,
+        observer,
+        const NetworkSettingsPage(),
+      ),
       routes: [
         GoRoute(
           path: 'probe',
-          pageBuilder: (context, state) =>
-              _settingsPage(context, state, observer, const NetworkProbePage()),
+          pageBuilder: (context, state) => _adaptiveSettingsPage(
+            context,
+            state,
+            observer,
+            const NetworkProbePage(),
+          ),
         ),
         GoRoute(
           path: 'advanced',
-          pageBuilder: (context, state) => _settingsPage(
+          pageBuilder: (context, state) => _adaptiveSettingsPage(
             context,
             state,
             observer,
@@ -508,22 +532,34 @@ List<RouteBase> _settingsSubRoutes(
     // (about page, 7 taps) can reach it — only the entry is hidden.
     GoRoute(
       path: 'frame-probe',
-      pageBuilder: (context, state) =>
-          _settingsPage(context, state, observer, const FrameProbePage()),
+      pageBuilder: (context, state) => _adaptiveSettingsPage(
+        context,
+        state,
+        observer,
+        const FrameProbePage(),
+      ),
     ),
     GoRoute(
       path: 'browse',
-      pageBuilder: (context, state) =>
-          _settingsPage(context, state, observer, const BrowseSettingsPage()),
+      pageBuilder: (context, state) => _adaptiveSettingsPage(
+        context,
+        state,
+        observer,
+        const BrowseSettingsPage(),
+      ),
     ),
     GoRoute(
       path: 'motion',
-      pageBuilder: (context, state) =>
-          _settingsPage(context, state, observer, const MotionSettingsPage()),
+      pageBuilder: (context, state) => _adaptiveSettingsPage(
+        context,
+        state,
+        observer,
+        const MotionSettingsPage(),
+      ),
     ),
     GoRoute(
       path: 'navigation',
-      pageBuilder: (context, state) => _settingsPage(
+      pageBuilder: (context, state) => _adaptiveSettingsPage(
         context,
         state,
         observer,
@@ -532,7 +568,7 @@ List<RouteBase> _settingsSubRoutes(
       routes: [
         GoRoute(
           path: 'bottom-bar',
-          pageBuilder: (context, state) => _settingsPage(
+          pageBuilder: (context, state) => _adaptiveSettingsPage(
             context,
             state,
             observer,
@@ -543,12 +579,16 @@ List<RouteBase> _settingsSubRoutes(
     ),
     GoRoute(
       path: 'download',
-      pageBuilder: (context, state) =>
-          _settingsPage(context, state, observer, const DownloadSettingsPage()),
+      pageBuilder: (context, state) => _adaptiveSettingsPage(
+        context,
+        state,
+        observer,
+        const DownloadSettingsPage(),
+      ),
       routes: [
         GoRoute(
           path: 'destination',
-          pageBuilder: (context, state) => _settingsPage(
+          pageBuilder: (context, state) => _adaptiveSettingsPage(
             context,
             state,
             observer,
@@ -559,34 +599,49 @@ List<RouteBase> _settingsSubRoutes(
     ),
     GoRoute(
       path: 'muted',
-      pageBuilder: (context, state) =>
-          _settingsPage(context, state, observer, const MutedItemsPage()),
+      pageBuilder: (context, state) => _adaptiveSettingsPage(
+        context,
+        state,
+        observer,
+        const MutedItemsPage(),
+      ),
     ),
     GoRoute(
       path: 'backup',
-      pageBuilder: (context, state) =>
-          _settingsPage(context, state, observer, const BackupSettingsPage()),
+      pageBuilder: (context, state) => _adaptiveSettingsPage(
+        context,
+        state,
+        observer,
+        const BackupSettingsPage(),
+      ),
     ),
     GoRoute(
       path: 'tasks',
-      pageBuilder: (context, state) =>
-          _settingsPage(context, state, observer, const DownloadTasksPage()),
+      pageBuilder: (context, state) => _adaptiveSettingsPage(
+        context,
+        state,
+        observer,
+        const DownloadTasksPage(),
+      ),
     ),
     GoRoute(
       path: 'about',
-      pageBuilder: (context, state) =>
-          _settingsPage(context, state, observer, const AboutSettingsPage()),
+      pageBuilder: (context, state) => _adaptiveSettingsPage(
+        context,
+        state,
+        observer,
+        const AboutSettingsPage(),
+      ),
       routes: [
         GoRoute(
           path: 'licenses',
-          pageBuilder: (context, state) => _settingsPage(
+          pageBuilder: (context, state) => _adaptiveSettingsPage(
             context,
             state,
             observer,
             FutureBuilder<PackageInfo>(
               future: PackageInfo.fromPlatform(),
-              builder: (context, snapshot) => LicensePage(
-                applicationName: 'Parfait',
+              builder: (context, snapshot) => LicensesSettingsPage(
                 applicationVersion: snapshot.data?.version,
               ),
             ),
@@ -596,6 +651,21 @@ List<RouteBase> _settingsSubRoutes(
     ),
   ];
 }
+
+/// Hosts leaf settings routes inside [SettingsAdaptiveHost] so desktop and wide
+/// tablets keep the shared master-detail workspace instead of single-column
+/// islands.
+Page<dynamic> _adaptiveSettingsPage(
+  BuildContext context,
+  GoRouterState state,
+  RouteObserver<ModalRoute<dynamic>> observer,
+  Widget page,
+) => _settingsPage(
+  context,
+  state,
+  observer,
+  SettingsAdaptiveHost(location: state.uri.toString(), narrowPage: page),
+);
 
 /// A settings page that reveals the entry its `focus` query names (the
 /// settings search links there).

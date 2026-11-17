@@ -315,10 +315,20 @@ class _TranslationCredentialsPageState
                           alignment: AlignmentDirectional.centerEnd,
                           child: FilledButton.icon(
                             onPressed: _busy ? null : _save,
+                            style: FilledButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: FuncSpacing.lg,
+                                vertical: FuncSpacing.md,
+                              ),
+                              minimumSize: const Size(0, 44),
+                            ),
                             icon: _busy && !_clearing
                                 ? const _BusyIndicator()
                                 : const Icon(Icons.save_outlined),
-                            label: Text(context.l10n.translateCredentialsSave),
+                            label: Text(
+                              context.l10n.translateCredentialsSave,
+                              textAlign: TextAlign.center,
+                            ),
                           ),
                         ),
                       ],

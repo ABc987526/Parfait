@@ -93,7 +93,9 @@ class _AccountSettingsPageState extends ConsumerState<AccountSettingsPage> {
     final accounts = ref.watch(accountStoreProvider);
     return Scaffold(
       appBar: AppTopBar(
-        contentWidth: ContentWidths.settings,
+        contentWidth: SettingsDetailScope.maybeOf(context) != null
+            ? 780
+            : ContentWidths.settings,
         title: Text(context.l10n.accountManagement),
         actions: [
           IconButton(
@@ -234,7 +236,7 @@ class _AccountSettingsPageState extends ConsumerState<AccountSettingsPage> {
           ),
           DangerFilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text(context.l10n.confirm),
+            child: Text(context.l10n.downloadRemoveRecord),
           ),
         ],
       ),
