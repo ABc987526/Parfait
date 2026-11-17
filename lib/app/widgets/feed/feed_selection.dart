@@ -231,6 +231,29 @@ class FeedSelectionScope extends InheritedWidget {
       controller != oldWidget.controller;
 }
 
+/// Whether the card's top-start corner currently hosts the multi-select
+/// checkbox (`>= 600dp` hover or active selection mode), so badges at that
+/// corner shift aside instead of stacking underneath it.
+class FeedSelectionCornerScope extends InheritedWidget {
+  const FeedSelectionCornerScope({
+    super.key,
+    required this.occupied,
+    required super.child,
+  });
+
+  final bool occupied;
+
+  static bool topStartOccupiedOf(BuildContext context) =>
+      context
+          .dependOnInheritedWidgetOfExactType<FeedSelectionCornerScope>()
+          ?.occupied ??
+      false;
+
+  @override
+  bool updateShouldNotify(FeedSelectionCornerScope oldWidget) =>
+      occupied != oldWidget.occupied;
+}
+
 /// Global anchor lookup so `KeyboardBack` can route `Escape` (clear selection)
 /// and `Ctrl/Cmd+A` (select all) to the visible on-screen feed even when a
 /// mouse click did not focus an element inside the feed subtree.
@@ -504,7 +527,12 @@ class FeedBatchActionBar extends ConsumerWidget {
                   l10n.selectedCount(controller.selectedCount),
                   style: Theme.of(context).textTheme.labelLarge,
                 ),
-                const SizedBox(width: FuncSpacing.sm),
+                const SizedBox(width: FuncSpacing.xs),
+                TextButton.icon(
+                  onPressed: controller.selectAll,
+                  icon: const Icon(Icons.select_all, size: 18),
+                  label: Text(l10n.selectAll),
+                ),
                 TextButton.icon(
                   onPressed: () =>
                       unawaited(_downloadSelected(context, ref, controller)),
@@ -671,7 +699,7 @@ class _FeedSelectableCardDecoratorState
                   (_hovered && modality == InputModality.pointer));
           return Stack(
             children: [
-              child!,
+              FeedSelectionCornerScope(occupied: showBadge, child: child!),
               if (selected)
                 Positioned.fill(
                   child: IgnorePointer(

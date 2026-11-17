@@ -4,6 +4,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../app/layout/deferred_cache_scroll_view.dart';
 import '../../app/widgets/app_top_bar.dart';
+import '../../app/widgets/feed/desktop_gallery_controls.dart';
 import '../../app/widgets/feed/feed_grid.dart';
 import '../../app/widgets/feed/feed_selection.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -380,6 +381,7 @@ class _SearchResultPageState extends ConsumerState<SearchResultPage>
     final wide = PageHeader.isWide(context);
     final hasCommandBar = DesktopCommandBarScope.isActiveOf(context);
     final hideWideSearchControls = wide && hasCommandBar;
+    final showGalleryControls = _selectedType == SearchResultType.illust;
     return DesktopCommandActionsAnchor(
       action: hideWideSearchControls
           ? Padding(
@@ -412,41 +414,48 @@ class _SearchResultPageState extends ConsumerState<SearchResultPage>
                     children: [tabBar, ?summary],
                   ),
                 ),
-          actions: hideWideSearchControls
-              ? const []
-              : [
-                  filterButton,
-                  if (wide)
-                    Padding(
-                      padding: const EdgeInsetsDirectional.only(
-                        start: FuncSpacing.sm,
-                        end: FuncSpacing.lg,
-                      ),
-                      child: SizedBox(
-                        width: PageHeader.searchFieldWidth(context),
-                        child: Builder(builder: keywordField),
-                      ),
-                    ),
-                ],
+          actions: [
+            if (hasCommandBar)
+              DesktopGalleryControls(visible: showGalleryControls),
+            if (hideWideSearchControls && showGalleryControls)
+              const SizedBox(width: FuncSpacing.sm),
+            if (!hideWideSearchControls) ...[
+              filterButton,
+              if (wide)
+                Padding(
+                  padding: const EdgeInsetsDirectional.only(
+                    start: FuncSpacing.sm,
+                    end: FuncSpacing.lg,
+                  ),
+                  child: SizedBox(
+                    width: PageHeader.searchFieldWidth(context),
+                    child: Builder(builder: keywordField),
+                  ),
+                ),
+            ],
+          ],
         ),
-        body: Builder(
-          builder: (context) {
-            _notificationContext = context;
-            return TabSwipeSwitcher(
-              tabController: _tabController,
-              prepareTab: _prepareTab,
-              child: TabSlideStack(
-                controller: _tabController,
-                children: [
-                  for (final type in SearchResultType.values)
-                    if (_loadedTypes.contains(type))
-                      _bodyFor(type)
-                    else
-                      const SizedBox.shrink(),
-                ],
-              ),
-            );
-          },
+        body: DesktopInspectableGallery(
+          active: showGalleryControls,
+          child: Builder(
+            builder: (context) {
+              _notificationContext = context;
+              return TabSwipeSwitcher(
+                tabController: _tabController,
+                prepareTab: _prepareTab,
+                child: TabSlideStack(
+                  controller: _tabController,
+                  children: [
+                    for (final type in SearchResultType.values)
+                      if (_loadedTypes.contains(type))
+                        _bodyFor(type)
+                      else
+                        const SizedBox.shrink(),
+                  ],
+                ),
+              );
+            },
+          ),
         ),
       ),
     );

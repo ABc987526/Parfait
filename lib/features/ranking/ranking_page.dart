@@ -48,6 +48,8 @@ class RankingPage extends StatelessWidget {
       switchLabel: context.l10n.novelRanking,
       switchIcon: Icons.menu_book_outlined,
       onSwitch: openNovelRanking,
+      showGalleryControls: true,
+      enableDesktopInspector: true,
       bodyBuilder: (mode, date, scrollController) => _RankingModeBody(
         feedKey: (mode: mode, date: date),
         scrollController: scrollController,

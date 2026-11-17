@@ -9,6 +9,7 @@ import '../../app/haptics/app_haptics.dart';
 import '../../app/layout/deferred_cache_scroll_view.dart';
 import '../../app/layout/input_modality.dart';
 import '../../app/motion/removal.dart';
+import '../../app/navigation/routes.dart';
 import '../../app/pull_to_refresh.dart';
 import '../../app/widgets/app_top_bar.dart';
 import '../../app/widgets/errors/error_details.dart';
@@ -224,66 +225,69 @@ class _WatchLaterPageState extends ConsumerState<WatchLaterPage> {
                     ),
                 ],
               ),
-        body: PullToRefresh(
-          onRefresh: () => ref.refresh(watchLaterStoreProvider.future),
-          child: entries.when(
-            loading: () => const Center(child: FeedLoading()),
-            error: (error, _) => FeedError(
-              title: l10n.watchLaterLoadFailed,
-              error: error,
-              retryLabel: l10n.retry,
-              onRetry: () => ref.invalidate(watchLaterStoreProvider),
-            ),
-            data: (list) => list.isEmpty
-                ? FeedEmpty(
-                    icon: Icons.bookmark_border,
-                    title: l10n.watchLaterEmpty,
-                  )
-                : RemovalScope(
-                    controller: _removals,
-                    child: SmoothWheelScroll(
-                      builder: (context, controller, physics) =>
-                          DeferredCacheScrollView(
-                            controller: controller,
-                            physics: physics,
-                            scrollCacheExtent: kFeedCacheExtent,
-                            restorationId: 'watchlater',
-                            slivers: [
-                              IllustFeedGrid(
-                                padding: const EdgeInsets.all(FuncSpacing.sm),
-                                mainAxisSpacing: FuncSpacing.sm,
-                                itemIds: [for (final e in list) e.entity.id],
-                                itemCount: list.length,
-                                warmTexts: (context, index) =>
-                                    IllustCard.warmTexts(
-                                      context,
-                                      list[index].entity,
-                                    ),
-                                itemBuilder: (context, index) {
-                                  final id = list[index].entity.id;
-                                  final orderedIds = [
-                                    for (final e in list) e.entity.id,
-                                  ];
-                                  return Removable(
-                                    id: id,
-                                    style: RemovalStyle.tile,
-                                    child: SelectableTile(
-                                      managing: _managing,
-                                      selected: _selected.contains(id),
-                                      onToggle: () =>
-                                          _handleItemToggle(id, orderedIds),
-                                      child: IllustCard(
-                                        entity: list[index].entity,
-                                        heroScope: 'watchlater',
+        body: DesktopInspectableGallery(
+          enabled: !_managing,
+          child: PullToRefresh(
+            onRefresh: () => ref.refresh(watchLaterStoreProvider.future),
+            child: entries.when(
+              loading: () => const Center(child: FeedLoading()),
+              error: (error, _) => FeedError(
+                title: l10n.watchLaterLoadFailed,
+                error: error,
+                retryLabel: l10n.retry,
+                onRetry: () => ref.invalidate(watchLaterStoreProvider),
+              ),
+              data: (list) => list.isEmpty
+                  ? FeedEmpty(
+                      icon: Icons.bookmark_border,
+                      title: l10n.watchLaterEmpty,
+                    )
+                  : RemovalScope(
+                      controller: _removals,
+                      child: SmoothWheelScroll(
+                        builder: (context, controller, physics) =>
+                            DeferredCacheScrollView(
+                              controller: controller,
+                              physics: physics,
+                              scrollCacheExtent: kFeedCacheExtent,
+                              restorationId: 'watchlater',
+                              slivers: [
+                                IllustFeedGrid(
+                                  padding: const EdgeInsets.all(FuncSpacing.sm),
+                                  mainAxisSpacing: FuncSpacing.sm,
+                                  itemIds: [for (final e in list) e.entity.id],
+                                  itemCount: list.length,
+                                  warmTexts: (context, index) =>
+                                      IllustCard.warmTexts(
+                                        context,
+                                        list[index].entity,
                                       ),
-                                    ),
-                                  );
-                                },
-                              ),
-                            ],
-                          ),
+                                  itemBuilder: (context, index) {
+                                    final id = list[index].entity.id;
+                                    final orderedIds = [
+                                      for (final e in list) e.entity.id,
+                                    ];
+                                    return Removable(
+                                      id: id,
+                                      style: RemovalStyle.tile,
+                                      child: SelectableTile(
+                                        managing: _managing,
+                                        selected: _selected.contains(id),
+                                        onToggle: () =>
+                                            _handleItemToggle(id, orderedIds),
+                                        child: IllustCard(
+                                          entity: list[index].entity,
+                                          heroScope: 'watchlater',
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ],
+                            ),
+                      ),
                     ),
-                  ),
+            ),
           ),
         ),
       ),

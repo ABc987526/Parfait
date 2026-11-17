@@ -9,7 +9,6 @@ import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import '../../../core/entity/illust_entity.dart';
 import '../../../core/settings/app_settings.dart';
 import '../../../core/settings/settings_controller.dart';
-import '../../layout/app_breakpoints.dart';
 import '../../layout/form_factor.dart';
 import '../../layout/sliver_cache_ramp.dart';
 import '../../layout/sliver_width_builder.dart';
@@ -429,16 +428,6 @@ class _IllustFeedGridState extends ConsumerState<IllustFeedGrid> {
         // the single-work route.
         if (widget.itemIds != null) {
           grid = IllustPagerScope(source: _pagerSource, child: grid);
-        }
-        if (selection != null && crossAxisExtent >= AppBreakpoints.medium) {
-          grid = SliverMainAxisGroup(
-            slivers: [
-              SliverToBoxAdapter(
-                child: FeedSelectionHeaderStrip(controller: selection),
-              ),
-              grid,
-            ],
-          );
         }
         return grid;
       },

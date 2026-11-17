@@ -18,6 +18,7 @@ import '../../app/widgets/app_top_bar.dart';
 import '../../app/widgets/display_actions.dart';
 import '../../app/widgets/edge_icon_buttons.dart';
 import '../../app/widgets/feed/feed_states.dart';
+import '../../app/widgets/feed/illust_card.dart';
 import '../../app/widgets/feed/spotlight_article_card.dart';
 import '../../app/widgets/func_bottom_nav.dart';
 import '../../app/widgets/home_branch_stack.dart';
@@ -412,42 +413,44 @@ class _SpotlightStripSkeleton extends StatelessWidget {
               if (i > 0) const SizedBox(width: FuncSpacing.sm),
               SizedBox(
                 width: _SpotlightSection.cardWidth,
-                child: Card(
-                  margin: EdgeInsets.zero,
-                  clipBehavior: Clip.antiAlias,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const AspectRatio(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    ClipRRect(
+                      borderRadius: FuncShape.card,
+                      child: const AspectRatio(
                         aspectRatio: SpotlightArticleCard.imageAspectRatio,
                         child: SkeletonBone(borderRadius: BorderRadius.zero),
                       ),
-                      Padding(
-                        padding: const EdgeInsets.all(FuncSpacing.md),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            SkeletonBone.text(
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        IllustCard.textIndent,
+                        FuncSpacing.xs,
+                        IllustCard.textIndent,
+                        FuncSpacing.sm,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SkeletonBone.text(style: theme.textTheme.titleSmall),
+                          FractionallySizedBox(
+                            widthFactor: 0.6,
+                            child: SkeletonBone.text(
                               style: theme.textTheme.titleSmall,
                             ),
-                            FractionallySizedBox(
-                              widthFactor: 0.6,
-                              child: SkeletonBone.text(
-                                style: theme.textTheme.titleSmall,
-                              ),
+                          ),
+                          const SizedBox(height: FuncSpacing.xs),
+                          FractionallySizedBox(
+                            widthFactor: 0.4,
+                            child: SkeletonBone.text(
+                              style: theme.textTheme.bodySmall,
                             ),
-                            const SizedBox(height: FuncSpacing.xs),
-                            FractionallySizedBox(
-                              widthFactor: 0.4,
-                              child: SkeletonBone.text(
-                                style: theme.textTheme.bodySmall,
-                              ),
-                            ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ],

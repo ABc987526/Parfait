@@ -8,6 +8,7 @@ import '../../app/pull_to_refresh.dart';
 import '../../app/widgets/app_top_bar.dart';
 import '../../app/format/app_format.dart';
 import '../../app/widgets/entity_row.dart';
+import '../../app/widgets/feed/desktop_inspector_scope.dart';
 import '../../app/widgets/feed/feed_grid.dart';
 import '../../app/widgets/feed/feed_states.dart';
 import '../../app/widgets/skeleton/list_skeletons.dart';
@@ -56,90 +57,99 @@ class IllustSeriesPage extends ConsumerWidget {
           overflow: TextOverflow.ellipsis,
         ),
       ),
-      body: async.when(
-        loading: () => EpisodeListSkeleton(label: context.l10n.contentLoading),
-        error: (error, _) => FeedError(
-          title: context.l10n.seriesLoadFailed,
-          error: error,
-          retryLabel: context.l10n.retry,
-          onRetry: () => ref
-              .read(illustSeriesFeedProvider(seriesId).notifier)
-              .retryInitial(),
-        ),
-        data: (feed) {
-          if (feed.showInitialError) {
-            return FeedError(
-              title: context.l10n.seriesLoadFailed,
-              error: feed.initialError ?? const ApiParseError('unknown error'),
-              retryLabel: context.l10n.retry,
-              onRetry: () => ref
+      body: DesktopInspectableGallery(
+        child: async.when(
+          loading: () =>
+              EpisodeListSkeleton(label: context.l10n.contentLoading),
+          error: (error, _) => FeedError(
+            title: context.l10n.seriesLoadFailed,
+            error: error,
+            retryLabel: context.l10n.retry,
+            onRetry: () => ref
+                .read(illustSeriesFeedProvider(seriesId).notifier)
+                .retryInitial(),
+          ),
+          data: (feed) {
+            if (feed.showInitialError) {
+              return FeedError(
+                title: context.l10n.seriesLoadFailed,
+                error:
+                    feed.initialError ?? const ApiParseError('unknown error'),
+                retryLabel: context.l10n.retry,
+                onRetry: () => ref
+                    .read(illustSeriesFeedProvider(seriesId).notifier)
+                    .retryInitial(),
+              );
+            }
+            if (feed.showInitialSpinner) {
+              return EpisodeListSkeleton(label: context.l10n.contentLoading);
+            }
+            final entities = ref.watch(illustStoreProvider).getAll(feed.ids);
+            return PullToRefresh(
+              onRefresh: () => ref
                   .read(illustSeriesFeedProvider(seriesId).notifier)
-                  .retryInitial(),
-            );
-          }
-          if (feed.showInitialSpinner) {
-            return EpisodeListSkeleton(label: context.l10n.contentLoading);
-          }
-          final entities = ref.watch(illustStoreProvider).getAll(feed.ids);
-          return PullToRefresh(
-            onRefresh: () =>
-                ref.read(illustSeriesFeedProvider(seriesId).notifier).refresh(),
-            child: LoadMoreListener(
-              itemCount: feed.ids.length,
-              onLoadMore: () => ref
-                  .read(illustSeriesFeedProvider(seriesId).notifier)
-                  .loadMore(),
-              child: SmoothWheelScroll(
-                basePhysics: const AlwaysScrollableScrollPhysics(),
-                builder: (context, controller, physics) =>
-                    DeferredCacheScrollView(
-                      key: PageStorageKey('series-$seriesId'),
-                      physics: physics,
-                      scrollCacheExtent: kFeedCacheExtent,
-                      restorationId: 'series-$seriesId',
-                      controller: controller,
-                      slivers: [
-                        if (detail != null)
+                  .refresh(),
+              child: LoadMoreListener(
+                itemCount: feed.ids.length,
+                onLoadMore: () => ref
+                    .read(illustSeriesFeedProvider(seriesId).notifier)
+                    .loadMore(),
+                child: SmoothWheelScroll(
+                  basePhysics: const AlwaysScrollableScrollPhysics(),
+                  builder: (context, controller, physics) =>
+                      DeferredCacheScrollView(
+                        key: PageStorageKey('series-$seriesId'),
+                        physics: physics,
+                        scrollCacheExtent: kFeedCacheExtent,
+                        restorationId: 'series-$seriesId',
+                        controller: controller,
+                        slivers: [
+                          if (detail != null)
+                            SliverToBoxAdapter(
+                              child: _SeriesHeader(detail: detail),
+                            ),
+                          if (entities.isEmpty)
+                            SliverFillRemaining(
+                              hasScrollBody: false,
+                              child: FeedEmpty(
+                                icon: Icons.collections_bookmark_outlined,
+                                title: context.l10n.seriesEmpty,
+                              ),
+                            )
+                          else
+                            SliverCardList(
+                              itemCount: entities.length,
+                              items: entities,
+                              // What the episode numbers count from.
+                              itemDeps: (detail, entities.first.id),
+                              itemBuilder: (context, index) => _EpisodeRow(
+                                entity: entities[index],
+                                episode: _episodeNumber(
+                                  index,
+                                  entities,
+                                  detail,
+                                ),
+                              ),
+                            ),
                           SliverToBoxAdapter(
-                            child: _SeriesHeader(detail: detail),
-                          ),
-                        if (entities.isEmpty)
-                          SliverFillRemaining(
-                            hasScrollBody: false,
-                            child: FeedEmpty(
-                              icon: Icons.collections_bookmark_outlined,
-                              title: context.l10n.seriesEmpty,
-                            ),
-                          )
-                        else
-                          SliverCardList(
-                            itemCount: entities.length,
-                            items: entities,
-                            // What the episode numbers count from.
-                            itemDeps: (detail, entities.first.id),
-                            itemBuilder: (context, index) => _EpisodeRow(
-                              entity: entities[index],
-                              episode: _episodeNumber(index, entities, detail),
+                            child: FeedTail(
+                              feed: feed,
+                              onRetry: () => ref
+                                  .read(
+                                    illustSeriesFeedProvider(seriesId).notifier,
+                                  )
+                                  .retryLoadMore(),
+                              errorTitle: context.l10n.seriesLoadMoreFailed,
+                              retryLabel: context.l10n.retry,
                             ),
                           ),
-                        SliverToBoxAdapter(
-                          child: FeedTail(
-                            feed: feed,
-                            onRetry: () => ref
-                                .read(
-                                  illustSeriesFeedProvider(seriesId).notifier,
-                                )
-                                .retryLoadMore(),
-                            errorTitle: context.l10n.seriesLoadMoreFailed,
-                            retryLabel: context.l10n.retry,
-                          ),
-                        ),
-                      ],
-                    ),
+                        ],
+                      ),
+                ),
               ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }
@@ -178,9 +188,19 @@ class _EpisodeRow extends StatelessWidget {
     final episode = this.episode;
     final overline = episode == null ? null : l10n.seriesEpisode(episode);
     final created = DateTime.tryParse(entity.createDate ?? '');
-    return EntityRow(
+    final inspector = DesktopInspectorScope.watchOf(context);
+    void onTap() {
+      if (inspector != null) {
+        inspector.onInspect(DesktopInspectorTarget(entity: entity));
+        return;
+      }
+      unawaited(openIllust(context, entity.id, initialEntity: entity));
+    }
+
+    Widget buildRow({required bool selected}) => EntityRow(
       key: ValueKey('series-episode-${entity.id}'),
       padding: episodeRowPadding,
+      selected: selected,
       leading: ClipRRect(
         borderRadius: FuncShape.control,
         child: SizedBox.fromSize(
@@ -214,7 +234,14 @@ class _EpisodeRow extends StatelessWidget {
         entity.title,
         if (entity.pageCount > 1) l10n.illustPagesTotal(entity.pageCount),
       ].join(', '),
-      onTap: () => openIllust(context, entity.id, initialEntity: entity),
+      onTap: onTap,
+    );
+
+    if (inspector == null) return buildRow(selected: false);
+    return ValueListenableBuilder<int?>(
+      valueListenable: inspector.selectedId,
+      builder: (context, selectedId, _) =>
+          buildRow(selected: selectedId == entity.id),
     );
   }
 }
@@ -271,13 +298,24 @@ class _SeriesHeader extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (cover != null)
-                ClipRRect(
-                  borderRadius: FuncShape.control,
-                  child: PixivImage(
-                    url: cover,
-                    width: 88,
-                    height: 88,
-                    memCacheWidth: PixivImage.decodeWidthOf(context, 88),
+                DecoratedBox(
+                  position: DecorationPosition.foreground,
+                  decoration: BoxDecoration(
+                    borderRadius: FuncShape.control,
+                    border: theme.brightness == Brightness.light
+                        ? Border.all(
+                            color: FuncSemanticTokens.of(context).divider,
+                          )
+                        : null,
+                  ),
+                  child: ClipRRect(
+                    borderRadius: FuncShape.control,
+                    child: PixivImage(
+                      url: cover,
+                      width: 88,
+                      height: 88,
+                      memCacheWidth: PixivImage.decodeWidthOf(context, 88),
+                    ),
                   ),
                 ),
               if (cover != null) const SizedBox(width: FuncSpacing.md),

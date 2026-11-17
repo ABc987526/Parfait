@@ -13,9 +13,10 @@ import '../../../../core/entity/illust_entity.dart';
 import '../../../../core/illust/illust_download_controller.dart';
 import '../../../../l10n/context.dart';
 
-/// The detail page's compact floating actions in thumb reach at bottom-end:
-/// download and bookmark on an opaque lifted capsule (`DETAIL-09`), avoiding
-/// frosted text smearing while sitting cleanly below the author card.
+/// The detail page's compact floating actions in thumb reach, centered at the
+/// bottom edge: download and bookmark on an opaque lifted capsule
+/// (`DETAIL-09`), avoiding frosted text smearing while sitting cleanly below
+/// the author card.
 class DetailActionBar extends StatefulWidget {
   const DetailActionBar({
     super.key,

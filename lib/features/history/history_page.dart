@@ -302,20 +302,24 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                   ),
                 ],
               ),
-        body: accountId == null
-            ? Center(child: Text(context.l10n.signedOut))
-            : RemovalScope(
-                controller: _removals,
-                child: _HistoryBody(
-                  key: ValueKey('$accountId-$_bodyGeneration'),
-                  generation: _bodyGeneration,
-                  accountId: accountId,
-                  managing: _managing,
-                  selectedKeys: _selected,
-                  onToggle: _handleItemToggle,
-                  onEnterManaging: _enterManaging,
+        body: DesktopInspectableGallery(
+          enabled: !_managing,
+          active: accountId != null,
+          child: accountId == null
+              ? Center(child: Text(context.l10n.signedOut))
+              : RemovalScope(
+                  controller: _removals,
+                  child: _HistoryBody(
+                    key: ValueKey('$accountId-$_bodyGeneration'),
+                    generation: _bodyGeneration,
+                    accountId: accountId,
+                    managing: _managing,
+                    selectedKeys: _selected,
+                    onToggle: _handleItemToggle,
+                    onEnterManaging: _enterManaging,
+                  ),
                 ),
-              ),
+        ),
       ),
     );
   }

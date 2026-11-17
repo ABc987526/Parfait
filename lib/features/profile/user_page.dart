@@ -387,6 +387,12 @@ class _UserPageState extends ConsumerState<UserPage>
     });
   }
 
+  bool _showsIllustGallery(_ProfileTab? tab) =>
+      tab == _ProfileTab.illust ||
+      tab == _ProfileTab.manga ||
+      (tab == _ProfileTab.bookmarks &&
+          _bookmarkKind != BookmarkEntityType.novel);
+
   /// The filters above the bookmarks and follows lists: on someone else's
   /// bookmarks (public ones only) the kind alone.
   Widget? _filterBarFor(_ProfileTab tab) {
@@ -664,76 +670,81 @@ class _UserPageState extends ConsumerState<UserPage>
       children: [
         staleBanner,
         Expanded(
-          child: NestedScrollView(
-            key: const ValueKey('profile-nested-scroll'),
-            controller: _outerScrollController,
-            // The outer position must share the inner feeds' physics family:
-            // the coordinator runs one ballistic simulation per position over
-            // the combined metrics, and the feeds fling with the app's
-            // FuncScrollPhysics (PullToRefresh keeps it under EasyRefresh's
-            // nested physics). The widget default would pin the outer to
-            // Clamping, whose simulation diverges from it at low release
-            // speeds — the header then stops short while the feed is
-            // already rolling ("dip"), and a light pull-down dies on the
-            // edge ("stuck"). On top, the outer scroll holds while a feed's
-            // refresh header is pulled out, so a reversed pull retracts it.
-            physics: NestedRefreshOuterPhysics(
-              parent: ScrollConfiguration.of(context).getScrollPhysics(context),
-            ),
-            headerSliverBuilder: (context, innerBoxIsScrolled) => [
-              SliverPersistentHeader(
-                pinned: true,
-                delegate: ReplicaProfileHeaderDelegate(
-                  user: user,
-                  isMe: widget.isMe,
-                  // The expanded height is measured from the real identity
-                  // content (R1): the delegate reports it after every
-                  // layout, so font scale, language and stat-count changes
-                  // all land without any hard-coded extent.
-                  expandedExtent: _headerExtent,
-                  onExpandedExtentMeasured: (extent) {
-                    if (!mounted) return;
-                    if (_headerExtent == null ||
-                        (extent - _headerExtent!).abs() > 0.5) {
-                      setState(() => _headerExtent = extent);
-                    }
-                  },
-                  selectedTabIndex: _selectedIndex,
-                  onShare: (originContext) =>
-                      unawaited(_shareProfile(originContext, ref, user)),
-                  isFollowed: followed,
-                  onToggleFollow: widget.isMe
-                      ? null
-                      : () => toggleFollowWithUndo(context, user.id),
-                  onFollowPrivately: onFollowPrivately,
-                  onCopyLink: onCopyLink,
-                  stats: _headerStats(user),
-                  onEditProfile: widget.isMe ? widget.onEditProfile : null,
-                  onDownloadAll: onDownloadAll,
-                  isMuted: muted,
-                  onToggleMute: onToggleMute,
-                  topInset: MediaQuery.viewPaddingOf(context).top,
-                ),
+          child: DesktopInspectableGallery(
+            active: _showsIllustGallery(selectedTab),
+            child: NestedScrollView(
+              key: const ValueKey('profile-nested-scroll'),
+              controller: _outerScrollController,
+              // The outer position must share the inner feeds' physics family:
+              // the coordinator runs one ballistic simulation per position over
+              // the combined metrics, and the feeds fling with the app's
+              // FuncScrollPhysics (PullToRefresh keeps it under EasyRefresh's
+              // nested physics). The widget default would pin the outer to
+              // Clamping, whose simulation diverges from it at low release
+              // speeds — the header then stops short while the feed is
+              // already rolling ("dip"), and a light pull-down dies on the
+              // edge ("stuck"). On top, the outer scroll holds while a feed's
+              // refresh header is pulled out, so a reversed pull retracts it.
+              physics: NestedRefreshOuterPhysics(
+                parent: ScrollConfiguration.of(
+                  context,
+                ).getScrollPhysics(context),
               ),
-              SliverPersistentHeader(
-                pinned: true,
-                delegate: ReplicaProfileTabsDelegate(
-                  controller: tabController,
-                  labels: [for (final tab in _tabs) _tabLabel(tab)],
-                  onTabTap: _onTabTap,
-                  scrolled: innerBoxIsScrolled,
-                ),
-              ),
-            ],
-            body: TabBarView(
-              controller: tabController,
-              children: [
-                for (final (index, tab) in _tabs.indexed)
-                  _SelectedTabScroll(
-                    selected: index == _selectedIndex,
-                    child: _buildTabBody(tab, user, statistics),
+              headerSliverBuilder: (context, innerBoxIsScrolled) => [
+                SliverPersistentHeader(
+                  pinned: true,
+                  delegate: ReplicaProfileHeaderDelegate(
+                    user: user,
+                    isMe: widget.isMe,
+                    // The expanded height is measured from the real identity
+                    // content (R1): the delegate reports it after every
+                    // layout, so font scale, language and stat-count changes
+                    // all land without any hard-coded extent.
+                    expandedExtent: _headerExtent,
+                    onExpandedExtentMeasured: (extent) {
+                      if (!mounted) return;
+                      if (_headerExtent == null ||
+                          (extent - _headerExtent!).abs() > 0.5) {
+                        setState(() => _headerExtent = extent);
+                      }
+                    },
+                    selectedTabIndex: _selectedIndex,
+                    onShare: (originContext) =>
+                        unawaited(_shareProfile(originContext, ref, user)),
+                    isFollowed: followed,
+                    onToggleFollow: widget.isMe
+                        ? null
+                        : () => toggleFollowWithUndo(context, user.id),
+                    onFollowPrivately: onFollowPrivately,
+                    onCopyLink: onCopyLink,
+                    stats: _headerStats(user),
+                    onEditProfile: widget.isMe ? widget.onEditProfile : null,
+                    onDownloadAll: onDownloadAll,
+                    isMuted: muted,
+                    onToggleMute: onToggleMute,
+                    topInset: MediaQuery.viewPaddingOf(context).top,
                   ),
+                ),
+                SliverPersistentHeader(
+                  pinned: true,
+                  delegate: ReplicaProfileTabsDelegate(
+                    controller: tabController,
+                    labels: [for (final tab in _tabs) _tabLabel(tab)],
+                    onTabTap: _onTabTap,
+                    scrolled: innerBoxIsScrolled,
+                  ),
+                ),
               ],
+              body: TabBarView(
+                controller: tabController,
+                children: [
+                  for (final (index, tab) in _tabs.indexed)
+                    _SelectedTabScroll(
+                      selected: index == _selectedIndex,
+                      child: _buildTabBody(tab, user, statistics),
+                    ),
+                ],
+              ),
             ),
           ),
         ),
@@ -922,14 +933,17 @@ class _UserPageState extends ConsumerState<UserPage>
                       ),
                       const Divider(height: 1),
                       Expanded(
-                        child: TabBarView(
-                          controller: tabController,
-                          children: [
-                            for (final tab in _tabs)
-                              PrimaryScrollController.none(
-                                child: _buildTabBody(tab, user, statistics),
-                              ),
-                          ],
+                        child: DesktopInspectableGallery(
+                          active: _showsIllustGallery(_selectedTab),
+                          child: TabBarView(
+                            controller: tabController,
+                            children: [
+                              for (final tab in _tabs)
+                                PrimaryScrollController.none(
+                                  child: _buildTabBody(tab, user, statistics),
+                                ),
+                            ],
+                          ),
                         ),
                       ),
                     ],

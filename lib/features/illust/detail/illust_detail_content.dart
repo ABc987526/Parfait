@@ -19,9 +19,12 @@ class _FirstImageLayout {
     BuildContext context,
     IllustEntity entity, {
     required bool expanded,
+    bool embeddedInspector = false,
   }) {
     final viewport = HomeShellChrome.contentSizeOf(context);
-    final useTwoPane = AppBreakpoints.useTwoPaneDetailOf(context, viewport);
+    final useTwoPane =
+        !embeddedInspector &&
+        AppBreakpoints.useTwoPaneDetailOf(context, viewport);
     // An illustration set opens on its first image; manga reads in full.
     final collapsible =
         entity.type == IllustType.illust && entity.pageCount > 1;
@@ -46,7 +49,9 @@ class _FirstImageLayout {
     return _FirstImageLayout._(
       useTwoPane: useTwoPane,
       statusInset: 0,
-      topChrome: MediaQuery.paddingOf(context).top + kToolbarHeight,
+      topChrome: embeddedInspector
+          ? 0
+          : MediaQuery.paddingOf(context).top + kToolbarHeight,
       collapsible: collapsible,
       shownPages: collapsible && !expanded ? 1 : entity.pageCount,
       natural: natural,
@@ -130,6 +135,7 @@ extension _IllustDetailContent on _IllustDetailPageState {
       context,
       entity,
       expanded: _pagesExpanded,
+      embeddedInspector: widget.embeddedInspector,
     );
     final collapsible = layout.collapsible;
     final shownPages = layout.shownPages;
@@ -264,7 +270,9 @@ extension _IllustDetailContent on _IllustDetailPageState {
         ),
     ];
     final contentSize = HomeShellChrome.contentSizeOf(context);
-    final twoPane = AppBreakpoints.useTwoPaneDetailOf(context, contentSize);
+    final twoPane =
+        !widget.embeddedInspector &&
+        AppBreakpoints.useTwoPaneDetailOf(context, contentSize);
 
     // Each section a TickerPartition. The order is fixed: a conditional
     // entry among uniform wrappers would shift every section after it onto
@@ -416,8 +424,6 @@ extension _IllustDetailContent on _IllustDetailPageState {
       ),
     );
     final tokens = FuncSemanticTokens.of(context);
-    final showPageDock =
-        !_downloadMode && !entity.isUgoira && entity.pageCount > 1;
     final wideDesktopModal = MediaQuery.sizeOf(context).width >= 960;
     final content = GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -429,7 +435,7 @@ extension _IllustDetailContent on _IllustDetailPageState {
               secondaryFraction: wideDesktopModal ? 0.30 : 0.38,
               secondaryMaxWidth: wideDesktopModal ? 420 : 460,
               // The stage frames the artwork over rich ambient wash light,
-              // leaving room for a floating back button and multi-page dock.
+              // leaving a bare haloed back glyph above it.
               primary: SelectionContainer.disabled(
                 child: Stack(
                   fit: StackFit.expand,
@@ -462,14 +468,7 @@ extension _IllustDetailContent on _IllustDetailPageState {
                         ).colorScheme.surfaceContainerLow,
                       ),
                     Padding(
-                      padding: EdgeInsets.fromLTRB(
-                        FuncSpacing.lg,
-                        FuncSpacing.lg,
-                        FuncSpacing.lg,
-                        showPageDock
-                            ? FuncSpacing.xxxl + FuncSpacing.sm
-                            : FuncSpacing.lg,
-                      ),
+                      padding: const EdgeInsets.all(FuncSpacing.lg),
                       child: DetailImagePager(
                         entity: entity,
                         detailUrlFor: detailUrlFor,
@@ -486,53 +485,20 @@ extension _IllustDetailContent on _IllustDetailPageState {
                       ),
                     ),
                     if (!_downloadMode)
-                      Positioned(
-                        top: 14,
-                        left: 14,
+                      PositionedDirectional(
+                        top: FuncSpacing.md,
+                        start: FuncSpacing.md,
                         child: HeroChrome(
-                          child: ClipOval(
-                            child: BackdropFilter(
-                              filter: ui.ImageFilter.blur(
-                                sigmaX: 12,
-                                sigmaY: 12,
-                              ),
-                              child: DecoratedBox(
-                                decoration: BoxDecoration(
-                                  color: const Color(0x78140E1C),
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: FuncTokens.white.withValues(
-                                      alpha: 0.24,
-                                    ),
-                                  ),
-                                ),
-                                child: IconButton(
-                                  tooltip: MaterialLocalizations.of(
-                                    context,
-                                  ).backButtonTooltip,
-                                  onPressed: () =>
-                                      unawaited(Navigator.maybePop(context)),
-                                  icon: const Icon(
-                                    Icons.arrow_back,
-                                    color: FuncTokens.white,
-                                    size: 20,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    if (showPageDock)
-                      Positioned(
-                        bottom: 14,
-                        left: 0,
-                        right: 0,
-                        child: Center(
-                          child: HeroChrome(
-                            child: _DetailStagePageDock(
-                              pageCount: entity.pageCount,
-                              activePage: _imageIndex,
+                          child: ArtworkControls(
+                            glyph: FuncTokens.white,
+                            halo: const Color(0xCC0C0914),
+                            child: IconButton(
+                              tooltip: MaterialLocalizations.of(
+                                context,
+                              ).backButtonTooltip,
+                              onPressed: () =>
+                                  unawaited(Navigator.maybePop(context)),
+                              icon: const Icon(Icons.arrow_back, size: 20),
                             ),
                           ),
                         ),
@@ -579,6 +545,7 @@ extension _IllustDetailContent on _IllustDetailPageState {
                 NotificationListener<ScrollNotification>(
                   onNotification: onScrollNotification,
                   child: _DetailSelectionScope(
+                    forceSelectionArea: widget.embeddedInspector,
                     child: SmoothWheelScroll(
                       controller: _narrowScroll,
                       builder: (context, controller, physics) =>
@@ -748,65 +715,6 @@ extension _IllustDetailContent on _IllustDetailPageState {
   }
 }
 
-class _DetailStagePageDock extends StatelessWidget {
-  const _DetailStagePageDock({
-    required this.pageCount,
-    required this.activePage,
-  });
-
-  final int pageCount;
-  final int activePage;
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = FuncSemanticTokens.of(context);
-    final (duration, curve) = MotionTokens.springCurve(
-      context,
-      MotionSpring.effectsFast,
-    );
-    final shownCount = math.min(pageCount, 8);
-    return ClipRRect(
-      borderRadius: FuncShape.control,
-      child: BackdropFilter(
-        filter: ui.ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: const Color(0x9E141216),
-            borderRadius: FuncShape.control,
-            border: Border.all(color: const Color(0x28FFFFFF)),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: FuncSpacing.md,
-              vertical: FuncSpacing.sm,
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                for (var i = 0; i < shownCount; i++) ...[
-                  AnimatedContainer(
-                    duration: duration,
-                    curve: curve,
-                    width: i == activePage ? 18 : 6,
-                    height: 6,
-                    decoration: BoxDecoration(
-                      borderRadius: FuncShape.pill,
-                      color: i == activePage
-                          ? tokens.brand
-                          : FuncTokens.white.withValues(alpha: 0.35),
-                    ),
-                  ),
-                  if (i < shownCount - 1) const SizedBox(width: 6),
-                ],
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 /// Centres a section's sliver at the article text width when the scroll is
 /// wider than it. A single-column detail on a wide surface keeps its
 /// caption and comments at a readable line length while the images stay
@@ -957,12 +865,17 @@ class _DetailMoreMenu extends ConsumerWidget {
 /// [SelectionArea] outside its horizontal [PageView] so horizontal swipes beat
 /// selection drags in the gesture arena.
 class _DetailSelectionScope extends StatelessWidget {
-  const _DetailSelectionScope({required this.child});
+  const _DetailSelectionScope({
+    required this.child,
+    this.forceSelectionArea = false,
+  });
 
   final Widget child;
+  final bool forceSelectionArea;
 
   @override
-  Widget build(BuildContext context) => SwipePagerScope.maybeOf(context) != null
+  Widget build(BuildContext context) =>
+      !forceSelectionArea && SwipePagerScope.maybeOf(context) != null
       ? child
       : SelectionArea(child: child);
 }

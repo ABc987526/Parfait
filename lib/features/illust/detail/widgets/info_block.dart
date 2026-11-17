@@ -355,8 +355,7 @@ class _Mark extends StatelessWidget {
 
 /// What the work is marked as and how it was received, under the title:
 /// the marks (AI-generated, R-18, R-18G; only those it has), then views,
-/// bookmarks and the full posting time, styled as a rounded sakura-tinted
-/// stats tray without hard table rules.
+/// bookmarks and the full posting time.
 class DetailMarksAndStats extends StatelessWidget {
   const DetailMarksAndStats({super.key, required this.entity});
 
@@ -365,120 +364,50 @@ class DetailMarksAndStats extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final colors = Theme.of(context).colorScheme;
-    final tokens = FuncSemanticTokens.of(context);
+    final style = MetaFact.styleOf(context);
     final views = AppFormat.count(context, entity.totalView);
     final bookmarks = AppFormat.count(context, entity.totalBookmarks);
     final created = DateTime.tryParse(entity.createDate ?? '');
-    final date = created == null ? null : AppFormat.date(context, created);
+    final date = created == null
+        ? null
+        : AppFormat.date(context, created, withTime: true);
     final marks = [
       if (entity.isAi) _Mark(l10n.badgeAi),
       if (entity.isR18) const _Mark('R-18'),
       if (entity.isR18G) const _Mark('R-18G'),
     ];
-
-    Widget statCell({
-      required String label,
-      required String value,
-      bool emphasize = false,
-    }) => Expanded(
-      child: Container(
-        margin: emphasize
-            ? const EdgeInsets.all(FuncSpacing.xs)
-            : const EdgeInsets.symmetric(vertical: FuncSpacing.xxs),
-        padding: const EdgeInsets.symmetric(
-          horizontal: FuncSpacing.sm + FuncSpacing.xxs,
-          vertical: FuncSpacing.sm,
-        ),
-        decoration: emphasize
-            ? BoxDecoration(
-                color: tokens.brandTintWeak,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: tokens.brandHairline),
-              )
-            : null,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (emphasize) ...[
-                  Icon(Icons.favorite_outline, size: 12, color: colors.primary),
-                  const SizedBox(width: 4),
-                ],
-                Flexible(
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: tokens.caption.copyWith(fontSize: 11),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 2),
-            Text(
-              value,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: tokens.numeric.copyWith(
-                fontSize: 13.5,
-                fontWeight: FontWeight.w600,
-                color: emphasize ? colors.primary : tokens.contentPrimary,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-
     return MergeSemantics(
       key: const Key('illust-detail-stats'),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (marks.isNotEmpty) ...[
-            Wrap(
-              spacing: FuncSpacing.xs,
-              runSpacing: FuncSpacing.xs,
-              children: marks,
-            ),
-            const SizedBox(height: FuncSpacing.sm),
-          ],
-          DecoratedBox(
-            decoration: BoxDecoration(
-              color: colors.surfaceContainerLow,
-              borderRadius: FuncShape.card,
-              border: Border.all(color: tokens.brandHairline),
-            ),
-            child: Semantics(
-              label: date == null
-                  ? l10n.detailMetaCountsSemantics(views, bookmarks)
-                  : l10n.detailStatsSemantics(views, bookmarks, date),
-              child: ExcludeSemantics(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: FuncSpacing.xs,
-                  ),
-                  child: Row(
-                    children: [
-                      statCell(label: l10n.detailStatViews, value: views),
-                      statCell(
-                        label: l10n.detailStatBookmarks,
-                        value: bookmarks,
-                        emphasize: true,
-                      ),
-                      if (date != null)
-                        statCell(label: l10n.searchDuration, value: date),
-                    ],
-                  ),
+      child: Semantics(
+        label: date == null
+            ? l10n.detailMetaCountsSemantics(views, bookmarks)
+            : l10n.detailStatsSemantics(views, bookmarks, date),
+        child: ExcludeSemantics(
+          child: Wrap(
+            spacing: FuncSpacing.md,
+            runSpacing: FuncSpacing.xs,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              if (marks.isNotEmpty)
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  spacing: FuncSpacing.xs,
+                  children: marks,
                 ),
+              MetaFact(
+                icon: Icons.visibility_outlined,
+                text: views,
+                style: style,
               ),
-            ),
+              MetaFact(
+                icon: Icons.favorite_outline,
+                text: bookmarks,
+                style: style,
+              ),
+              if (date != null) Text(date, style: style),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

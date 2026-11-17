@@ -299,7 +299,6 @@ class _IllustCardBody extends ConsumerWidget {
     void secondaryTap(TapUpDetails details) {
       final own = onLongPress;
       if (own == null) {
-        AppHaptics.longPress();
         unawaited(
           showCardActionsMenu(
             context,
@@ -344,7 +343,23 @@ class _IllustCardBody extends ConsumerWidget {
       if (muted) {
         reveal();
       } else if (inspector != null) {
-        inspector.onInspect(entity);
+        pressWarmup.stop();
+        _preloadTransitionImages(
+          context,
+          ref,
+          preview,
+          cardDecodeWidth,
+          standInUrl: standInUrl,
+        );
+        inspector.onInspect(
+          DesktopInspectorTarget(
+            entity: entity,
+            heroScope: heroScope,
+            heroImageUrl: hasHero ? preview.url : null,
+            heroImageDecodeWidth: hasHero ? cardDecodeWidth : null,
+            pagerSource: IllustPagerScope.maybeOf(context),
+          ),
+        );
       } else {
         openDetail();
       }
@@ -444,9 +459,7 @@ class _IllustCardBody extends ConsumerWidget {
         ),
       ),
     );
-    if (!isPointer) {
-      card = PressScale(child: card);
-    }
+    card = PressScale(child: card);
 
     return _CardFocus(onActivate: primaryTap, onMenu: longPress, child: card);
   }
@@ -514,7 +527,24 @@ class _IllustCardBody extends ConsumerWidget {
     // is not a badge — it leads the title line.
     return [
       if (entity.isR18)
-        const Positioned(left: 7, top: 7, child: EntityBadge(label: 'R-18')),
+        Builder(
+          builder: (context) {
+            final occupied = FeedSelectionCornerScope.topStartOccupiedOf(
+              context,
+            );
+            final (duration, curve) = MotionTokens.springCurve(
+              context,
+              MotionSpring.spatialFast,
+            );
+            return AnimatedPositionedDirectional(
+              start: occupied ? 38 : 7,
+              top: 7,
+              duration: duration,
+              curve: curve,
+              child: const EntityBadge(label: 'R-18'),
+            );
+          },
+        ),
       if (entity.isUgoira)
         Positioned(
           left: 7,
@@ -756,38 +786,47 @@ class _HoverLayerState extends State<_HoverLayer> {
             children: [
               widget.child,
               PositionedDirectional(
-                start: 7,
-                top: 7,
-                child: Material(
-                  color: FuncTokens.imageControl,
-                  borderRadius: FuncShape.pill,
-                  clipBehavior: Clip.antiAlias,
-                  child: InkWell(
-                    onTap: widget.entity.user.id > 0
-                        ? () => unawaited(
-                            openUser(context, widget.entity.user.id),
-                          )
-                        : null,
-                    child: Padding(
-                      padding: const EdgeInsetsDirectional.fromSTEB(4, 3, 8, 3),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          PersonAvatar(
-                            imageUrl: widget.entity.user.profileImageUrl,
-                            radius: 9,
-                          ),
-                          const SizedBox(width: FuncSpacing.xs),
-                          Flexible(
-                            child: Text(
-                              widget.entity.user.name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.labelSmall
-                                  ?.copyWith(color: FuncTokens.white),
+                start: widget.entity.isUgoira ? 38 : 7,
+                bottom: 7,
+                end: (!widget.bookmarked || widget.entity.isAi) ? 40 : 7,
+                child: Align(
+                  alignment: AlignmentDirectional.bottomStart,
+                  child: Material(
+                    color: FuncTokens.imageControl,
+                    borderRadius: FuncShape.pill,
+                    clipBehavior: Clip.antiAlias,
+                    child: InkWell(
+                      onTap: widget.entity.user.id > 0
+                          ? () => unawaited(
+                              openUser(context, widget.entity.user.id),
+                            )
+                          : null,
+                      child: Padding(
+                        padding: const EdgeInsetsDirectional.fromSTEB(
+                          4,
+                          3,
+                          8,
+                          3,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            PersonAvatar(
+                              imageUrl: widget.entity.user.profileImageUrl,
+                              radius: 9,
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: FuncSpacing.xs),
+                            Flexible(
+                              child: Text(
+                                widget.entity.user.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.labelSmall
+                                    ?.copyWith(color: FuncTokens.white),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),

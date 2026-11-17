@@ -1,22 +1,18 @@
-import 'dart:async' show unawaited;
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../app/icons/app_icons.dart';
 import '../../../app/layout/card_columns.dart';
 import '../../../app/layout/deferred_cache_scroll_view.dart';
-import '../../../app/motion/motion_tokens.dart';
 import '../../../app/navigation/routes.dart';
 import '../../../app/pull_to_refresh.dart';
 import '../../../app/theme/func_semantic_tokens.dart';
-import '../../../app/theme/func_tokens.dart';
 import '../../../app/widgets/app_snack_bar.dart';
 import '../../../app/widgets/app_tab_bar.dart';
 import '../../../app/widgets/app_top_bar.dart';
 import '../../../app/widgets/author_summary.dart';
 import '../../../app/widgets/errors/error_details.dart';
-import '../../../app/widgets/feed/desktop_inspector_scope.dart';
+import '../../../app/widgets/feed/desktop_gallery_controls.dart';
 import '../../../app/widgets/feed/feed_grid.dart';
 import '../../../app/widgets/feed/feed_selection.dart';
 import '../../../app/widgets/feed/feed_states.dart';
@@ -27,16 +23,11 @@ import '../../../app/widgets/home_branch_stack.dart';
 import '../../../app/widgets/novel_entry.dart';
 import '../../../app/widgets/page_header.dart';
 import '../../../app/widgets/skeleton/illust_grid_skeleton.dart';
-import '../../../app/widgets/settings/persist_settings.dart';
 import '../../../app/widgets/smooth_wheel_scroll.dart';
 import '../../../app/widgets/tab_swipe_switcher.dart';
 import '../../../app/widgets/user_preview_row.dart';
-import '../../../app/window/desktop_command_bar.dart';
-import '../../../core/entity/illust_entity.dart';
 import '../../../core/entity/illust_store.dart';
 import '../../../core/entity/stored_entities.dart';
-import '../../../core/settings/app_settings.dart';
-import '../../../core/settings/settings_controller.dart';
 import '../../../core/illust/recommended_feed_controller.dart';
 import '../../../core/illust/recommended_repository.dart';
 import '../../../core/navigation/home_destination.dart';
@@ -96,8 +87,6 @@ class _RecommendedHomePageState extends ConsumerState<RecommendedHomePage>
   /// and drag warm-up that rebuild this page mid-swipe no longer rebuild
   /// every loaded feed (and its visible cards) inside the swipe frame.
   final _bodies = <RecommendedContentType, Widget>{};
-  final _inspectedId = ValueNotifier<int?>(null);
-  IllustEntity? _inspectedEntity;
   bool _suppressRouteEcho = false;
   ReTapChannel? _reTapChannel;
   late BuildContext _notificationContext;
@@ -154,7 +143,6 @@ class _RecommendedHomePageState extends ConsumerState<RecommendedHomePage>
     _tabController
       ..removeListener(_onTabChanged)
       ..dispose();
-    _inspectedId.dispose();
     for (final controller in _scrollControllers.values) {
       controller.dispose();
     }
@@ -208,43 +196,11 @@ class _RecommendedHomePageState extends ConsumerState<RecommendedHomePage>
     return true;
   }
 
-  void _selectCategory(int index) {
-    if (index == _tabController.index) {
-      reTapScrollToTop(context, _scrollControllerFor(_types[index]));
-      return;
-    }
-    _tabController.animateTo(index);
-  }
-
-  void _selectInspected(IllustEntity entity) {
-    _inspectedId.value = entity.id;
-    setState(() => _inspectedEntity = entity);
-  }
-
-  void _clearInspected() {
-    _inspectedId.value = null;
-    setState(() => _inspectedEntity = null);
-  }
-
-  void _openStageFor(IllustEntity entity) {
-    unawaited(
-      openIllust(
-        context,
-        entity.id,
-        initialEntity: entity,
-        heroScope: 'recommended',
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    final desktopOwned = DesktopCommandBarScope.isActiveOf(context);
-    final detailMode = ref.watch(desktopDetailModeProvider);
-    final wideInspector =
-        desktopOwned &&
-        MediaQuery.widthOf(context) >= 1040 &&
-        detailMode == DesktopDetailMode.inspector;
+    final showGalleryControls =
+        _type == RecommendedContentType.illust ||
+        _type == RecommendedContentType.manga;
     final labels = [
       for (final value in _types)
         _recommendedText(context, _recommendedLabelKey(value)),
@@ -276,75 +232,29 @@ class _RecommendedHomePageState extends ConsumerState<RecommendedHomePage>
       },
     );
 
-    if (!desktopOwned) {
-      return Scaffold(
-        resizeToAvoidBottomInset: false,
-        appBar: AppTopBar(
-          titleSpacing: 0,
-          actions: const [
-            _OffBarSearchAction(),
-            HeaderRefresh(),
-            HeaderSearch(),
-          ],
-          title: AppTabBar(
-            controller: _tabController,
-            onTap: (index) {
-              if (!_tabController.indexIsChanging) {
-                reTapScrollToTop(context, _scrollControllerFor(_types[index]));
-              }
-            },
-            labels: labels,
-          ),
-        ),
-        body: tabBody,
-      );
-    }
-
-    final gallery = Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _DesktopGalleryHeader(
-          tabController: _tabController,
-          labels: labels,
-          onSelectCategory: _selectCategory,
-        ),
-        Expanded(child: tabBody),
-      ],
-    );
-
     return Scaffold(
       resizeToAvoidBottomInset: false,
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final inspectorWidth = (constraints.maxWidth * 0.45).clamp(
-            440.0,
-            560.0,
-          );
-          final inspected = wideInspector ? _inspectedEntity : null;
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(
-                child: DesktopInspectorScope(
-                  enabled: wideInspector,
-                  selectedId: _inspectedId,
-                  onInspect: _selectInspected,
-                  child: gallery,
-                ),
-              ),
-              if (inspected != null)
-                SizedBox(
-                  width: inspectorWidth,
-                  child: DesktopGalleryInspector(
-                    entity: inspected,
-                    panelWidth: inspectorWidth,
-                    onClose: _clearInspected,
-                    onOpenStage: () => _openStageFor(inspected),
-                  ),
-                ),
-            ],
-          );
-        },
+      appBar: AppTopBar(
+        titleSpacing: 0,
+        actions: [
+          DesktopGalleryControls(visible: showGalleryControls),
+          const _OffBarSearchAction(),
+          const HeaderRefresh(),
+          const HeaderSearch(),
+        ],
+        title: AppTabBar(
+          controller: _tabController,
+          onTap: (index) {
+            if (!_tabController.indexIsChanging) {
+              reTapScrollToTop(context, _scrollControllerFor(_types[index]));
+            }
+          },
+          labels: labels,
+        ),
+      ),
+      body: DesktopInspectableGallery(
+        active: showGalleryControls,
+        child: tabBody,
       ),
     );
   }
@@ -625,260 +535,6 @@ class _OffBarSearchAction extends ConsumerWidget {
       tooltip: context.l10n.searchTitle,
       icon: const Icon(AppIcons.search),
       onPressed: () => openHomeDestination(context, HomeDestination.search),
-    );
-  }
-}
-
-class _DesktopGalleryHeader extends ConsumerWidget {
-  const _DesktopGalleryHeader({
-    required this.tabController,
-    required this.labels,
-    required this.onSelectCategory,
-  });
-
-  final TabController tabController;
-  final List<String> labels;
-  final ValueChanged<int> onSelectCategory;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = context.l10n;
-    final theme = Theme.of(context);
-    final colors = theme.colorScheme;
-    final tokens = FuncSemanticTokens.of(context);
-    final density = ref.watch(feedDensityProvider);
-    final detailMode = ref.watch(desktopDetailModeProvider);
-    final (duration, curve) = MotionTokens.springCurve(
-      context,
-      MotionSpring.effectsFast,
-    );
-    final densityChoices = <({FeedDensity value, String label, Key? key})>[
-      (
-        value: FeedDensity.comfortable,
-        label: l10n.feedDensityComfortable,
-        key: null,
-      ),
-      (value: FeedDensity.standard, label: l10n.feedDensityStandard, key: null),
-      (value: FeedDensity.compact, label: l10n.feedDensityCompact, key: null),
-    ];
-    final detailModeChoices =
-        <({DesktopDetailMode value, String label, Key? key})>[
-          (
-            value: DesktopDetailMode.modal,
-            label: l10n.desktopDetailModeModal,
-            key: const Key('desktop-detail-mode-modal'),
-          ),
-          (
-            value: DesktopDetailMode.inspector,
-            label: l10n.desktopDetailModeInspector,
-            key: const Key('desktop-detail-mode-inspector'),
-          ),
-        ];
-
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: tokens.brandHairline)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(
-          FuncSpacing.lg,
-          FuncSpacing.md,
-          FuncSpacing.lg,
-          FuncSpacing.sm + FuncSpacing.xxs,
-        ),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final showDensity = constraints.maxWidth >= 620;
-            final showDetailMode = constraints.maxWidth >= 900;
-            return Row(
-              children: [
-                Text(
-                  l10n.homeRecommended,
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.3,
-                  ),
-                ),
-                const SizedBox(width: FuncSpacing.lg),
-                AnimatedBuilder(
-                  animation: tabController,
-                  builder: (context, _) {
-                    final active = tabController.index;
-                    return Wrap(
-                      spacing: FuncSpacing.xs,
-                      children: [
-                        for (var i = 0; i < labels.length; i++)
-                          Material(
-                            color: FuncTokens.transparent,
-                            shape: const StadiumBorder(),
-                            child: InkWell(
-                              customBorder: const StadiumBorder(),
-                              onTap: () => onSelectCategory(i),
-                              child: AnimatedContainer(
-                                duration: duration,
-                                curve: curve,
-                                height: 30,
-                                alignment: Alignment.center,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: FuncSpacing.md,
-                                ),
-                                decoration: ShapeDecoration(
-                                  shape: StadiumBorder(
-                                    side: i == active
-                                        ? BorderSide(
-                                            color: tokens.brandTintStroke,
-                                          )
-                                        : BorderSide.none,
-                                  ),
-                                  color: i == active
-                                      ? tokens.brandTint
-                                      : FuncTokens.transparent,
-                                ),
-                                child: Text(
-                                  labels[i],
-                                  style: theme.textTheme.labelLarge?.copyWith(
-                                    fontSize: 13,
-                                    fontWeight: i == active
-                                        ? FontWeight.w600
-                                        : FontWeight.w500,
-                                    color: i == active
-                                        ? colors.primary
-                                        : colors.onSurfaceVariant,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
-                    );
-                  },
-                ),
-                if (showDensity) ...[
-                  const Spacer(),
-                  if (showDetailMode) ...[
-                    _HeaderSegmentedPill<DesktopDetailMode>(
-                      choices: detailModeChoices,
-                      selected: detailMode,
-                      duration: duration,
-                      curve: curve,
-                      onSelected: (value) {
-                        unawaited(
-                          persistSettings(
-                            context,
-                            () => ref
-                                .read(settingsProvider.notifier)
-                                .setDesktopDetailMode(value),
-                          ),
-                        );
-                      },
-                    ),
-                    const SizedBox(width: FuncSpacing.sm),
-                  ],
-                  _HeaderSegmentedPill<FeedDensity>(
-                    choices: densityChoices,
-                    selected: density,
-                    duration: duration,
-                    curve: curve,
-                    onSelected: (value) {
-                      unawaited(
-                        persistSettings(
-                          context,
-                          () => ref
-                              .read(settingsProvider.notifier)
-                              .setFeedDensity(value),
-                        ),
-                      );
-                    },
-                  ),
-                ],
-              ],
-            );
-          },
-        ),
-      ),
-    );
-  }
-}
-
-class _HeaderSegmentedPill<T> extends StatelessWidget {
-  const _HeaderSegmentedPill({
-    required this.choices,
-    required this.selected,
-    required this.duration,
-    required this.curve,
-    required this.onSelected,
-  });
-
-  final List<({T value, String label, Key? key})> choices;
-  final T selected;
-  final Duration duration;
-  final Curve curve;
-  final ValueChanged<T> onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colors = theme.colorScheme;
-    final tokens = FuncSemanticTokens.of(context);
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: colors.surfaceContainerLow,
-        borderRadius: FuncShape.pill,
-        border: Border.all(color: tokens.brandHairline),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(FuncSpacing.xxs),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (final choice in choices)
-              Material(
-                color: FuncTokens.transparent,
-                shape: const StadiumBorder(),
-                child: InkWell(
-                  key: choice.key,
-                  customBorder: const StadiumBorder(),
-                  onTap: () {
-                    if (choice.value != selected) {
-                      onSelected(choice.value);
-                    }
-                  },
-                  child: AnimatedContainer(
-                    duration: duration,
-                    curve: curve,
-                    height: 26,
-                    alignment: Alignment.center,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: FuncSpacing.sm + FuncSpacing.xxs,
-                    ),
-                    decoration: ShapeDecoration(
-                      shape: StadiumBorder(
-                        side: choice.value == selected
-                            ? BorderSide(color: tokens.brandTintStroke)
-                            : BorderSide.none,
-                      ),
-                      color: choice.value == selected
-                          ? tokens.brandTint
-                          : FuncTokens.transparent,
-                    ),
-                    child: Text(
-                      choice.label,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        fontSize: 11.5,
-                        fontWeight: choice.value == selected
-                            ? FontWeight.w600
-                            : FontWeight.w500,
-                        color: choice.value == selected
-                            ? colors.primary
-                            : colors.onSurfaceVariant,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
     );
   }
 }

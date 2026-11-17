@@ -6,10 +6,12 @@ import 'package:material_ui/material_ui.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../app/haptics/app_haptics.dart';
+import '../../app/navigation/routes.dart';
 import '../../app/widgets/app_menu_button.dart';
 import '../../app/widgets/app_tab_bar.dart';
 import '../../app/widgets/app_top_bar.dart';
 import '../../app/widgets/display_actions.dart';
+import '../../app/widgets/feed/desktop_gallery_controls.dart';
 import '../../app/widgets/feed/feed_states.dart';
 import '../../app/widgets/func_bottom_nav.dart';
 import '../../app/widgets/home_branch_stack.dart';
@@ -51,6 +53,8 @@ class RankingTabs<M extends RankingCategory> extends ConsumerStatefulWidget {
     required this.switchIcon,
     required this.onSwitch,
     required this.bodyBuilder,
+    this.showGalleryControls = false,
+    this.enableDesktopInspector = false,
   });
 
   final RankingCatalog<M> catalog;
@@ -67,6 +71,8 @@ class RankingTabs<M extends RankingCategory> extends ConsumerStatefulWidget {
   final IconData switchIcon;
   final void Function(BuildContext context) onSwitch;
   final RankingBodyBuilder<M> bodyBuilder;
+  final bool showGalleryControls;
+  final bool enableDesktopInspector;
 
   @override
   ConsumerState<RankingTabs<M>> createState() => _RankingTabsState<M>();
@@ -523,6 +529,7 @@ class _RankingTabsState<M extends RankingCategory>
       appBar: AppTopBar(
         titleSpacing: 0,
         actions: [
+          if (widget.showGalleryControls) const DesktopGalleryControls(),
           IconButton(
             tooltip: context.l10n.rankingAllCategories,
             onPressed: _openSheet,
@@ -580,7 +587,7 @@ class _RankingTabsState<M extends RankingCategory>
           );
           // Always a Column, so the bar coming and going keeps the tab
           // strip's element.
-          return Column(
+          final content = Column(
             children: [
               if (_date case final date?)
                 RankingDateBar(
@@ -590,6 +597,9 @@ class _RankingTabsState<M extends RankingCategory>
               Expanded(child: tabs),
             ],
           );
+          return widget.enableDesktopInspector
+              ? DesktopInspectableGallery(child: content)
+              : content;
         },
       ),
     );

@@ -1,48 +1,55 @@
 import 'dart:async' show unawaited;
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
-import '../../../../app/clipboard.dart';
-import '../../../../app/format/app_format.dart';
-import '../../../../app/format/content_locale.dart';
+import '../../../../app/motion/hero_transition.dart';
+import '../../../../app/motion/motion_tokens.dart';
+import '../../../../app/motion/state_fade.dart';
+import '../../../../app/navigation/home_shell_metrics.dart';
 import '../../../../app/navigation/routes.dart';
-import '../../../../app/pixiv_image.dart';
 import '../../../../app/theme/func_semantic_tokens.dart';
-import '../../../../app/widgets/bookmark_switch_button.dart';
-import '../../../../app/widgets/caption_rich_text.dart';
-import '../../../../app/widgets/tag_chips.dart';
+import '../../../../app/widgets/feed/desktop_inspector_scope.dart';
 import '../../../../core/entity/illust_entity.dart';
-import '../../../../l10n/context.dart';
-import 'info_block.dart';
+import '../../../../core/settings/app_settings.dart';
+import '../../../../core/settings/settings_controller.dart';
+import '../detail_page_activity.dart';
+import '../illust_detail_page.dart';
+
+/// Shared Hero scope for artworks displayed inside [DesktopGalleryInspector]
+/// so its images never share a Hero tag with the left gallery grid.
+const String desktopInspectorHeroScope = 'desktop-inspector';
 
 /// Non-modal right inspector panel (**Desktop Detail Option A**): keeps the live
-/// masonry gallery scrollable on the left while framing the selected artwork,
-/// creator card, actions, stats, tags, and caption beside it.
+/// masonry gallery scrollable on the left while embedding a width-constrained
+/// full [IllustDetailPage] beside it so view history, multi-page browsing,
+/// ugoira playback, tags, comments, related works, and actions stay complete.
 class DesktopGalleryInspector extends StatelessWidget {
   const DesktopGalleryInspector({
     super.key,
-    required this.entity,
+    required this.target,
     required this.onClose,
     required this.onOpenStage,
     this.panelWidth = width,
+    this.backController,
+    this.active = true,
   });
 
   static const double width = 540;
 
-  final IllustEntity entity;
+  final DesktopInspectorTarget target;
   final VoidCallback onClose;
-  final VoidCallback onOpenStage;
+  final ValueChanged<IllustEntity> onOpenStage;
   final double panelWidth;
+  final IllustEmbeddedBackController? backController;
+  final bool active;
 
   @override
   Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final theme = Theme.of(context);
-    final colors = theme.colorScheme;
+    final outerChrome = HomeShellChrome.maybeOf(context);
+    final outerMedia = MediaQuery.of(context);
     final tokens = FuncSemanticTokens.of(context);
-    final aspect = (entity.width > 0 && entity.height > 0)
-        ? (entity.width / entity.height).clamp(0.70, 1.75)
-        : 1.0;
+    final entity = target.entity;
 
     return DecoratedBox(
       key: const Key('desktop-gallery-inspector'),
@@ -52,258 +59,289 @@ class DesktopGalleryInspector extends StatelessWidget {
           start: BorderSide(color: tokens.brandHairline),
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          SizedBox(
-            height: 48,
-            child: Padding(
-              padding: const EdgeInsetsDirectional.fromSTEB(
-                FuncSpacing.lg,
-                0,
-                FuncSpacing.xs,
-                0,
-              ),
-              child: Row(
-                children: [
-                  InkWell(
-                    borderRadius: FuncShape.pill,
-                    onTap: () => unawaited(
-                      copyToClipboard(
-                        context,
-                        '${entity.id}',
-                        message: l10n.artworkIdCopied,
-                      ),
-                    ),
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: tokens.brandTintWeak,
-                        borderRadius: FuncShape.pill,
-                        border: Border.all(color: tokens.brandHairline),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: FuncSpacing.sm + FuncSpacing.xxs,
-                          vertical: FuncSpacing.xs,
-                        ),
-                        child: Text(
-                          '#${entity.id}',
-                          style: tokens.numeric.copyWith(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: colors.primary,
-                          ),
-                        ),
-                      ),
-                    ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final height = constraints.hasBoundedHeight
+              ? constraints.maxHeight
+              : outerMedia.size.height;
+          final framed = MediaQuery(
+            data: outerMedia
+                .copyWith(size: Size(panelWidth, height))
+                .removePadding(
+                  removeTop: true,
+                  removeBottom: true,
+                  removeLeft: true,
+                  removeRight: true,
+                ),
+            child: outerChrome == null
+                ? _buildDetail(entity)
+                : HomeShellChrome(
+                    bottomBarExtent: 0,
+                    railExtent: 0,
+                    bottomBarVisibleExtent: outerChrome.bottomBarVisibleExtent,
+                    bottomBarVisibility: outerChrome.bottomBarVisibility,
+                    onBranchRootScroll: outerChrome.onBranchRootScroll,
+                    child: _buildDetail(entity),
                   ),
-                  const SizedBox(width: FuncSpacing.sm),
-                  Expanded(
-                    child: Text(
-                      '${entity.width}×${entity.height}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: tokens.numeric.copyWith(
-                        fontSize: 12,
-                        color: tokens.contentSecondary,
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    key: const Key('desktop-inspector-open-stage'),
-                    tooltip: l10n.viewerOpenDetail,
-                    icon: const Icon(Icons.open_in_full, size: 18),
-                    onPressed: onOpenStage,
-                  ),
-                  IconButton(
-                    key: const Key('desktop-inspector-close'),
-                    tooltip: l10n.profileShareClose,
-                    icon: const Icon(Icons.close, size: 19),
-                    onPressed: onClose,
-                  ),
-                ],
+          );
+          return NotificationListener<ScrollNotification>(
+            onNotification: (_) => true,
+            child: DetailPageActivity(
+              active: active,
+              child: StateFade(
+                kind: entity.id,
+                child: KeyedSubtree(key: ValueKey(entity.id), child: framed),
               ),
             ),
-          ),
-          Divider(height: 1, color: tokens.brandHairline),
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.all(FuncSpacing.lg),
-              children: [
-                DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: colors.surfaceContainerLow,
-                    borderRadius: FuncShape.card,
-                    border: Border.all(color: tokens.brandHairline),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: FuncShape.card,
-                    child: InkWell(
-                      onTap: onOpenStage,
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          Center(
-                            child: ConstrainedBox(
-                              constraints: const BoxConstraints(maxHeight: 500),
-                              child: AspectRatio(
-                                aspectRatio: aspect,
-                                child: PixivImage.feed(
-                                  entity.imageUrls.large,
-                                  layoutWidth: panelWidth - FuncSpacing.lg * 2,
-                                  fit: BoxFit.contain,
-                                ),
-                              ),
-                            ),
-                          ),
-                          if (entity.pageCount > 1)
-                            Positioned(
-                              top: 8,
-                              right: 8,
-                              child: DecoratedBox(
-                                decoration: BoxDecoration(
-                                  color: const Color(0x9E141216),
-                                  borderRadius: FuncShape.pill,
-                                ),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: FuncSpacing.sm,
-                                    vertical: FuncSpacing.xxs,
-                                  ),
-                                  child: Text(
-                                    '1 / ${entity.pageCount}',
-                                    style: tokens.numeric.copyWith(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: FuncSpacing.md),
-                Row(
-                  children: [
-                    DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: tokens.brandTint,
-                        borderRadius: FuncShape.pill,
-                        border: Border.all(color: tokens.brandTintStroke),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.only(
-                          left: FuncSpacing.xs,
-                          right: FuncSpacing.md,
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            BookmarkSwitchButton(
-                              illustId: entity.id,
-                              title: entity.title,
-                            ),
-                            Text(
-                              AppFormat.count(context, entity.totalBookmarks),
-                              style: tokens.numeric.copyWith(
-                                fontSize: 13.5,
-                                fontWeight: FontWeight.w600,
-                                color: colors.primary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const Spacer(),
-                    InkWell(
-                      borderRadius: FuncShape.pill,
-                      onTap: onOpenStage,
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: tokens.brandTintWeak,
-                          borderRadius: FuncShape.pill,
-                          border: Border.all(color: tokens.brandHairline),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: FuncSpacing.md,
-                            vertical: FuncSpacing.sm,
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.open_in_full,
-                                size: 15,
-                                color: colors.primary,
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                l10n.viewerOpenDetail,
-                                style: theme.textTheme.labelMedium?.copyWith(
-                                  color: colors.primary,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: FuncSpacing.md),
-                Text(
-                  entity.title,
-                  locale: contentLocale(context, entity.title),
-                  style: tokens.workTitle,
-                ),
-                const SizedBox(height: FuncSpacing.sm),
-                DetailAuthorCard(entity: entity),
-                const SizedBox(height: FuncSpacing.md),
-                DetailMarksAndStats(entity: entity),
-                if (entity.tags.isNotEmpty) ...[
-                  const SizedBox(height: FuncSpacing.lg),
-                  Text(
-                    l10n.detailSectionTags,
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: FuncSpacing.sm),
-                  TagChips(
-                    children: [
-                      for (final tag in entity.tags)
-                        TagChip(
-                          label: tag.name,
-                          translated: tag.translatedName,
-                          onTap: () =>
-                              unawaited(openTagSearch(context, tag.name)),
-                        ),
-                    ],
-                  ),
-                ],
-                if (entity.caption.isNotEmpty) ...[
-                  const SizedBox(height: FuncSpacing.lg),
-                  Text(
-                    l10n.detailSectionCaption,
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: FuncSpacing.sm),
-                  CaptionRichText(caption: entity.caption, maxLines: 6),
-                ],
-              ],
-            ),
-          ),
-        ],
+          );
+        },
       ),
+    );
+  }
+
+  Widget _buildDetail(IllustEntity entity) => IllustDetailPage(
+    illustId: entity.id,
+    initialEntity: entity,
+    heroScope: desktopInspectorHeroScope,
+    heroImageUrl: target.heroImageUrl,
+    heroImageDecodeWidth: target.heroImageDecodeWidth,
+    embeddedInspector: true,
+    onCloseInspector: onClose,
+    onOpenFullStage: onOpenStage,
+    embeddedBackController: backController,
+  );
+}
+
+/// Reusable desktop master-detail host: wraps any illust gallery [child] with
+/// [DesktopInspectorScope], animates the `440–560dp` [DesktopGalleryInspector]
+/// open/closed alongside it when [DesktopDetailMode.inspector] is active, and
+/// intercepts `Esc` / mouse back via [PopScope] before the outer shell pops or
+/// switches branches.
+class DesktopInspectableGallery extends ConsumerStatefulWidget {
+  const DesktopInspectableGallery({
+    super.key,
+    required this.child,
+    this.enabled = true,
+    this.active = true,
+  });
+
+  final Widget child;
+
+  /// Caller gate (for example, disabled while multi-select management is on).
+  final bool enabled;
+
+  /// Whether the active view currently renders illust/manga cards. Switching to
+  /// non-illust tabs (`novel`, `user`) closes any open inspector automatically.
+  final bool active;
+
+  @override
+  ConsumerState<DesktopInspectableGallery> createState() =>
+      _DesktopInspectableGalleryState();
+}
+
+class _DesktopInspectableGalleryState
+    extends ConsumerState<DesktopInspectableGallery>
+    with SingleTickerProviderStateMixin {
+  final _selectedId = ValueNotifier<int?>(null);
+  final _backController = IllustEmbeddedBackController();
+  late final AnimationController _panelController = AnimationController(
+    vsync: this,
+    value: 0,
+  );
+
+  DesktopInspectorTarget? _selected;
+  DesktopInspectorTarget? _rendered;
+  bool _snapCloseScheduled = false;
+
+  @override
+  void didUpdateWidget(DesktopInspectableGallery oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if ((!widget.enabled || !widget.active) &&
+        (_selected != null || _rendered != null)) {
+      _snapCloseSync();
+    }
+  }
+
+  @override
+  void dispose() {
+    _panelController.dispose();
+    _selectedId.dispose();
+    super.dispose();
+  }
+
+  void _snapCloseSync() {
+    _selected = null;
+    _rendered = null;
+    _selectedId.value = null;
+    _panelController.value = 0;
+  }
+
+  void _scheduleSnapClose() {
+    if (_snapCloseScheduled) return;
+    _snapCloseScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _snapCloseScheduled = false;
+      if (!mounted || (_selected == null && _rendered == null)) return;
+      setState(_snapCloseSync);
+    });
+  }
+
+  void _open(DesktopInspectorTarget target) {
+    if (!mounted) return;
+    setState(() {
+      _selected = target;
+      _rendered = target;
+      _selectedId.value = target.entity.id;
+    });
+    final (duration, curve) = MotionTokens.springCurve(
+      context,
+      MotionSpring.spatialFast,
+    );
+    if (duration == Duration.zero || !TickerMode.valuesOf(context).enabled) {
+      _panelController.value = 1;
+      return;
+    }
+    unawaited(_panelController.animateTo(1, duration: duration, curve: curve));
+  }
+
+  void _close() {
+    if (_selected == null) return;
+    setState(() {
+      _selected = null;
+      _selectedId.value = null;
+    });
+    final (duration, curve) = MotionTokens.springCurve(
+      context,
+      MotionSpring.spatialFast,
+    );
+    if (duration == Duration.zero || !TickerMode.valuesOf(context).enabled) {
+      setState(() {
+        _rendered = null;
+        _panelController.value = 0;
+      });
+      return;
+    }
+    unawaited(
+      _panelController.animateBack(0, duration: duration, curve: curve).then((
+        _,
+      ) {
+        if (!mounted || _selected != null) return;
+        if (_panelController.isDismissed) {
+          setState(() => _rendered = null);
+        }
+      }),
+    );
+  }
+
+  void _openFullStage(
+    DesktopInspectorTarget target,
+    IllustEntity latestEntity,
+  ) {
+    if (target.heroImageUrl != null) {
+      noteHeroCardOpened(
+        context,
+        illustHeroTag(target.heroScope, latestEntity.id),
+      );
+    }
+    unawaited(
+      openIllust(
+        context,
+        latestEntity.id,
+        initialEntity: latestEntity,
+        heroScope: target.heroScope,
+        heroImageUrl: target.heroImageUrl,
+        heroImageDecodeWidth: target.heroImageDecodeWidth,
+        pagerSource: target.pagerSource,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    ref.listen<DesktopDetailMode>(desktopDetailModeProvider, (_, mode) {
+      if (mode != DesktopDetailMode.inspector &&
+          (_selected != null || _rendered != null)) {
+        setState(_snapCloseSync);
+      }
+    });
+    final detailMode = ref.watch(desktopDetailModeProvider);
+    final modeEnabled =
+        widget.enabled &&
+        widget.active &&
+        canUseDesktopInspector(context, detailMode);
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final canInspect =
+            modeEnabled && constraints.maxWidth >= desktopInspectorHostMinWidth;
+        if (!canInspect && (_selected != null || _rendered != null)) {
+          _scheduleSnapClose();
+        }
+        final inspectorWidth = (constraints.maxWidth * 0.45).clamp(
+          440.0,
+          560.0,
+        );
+        final tickerActive = TickerMode.valuesOf(context).enabled;
+        final routeCurrent = ModalRoute.of(context)?.isCurrent ?? true;
+        final isPanelOpen = canInspect && _selected != null;
+
+        final panel = canInspect && _rendered != null
+            ? AnimatedBuilder(
+                animation: _panelController,
+                child: HeroMode(
+                  enabled: isPanelOpen && tickerActive,
+                  child: SizedBox(
+                    width: inspectorWidth,
+                    child: DesktopGalleryInspector(
+                      target: _rendered!,
+                      panelWidth: inspectorWidth,
+                      active: isPanelOpen && tickerActive && routeCurrent,
+                      backController: _backController,
+                      onClose: _close,
+                      onOpenStage: (latest) =>
+                          _openFullStage(_rendered!, latest),
+                    ),
+                  ),
+                ),
+                builder: (context, child) {
+                  final progress = _panelController.value.clamp(0.0, 1.0);
+                  return IgnorePointer(
+                    ignoring: !isPanelOpen,
+                    child: ClipRect(
+                      child: Align(
+                        alignment: AlignmentDirectional.topStart,
+                        widthFactor: progress,
+                        child: Opacity(opacity: progress, child: child),
+                      ),
+                    ),
+                  );
+                },
+              )
+            : null;
+
+        return PopScope(
+          canPop: !isPanelOpen || !routeCurrent || !tickerActive,
+          onPopInvokedWithResult: (didPop, _) {
+            if (didPop) return;
+            if (_backController.handleBack()) return;
+            _close();
+          },
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: DesktopInspectorScope(
+                  enabled: canInspect,
+                  selectedId: _selectedId,
+                  onInspect: _open,
+                  child: widget.child,
+                ),
+              ),
+              ?panel,
+            ],
+          ),
+        );
+      },
     );
   }
 }

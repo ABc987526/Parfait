@@ -1,12 +1,12 @@
 import 'dart:async';
 import 'dart:math' as math;
-import 'dart:ui' as ui;
 
 import 'package:flutter/rendering.dart' show RenderAbstractViewport;
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
+import '../../../app/clipboard.dart';
 import '../../../app/format/app_format.dart';
 import '../../../app/theme/func_tokens.dart';
 
@@ -15,6 +15,7 @@ import '../../../app/pixiv_image.dart';
 import '../../../app/pull_to_refresh.dart';
 import '../../../app/widgets/ambient_wash.dart';
 import '../../../app/widgets/app_top_bar.dart';
+import '../../../app/widgets/artwork_controls.dart';
 import '../../../app/widgets/bookmark_switch_button.dart'
     show BookmarkSwitchButton, showBookmarkEditSheet;
 import '../../../app/widgets/card_actions/card_action.dart';
@@ -74,6 +75,15 @@ import '../../../app/widgets/smooth_wheel_scroll.dart';
 import '../../../app/widgets/comment_composer.dart';
 part 'illust_detail_content.dart';
 
+/// Coordinates system back / Esc inside an embedded [IllustDetailPage] so an
+/// active sub-mode (page download selection or comment composer) dismisses
+/// before its outer host closes the inspector pane.
+class IllustEmbeddedBackController {
+  bool Function()? _handler;
+
+  bool handleBack() => _handler?.call() ?? false;
+}
+
 class IllustDetailPage extends ConsumerStatefulWidget {
   const IllustDetailPage({
     super.key,
@@ -82,6 +92,10 @@ class IllustDetailPage extends ConsumerStatefulWidget {
     this.heroScope = 'feed',
     this.heroImageUrl,
     this.heroImageDecodeWidth,
+    this.embeddedInspector = false,
+    this.onCloseInspector,
+    this.onOpenFullStage,
+    this.embeddedBackController,
   });
 
   final int illustId;
@@ -93,6 +107,12 @@ class IllustDetailPage extends ConsumerStatefulWidget {
   /// phase at this width reuses the feed's decoded cache entry, so the
   /// landing frame does not re-decode the same file at screen width.
   final int? heroImageDecodeWidth;
+
+  /// True when hosted inside the desktop side inspector rather than a route.
+  final bool embeddedInspector;
+  final VoidCallback? onCloseInspector;
+  final ValueChanged<IllustEntity>? onOpenFullStage;
+  final IllustEmbeddedBackController? embeddedBackController;
 
   @override
   ConsumerState<IllustDetailPage> createState() => _IllustDetailPageState();
@@ -158,7 +178,7 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
   /// slides away as soon as the route starts to leave.
   late final AnimationController _barVisibility = AnimationController(
     vsync: this,
-    value: widget.heroImageUrl == null ? 1 : 0,
+    value: widget.embeddedInspector || widget.heroImageUrl == null ? 1 : 0,
   );
   final _scrollHide = ScrollHideTracker();
 
@@ -187,7 +207,7 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
   /// card (see [AppTopBar.entrance]); without a card it is there at once.
   late final AnimationController _topBarEntrance = AnimationController(
     vsync: this,
-    value: widget.heroImageUrl == null ? 1 : 0,
+    value: widget.embeddedInspector || widget.heroImageUrl == null ? 1 : 0,
   );
   Animation<double>? _routeAnimation;
 
@@ -210,11 +230,36 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
   @override
   void initState() {
     super.initState();
+    widget.embeddedBackController?._handler = _handleEmbeddedBack;
     _narrowScroll
       ..addListener(_updateImmersion)
       ..addListener(_schedulePagesToggleCheck)
       ..addListener(_updateNarrowInfoStartOffset);
     _metaScroll.addListener(_onMetaScrollChanged);
+  }
+
+  @override
+  void didUpdateWidget(IllustDetailPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.embeddedBackController != widget.embeddedBackController) {
+      if (oldWidget.embeddedBackController?._handler == _handleEmbeddedBack) {
+        oldWidget.embeddedBackController?._handler = null;
+      }
+      widget.embeddedBackController?._handler = _handleEmbeddedBack;
+    }
+  }
+
+  bool _handleEmbeddedBack() {
+    if (_composing) {
+      final composer = _composerKey.currentState;
+      composer == null ? _closeComposer() : composer.dismiss();
+      return true;
+    }
+    if (_downloadMode) {
+      _exitDownloadMode();
+      return true;
+    }
+    return false;
   }
 
   void _onMetaScrollChanged() {
@@ -553,6 +598,9 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
 
   @override
   void dispose() {
+    if (widget.embeddedBackController?._handler == _handleEmbeddedBack) {
+      widget.embeddedBackController?._handler = null;
+    }
     unawaited(_downloadEvents?.cancel());
     _narrowScroll.dispose();
     _metaScroll.dispose();
@@ -683,29 +731,30 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
     final entity = _entityOf(async);
     // The narrow layout opens on the artwork under a see-through bar —
     // the skeleton too, so content arriving never shifts it.
-    final twoPane = AppBreakpoints.useTwoPaneDetailOf(
-      context,
-      HomeShellChrome.contentSizeOf(context),
-    );
+    final twoPane =
+        !widget.embeddedInspector &&
+        AppBreakpoints.useTwoPaneDetailOf(
+          context,
+          HomeShellChrome.contentSizeOf(context),
+        );
     final rendersContent = entity != null && _rendersContent(async, entity);
     final hideTwoPaneAppBar = !_downloadMode && twoPane && rendersContent;
     final immersive =
-        !twoPane && (entity == null ? async.isLoading : rendersContent);
+        !widget.embeddedInspector &&
+        !twoPane &&
+        (entity == null ? async.isLoading : rendersContent);
     return PopScope(
       // While the selection mode is on, system back exits the mode instead
       // of leaving the page, like the selection bar's close button.
       // In-flight downloads are untouched — the mode is only a UI
       // selection layer.
       // Back sends the comment composer down first.
-      canPop: !_downloadMode && !_composing,
+      canPop:
+          widget.embeddedBackController != null ||
+          (!_downloadMode && !_composing),
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) return;
-        if (_composing) {
-          final composer = _composerKey.currentState;
-          composer == null ? _closeComposer() : composer.dismiss();
-        } else {
-          _exitDownloadMode();
-        }
+        _handleEmbeddedBack();
       },
       child: RefreshActionAnchor(
         onRefresh: () => ref
@@ -829,10 +878,19 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
     // InfoBlock — the menu's artwork-info item only exists while the
     // content actually renders.
     final rendersContent = _rendersContent(async, entity);
-    final twoPane = AppBreakpoints.useTwoPaneDetailOf(
-      context,
-      HomeShellChrome.contentSizeOf(context),
-    );
+    final twoPane =
+        !widget.embeddedInspector &&
+        AppBreakpoints.useTwoPaneDetailOf(
+          context,
+          HomeShellChrome.contentSizeOf(context),
+        );
+    if (widget.embeddedInspector) {
+      return _buildInspectorAppBar(
+        context,
+        entity: entity,
+        rendersContent: rendersContent,
+      );
+    }
     return AppTopBar(
       // Over the artwork the bar shows nothing but controls; the work's
       // title fades in with the surface once the image scrolls away. The
@@ -867,6 +925,101 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
             entity,
             rendersContent: rendersContent,
             twoPane: twoPane,
+          ),
+      ],
+    );
+  }
+
+  PreferredSizeWidget _buildInspectorAppBar(
+    BuildContext context, {
+    required IllustEntity? entity,
+    required bool rendersContent,
+  }) {
+    final l10n = context.l10n;
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final tokens = FuncSemanticTokens.of(context);
+    return AppTopBar(
+      automaticallyImplyLeading: false,
+      titleSpacing: FuncSpacing.lg,
+      backgroundColor: tokens.surface,
+      title: SelectionContainer.disabled(
+        child: entity == null
+            ? Text(
+                l10n.illustDetailTitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              )
+            : Row(
+                children: [
+                  Material(
+                    color: tokens.brandTintWeak,
+                    shape: StadiumBorder(
+                      side: BorderSide(color: tokens.brandHairline),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: InkWell(
+                      customBorder: const StadiumBorder(),
+                      onTap: () => unawaited(
+                        copyToClipboard(
+                          context,
+                          '${entity.id}',
+                          message: l10n.artworkIdCopied,
+                        ),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: FuncSpacing.sm + FuncSpacing.xxs,
+                          vertical: FuncSpacing.xs,
+                        ),
+                        child: Text(
+                          '#${entity.id}',
+                          style: theme.textTheme.labelMedium
+                              ?.merge(tokens.numeric)
+                              .copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: colors.primary,
+                              ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (entity.width > 0 && entity.height > 0) ...[
+                    const SizedBox(width: FuncSpacing.sm),
+                    Expanded(
+                      child: Text(
+                        '${entity.width}×${entity.height}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall
+                            ?.merge(tokens.numeric)
+                            .copyWith(color: tokens.contentSecondary),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+      ),
+      actions: [
+        if (entity != null && widget.onOpenFullStage != null)
+          IconButton(
+            key: const Key('desktop-inspector-open-stage'),
+            tooltip: l10n.viewerOpenDetail,
+            icon: const Icon(Icons.open_in_full, size: 18),
+            onPressed: () => widget.onOpenFullStage!(entity),
+          ),
+        if (entity != null)
+          _buildMoreMenu(
+            entity,
+            rendersContent: rendersContent,
+            twoPane: false,
+          ),
+        if (widget.onCloseInspector != null)
+          IconButton(
+            key: const Key('desktop-inspector-close'),
+            tooltip: l10n.profileShareClose,
+            icon: const Icon(Icons.close, size: 19),
+            onPressed: widget.onCloseInspector,
           ),
       ],
     );

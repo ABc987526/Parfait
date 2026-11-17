@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../app/navigation/routes.dart';
 import '../../app/widgets/app_top_bar.dart';
 import '../../app/widgets/feed/feed_states.dart';
 import '../../core/auth/account_store.dart';
@@ -91,9 +92,15 @@ class _BookmarkTagFeedPageState extends ConsumerState<BookmarkTagFeedPage> {
           ),
         ),
       ),
-      body: userId == null
-          ? FeedEmpty(icon: Icons.label_outline, title: l10n.bookmarkTagsEmpty)
-          : _feed(userId),
+      body: DesktopInspectableGallery(
+        active: widget.kind == BookmarkEntityType.illust,
+        child: userId == null
+            ? FeedEmpty(
+                icon: Icons.label_outline,
+                title: l10n.bookmarkTagsEmpty,
+              )
+            : _feed(userId),
+      ),
     );
   }
 

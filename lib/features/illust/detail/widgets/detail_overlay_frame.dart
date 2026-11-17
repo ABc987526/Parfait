@@ -20,6 +20,22 @@ class DetailOverlayFrame extends StatefulWidget {
 
 class _DetailOverlayFrameState extends State<DetailOverlayFrame> {
   final _childKey = GlobalKey();
+  int? _scrimPointer;
+  bool _popping = false;
+
+  Future<void> _dismissOverlay() async {
+    if (_popping || !mounted) return;
+    final route = ModalRoute.of(context);
+    if (route != null && !route.isCurrent) return;
+    _popping = true;
+    try {
+      await Navigator.maybePop(context);
+    } finally {
+      if (mounted && (ModalRoute.of(context)?.isCurrent ?? true)) {
+        _popping = false;
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -37,11 +53,26 @@ class _DetailOverlayFrameState extends State<DetailOverlayFrame> {
     return Stack(
       fit: StackFit.expand,
       children: [
-        GestureDetector(
-          key: const ValueKey('detail-overlay-scrim'),
+        Listener(
           behavior: HitTestBehavior.opaque,
-          onTap: () => unawaited(Navigator.maybePop(context)),
-          child: const ColoredBox(color: Color(0x990C0B0E)),
+          onPointerDown: (event) => _scrimPointer = event.pointer,
+          onPointerUp: (event) {
+            if (_scrimPointer == event.pointer) {
+              _scrimPointer = null;
+              unawaited(_dismissOverlay());
+            }
+          },
+          onPointerCancel: (event) {
+            if (_scrimPointer == event.pointer) {
+              _scrimPointer = null;
+            }
+          },
+          child: GestureDetector(
+            key: const ValueKey('detail-overlay-scrim'),
+            behavior: HitTestBehavior.opaque,
+            onTap: () => unawaited(_dismissOverlay()),
+            child: const ColoredBox(color: Color(0x990C0B0E)),
+          ),
         ),
         SafeArea(
           child: Padding(

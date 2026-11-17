@@ -795,11 +795,12 @@ class _PagerSlotState extends State<_PagerSlot>
       child: _detail,
       builder: (context, child) {
         final isCurrent = widget.index == widget.current.value;
-        return HeroMode(
-          enabled: isCurrent,
-          child: DetailPageActivity(
-            active: widget.illustId == widget.activeId.value,
-            child: child!,
+        final active = widget.illustId == widget.activeId.value;
+        return ExcludeFocus(
+          excluding: !active,
+          child: HeroMode(
+            enabled: isCurrent,
+            child: DetailPageActivity(active: active, child: child!),
           ),
         );
       },
