@@ -159,7 +159,7 @@ abstract class AppLocalizations {
   /// No description provided for @loginTitle.
   ///
   /// In zh, this message translates to:
-  /// **'注册 或 登录'**
+  /// **'注册或登录'**
   String get loginTitle;
 
   /// No description provided for @loginProxyNoticeTitle.

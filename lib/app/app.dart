@@ -403,89 +403,97 @@ class _AppChromeState extends ConsumerState<AppChrome> {
                                                     router: widget.router,
                                                   ),
                                                 Expanded(
-                                                  child: Builder(
-                                                    builder: (contentContext) {
-                                                      final innerChrome =
-                                                          DesktopChromeMetrics.maybeOf(
-                                                            contentContext,
-                                                          );
-                                                      final fallbackCustomChrome =
-                                                          commandBarHidden &&
-                                                          innerChrome != null &&
-                                                          innerChrome
-                                                              .hasCustomChrome;
-                                                      final preserveTopForButtons =
-                                                          fallbackCustomChrome &&
-                                                          innerChrome
-                                                              .showCustomButtons;
-                                                      final contentChild =
-                                                          preserveTopForButtons
-                                                          ? MediaQuery(
-                                                              data: MediaQuery.of(contentContext).copyWith(
-                                                                padding:
-                                                                    MediaQuery.paddingOf(
-                                                                      contentContext,
-                                                                    ).copyWith(
-                                                                      top: math.max(
-                                                                        MediaQuery.paddingOf(
-                                                                          contentContext,
-                                                                        ).top,
-                                                                        innerChrome
-                                                                            .titleBarHeight,
-                                                                      ),
-                                                                    ),
-                                                                viewPadding:
-                                                                    MediaQuery.viewPaddingOf(
-                                                                      contentContext,
-                                                                    ).copyWith(
-                                                                      top: math.max(
-                                                                        MediaQuery.viewPaddingOf(
-                                                                          contentContext,
-                                                                        ).top,
-                                                                        innerChrome
-                                                                            .titleBarHeight,
-                                                                      ),
-                                                                    ),
-                                                              ),
-                                                              child:
-                                                                  widget.child,
-                                                            )
-                                                          : MediaQuery.removePadding(
-                                                              context:
-                                                                  contentContext,
-                                                              removeTop: true,
-                                                              child:
-                                                                  widget.child,
+                                                  // Isolate Router's ModalBarrier BlockSemantics
+                                                  // so earlier sibling DesktopCommandBar stays reachable.
+                                                  child: Semantics(
+                                                    container: true,
+                                                    explicitChildNodes: true,
+                                                    child: Builder(
+                                                      builder: (contentContext) {
+                                                        final innerChrome =
+                                                            DesktopChromeMetrics.maybeOf(
+                                                              contentContext,
                                                             );
-                                                      if (innerChrome == null) {
-                                                        return contentChild;
-                                                      }
-                                                      final scopedChrome = innerChrome.copyWith(
-                                                        titleBarHeight:
+                                                        final fallbackCustomChrome =
+                                                            commandBarHidden &&
+                                                            innerChrome !=
+                                                                null &&
+                                                            innerChrome
+                                                                .hasCustomChrome;
+                                                        final preserveTopForButtons =
+                                                            fallbackCustomChrome &&
+                                                            innerChrome
+                                                                .showCustomButtons;
+                                                        final contentChild =
                                                             preserveTopForButtons
-                                                            ? innerChrome
-                                                                  .titleBarHeight
-                                                            : 0,
-                                                        leadingInset:
-                                                            showCommandBar
-                                                            ? 0
-                                                            : innerChrome
-                                                                  .leadingInset,
-                                                        trailingInset:
-                                                            preserveTopForButtons
-                                                            ? innerChrome
-                                                                  .trailingInset
-                                                            : 0,
-                                                        child: contentChild,
-                                                      );
-                                                      if (!fallbackCustomChrome) {
-                                                        return scopedChrome;
-                                                      }
-                                                      return DesktopFallbackWindowChrome(
-                                                        chrome: innerChrome,
-                                                        child: scopedChrome,
-                                                      );
-                                                    },
+                                                            ? MediaQuery(
+                                                                data: MediaQuery.of(contentContext).copyWith(
+                                                                  padding:
+                                                                      MediaQuery.paddingOf(
+                                                                        contentContext,
+                                                                      ).copyWith(
+                                                                        top: math.max(
+                                                                          MediaQuery.paddingOf(
+                                                                            contentContext,
+                                                                          ).top,
+                                                                          innerChrome
+                                                                              .titleBarHeight,
+                                                                        ),
+                                                                      ),
+                                                                  viewPadding:
+                                                                      MediaQuery.viewPaddingOf(
+                                                                        contentContext,
+                                                                      ).copyWith(
+                                                                        top: math.max(
+                                                                          MediaQuery.viewPaddingOf(
+                                                                            contentContext,
+                                                                          ).top,
+                                                                          innerChrome
+                                                                              .titleBarHeight,
+                                                                        ),
+                                                                      ),
+                                                                ),
+                                                                child: widget
+                                                                    .child,
+                                                              )
+                                                            : MediaQuery.removePadding(
+                                                                context:
+                                                                    contentContext,
+                                                                removeTop: true,
+                                                                child: widget
+                                                                    .child,
+                                                              );
+                                                        if (innerChrome ==
+                                                            null) {
+                                                          return contentChild;
+                                                        }
+                                                        final scopedChrome = innerChrome.copyWith(
+                                                          titleBarHeight:
+                                                              preserveTopForButtons
+                                                              ? innerChrome
+                                                                    .titleBarHeight
+                                                              : 0,
+                                                          leadingInset:
+                                                              showCommandBar
+                                                              ? 0
+                                                              : innerChrome
+                                                                    .leadingInset,
+                                                          trailingInset:
+                                                              preserveTopForButtons
+                                                              ? innerChrome
+                                                                    .trailingInset
+                                                              : 0,
+                                                          child: contentChild,
+                                                        );
+                                                        if (!fallbackCustomChrome) {
+                                                          return scopedChrome;
+                                                        }
+                                                        return DesktopFallbackWindowChrome(
+                                                          chrome: innerChrome,
+                                                          child: scopedChrome,
+                                                        );
+                                                      },
+                                                    ),
                                                   ),
                                                 ),
                                               ],

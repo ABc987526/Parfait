@@ -861,7 +861,7 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String get imageSourceAutoPending => '未計測 — 直连で読み込み';
+  String get imageSourceAutoPending => '未計測 — 直結で読み込み';
 
   @override
   String get previewQuality => 'プレビュー画質';

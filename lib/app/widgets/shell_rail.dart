@@ -69,7 +69,8 @@ class ShellRail extends StatelessWidget {
   static const double expandedWidth = 204;
 
   static const double _headerHeight = 44;
-  static const double _itemWidth = 60;
+  static const double _itemWidth = 68;
+  static const double _compactHorizontalPadding = FuncSpacing.xxs;
   static const double _itemMinHeight = 52;
   static const double _rowHeight = 42;
   static const double _ruleWidth = 36;
@@ -196,6 +197,18 @@ class ShellRail extends StatelessWidget {
         ).labelTextStyle?.resolve({if (selected) WidgetState.selected}),
       );
 
+  TextStyle _compactLabelStyle(BuildContext context, {required bool selected}) {
+    final base = _labelStyle(context, selected: selected);
+    final compactSize = Theme.of(context).textTheme.labelSmall?.fontSize;
+    if (compactSize == null) return base;
+    final baseSize = base.fontSize;
+    return base.copyWith(
+      fontSize: baseSize == null || baseSize > compactSize
+          ? compactSize
+          : baseSize,
+    );
+  }
+
   TextStyle _panelLabelStyle(BuildContext context, {required bool selected}) =>
       _labelStyle(
         context,
@@ -219,11 +232,11 @@ class ShellRail extends StatelessWidget {
       ],
       style: LabelFit.paintedStyle(
         context,
-        _labelStyle(context, selected: true),
+        _compactLabelStyle(context, selected: true),
       ),
       textScaler: MediaQuery.textScalerOf(context),
       textDirection: Directionality.of(context),
-      slotWidth: _itemWidth - 2 * FuncSpacing.xs,
+      slotWidth: _itemWidth - 2 * _compactHorizontalPadding,
       locale: Localizations.maybeLocaleOf(context),
     );
     Widget item({
@@ -244,7 +257,7 @@ class ShellRail extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.symmetric(
               vertical: FuncSpacing.sm,
-              horizontal: FuncSpacing.xs,
+              horizontal: _compactHorizontalPadding,
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -258,7 +271,7 @@ class ShellRail extends StatelessWidget {
                 FitLabel(
                   label,
                   fit: fit,
-                  style: _labelStyle(context, selected: selected),
+                  style: _compactLabelStyle(context, selected: selected),
                 ),
               ],
             ),

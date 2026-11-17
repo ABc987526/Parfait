@@ -504,6 +504,7 @@ class _IllustCardBody extends ConsumerWidget {
       curve: MotionTokens.spatialCurve,
       createRectTween: illustHeroRectTween,
       flightShuttleBuilder: illustHeroFlightShuttleBuilder,
+      transitionOnUserGestures: true,
       child: framed,
     );
   }

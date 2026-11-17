@@ -9,7 +9,7 @@
   "dark": "深色",
   "light": "浅色",
   "system": "跟随系统",
-  "loginTitle": "注册 或 登录",
+  "loginTitle": "注册或登录",
   "loginProxyNoticeTitle": "提示",
   "loginProxyNoticeBody": "由于网络环境限制，登录和注册需要你先在系统或其他应用中开启代理（梯子）。Parfait 不提供内置代理。",
   "loginProxyNoticeCancel": "取消",

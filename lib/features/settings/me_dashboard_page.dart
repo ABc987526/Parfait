@@ -45,14 +45,6 @@ import '../../core/settings/settings_controller.dart';
 import '../../core/user/user_repository.dart';
 import '../../core/watchlater/watch_later_store.dart';
 import '../../l10n/context.dart';
-import '../localnovel/local_novels_page.dart';
-import '../novel/novel_markers_page.dart';
-import '../profile/profile_filter_bar.dart';
-import '../profile/profile_illust_feed.dart';
-import '../profile/profile_novel_feed.dart';
-import '../profile/profile_user_feed.dart';
-import '../watchlater/watchlater_page.dart';
-import '../watchlist/watchlist_page.dart';
 import 'pages/download_tasks_page.dart';
 import 'settings_catalog.dart';
 import 'settings_helpers.dart';
@@ -1456,7 +1448,7 @@ class _MeBookmarksPaneState extends ConsumerState<_MeBookmarksPane> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          ProfileFilterBar(
+          profileFilterBar(
             kind: _kind,
             onKindChanged: (value) => setState(() {
               _kind = value;
@@ -1474,8 +1466,8 @@ class _MeBookmarksPaneState extends ConsumerState<_MeBookmarksPane> {
             child: DesktopInspectableGallery(
               active: _kind == BookmarkEntityType.illust,
               child: _kind == BookmarkEntityType.novel
-                  ? ProfileNovelFeed(feedKey: feedKey)
-                  : ProfileIllustFeed(feedKey: feedKey),
+                  ? profileNovelFeed(feedKey)
+                  : profileIllustFeed(feedKey),
             ),
           ),
         ],
@@ -1519,13 +1511,13 @@ class _MeFollowingPaneState extends ConsumerState<_MeFollowingPane> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          ProfileFilterBar(
+          profileFilterBar(
             restrict: _restrict,
             onRestrictChanged: (value) => setState(() => _restrict = value),
           ),
           Expanded(
-            child: ProfileUserFeed(
-              feedKey: ProfileFeedKey(
+            child: profileUserFeed(
+              ProfileFeedKey(
                 userId: userId,
                 kind: ProfileFeedKind.following,
                 restrict: _restrict,

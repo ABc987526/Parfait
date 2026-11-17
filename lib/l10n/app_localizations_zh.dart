@@ -36,7 +36,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get system => '跟随系统';
 
   @override
-  String get loginTitle => '注册 或 登录';
+  String get loginTitle => '注册或登录';
 
   @override
   String get loginProxyNoticeTitle => '提示';

@@ -630,6 +630,7 @@ class _NovelReaderState extends State<NovelReader> with WidgetsBindingObserver {
         ],
       );
     }
+    final spineBottom = _style.verticalPadding * 1.5;
     return FittedBox(
       fit: BoxFit.scaleDown,
       alignment: Alignment.topCenter,
@@ -649,7 +650,7 @@ class _NovelReaderState extends State<NovelReader> with WidgetsBindingObserver {
                 child: Padding(
                   padding: EdgeInsets.only(
                     top: _style.verticalPadding,
-                    bottom: _style.verticalPadding * 1.5,
+                    bottom: spineBottom,
                   ),
                   child: ColoredBox(
                     color: color.withValues(alpha: _spreadSpineAlpha),

@@ -25,6 +25,7 @@ import '../../core/novel/novel_entity.dart';
 import '../../core/novel/novel_repository.dart' hide NovelPage;
 import '../../core/novel/novel_store.dart';
 import '../../core/platform/intent_router.dart';
+import '../../core/profile/profile_models.dart';
 import '../../core/reverse_image/image_input.dart';
 import '../../core/search/search_models.dart';
 import '../../core/search/search_shortcut.dart';
@@ -56,6 +57,10 @@ import '../../features/onboarding/language_page.dart';
 import '../../features/onboarding/user_agreement_page.dart';
 import '../../features/onboarding/welcome_page.dart';
 import '../../features/profile/profile_edit_page.dart';
+import '../../features/profile/profile_filter_bar.dart';
+import '../../features/profile/profile_illust_feed.dart';
+import '../../features/profile/profile_novel_feed.dart';
+import '../../features/profile/profile_user_feed.dart';
 import '../../features/profile/user_page.dart';
 import '../../features/ranking/novel_ranking_page.dart';
 import '../../features/ranking/ranking_page.dart';
@@ -91,6 +96,10 @@ import '../widgets/func_bottom_nav.dart';
 
 export '../../features/illust/detail/widgets/desktop_gallery_inspector.dart'
     show DesktopGalleryInspector, DesktopInspectableGallery;
+export '../../features/localnovel/local_novels_page.dart' show LocalNovelsPage;
+export '../../features/novel/novel_markers_page.dart' show NovelMarkersPage;
+export '../../features/watchlater/watchlater_page.dart' show WatchLaterPage;
+export '../../features/watchlist/watchlist_page.dart' show WatchlistPage;
 
 part 'route_branches.dart';
 part 'route_extras.dart';

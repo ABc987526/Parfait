@@ -468,3 +468,30 @@ Future<void> openTagSearch(BuildContext context, String keyword) async {
     '${_currentStackRoot(context)}/tag/${Uri.encodeComponent(keyword)}',
   );
 }
+
+/// Cross-feature profile feed builders exposed through the route facade
+/// so settings workspaces do not import `features/profile/` directly (`ARCH-01`).
+Widget profileFilterBar({
+  BookmarkEntityType? kind,
+  ValueChanged<BookmarkEntityType>? onKindChanged,
+  required UserRestrict restrict,
+  required ValueChanged<UserRestrict> onRestrictChanged,
+  String? tag,
+  ValueChanged<String?>? onTagChanged,
+}) => ProfileFilterBar(
+  kind: kind,
+  onKindChanged: onKindChanged,
+  restrict: restrict,
+  onRestrictChanged: onRestrictChanged,
+  tag: tag,
+  onTagChanged: onTagChanged,
+);
+
+Widget profileIllustFeed(ProfileFeedKey feedKey) =>
+    ProfileIllustFeed(feedKey: feedKey);
+
+Widget profileNovelFeed(ProfileFeedKey feedKey) =>
+    ProfileNovelFeed(feedKey: feedKey);
+
+Widget profileUserFeed(ProfileFeedKey feedKey) =>
+    ProfileUserFeed(feedKey: feedKey);

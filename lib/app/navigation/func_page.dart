@@ -1201,18 +1201,10 @@ class _IosCanvasDismissController<T> {
         _currentState,
         backdropFactor: _currentBackdropFactor,
       );
+      // End the user gesture before popping so HeroController.didChangeTop
+      // triggers the return flight from the dragged canvas rect.
+      _complete();
       navigator.pop();
-      if (controller.isAnimating) {
-        _routeStatusListener = (status) {
-          if (status == AnimationStatus.dismissed ||
-              status == AnimationStatus.completed) {
-            _complete();
-          }
-        };
-        controller.addStatusListener(_routeStatusListener!);
-      } else {
-        _complete();
-      }
       return;
     }
 

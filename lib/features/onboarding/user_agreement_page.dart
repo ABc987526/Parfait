@@ -18,6 +18,7 @@ class UserAgreementPage extends StatelessWidget {
       title: Text(l10n.agreementTitle),
       // The agreement belongs to the sign-in flow.
       upLocation: '/login',
+      contentWidth: ContentWidths.article,
       child: Align(
         alignment: Alignment.topCenter,
         // Article-role width cap — a readable line length on wide
