@@ -113,7 +113,7 @@ class DesktopGalleryInspector extends StatelessWidget {
 }
 
 /// Reusable desktop master-detail host: wraps any illust gallery [child] with
-/// [DesktopInspectorScope], animates the `440–560dp` [DesktopGalleryInspector]
+/// [DesktopInspectorScope], animates the `420–520dp` [DesktopGalleryInspector]
 /// open/closed alongside it when [DesktopDetailMode.inspector] is active, and
 /// intercepts `Esc` / mouse back via [PopScope] before the outer shell pops or
 /// switches branches.
@@ -277,9 +277,9 @@ class _DesktopInspectableGalleryState
         if (!canInspect && (_selected != null || _rendered != null)) {
           _scheduleSnapClose();
         }
-        final inspectorWidth = (constraints.maxWidth * 0.45).clamp(
-          440.0,
-          560.0,
+        final inspectorWidth = (constraints.maxWidth * 0.40).clamp(
+          420.0,
+          520.0,
         );
         final tickerActive = TickerMode.valuesOf(context).enabled;
         final routeCurrent = ModalRoute.of(context)?.isCurrent ?? true;

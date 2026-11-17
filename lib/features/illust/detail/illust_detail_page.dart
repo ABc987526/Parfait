@@ -6,7 +6,6 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
-import '../../../app/clipboard.dart';
 import '../../../app/format/app_format.dart';
 import '../../../app/theme/func_tokens.dart';
 
@@ -16,10 +15,12 @@ import '../../../app/pull_to_refresh.dart';
 import '../../../app/widgets/ambient_wash.dart';
 import '../../../app/widgets/app_top_bar.dart';
 import '../../../app/widgets/artwork_controls.dart';
+import '../../../app/widgets/author_summary.dart';
 import '../../../app/widgets/bookmark_switch_button.dart'
     show BookmarkSwitchButton, showBookmarkEditSheet;
 import '../../../app/widgets/card_actions/card_action.dart';
 import '../../../app/widgets/card_actions/illust_card_actions.dart';
+import '../../../app/widgets/follow_switch_button.dart';
 import '../../../core/auth/account_store.dart';
 import '../../../core/bookmark/bookmark_models.dart';
 import '../../../core/bookmark/bookmark_store.dart';
@@ -55,6 +56,7 @@ import 'related_illusts_section.dart';
 import 'widgets/detail_action_bar.dart';
 import 'widgets/detail_comment_layer.dart';
 import 'widgets/detail_image_pager.dart';
+import 'widgets/detail_overlay_frame.dart';
 import 'widgets/illust_detail_skeleton.dart';
 import 'widgets/detail_page_counter.dart';
 import 'widgets/illust_series_section.dart';
@@ -739,6 +741,8 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
         );
     final rendersContent = entity != null && _rendersContent(async, entity);
     final hideTwoPaneAppBar = !_downloadMode && twoPane && rendersContent;
+    final hideInspectorAppBar =
+        !_downloadMode && widget.embeddedInspector && rendersContent;
     final immersive =
         !widget.embeddedInspector &&
         !twoPane &&
@@ -765,7 +769,7 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
           // page under it keeps its size (LAYOUT-10's overlay exception).
           resizeToAvoidBottomInset: false,
           extendBodyBehindAppBar: immersive,
-          appBar: hideTwoPaneAppBar
+          appBar: hideTwoPaneAppBar || hideInspectorAppBar
               ? null
               : _downloadMode && entity != null
               ? _buildSelectionAppBar(context, entity)
@@ -924,7 +928,8 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
           _buildMoreMenu(
             entity,
             rendersContent: rendersContent,
-            twoPane: twoPane,
+            includeShare: true,
+            includeInfoJump: !twoPane,
           ),
       ],
     );
@@ -936,74 +941,22 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
     required bool rendersContent,
   }) {
     final l10n = context.l10n;
-    final theme = Theme.of(context);
-    final colors = theme.colorScheme;
     final tokens = FuncSemanticTokens.of(context);
     return AppTopBar(
       automaticallyImplyLeading: false,
       titleSpacing: FuncSpacing.lg,
       backgroundColor: tokens.surface,
       title: SelectionContainer.disabled(
-        child: entity == null
-            ? Text(
-                l10n.illustDetailTitle,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              )
-            : Row(
-                children: [
-                  Material(
-                    color: tokens.brandTintWeak,
-                    shape: StadiumBorder(
-                      side: BorderSide(color: tokens.brandHairline),
-                    ),
-                    clipBehavior: Clip.antiAlias,
-                    child: InkWell(
-                      customBorder: const StadiumBorder(),
-                      onTap: () => unawaited(
-                        copyToClipboard(
-                          context,
-                          '${entity.id}',
-                          message: l10n.artworkIdCopied,
-                        ),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: FuncSpacing.sm + FuncSpacing.xxs,
-                          vertical: FuncSpacing.xs,
-                        ),
-                        child: Text(
-                          '#${entity.id}',
-                          style: theme.textTheme.labelMedium
-                              ?.merge(tokens.numeric)
-                              .copyWith(
-                                fontWeight: FontWeight.w600,
-                                color: colors.primary,
-                              ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  if (entity.width > 0 && entity.height > 0) ...[
-                    const SizedBox(width: FuncSpacing.sm),
-                    Expanded(
-                      child: Text(
-                        '${entity.width}×${entity.height}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodySmall
-                            ?.merge(tokens.numeric)
-                            .copyWith(color: tokens.contentSecondary),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
+        child: Text(
+          l10n.illustDetailTitle,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
       ),
       actions: [
         if (entity != null && widget.onOpenFullStage != null)
           IconButton(
-            key: const Key('desktop-inspector-open-stage'),
+            key: const ValueKey('desktop-inspector-expand'),
             tooltip: l10n.viewerOpenDetail,
             icon: const Icon(Icons.open_in_full, size: 18),
             onPressed: () => widget.onOpenFullStage!(entity),
@@ -1012,11 +965,12 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
           _buildMoreMenu(
             entity,
             rendersContent: rendersContent,
-            twoPane: false,
+            includeShare: true,
+            includeInfoJump: false,
           ),
         if (widget.onCloseInspector != null)
           IconButton(
-            key: const Key('desktop-inspector-close'),
+            key: const ValueKey('desktop-inspector-close'),
             tooltip: l10n.profileShareClose,
             icon: const Icon(Icons.close, size: 19),
             onPressed: widget.onCloseInspector,
@@ -1028,12 +982,13 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
   Widget _buildMoreMenu(
     IllustEntity entity, {
     required bool rendersContent,
-    required bool twoPane,
+    required bool includeShare,
+    required bool includeInfoJump,
   }) {
     return _DetailMoreMenu(
       entity: entity,
       actions: [
-        if (!twoPane || !rendersContent) _DetailMenuAction.share,
+        if (includeShare) _DetailMenuAction.share,
         if (rendersContent) ...[
           _DetailMenuAction.editBookmark,
           if (isDesktopImageClipboardSupported) copyImageCardAction,
@@ -1042,7 +997,7 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
         if (entity.pageCount > 1 && !entity.isUgoira)
           _DetailMenuAction.selectPages,
         if (rendersContent) ...[
-          if (!twoPane) _DetailMenuAction.info,
+          if (includeInfoJump) _DetailMenuAction.info,
           ...muteCardActions,
         ],
       ],

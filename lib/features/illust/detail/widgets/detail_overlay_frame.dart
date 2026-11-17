@@ -14,8 +14,19 @@ class DetailOverlayFrame extends StatefulWidget {
 
   final Widget child;
 
+  /// Whether [context] sits inside an active bounded modal [DetailOverlayFrame].
+  static bool isActiveOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<_DetailOverlayScope>() != null;
+
   @override
   State<DetailOverlayFrame> createState() => _DetailOverlayFrameState();
+}
+
+class _DetailOverlayScope extends InheritedWidget {
+  const _DetailOverlayScope({required super.child});
+
+  @override
+  bool updateShouldNotify(_DetailOverlayScope oldWidget) => false;
 }
 
 class _DetailOverlayFrameState extends State<DetailOverlayFrame> {
@@ -98,19 +109,21 @@ class _DetailOverlayFrameState extends State<DetailOverlayFrame> {
                             removeLeft: true,
                             removeRight: true,
                           ),
-                      child: outerChrome == null
-                          ? content
-                          : HomeShellChrome(
-                              bottomBarExtent: 0,
-                              railExtent: 0,
-                              bottomBarVisibleExtent:
-                                  outerChrome.bottomBarVisibleExtent,
-                              bottomBarVisibility:
-                                  outerChrome.bottomBarVisibility,
-                              onBranchRootScroll:
-                                  outerChrome.onBranchRootScroll,
-                              child: content,
-                            ),
+                      child: _DetailOverlayScope(
+                        child: outerChrome == null
+                            ? content
+                            : HomeShellChrome(
+                                bottomBarExtent: 0,
+                                railExtent: 0,
+                                bottomBarVisibleExtent:
+                                    outerChrome.bottomBarVisibleExtent,
+                                bottomBarVisibility:
+                                    outerChrome.bottomBarVisibility,
+                                onBranchRootScroll:
+                                    outerChrome.onBranchRootScroll,
+                                child: content,
+                              ),
+                      ),
                     );
                     return DecoratedBox(
                       decoration: BoxDecoration(

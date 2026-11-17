@@ -710,11 +710,14 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
       setState(() => _infoPanelOpen = !_infoPanelOpen);
       return;
     }
+    final darkTheme = Theme.of(context).brightness == Brightness.dark
+        ? Theme.of(context)
+        : replicaTheme(Brightness.dark);
     unawaited(
       showAppAdaptiveSideSheet<void>(
         context: context,
         width: 380,
-        showDragHandle: true,
+        backgroundColor: darkTheme.colorScheme.surfaceContainerLow,
         builder: (sheetContext) {
           final l10n = context.l10n;
           // Same date treatment as the detail page's InfoBlock: the ISO
@@ -724,40 +727,61 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
           final dateText = createDate == null
               ? null
               : AppFormat.date(context, createDate);
-          return SafeArea(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ListTile(
-                  title: Text(entity.title),
-                  subtitle: Text(
-                    '${entity.user.name}'
-                    '${dateText == null ? '' : ' · $dateText'}'
-                    ' · #${entity.id} · '
-                    '${l10n.illustPagesTotal(entity.pageCount)}',
+          return Theme(
+            data: darkTheme,
+            child: SafeArea(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (!useWideOverlay(sheetContext))
+                    Padding(
+                      padding: const EdgeInsets.only(
+                        top: FuncSpacing.md,
+                        bottom: FuncSpacing.xs,
+                      ),
+                      child: Center(
+                        child: Container(
+                          width: 32,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: darkTheme.colorScheme.onSurfaceVariant
+                                .withValues(alpha: 0.4),
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ListTile(
+                    title: Text(entity.title),
+                    subtitle: Text(
+                      '${entity.user.name}'
+                      '${dateText == null ? '' : ' · $dateText'}'
+                      ' · #${entity.id} · '
+                      '${l10n.illustPagesTotal(entity.pageCount)}',
+                    ),
                   ),
-                ),
-                const Divider(height: 1),
-                ListTile(
-                  leading: const Icon(Icons.download_outlined),
-                  title: Text(l10n.downloadAll),
-                  onTap: () {
-                    Navigator.of(sheetContext).pop();
-                    unawaited(_downloadAll(entity));
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.open_in_new),
-                  title: Text(l10n.viewerOpenDetail),
-                  onTap: () {
-                    Navigator.of(sheetContext).pop();
-                    // The viewer is opened from this work's detail page;
-                    // closing it reveals the existing detail route below.
-                    Navigator.of(context).pop();
-                  },
-                ),
-              ],
+                  const Divider(height: 1),
+                  ListTile(
+                    leading: const Icon(Icons.download_outlined),
+                    title: Text(l10n.downloadAll),
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      unawaited(_downloadAll(entity));
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.open_in_new),
+                    title: Text(l10n.viewerOpenDetail),
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      // The viewer is opened from this work's detail page;
+                      // closing it reveals the existing detail route below.
+                      Navigator.of(context).pop();
+                    },
+                  ),
+                ],
+              ),
             ),
           );
         },

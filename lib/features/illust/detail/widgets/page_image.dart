@@ -355,7 +355,10 @@ class _DetailPageImageState extends ConsumerState<DetailPageImage> {
                       : PixivImage.detail(
                           previewUrl,
                           fit: BoxFit.contain,
-                          transitionKey: widget.heroTag,
+                          transitionKey:
+                              widget.index == 0 && widget.heroImageUrl == null
+                              ? (#detailNoHero, widget.heroTag)
+                              : widget.heroTag,
                           tierKey: entity.imageTierKeyAt(widget.index),
                           tier: entity.imageTierOf(previewUrl),
                           tierUpgrade: !onHeroPhase,

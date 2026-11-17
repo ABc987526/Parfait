@@ -316,7 +316,7 @@ extension _IllustDetailContent on _IllustDetailPageState {
             entity: entity,
             blockMode: _blockMode,
             onToggleBlockMode: _toggleBlockMode,
-            showAuthor: !twoPane,
+            showAuthor: !twoPane && !widget.embeddedInspector,
           ),
           true,
         ),
@@ -337,11 +337,11 @@ extension _IllustDetailContent on _IllustDetailPageState {
         TickerPartition(
           child: readable ? _ArticleTextWidth(child: section) : section,
         ),
-      // Narrow pages clear the floating action capsule at rest; two-pane pages
-      // pin actions above the scroll instead.
+      // Narrow pages clear the floating action capsule at rest; two-pane and
+      // embedded inspector layouts pin actions in their header instead.
       SliverToBoxAdapter(
         child: SizedBox(
-          height: twoPane
+          height: twoPane || widget.embeddedInspector
               ? FuncSpacing.xl
               : DetailActionBar.restingExtent(context) + FuncSpacing.md,
         ),
@@ -415,20 +415,6 @@ extension _IllustDetailContent on _IllustDetailPageState {
       if (metaOffset > 0) _scheduleMetaSync(metaOffset);
       _fadeLayoutIn(context);
     }
-    // Hidden, not removed, in the download mode: it slides out and back.
-    final actionBar = PositionedDirectional(
-      start: 0,
-      end: 0,
-      bottom: 0,
-      // Out of the way of a flight over it.
-      child: HeroChrome(
-        child: DetailActionBar(
-          entity: entity,
-          visibility: _barVisibility,
-          onDownload: () => unawaited(_downloadAll(entity)),
-        ),
-      ),
-    );
     // Over the column the comments belong to: the whole narrow page, the
     // meta column of the two-pane one.
     final composerLayer = Positioned.fill(
@@ -509,13 +495,27 @@ extension _IllustDetailContent on _IllustDetailPageState {
                           child: ArtworkControls(
                             glyph: FuncTokens.white,
                             halo: const Color(0xCC0C0914),
-                            child: IconButton(
-                              tooltip: MaterialLocalizations.of(
-                                context,
-                              ).backButtonTooltip,
-                              onPressed: () =>
-                                  unawaited(Navigator.maybePop(context)),
-                              icon: const Icon(Icons.arrow_back, size: 20),
+                            child: Builder(
+                              builder: (context) {
+                                final isModalOverlay =
+                                    DetailOverlayFrame.isActiveOf(context);
+                                final localizations = MaterialLocalizations.of(
+                                  context,
+                                );
+                                return IconButton(
+                                  tooltip: isModalOverlay
+                                      ? localizations.closeButtonTooltip
+                                      : localizations.backButtonTooltip,
+                                  onPressed: () =>
+                                      unawaited(Navigator.maybePop(context)),
+                                  icon: Icon(
+                                    isModalOverlay
+                                        ? Icons.close
+                                        : Icons.arrow_back,
+                                    size: 20,
+                                  ),
+                                );
+                              },
                             ),
                           ),
                         ),
@@ -541,6 +541,7 @@ extension _IllustDetailContent on _IllustDetailPageState {
                         Divider(height: 1, color: tokens.brandHairline),
                         Expanded(
                           child: Scrollbar(
+                            controller: _metaScroll,
                             child: ScrollConfiguration(
                               behavior: ScrollConfiguration.of(
                                 context,
@@ -612,15 +613,58 @@ extension _IllustDetailContent on _IllustDetailPageState {
     // column), so a switch fades the page in rather than swapping it in one
     // frame. Only the new tree is in the widget tree: both show the same
     // work and one route cannot hold the same hero tag twice.
+    final Widget layoutBody;
+    if (twoPane) {
+      layoutBody = content;
+    } else if (widget.embeddedInspector) {
+      layoutBody = DecoratedBox(
+        decoration: BoxDecoration(color: tokens.surface),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (!_downloadMode) ...[
+                  SelectionContainer.disabled(
+                    child: _buildEmbeddedInspectorHeader(context, ref, entity),
+                  ),
+                  Divider(height: 1, color: tokens.brandHairline),
+                ],
+                Expanded(child: content),
+              ],
+            ),
+            if (_composing) composerLayer,
+          ],
+        ),
+      );
+    } else {
+      layoutBody = Stack(
+        fit: StackFit.expand,
+        children: [
+          content,
+          // Hidden, not removed, in the download mode: it slides out and back.
+          PositionedDirectional(
+            start: 0,
+            end: 0,
+            bottom: 0,
+            // Out of the way of a flight over it.
+            child: HeroChrome(
+              child: DetailActionBar(
+                entity: entity,
+                visibility: _barVisibility,
+                onDownload: () => unawaited(_downloadAll(entity)),
+              ),
+            ),
+          ),
+          if (_composing) composerLayer,
+        ],
+      );
+    }
     final page = FadeTransition(
       key: const ValueKey('detail-layout-fade'),
       opacity: _layoutFadeOpacity,
-      child: twoPane
-          ? content
-          : Stack(
-              fit: StackFit.expand,
-              children: [content, actionBar, if (_composing) composerLayer],
-            ),
+      child: layoutBody,
     );
     final container = ProviderScope.containerOf(context, listen: false);
     final accountId = ref.watch(historyAccountIdProvider);
@@ -654,8 +698,6 @@ extension _IllustDetailContent on _IllustDetailPageState {
     WidgetRef ref,
     IllustEntity entity,
   ) {
-    final colors = Theme.of(context).colorScheme;
-    final tokens = FuncSemanticTokens.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         FuncSpacing.lg,
@@ -669,64 +711,172 @@ extension _IllustDetailContent on _IllustDetailPageState {
         children: [
           DetailAuthorCard(entity: entity),
           const SizedBox(height: FuncSpacing.sm),
-          Row(
-            key: const ValueKey('detail-inspector-action-bar'),
-            children: [
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  color: tokens.brandTint,
-                  borderRadius: FuncShape.pill,
-                  border: Border.all(color: tokens.brandTintStroke),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.only(
-                    left: FuncSpacing.xs,
-                    right: FuncSpacing.md,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      BookmarkSwitchButton(
-                        illustId: entity.id,
-                        title: entity.title,
-                      ),
-                      Text(
-                        AppFormat.count(context, entity.totalBookmarks),
-                        style: tokens.numeric.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: colors.primary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(width: FuncSpacing.sm),
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  color: colors.surfaceContainerLow,
-                  borderRadius: FuncShape.pill,
-                  border: Border.all(color: tokens.brandHairline),
-                ),
-                child: DetailDownloadButton(
-                  entity: entity,
-                  onPressed: () => unawaited(_downloadAll(entity)),
-                ),
-              ),
-              const Spacer(),
-              Builder(
-                builder: (buttonContext) => IconButton(
-                  tooltip: context.l10n.cardActionShare,
-                  icon: const Icon(Icons.share_outlined),
-                  onPressed: () =>
-                      unawaited(_share(buttonContext, ref, entity)),
-                ),
-              ),
-              _buildMoreMenu(entity, rendersContent: true, twoPane: true),
-            ],
+          _buildInspectorActionRow(
+            context,
+            ref,
+            entity,
+            actionBarKey: const ValueKey('detail-inspector-action-bar'),
+            showInfoJumpInMenu: false,
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildEmbeddedInspectorHeader(
+    BuildContext context,
+    WidgetRef ref,
+    IllustEntity entity,
+  ) {
+    final l10n = context.l10n;
+    final colors = Theme.of(context).colorScheme;
+    final ownUserId = ref.watch(
+      accountStoreProvider.select(
+        (async) => async.value?.usableCurrent?.userId,
+      ),
+    );
+    final author = entity.user;
+    final handle = author.account.trim();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        FuncSpacing.lg,
+        FuncSpacing.sm,
+        FuncSpacing.sm,
+        FuncSpacing.sm,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Semantics(
+                  hint: l10n.openAuthorProfile,
+                  child: AuthorSummary(
+                    key: const Key('illust-author-row'),
+                    name: author.name,
+                    account: handle.isEmpty ? null : '@$handle',
+                    imageUrl: author.profileImageUrl,
+                    avatarRadius: 18,
+                    avatarRingColor: colors.primary.withValues(alpha: 0.45),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: FuncSpacing.xs,
+                      vertical: FuncSpacing.xxs,
+                    ),
+                    onTap: () => openUser(context, author.id),
+                  ),
+                ),
+              ),
+              if (author.id != ownUserId) ...[
+                const SizedBox(width: FuncSpacing.xs),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 112),
+                  child: FollowSwitchButton(
+                    userId: author.id,
+                    userName: author.name,
+                    userAccount: author.account,
+                    compact: true,
+                  ),
+                ),
+              ],
+              if (widget.onOpenFullStage != null)
+                IconButton(
+                  key: const ValueKey('desktop-inspector-expand'),
+                  tooltip: l10n.viewerOpenDetail,
+                  icon: const Icon(Icons.open_in_full, size: 18),
+                  onPressed: () => widget.onOpenFullStage!(entity),
+                ),
+              if (widget.onCloseInspector != null)
+                IconButton(
+                  key: const ValueKey('desktop-inspector-close'),
+                  tooltip: l10n.profileShareClose,
+                  icon: const Icon(Icons.close, size: 19),
+                  onPressed: widget.onCloseInspector,
+                ),
+            ],
+          ),
+          const SizedBox(height: FuncSpacing.xs),
+          Padding(
+            padding: const EdgeInsets.only(right: FuncSpacing.sm),
+            child: _buildInspectorActionRow(
+              context,
+              ref,
+              entity,
+              actionBarKey: const ValueKey('desktop-inspector-action-bar'),
+              showInfoJumpInMenu: true,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInspectorActionRow(
+    BuildContext context,
+    WidgetRef ref,
+    IllustEntity entity, {
+    Key? actionBarKey,
+    required bool showInfoJumpInMenu,
+  }) {
+    final colors = Theme.of(context).colorScheme;
+    final tokens = FuncSemanticTokens.of(context);
+    return Row(
+      key: actionBarKey,
+      children: [
+        DecoratedBox(
+          decoration: BoxDecoration(
+            color: tokens.brandTint,
+            borderRadius: FuncShape.pill,
+            border: Border.all(color: tokens.brandTintStroke),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.only(
+              left: FuncSpacing.xs,
+              right: FuncSpacing.md,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                BookmarkSwitchButton(illustId: entity.id, title: entity.title),
+                Text(
+                  AppFormat.count(context, entity.totalBookmarks),
+                  style: tokens.numeric.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: colors.primary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: FuncSpacing.sm),
+        DecoratedBox(
+          decoration: BoxDecoration(
+            color: colors.surfaceContainerLow,
+            borderRadius: FuncShape.pill,
+            border: Border.all(color: tokens.brandHairline),
+          ),
+          child: DetailDownloadButton(
+            entity: entity,
+            onPressed: () => unawaited(_downloadAll(entity)),
+          ),
+        ),
+        const Spacer(),
+        Builder(
+          builder: (buttonContext) => IconButton(
+            tooltip: context.l10n.cardActionShare,
+            icon: const Icon(Icons.share_outlined),
+            onPressed: () => unawaited(_share(buttonContext, ref, entity)),
+          ),
+        ),
+        _buildMoreMenu(
+          entity,
+          rendersContent: true,
+          includeShare: false,
+          includeInfoJump: showInfoJumpInMenu,
+        ),
+      ],
     );
   }
 }

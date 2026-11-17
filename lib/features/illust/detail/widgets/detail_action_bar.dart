@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
@@ -29,7 +30,7 @@ class DetailActionBar extends StatefulWidget {
   static const double height = 56;
 
   /// Gap between the capsule and the bottom safe edge.
-  static const double margin = FuncSpacing.lg;
+  static const double margin = FuncSpacing.sm;
 
   /// What the bar covers at the screen bottom while shown; the page pads
   /// its scroll end by this so the last content can clear it.
@@ -71,8 +72,8 @@ class _DetailActionBarState extends State<DetailActionBar> {
     super.dispose();
   }
 
-  void _publish() =>
-      _visibleExtent.value = _restingExtent * widget.visibility.value;
+  void _publish() => _visibleExtent.value =
+      math.max(0.0, _restingExtent - FuncSpacing.sm) * widget.visibility.value;
 
   @override
   Widget build(BuildContext context) {
