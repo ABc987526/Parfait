@@ -1,8 +1,16 @@
 part of 'illust_detail_page.dart';
 
+/// A short first illustration on a narrow screen, alone or opening a set,
+/// sits where centering it in this share of the viewport puts it: a very
+/// wide image at the top was hard to see and to tap. Its slot ends with the
+/// image, so the title follows right under it. Manga reads page after
+/// page, so its first page keeps its natural height.
+const _shortFirstImageSlotFactor = 0.7;
+
 /// Where the first image sits in the detail scroll. The narrow layout
-/// starts edge-to-edge from the top of the viewport; overlays on it sit below
-/// the transparent top chrome, and the bar draws in as the artwork leaves.
+/// starts the artwork below the status bar, which the top bar keeps opaque;
+/// it may run under the see-through toolbar, so overlays on it start below
+/// the toolbar, and the bar draws in as it leaves.
 class _FirstImageLayout {
   _FirstImageLayout._({
     required this.useTwoPane,
@@ -37,18 +45,27 @@ class _FirstImageLayout {
     final natural = panoramaHeight ?? viewport.width / aspectRatio;
     // A panorama already has its own viewport; the reading slot is for an
     // ordinary short illustration on a phone held upright. On wider
-    // single-column screens it only opens a gap above the image.
+    // single-column screens or inside the desktop inspector pane it only
+    // opens a gap above the image.
     final slots =
+        !embeddedInspector &&
         !useTwoPane &&
         viewport.width < AppBreakpoints.medium &&
         entity.type == IllustType.illust &&
         !entity.isUgoira &&
         panoramaHeight == null;
-    // Start narrow detail artworks edge-to-edge under the status bar.
-    const band = 0.0;
+    final band = slots
+        ? math.max(
+                0.0,
+                viewport.height * _shortFirstImageSlotFactor - natural,
+              ) /
+              2
+        : 0.0;
     return _FirstImageLayout._(
       useTwoPane: useTwoPane,
-      statusInset: 0,
+      statusInset: embeddedInspector || useTwoPane
+          ? 0
+          : MediaQuery.paddingOf(context).top,
       topChrome: embeddedInspector
           ? 0
           : MediaQuery.paddingOf(context).top + kToolbarHeight,
@@ -676,7 +693,6 @@ extension _IllustDetailContent on _IllustDetailPageState {
                       Text(
                         AppFormat.count(context, entity.totalBookmarks),
                         style: tokens.numeric.copyWith(
-                          fontSize: 13.5,
                           fontWeight: FontWeight.w600,
                           color: colors.primary,
                         ),
