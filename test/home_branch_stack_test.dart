@@ -601,9 +601,9 @@ void main() {
     );
   });
 
-  testWidgets('a PC rail opens from extra-large widths until the user '
+  testWidgets('a PC rail opens from large widths until the user '
       'toggles it, then stays as left', (tester) async {
-    await _pumpHome(tester, width: 1600, height: 900);
+    await _pumpHome(tester, width: 1200, height: 900);
     final rail = find.byType(ShellRail);
     final container = ProviderScope.containerOf(tester.element(rail));
     double railWidth() => tester.getSize(rail).width;
@@ -612,7 +612,7 @@ void main() {
       HomeShellChrome.contentSizeOf(
         tester.element(find.byType(RecommendedHomePage)),
       ).width,
-      1600 - ShellRail.expandedWidth,
+      1200 - ShellRail.expandedWidth,
     );
 
     await tester.tap(find.byTooltip('收起侧栏'));
@@ -701,7 +701,8 @@ void main() {
     await tester.pumpAndSettle();
     final history = tester.state(find.byType(HistoryPage));
     final rail = find.byType(ShellRail);
-    expect(find.byTooltip('展开侧栏'), findsOneWidget);
+    expect(tester.getSize(rail).width, ShellRail.expandedWidth);
+    expect(find.byTooltip('收起侧栏'), findsOneWidget);
 
     await ProviderScope.containerOf(
       tester.element(rail),

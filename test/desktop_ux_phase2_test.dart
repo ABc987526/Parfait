@@ -936,11 +936,6 @@ void main() {
                           sel.syncItems(items);
                           return CustomScrollView(
                             slivers: [
-                              SliverToBoxAdapter(
-                                child: FeedSelectionHeaderStrip(
-                                  controller: sel,
-                                ),
-                              ),
                               SliverGrid.count(
                                 crossAxisCount: 3,
                                 childAspectRatio: 0.72,
@@ -1080,7 +1075,7 @@ void main() {
   );
 
   testWidgets(
-    'Pointer IllustCard omits PressScale and long-press and reveals quick author and bookmark hover pills',
+    'Pointer IllustCard keeps immediate PressScale, omits touch long-press, and reveals quick author and bookmark hover pills',
     (tester) async {
       debugDefaultTargetPlatformOverride = TargetPlatform.windows;
       try {
@@ -1103,7 +1098,7 @@ void main() {
             of: find.byType(IllustCard),
             matching: find.byType(PressScale),
           ),
-          findsNothing,
+          findsOneWidget,
         );
         final detector = tester.widget<GestureDetector>(
           find

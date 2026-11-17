@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'package:parfait/app/layout/card_columns.dart';
+import 'package:parfait/app/theme/func_semantic_tokens.dart';
 import 'package:parfait/app/widgets/feed/feed_grid.dart';
 
 import 'helpers/view_size.dart';
@@ -56,9 +57,10 @@ void main() {
       controller.jumpTo(3000);
       await tester.pump();
       expect(shown().map((card) => card.$1), everyElement(greaterThan(before)));
+      // Within one row gap of the bottom edge when 800 lands inside the gap.
       expect(
         shown().map((card) => card.$2.bottom),
-        contains(greaterThanOrEqualTo(800)),
+        contains(greaterThanOrEqualTo(800 - FuncSpacing.md)),
       );
       await tester.pumpAndSettle();
     });

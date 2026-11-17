@@ -310,6 +310,11 @@ void main() {
     expect(reader(), same(opened));
   });
 
+  Finder progressHint() => find.ancestor(
+    of: find.textContaining(RegExp(r'^ · \d+/\d+ · \d+%')),
+    matching: find.byType(MergeSemantics),
+  );
+
   testWidgets('the immersive progress hint stays on the article column', (
     tester,
   ) async {
@@ -318,7 +323,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
 
-    final hint = tester.getRect(find.textContaining('A novel ·'));
+    final hint = tester.getRect(progressHint());
     const columnLeft = (1200 - ContentWidths.article) / 2;
     expect(hint.left, greaterThanOrEqualTo(columnLeft));
     expect(hint.right, lessThanOrEqualTo(1200 - columnLeft));
@@ -626,7 +631,7 @@ void main() {
         expect(rect.left, greaterThanOrEqualTo(448));
       }
 
-      final hint = tester.getRect(find.textContaining('A novel ·'));
+      final hint = tester.getRect(progressHint());
       expect(hint.right, lessThanOrEqualTo(436));
     },
   );

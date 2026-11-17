@@ -164,14 +164,16 @@ void main() {
     Color? hoverLayer() =>
         (tester
                     .widget<DecoratedBox>(
-                      find.descendant(
-                        of: card,
-                        matching: find.byWidgetPredicate(
-                          (w) =>
-                              w is DecoratedBox &&
-                              w.position == DecorationPosition.foreground,
-                        ),
-                      ),
+                      find
+                          .descendant(
+                            of: card,
+                            matching: find.byWidgetPredicate(
+                              (w) =>
+                                  w is DecoratedBox &&
+                                  w.position == DecorationPosition.foreground,
+                            ),
+                          )
+                          .first,
                     )
                     .decoration
                 as BoxDecoration)
@@ -520,11 +522,13 @@ void main() {
         isNotNull,
         reason: 'Tab reaches the card',
       );
-      // A visible focus ring over the preview.
+      // A visible 2dp focus ring over the preview (distinct from the 1dp
+      // light-theme foreground thumbnail hairline).
       expect(
         find.byWidgetPredicate(
           (widget) =>
               widget is DecoratedBox &&
+              widget.position == DecorationPosition.background &&
               widget.decoration is BoxDecoration &&
               (widget.decoration as BoxDecoration).border != null,
         ),

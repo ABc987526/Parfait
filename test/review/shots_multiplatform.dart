@@ -14,6 +14,7 @@ import 'package:parfait/core/settings/shared_preferences.dart';
 import 'package:parfait/features/illust/viewer/image_viewer_page.dart'
     show beginImageViewerSession;
 import 'package:parfait/features/search/search_filter_labels.dart';
+import 'package:parfait/l10n/app_localizations.dart';
 
 import 'review_support.dart';
 
@@ -54,10 +55,18 @@ void main() {
     'mp/desktop-detail-inspector',
     location: '/recommended',
     before: (tester, router) async {
-      final modeToggle = find.byKey(const Key('desktop-detail-mode-inspector'));
-      if (modeToggle.evaluate().isNotEmpty) {
-        await tester.tap(modeToggle.first);
+      final modeMenu = find.byKey(const Key('desktop-detail-mode-menu'));
+      if (modeMenu.evaluate().isNotEmpty) {
+        final inspectorLabel = AppLocalizations.of(
+          tester.element(modeMenu.first),
+        ).desktopDetailModeInspector;
+        await tester.tap(modeMenu.first);
         await settleReview(tester);
+        final item = find.text(inspectorLabel);
+        if (item.evaluate().isNotEmpty) {
+          await tester.tap(item.last);
+          await settleReview(tester);
+        }
       }
       final card = find.byType(IllustCard);
       if (card.evaluate().isNotEmpty &&
