@@ -223,12 +223,13 @@ class _StartupGateState extends ConsumerState<StartupGate> {
 /// The first artwork Hero flight composites a clipped + transformed image
 /// layer; that exact pipeline variant is compiled lazily on first use,
 /// which is why the *first* back animation visibly drops frames while later
-/// ones are smooth. Painting an invisible clipped + transformed image for
-/// the first few frames compiles the pipeline up front.
+/// ones are smooth. Painting an invisible clipped + transformed image (plus
+/// `replicaTheme`'s rounded-rect [InkHighlight] overlay) for the first few
+/// frames compiles those pipelines up front.
 ///
-/// The Material 3 ripple on Android ([InkSparkle]) is a runtime shader:
-/// the first tap loaded it and then compiled its pipeline, 16 ms on the
-/// raster thread. Its program is loaded here and drawn once.
+/// When a host theme opts into Material 3's [InkSparkle] shader (for example
+/// bare `MaterialApp` harnesses), its fragment program is also loaded once and
+/// drawn transparently so the first tap never stalls on shader compilation.
 class PipelineWarmup extends StatefulWidget {
   const PipelineWarmup({super.key, required this.child});
 
@@ -339,18 +340,19 @@ class _PipelineWarmupState extends State<PipelineWarmup> {
   @override
   Widget build(BuildContext context) {
     final sparkle = _sparkle;
+    final highlight = Theme.of(context).highlightColor;
     return Stack(
       // The content stays the first child, laid out as without the Stack:
       // unwrapping it when the warm-up ends remounted the whole app.
       fit: StackFit.passthrough,
       children: [
         widget.child,
-        // Exercises the ops the artwork Hero flights composite — saveLayer,
-        // transform, rect clip, rounded-rect clip, image — whose pipeline
-        // variants are compiled lazily and otherwise show up as a 60fps
-        // first flight on whichever route uses them first. Painted
-        // offscreen (not zero-alpha: a fully transparent layer may be
-        // culled entirely and compile nothing).
+        // Exercises the ops the artwork Hero flights and flat press highlights
+        // composite — saveLayer, transform, rect clip, rounded-rect clip,
+        // translucent RRect fill, image — whose pipeline variants are compiled
+        // lazily and otherwise show up on first interaction. Painted offscreen
+        // (not zero-alpha: a fully transparent layer may be culled entirely
+        // and compile nothing).
         if (_framesLeft > 0) ...[
           Positioned(
             left: -64,
@@ -358,13 +360,21 @@ class _PipelineWarmupState extends State<PipelineWarmup> {
             child: RepaintBoundary(
               child: Transform.scale(
                 scale: 1.001,
-                child: ClipRRect(
-                  borderRadius: FuncShape.card,
-                  child: Image.memory(
-                    _pixel,
-                    width: 8,
-                    height: 8,
-                    fit: BoxFit.cover,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: highlight.a > 0
+                        ? highlight
+                        : const Color(0x14000000),
+                    borderRadius: FuncShape.card,
+                  ),
+                  child: ClipRRect(
+                    borderRadius: FuncShape.card,
+                    child: Image.memory(
+                      _pixel,
+                      width: 8,
+                      height: 8,
+                      fit: BoxFit.cover,
+                    ),
                   ),
                 ),
               ),

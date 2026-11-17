@@ -83,6 +83,23 @@ class ScrollHideTracker {
   }
 }
 
+/// Dispatches a synthetic [UserScrollNotification] for discrete mouse-wheel
+/// scrolling driven through `jumpTo` / `animateTo` (`SmoothWheelScroll`),
+/// which otherwise leaves `ScrollPosition.userScrollDirection` idle and never
+/// wakes [ScrollHideTracker].
+void dispatchWheelUserScroll(
+  ScrollPosition position,
+  ScrollDirection direction,
+) {
+  final context = position.context.notificationContext;
+  if (context == null || !context.mounted) return;
+  UserScrollNotification(
+    metrics: position.copyWith(),
+    context: context,
+    direction: direction,
+  ).dispatch(context);
+}
+
 /// Settles chrome driven by [visibility] (1 shown, 0 hidden) at the end
 /// [hidden] names, on [MotionTokens.chromeCurve], over its share of
 /// [visibility]'s duration from where it is; at once under reduced

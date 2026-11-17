@@ -82,7 +82,6 @@ class FuncBottomNav extends StatelessWidget {
   final ValueChanged<int> onSelected;
 
   static const double _height = 56;
-  static const double _capsuleHeight = 56;
 
   /// Rendered height the bar occupies at rest: a fixed row plus the bottom
   /// safe-area inset.
@@ -115,7 +114,6 @@ class FuncBottomNav extends StatelessWidget {
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: navTheme.backgroundColor ?? colors.surface,
-          border: Border(top: BorderSide(color: tokens.brandHairline)),
           boxShadow: tokens.barShadow,
         ),
         child: Material(
@@ -318,7 +316,6 @@ class _FuncBottomNavItemState extends State<_FuncBottomNavItem>
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final tokens = FuncSemanticTokens.of(context);
     final navTheme = NavigationBarTheme.of(context);
     final idleIcon = navTheme.iconTheme?.resolve(_idleStates)?.color;
     final selectedIcon = navTheme.iconTheme?.resolve(_selectedStates)?.color;
@@ -354,35 +351,16 @@ class _FuncBottomNavItemState extends State<_FuncBottomNavItem>
             padding: const EdgeInsets.symmetric(
               horizontal: FuncBottomNav._rowInset,
             ),
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: Color.lerp(Colors.transparent, tokens.brandTintWeak, t),
-                borderRadius: FuncShape.pill,
-                border: t > 0.05
-                    ? Border.all(
-                        color: tokens.brandTintStroke.withValues(
-                          alpha: t * 0.7,
-                        ),
-                      )
-                    : null,
-              ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: FuncSpacing.sm,
-                  vertical: FuncSpacing.xs,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                icon,
+                const SizedBox(width: FuncBottomNav._rowGap),
+                ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: rowLabelWidth),
+                  child: label,
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    icon,
-                    const SizedBox(width: FuncBottomNav._rowGap),
-                    ConstrainedBox(
-                      constraints: BoxConstraints(maxWidth: rowLabelWidth),
-                      child: label,
-                    ),
-                  ],
-                ),
-              ),
+              ],
             ),
           );
         }
@@ -408,7 +386,7 @@ class _FuncBottomNavItemState extends State<_FuncBottomNavItem>
         children: [
           if (rowLabelWidth != null)
             SizedBox(
-              height: FuncBottomNav._capsuleHeight,
+              height: FuncBottomNav._height,
               child: InkWell(
                 customBorder: const StadiumBorder(),
                 overlayColor: overlay,
@@ -418,7 +396,7 @@ class _FuncBottomNavItemState extends State<_FuncBottomNavItem>
             )
           else
             InkResponse(
-              radius: FuncBottomNav._capsuleHeight / 2,
+              radius: FuncBottomNav._height / 2,
               overlayColor: overlay,
               onTap: widget.onTap,
               child: SizedBox.expand(child: content),

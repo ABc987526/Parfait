@@ -5,23 +5,15 @@ abstract final class FuncTokens {
   /// fills (filled buttons, the follow button) under white text in both themes.
   static const Color primary = Color(0xFFE077A6);
 
-  /// Kept equal to [primary] so fills stay unified across states.
-  static const Color mikaHighlight = primary;
-
-  /// Soft rose tint layers calibrated to Mika's hair ramp.
-  static const Color lightBrandTint = Color(0x1EE077A6);
-  static const Color darkBrandTint = Color(0x29EBA6C6);
-
-  /// Auxiliary tones (gold/lilac tokens retained for semantic compatibility).
-  static const Color lightMikaGold = Color(0xFFB8863B);
-  static const Color darkMikaGold = Color(0xFFE2B96F);
-  static const Color lightMikaLilac = Color(0xFF7E7494);
-  static const Color darkMikaLilac = Color(0xFFA69CB8);
-
   /// Light text accent (#B44673, 358 deg) and dark hair-pink text accent
   /// (#EBA6C6, 350 deg) from task/11-09-accent-mika-pink.
   static const Color lightAccent = Color(0xFFB44673);
   static const Color darkAccent = Color(0xFFEBA6C6);
+
+  /// Deepened Mika cherry-rose surface for compact phone top bars, calibrated
+  /// so both pure white titles/selected tabs (6.66:1) and warm sakura
+  /// unselected tab labels (5.03:1) clear WCAG AA 4.5:1.
+  static const Color lightBrandedHeader = Color(0xFF9E3661);
 
   /// Selection (`primaryContainer` / `onPrimaryContainer`): Mika's hair
   /// midtone (#F5D6E4) under deep rose (#6D3047) on light; deep rose (#5C3443)
@@ -52,11 +44,9 @@ abstract final class FuncTokens {
   static const Color transparent = Color(0x00000000);
   static const Color imageOverlay = Color(0x3DFFFFFF);
 
-  /// Translucent frosted glass aligned with the Mika canvas tiers.
-  static const Color lightGlassSurface = Color(0xEBFFF9FE);
-  static const Color darkGlassSurface = Color(0xE81C1619);
-  static const Color lightGlassBorder = Color(0x1E6D3047);
-  static const Color darkGlassBorder = Color(0x26EBA6C6);
+  /// Faint 1dp inner frame for light-theme artwork thumbnails so white-ground
+  /// illustrations hold their edge on [#FFF9FE].
+  static const Color cocoaHairline = Color(0x143A2A2E);
 
   /// Original Mika container ladders above [lightBackground]/[darkBackground].
   static const Color lightContainerLow = Color(0xFFFFF6FB);

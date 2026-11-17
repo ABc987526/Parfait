@@ -92,17 +92,25 @@ class DesktopSystemBarsScope extends InheritedWidget {
 }
 
 /// Transparent status and navigation bars whose icons contrast with
-/// [background] — the brightness of what is painted under the bars.
-SystemUiOverlayStyle funcSystemBarsStyle(Brightness background) {
+/// [statusBarBackground] — the brightness of what is painted under the status
+/// bar — while [navBarBackground] independently sets what lies under the
+/// bottom system navigation bar (defaulting to [statusBarBackground] when both
+/// edges share one surface, and decoupled when a compact phone paints a dark
+/// branded top bar over a light page).
+SystemUiOverlayStyle funcSystemBarsStyle(
+  Brightness statusBarBackground, {
+  Brightness? navBarBackground,
+}) {
   Brightness iconsOver(Brightness under) =>
       under == Brightness.dark ? Brightness.light : Brightness.dark;
+  final bottomBackground = navBarBackground ?? statusBarBackground;
   return SystemUiOverlayStyle(
     statusBarColor: FuncTokens.transparent,
     // iOS reads the *bar's* brightness and derives icon colour itself.
-    statusBarBrightness: background,
-    statusBarIconBrightness: iconsOver(background),
+    statusBarBrightness: statusBarBackground,
+    statusBarIconBrightness: iconsOver(statusBarBackground),
     systemNavigationBarColor: FuncTokens.transparent,
-    systemNavigationBarIconBrightness: iconsOver(background),
+    systemNavigationBarIconBrightness: iconsOver(bottomBackground),
     systemNavigationBarDividerColor: FuncTokens.transparent,
     // systemNavigationBarContrastEnforced stays unset: with three-button
     // navigation the platform decides whether to add a scrim.
@@ -130,11 +138,16 @@ class FuncSystemBars extends StatefulWidget {
   const FuncSystemBars({
     super.key,
     required this.background,
+    this.navBarBackground,
     required this.child,
   });
 
-  /// Brightness of what paints under the bars; icons take the inverse.
+  /// Brightness of what paints under the status bar; icons take the inverse.
   final Brightness background;
+
+  /// Optional independent brightness under the bottom system navigation bar;
+  /// defaults to [background].
+  final Brightness? navBarBackground;
 
   final Widget child;
 
@@ -193,7 +206,10 @@ class _FuncSystemBarsState extends State<FuncSystemBars> {
   @override
   Widget build(BuildContext context) {
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: funcSystemBarsStyle(widget.background),
+      value: funcSystemBarsStyle(
+        widget.background,
+        navBarBackground: widget.navBarBackground,
+      ),
       child: widget.child,
     );
   }

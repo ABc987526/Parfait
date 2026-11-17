@@ -101,6 +101,7 @@ class _DragToDismissState extends State<DragToDismiss>
 
   @override
   Widget build(BuildContext context) {
+    final motionEnabled = MotionTokens.enabled(context);
     // An upward flick may carry the spring past rest; the surface stops
     // at its home position rather than lifting off the top.
     final offset = math.max(0.0, _offset.value);
@@ -108,9 +109,9 @@ class _DragToDismissState extends State<DragToDismiss>
         .clamp(0.0, 1.0)
         .toDouble();
     final surface = Transform.translate(
-      offset: Offset(0, offset),
+      offset: motionEnabled ? Offset(0, offset) : Offset.zero,
       child: Transform.scale(
-        scale: 1 - progress * 0.15,
+        scale: motionEnabled ? 1 - progress * 0.15 : 1.0,
         child: Opacity(
           opacity: 1 - progress * 0.35,
           // The return spring only changes the transform/opacity. Keep

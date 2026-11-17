@@ -166,8 +166,14 @@ ThemeData replicaTheme(
 
   final theme = ThemeData(
     brightness: brightness,
+    // Restrained flat state layers replace M3's expanding ripple circle:
+    // every InkWell and ListTile gets an immediate tactile surface tint on
+    // press, hover and keyboard focus.
     splashFactory: NoSplash.splashFactory,
-    highlightColor: FuncTokens.transparent,
+    splashColor: FuncTokens.transparent,
+    highlightColor: colorScheme.onSurface.withValues(alpha: dark ? 0.10 : 0.08),
+    hoverColor: colorScheme.onSurface.withValues(alpha: dark ? 0.07 : 0.05),
+    focusColor: colorScheme.onSurface.withValues(alpha: 0.10),
     // No bundled font: the platform family renders everything, with the
     // engine's system fallback chain covering scripts it lacks.
     fontFamilyFallback: fontFamilyFallback,
@@ -179,6 +185,9 @@ ThemeData replicaTheme(
         brand: brand,
         onBrand: onBrand,
         accent: accent,
+        brandedHeader: systemColors == null
+            ? FuncTokens.lightBrandedHeader
+            : null,
       ),
     ],
     // The prompt card (PromptHost) takes its surface, shape, elevation and

@@ -85,6 +85,11 @@ class FuncPage<T> extends Page<T> {
   /// a bounded detail overlay rather than obscuring it cleanly offstage.
   final bool boundedOverlayOnWide;
 
+  /// Whether [route] is currently presented as a wide bounded overlay over a
+  /// visible underlying route rather than covering the full page.
+  static bool isBoundedOverlayRoute(Route<dynamic>? route) =>
+      route is _FuncPageRoute && route._boundedOverlayActive;
+
   @override
   Route<T> createRoute(BuildContext context) => _FuncPageRoute<T>(this);
 }
@@ -231,6 +236,21 @@ class _FuncPageRoute<T> extends PageRoute<T> {
           reverseCurve: MotionTokens.sharedElementFadeOut,
         );
 
+  /// Full-cycle fade for a wide bounded detail overlay (`DetailOverlayFrame`),
+  /// so its scrim and modal card ease in from frame 1 instead of staying
+  /// transparent for the first 30% (135ms) of the Hero flight.
+  late final Animation<double> _boundedOverlayFade = TurnCurve.drive(
+    controller!,
+    curve: const _Primed(Curves.easeOutCubic),
+    reverseCurve: Curves.easeInCubic,
+  );
+
+  late final Animation<double> _heroPageCoverOpacity = _BoundedSwitchAnimation(
+    bounded: () => _boundedOverlayActive,
+    whenBounded: _boundedOverlayFade,
+    whenFullPage: _backdrop ? _interactiveBackdropFade : _contentFade,
+  );
+
   /// The route a shared-element page covers, for [HeroPageCover].
   Route<dynamic>? _covered;
 
@@ -249,12 +269,9 @@ class _FuncPageRoute<T> extends PageRoute<T> {
     if (_page.sharedElement && previousRoute != _covered) {
       _uncover();
       if (previousRoute != null) {
-        // What hides the page below: the background where there is one.
-        HeroPageCover.add(
-          previousRoute,
-          this,
-          _backdrop ? _interactiveBackdropFade : _contentFade,
-        );
+        // What hides the page below: the background where there is one, or
+        // the full-cycle scrim fade on a wide bounded overlay.
+        HeroPageCover.add(previousRoute, this, _heroPageCoverOpacity);
       }
       _covered = previousRoute;
     }
@@ -388,6 +405,7 @@ class _FuncPageRoute<T> extends PageRoute<T> {
       _syncBoundedOverlay(boundedOverlay);
     }
     final shared = _page.sharedElement;
+    final stageFade = boundedOverlay ? _boundedOverlayFade : _contentFade;
     final above = _above[this];
     final underBounded =
         above != null &&
@@ -417,7 +435,7 @@ class _FuncPageRoute<T> extends PageRoute<T> {
           transition: (child) => IgnorePointer(
             ignoring:
                 animation.status == AnimationStatus.reverse ||
-                _contentFade.value < 1,
+                stageFade.value < 1,
             child: _sharedElementStage(context, child),
           ),
           child: child,
@@ -490,7 +508,7 @@ class _FuncPageRoute<T> extends PageRoute<T> {
               // none until its content has shown.
               ignoring:
                   animation.status == AnimationStatus.reverse ||
-                  shared && !popGestureInProgress && _contentFade.value < 1,
+                  shared && !popGestureInProgress && stageFade.value < 1,
               // On iOS we attach our own edge-back/canvas-dismiss detector inside
               // CupertinoPageTransition (instead of CupertinoPageTransitionsBuilder)
               // so horizontal drags inside DetailImagePager/PageView stay intact.
@@ -529,7 +547,7 @@ class _FuncPageRoute<T> extends PageRoute<T> {
         return IgnorePointer(
           ignoring:
               animation.status == AnimationStatus.reverse ||
-              shared && _contentFade.value < 1,
+              shared && stageFade.value < 1,
           child: CupertinoPageTransition(
             primaryRouteAnimation: shared ? kAlwaysCompleteAnimation : _slideIn,
             secondaryRouteAnimation: still
@@ -550,13 +568,16 @@ class _FuncPageRoute<T> extends PageRoute<T> {
     bool popGestureInProgress = false,
     bool supportsCanvasDismiss = false,
   }) {
+    final boundedOverlay = _isBoundedOverlay(context);
     final content = FadeTransition(
       opacity: !supportsCanvasDismiss && popGestureInProgress
           ? kAlwaysCompleteAnimation
+          : boundedOverlay
+          ? _boundedOverlayFade
           : _contentFade,
       child: HeroLiftHole(animation: controller!, child: child),
     );
-    if (!_backdrop || _isBoundedOverlay(context)) return content;
+    if (!_backdrop || boundedOverlay) return content;
     final reduceMotion = !MotionTokens.enabled(context);
     final foreground = supportsCanvasDismiss
         ? ValueListenableBuilder<_CanvasDragState>(
@@ -698,6 +719,43 @@ class _MultipliedAnimation extends Animation<double>
   double get value => (base.value * factor.value).clamp(0.0, 1.0);
 }
 
+class _BoundedSwitchAnimation extends Animation<double>
+    with
+        AnimationLazyListenerMixin,
+        AnimationLocalListenersMixin,
+        AnimationLocalStatusListenersMixin {
+  _BoundedSwitchAnimation({
+    required this.bounded,
+    required this.whenBounded,
+    required this.whenFullPage,
+  });
+
+  final ValueGetter<bool> bounded;
+  final Animation<double> whenBounded;
+  final Animation<double> whenFullPage;
+
+  @override
+  void didStartListening() {
+    whenBounded.addListener(notifyListeners);
+    whenFullPage.addListener(notifyListeners);
+    whenBounded.addStatusListener(notifyStatusListeners);
+  }
+
+  @override
+  void didStopListening() {
+    whenBounded.removeListener(notifyListeners);
+    whenFullPage.removeListener(notifyListeners);
+    whenBounded.removeStatusListener(notifyStatusListeners);
+  }
+
+  @override
+  AnimationStatus get status =>
+      bounded() ? whenBounded.status : whenFullPage.status;
+
+  @override
+  double get value => bounded() ? whenBounded.value : whenFullPage.value;
+}
+
 class _IosEdgeBackDetector<T> extends StatefulWidget {
   const _IosEdgeBackDetector({
     required this.route,
@@ -753,6 +811,14 @@ class _IosEdgeBackDetectorState<T> extends State<_IosEdgeBackDetector<T>>
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final gestureSettings = MediaQuery.maybeGestureSettingsOf(context);
+    _recognizer.gestureSettings = gestureSettings;
+    _verticalRecognizer.gestureSettings = gestureSettings;
+  }
+
+  @override
   void dispose() {
     _recognizer.dispose();
     _verticalRecognizer.dispose();
@@ -783,16 +849,21 @@ class _IosEdgeBackDetectorState<T> extends State<_IosEdgeBackDetector<T>>
     final edgeWidth = math.max(edgePadding, baseEdgeWidth);
     final inwardDistance = isRtl ? width - local.dx : local.dx;
 
+    final gestureSettings = MediaQuery.maybeGestureSettingsOf(context);
     if (inwardDistance >= 0 && inwardDistance <= edgeWidth) {
-      _recognizer.inwardSign = isRtl ? -1.0 : 1.0;
-      _recognizer.addPointer(event);
+      _recognizer
+        ..gestureSettings = gestureSettings
+        ..inwardSign = isRtl ? -1.0 : 1.0
+        ..addPointer(event);
     }
 
     if (widget.supportsCanvasDismiss) {
       final inTopStrip =
           local.dy >= 0 && local.dy <= padding.top + _kSharedTopPullHeight;
       if (inTopStrip || _verticalScrollAtTop) {
-        _verticalRecognizer.addPointer(event);
+        _verticalRecognizer
+          ..gestureSettings = gestureSettings
+          ..addPointer(event);
       }
     }
   }

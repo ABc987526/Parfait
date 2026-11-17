@@ -65,41 +65,23 @@ class TagChip extends StatefulWidget {
         null,
         inherited: Theme.of(context).textTheme.bodyMedium,
       ),
-      children: [
-        _span(
-          FuncSemanticTokens.of(context),
-          label,
-          translated,
-          Theme.of(context).colorScheme.primary,
-        ),
-      ],
+      children: [_span(FuncSemanticTokens.of(context), label, translated)],
     ),
     locale: Localizations.maybeLocaleOf(context),
     strutStyle: null,
   );
 
-  /// The tag, then its translation in the secondary colour.
+  /// The tag in neutral primary content ink, then its translation in the
+  /// secondary colour (`THEME-07`: tag chips stay neutral; only keyboard focus
+  /// rings them in the accent).
   static TextSpan _span(
     FuncSemanticTokens tokens,
     String label,
     String? translated,
-    Color accentColor,
   ) => TextSpan(
+    text: '#$label',
+    style: tokens.label.copyWith(color: tokens.contentPrimary),
     children: [
-      TextSpan(
-        text: '#',
-        style: tokens.label.copyWith(
-          color: accentColor.withValues(alpha: 0.78),
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-      TextSpan(
-        text: label,
-        style: tokens.label.copyWith(
-          color: accentColor,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
       if (translated != null)
         TextSpan(
           text: ' $translated',
@@ -115,18 +97,25 @@ class TagChip extends StatefulWidget {
 class _TagChipState extends State<TagChip> {
   /// Keyboard focus thickens the outline in place of the ink highlight.
   var _focused = false;
+  var _hovered = false;
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final tokens = FuncSemanticTokens.of(context);
+    final interactive = widget.onTap != null || widget.onLongPress != null;
+    final hovered = interactive && _hovered;
     final pill = DecoratedBox(
       decoration: ShapeDecoration(
-        color: tokens.brandTintWeak,
+        color: hovered ? tokens.surfaceRaised : tokens.surface,
         shape: StadiumBorder(
           side: _focused
               ? BorderSide(color: colors.primary, width: 2)
-              : BorderSide(color: tokens.brandTintStroke),
+              : BorderSide(
+                  color: hovered
+                      ? colors.onSurface.withValues(alpha: 0.22)
+                      : tokens.divider,
+                ),
         ),
       ),
       child: ConstrainedBox(
@@ -141,12 +130,7 @@ class _TagChipState extends State<TagChip> {
           child: Center(
             widthFactor: 1,
             child: Text.rich(
-              TagChip._span(
-                tokens,
-                widget.label,
-                widget.translated,
-                colors.primary,
-              ),
+              TagChip._span(tokens, widget.label, widget.translated),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -156,7 +140,7 @@ class _TagChipState extends State<TagChip> {
     );
     final chip = PressScale(
       scale: MotionTokens.pillPressScale,
-      enabled: widget.onTap != null || widget.onLongPress != null,
+      enabled: interactive,
       child: InkWell(
         onTap: widget.onTap,
         onLongPress: widget.onLongPress,
@@ -165,6 +149,9 @@ class _TagChipState extends State<TagChip> {
             : (details) => widget.onSecondaryTapAt!(details.globalPosition),
         onSecondaryTap: widget.onSecondaryTapAt == null
             ? widget.onLongPress
+            : null,
+        onHover: interactive
+            ? (isHovered) => setState(() => _hovered = isHovered)
             : null,
         onFocusChange: (focused) => setState(() => _focused = focused),
         // A long-press host plays its own AppHaptics role; the ink

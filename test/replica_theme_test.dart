@@ -100,6 +100,104 @@ void main() {
     }
   });
 
+  test(
+    'compact branded header keeps >= 4.5:1 for title, selected tab, and unselected tab',
+    () {
+      for (final brightness in Brightness.values) {
+        for (final systemColors in [
+          null,
+          ColorScheme.fromSeed(
+            seedColor: const Color(0xFF2E7D32),
+            brightness: brightness,
+          ),
+          ColorScheme.fromSeed(
+            seedColor: const Color(0xFFFFB300),
+            brightness: brightness,
+          ),
+        ]) {
+          final theme = replicaTheme(brightness, systemColors: systemColors);
+          final tokens = theme.extension<FuncSemanticTokens>()!;
+          final surface = tokens.brandedHeaderSurface;
+          final selectedTab = brightness == Brightness.dark
+              ? theme.colorScheme.primary
+              : tokens.brandedHeaderForeground;
+          expect(
+            contrastRatio(tokens.brandedHeaderForeground, surface),
+            greaterThanOrEqualTo(4.5),
+            reason: '$brightness brandedHeaderForeground on $surface',
+          );
+          expect(
+            contrastRatio(selectedTab, surface),
+            greaterThanOrEqualTo(4.5),
+            reason: '$brightness selected tab on $surface',
+          );
+          expect(
+            contrastRatio(tokens.brandedHeaderTabUnselected, surface),
+            greaterThanOrEqualTo(4.5),
+            reason: '$brightness brandedHeaderTabUnselected on $surface',
+          );
+        }
+      }
+    },
+  );
+
+  testWidgets(
+    'replicaTheme provides visible pressed state feedback for InkWell, ListTile, and buttons',
+    (tester) async {
+      for (final brightness in Brightness.values) {
+        final theme = replicaTheme(brightness);
+        expect(theme.highlightColor, isNot(FuncTokens.transparent));
+        expect(theme.highlightColor.a, greaterThanOrEqualTo(0.08));
+        expect(theme.hoverColor.a, greaterThan(0));
+        expect(theme.focusColor.a, greaterThan(0));
+
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: theme,
+            home: Scaffold(
+              body: Column(
+                children: [
+                  InkWell(
+                    onTap: () {},
+                    child: const SizedBox(height: 48, width: 200),
+                  ),
+                  ListTile(title: const Text('tile'), onTap: () {}),
+                  FilledButton(onPressed: () {}, child: const Text('button')),
+                ],
+              ),
+            ),
+          ),
+        );
+
+        Future<void> expectPressedRect(Finder target) async {
+          final gesture = await tester.startGesture(tester.getCenter(target));
+          try {
+            await tester.pump();
+            await tester.pump(const Duration(milliseconds: 220));
+            final material = tester.renderObject(
+              find.ancestor(of: target, matching: find.byType(Material)).first,
+            );
+            expect(
+              material,
+              paints..something((symbol, arguments) {
+                if (symbol != #drawRect && symbol != #drawRRect) return false;
+                final color = (arguments[1] as Paint).color;
+                return color.a >= 0.06 && color.a <= 0.20;
+              }),
+            );
+          } finally {
+            await gesture.up();
+            await tester.pumpAndSettle();
+          }
+        }
+
+        await expectPressedRect(find.byType(InkWell).first);
+        await expectPressedRect(find.byType(ListTile));
+        await expectPressedRect(find.byType(FilledButton));
+      }
+    },
+  );
+
   test('a disabled switch that is on takes no accent', () {
     const lockedOn = {WidgetState.selected, WidgetState.disabled};
     for (final brightness in Brightness.values) {

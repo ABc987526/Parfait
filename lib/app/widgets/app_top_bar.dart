@@ -4,6 +4,7 @@ import 'package:material_ui/material_ui.dart';
 
 import 'package:flutter/foundation.dart';
 
+import '../layout/form_factor.dart';
 import '../motion/hero_transition.dart'
     show HeroChrome, LiftableBar, LiftableShadow;
 import '../motion/motion_tokens.dart';
@@ -202,30 +203,26 @@ class _AppTopBarState extends State<AppTopBar> {
     final barTheme = theme.appBarTheme;
     final tokens = theme.extension<FuncSemanticTokens>();
     final isDark = theme.brightness == Brightness.dark;
+    final hasRail = FormFactor.of(context).hasRail(MediaQuery.widthOf(context));
     final useBrandedHeader =
         !embedded &&
+        !hasRail &&
         tokens != null &&
         widget.backgroundColor == null &&
         widget.immersion == null &&
         !DesktopCommandBarScope.isActiveOf(context);
-    final Color? brandedSurface = !useBrandedHeader
-        ? null
-        : isDark
-        ? Color.alphaBlend(
-            theme.colorScheme.primary.withValues(alpha: 0.16),
-            theme.scaffoldBackgroundColor,
-          )
-        : Color.lerp(theme.colorScheme.primary, tokens.brand, 0.45)!;
-    final Color? brandedForeground = !useBrandedHeader
-        ? null
-        : isDark
-        ? theme.colorScheme.onSurface
-        : tokens.onBrand;
-    final surface =
-        widget.backgroundColor ??
-        brandedSurface ??
-        barTheme.backgroundColor ??
-        theme.colorScheme.surface;
+    final Color? brandedSurface = useBrandedHeader
+        ? tokens.brandedHeaderSurface
+        : null;
+    final Color? brandedForeground = useBrandedHeader
+        ? tokens.brandedHeaderForeground
+        : null;
+    final surface = embedded
+        ? theme.scaffoldBackgroundColor
+        : widget.backgroundColor ??
+              brandedSurface ??
+              barTheme.backgroundColor ??
+              theme.colorScheme.surface;
     final foreground =
         brandedForeground ??
         barTheme.foregroundColor ??
@@ -356,13 +353,19 @@ class _AppTopBarState extends State<AppTopBar> {
                   ?.copyWith(color: brandedForeground),
         iconTheme: liftedIcons,
         actionsIconTheme: liftedIcons,
-        shape: tokens != null && ((useBrandedHeader && isDark) || embedded)
+        shape: tokens != null && embedded
             ? Border(bottom: BorderSide(color: tokens.brandHairline))
             : null,
-        // Keep status bar icons crisp white over the Shaft-inspired themed header.
-        systemOverlayStyle: immersed || useBrandedHeader
+        // Decouple status-bar icon contrast (estimated from the actual top
+        // header fill so dynamic colors stay legible) from the bottom system
+        // navigation bar, which always follows the page brightness.
+        systemOverlayStyle:
+            immersed || useBrandedHeader || widget.backgroundColor != null
             ? funcSystemBarsStyle(
-                useBrandedHeader ? Brightness.dark : theme.brightness,
+                immersed
+                    ? theme.brightness
+                    : ThemeData.estimateBrightnessForColor(surface),
+                navBarBackground: theme.brightness,
               )
             : null,
         notificationPredicate: widget.notificationPredicate,
@@ -373,17 +376,13 @@ class _AppTopBarState extends State<AppTopBar> {
         : Theme(
             data: theme.copyWith(
               tabBarTheme: theme.tabBarTheme.copyWith(
-                labelColor: isDark ? theme.colorScheme.primary : tokens.onBrand,
-                unselectedLabelColor: isDark
-                    ? Color.lerp(
-                        theme.colorScheme.onSurfaceVariant,
-                        theme.colorScheme.onSurface,
-                        0.35,
-                      )!
-                    : tokens.onBrand.withValues(alpha: 0.78),
+                labelColor: isDark
+                    ? theme.colorScheme.primary
+                    : tokens.brandedHeaderForeground,
+                unselectedLabelColor: tokens.brandedHeaderTabUnselected,
                 indicatorColor: isDark
                     ? theme.colorScheme.primary
-                    : tokens.onBrand,
+                    : tokens.brandedHeaderForeground,
               ),
             ),
             child: toolbar,
@@ -397,9 +396,7 @@ class _AppTopBarState extends State<AppTopBar> {
             top: 0,
             right: 0,
             height: statusInset,
-            child: _entering(
-              ColoredBox(color: surface.withValues(alpha: surface.a * drawn)),
-            ),
+            child: _entering(ColoredBox(color: surface)),
           ),
         if (widget.entrance == null)
           themedToolbar

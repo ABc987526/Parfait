@@ -40,8 +40,6 @@ class FuncSemanticTokens extends ThemeExtension<FuncSemanticTokens> {
     required this.surface,
     required this.surfaceRaised,
     required this.surfaceOverlay,
-    required this.glassSurface,
-    required this.glassBorder,
     required this.divider,
     required this.barShadow,
     required this.layerLift,
@@ -51,13 +49,13 @@ class FuncSemanticTokens extends ThemeExtension<FuncSemanticTokens> {
     required this.contentTertiary,
     required this.brand,
     required this.onBrand,
-    required this.brandGlow,
     required this.brandTintWeak,
     required this.brandTint,
     required this.brandTintStroke,
     required this.brandHairline,
-    required this.auric,
-    required this.lilac,
+    required this.brandedHeaderSurface,
+    required this.brandedHeaderForeground,
+    required this.brandedHeaderTabUnselected,
     required this.danger,
     required this.success,
     required this.warning,
@@ -78,6 +76,7 @@ class FuncSemanticTokens extends ThemeExtension<FuncSemanticTokens> {
     required Color brand,
     required Color onBrand,
     Color? accent,
+    Color? brandedHeader,
   }) {
     final dark = brightness == Brightness.dark;
     final text = dark ? FuncTokens.darkText : FuncTokens.lightText;
@@ -85,6 +84,31 @@ class FuncSemanticTokens extends ThemeExtension<FuncSemanticTokens> {
         ? FuncTokens.darkTextSecondary
         : FuncTokens.lightTextSecondary;
     final inkAccent = accent ?? brand;
+    Color lightHeaderSurface() {
+      var candidate =
+          brandedHeader ??
+          Color.lerp(inkAccent, FuncTokens.darkBackground, 0.18)!;
+      while (candidate.computeLuminance() > 0.115) {
+        candidate = Color.lerp(candidate, FuncTokens.darkBackground, 0.2)!;
+      }
+      return candidate;
+    }
+
+    final resolvedHeaderSurface = dark
+        ? Color.alphaBlend(
+            inkAccent.withValues(alpha: 0.14),
+            FuncTokens.darkBackground,
+          )
+        : lightHeaderSurface();
+    final resolvedHeaderForeground = dark
+        ? FuncTokens.darkText
+        : FuncTokens.white;
+    final resolvedHeaderTabUnselected = dark
+        ? Color.lerp(FuncTokens.darkTextSecondary, FuncTokens.darkText, 0.35)!
+        : Color.alphaBlend(
+            FuncTokens.white.withValues(alpha: 0.82),
+            resolvedHeaderSurface,
+          );
     return FuncSemanticTokens(
       canvas: dark ? FuncTokens.darkBackground : FuncTokens.lightBackground,
       surface: dark ? FuncTokens.darkContainer : FuncTokens.lightContainer,
@@ -92,12 +116,6 @@ class FuncSemanticTokens extends ThemeExtension<FuncSemanticTokens> {
           ? FuncTokens.darkContainerHigh
           : FuncTokens.lightContainerHigh,
       surfaceOverlay: FuncTokens.surfaceOverlay,
-      glassSurface: dark
-          ? FuncTokens.darkGlassSurface
-          : FuncTokens.lightGlassSurface,
-      glassBorder: dark
-          ? FuncTokens.darkGlassBorder
-          : FuncTokens.lightGlassBorder,
       divider: dark ? FuncTokens.darkDivider : FuncTokens.lightDivider,
       barShadow: dark ? FuncTokens.darkBarShadow : FuncTokens.lightBarShadow,
       layerLift: dark ? FuncTokens.darkLayerLift : FuncTokens.lightLayerLift,
@@ -109,13 +127,13 @@ class FuncSemanticTokens extends ThemeExtension<FuncSemanticTokens> {
           : FuncTokens.lightText.withValues(alpha: 0.35),
       brand: brand,
       onBrand: onBrand,
-      brandGlow: FuncTokens.mikaHighlight,
       brandTintWeak: brand.withValues(alpha: dark ? 0.12 : 0.08),
       brandTint: brand.withValues(alpha: dark ? 0.18 : 0.13),
       brandTintStroke: inkAccent.withValues(alpha: dark ? 0.28 : 0.22),
       brandHairline: inkAccent.withValues(alpha: dark ? 0.16 : 0.11),
-      auric: dark ? FuncTokens.darkMikaGold : FuncTokens.lightMikaGold,
-      lilac: dark ? FuncTokens.darkMikaLilac : FuncTokens.lightMikaLilac,
+      brandedHeaderSurface: resolvedHeaderSurface,
+      brandedHeaderForeground: resolvedHeaderForeground,
+      brandedHeaderTabUnselected: resolvedHeaderTabUnselected,
       danger: dark ? FuncTokens.darkError : FuncTokens.lightError,
       success: dark ? FuncTokens.darkSuccess : FuncTokens.lightSuccess,
       warning: dark ? FuncTokens.darkWarning : FuncTokens.lightWarning,
@@ -163,8 +181,6 @@ class FuncSemanticTokens extends ThemeExtension<FuncSemanticTokens> {
   final Color surface;
   final Color surfaceRaised;
   final Color surfaceOverlay;
-  final Color glassSurface;
-  final Color glassBorder;
   final Color divider;
 
   /// Cast up by a bar at the screen bottom over the content under it.
@@ -195,13 +211,16 @@ class FuncSemanticTokens extends ThemeExtension<FuncSemanticTokens> {
   // Brand and status.
   final Color brand;
   final Color onBrand;
-  final Color brandGlow;
   final Color brandTintWeak;
   final Color brandTint;
   final Color brandTintStroke;
   final Color brandHairline;
-  final Color auric;
-  final Color lilac;
+
+  /// Compact phone branded header slots calibrated for >= 4.5:1 AA contrast.
+  final Color brandedHeaderSurface;
+  final Color brandedHeaderForeground;
+  final Color brandedHeaderTabUnselected;
+
   final Color danger;
   final Color success;
   final Color warning;
@@ -242,8 +261,6 @@ class FuncSemanticTokens extends ThemeExtension<FuncSemanticTokens> {
     Color? surface,
     Color? surfaceRaised,
     Color? surfaceOverlay,
-    Color? glassSurface,
-    Color? glassBorder,
     Color? divider,
     List<BoxShadow>? barShadow,
     List<BoxShadow>? layerLift,
@@ -253,13 +270,13 @@ class FuncSemanticTokens extends ThemeExtension<FuncSemanticTokens> {
     Color? contentTertiary,
     Color? brand,
     Color? onBrand,
-    Color? brandGlow,
     Color? brandTintWeak,
     Color? brandTint,
     Color? brandTintStroke,
     Color? brandHairline,
-    Color? auric,
-    Color? lilac,
+    Color? brandedHeaderSurface,
+    Color? brandedHeaderForeground,
+    Color? brandedHeaderTabUnselected,
     Color? danger,
     Color? success,
     Color? warning,
@@ -278,8 +295,6 @@ class FuncSemanticTokens extends ThemeExtension<FuncSemanticTokens> {
       surface: surface ?? this.surface,
       surfaceRaised: surfaceRaised ?? this.surfaceRaised,
       surfaceOverlay: surfaceOverlay ?? this.surfaceOverlay,
-      glassSurface: glassSurface ?? this.glassSurface,
-      glassBorder: glassBorder ?? this.glassBorder,
       divider: divider ?? this.divider,
       barShadow: barShadow ?? this.barShadow,
       layerLift: layerLift ?? this.layerLift,
@@ -289,13 +304,15 @@ class FuncSemanticTokens extends ThemeExtension<FuncSemanticTokens> {
       contentTertiary: contentTertiary ?? this.contentTertiary,
       brand: brand ?? this.brand,
       onBrand: onBrand ?? this.onBrand,
-      brandGlow: brandGlow ?? this.brandGlow,
       brandTintWeak: brandTintWeak ?? this.brandTintWeak,
       brandTint: brandTint ?? this.brandTint,
       brandTintStroke: brandTintStroke ?? this.brandTintStroke,
       brandHairline: brandHairline ?? this.brandHairline,
-      auric: auric ?? this.auric,
-      lilac: lilac ?? this.lilac,
+      brandedHeaderSurface: brandedHeaderSurface ?? this.brandedHeaderSurface,
+      brandedHeaderForeground:
+          brandedHeaderForeground ?? this.brandedHeaderForeground,
+      brandedHeaderTabUnselected:
+          brandedHeaderTabUnselected ?? this.brandedHeaderTabUnselected,
       danger: danger ?? this.danger,
       success: success ?? this.success,
       warning: warning ?? this.warning,
@@ -319,8 +336,6 @@ class FuncSemanticTokens extends ThemeExtension<FuncSemanticTokens> {
       surface: Color.lerp(surface, other.surface, t)!,
       surfaceRaised: Color.lerp(surfaceRaised, other.surfaceRaised, t)!,
       surfaceOverlay: Color.lerp(surfaceOverlay, other.surfaceOverlay, t)!,
-      glassSurface: Color.lerp(glassSurface, other.glassSurface, t)!,
-      glassBorder: Color.lerp(glassBorder, other.glassBorder, t)!,
       divider: Color.lerp(divider, other.divider, t)!,
       barShadow: BoxShadow.lerpList(barShadow, other.barShadow, t)!,
       layerLift: BoxShadow.lerpList(layerLift, other.layerLift, t)!,
@@ -334,13 +349,25 @@ class FuncSemanticTokens extends ThemeExtension<FuncSemanticTokens> {
       contentTertiary: Color.lerp(contentTertiary, other.contentTertiary, t)!,
       brand: Color.lerp(brand, other.brand, t)!,
       onBrand: Color.lerp(onBrand, other.onBrand, t)!,
-      brandGlow: Color.lerp(brandGlow, other.brandGlow, t)!,
       brandTintWeak: Color.lerp(brandTintWeak, other.brandTintWeak, t)!,
       brandTint: Color.lerp(brandTint, other.brandTint, t)!,
       brandTintStroke: Color.lerp(brandTintStroke, other.brandTintStroke, t)!,
       brandHairline: Color.lerp(brandHairline, other.brandHairline, t)!,
-      auric: Color.lerp(auric, other.auric, t)!,
-      lilac: Color.lerp(lilac, other.lilac, t)!,
+      brandedHeaderSurface: Color.lerp(
+        brandedHeaderSurface,
+        other.brandedHeaderSurface,
+        t,
+      )!,
+      brandedHeaderForeground: Color.lerp(
+        brandedHeaderForeground,
+        other.brandedHeaderForeground,
+        t,
+      )!,
+      brandedHeaderTabUnselected: Color.lerp(
+        brandedHeaderTabUnselected,
+        other.brandedHeaderTabUnselected,
+        t,
+      )!,
       danger: Color.lerp(danger, other.danger, t)!,
       success: Color.lerp(success, other.success, t)!,
       warning: Color.lerp(warning, other.warning, t)!,

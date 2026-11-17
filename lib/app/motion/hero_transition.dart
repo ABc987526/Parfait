@@ -13,9 +13,12 @@ import '../../core/debug/hero_anomaly_log.dart';
 import '../../core/log.dart';
 import '../../core/settings/shared_preferences.dart';
 import '../../l10n/context.dart';
+import '../layout/app_breakpoints.dart';
+import '../navigation/func_page.dart' show FuncPage;
 import '../navigation/home_shell_metrics.dart';
 import '../navigation/route_animation.dart';
 import '../theme/func_semantic_tokens.dart';
+import '../theme/func_tokens.dart';
 import '../widgets/app_snack_bar.dart';
 import '../widgets/app_top_bar.dart';
 import 'hero_rect_clip.dart';
@@ -93,7 +96,18 @@ class IllustHeroCardFrame extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(borderRadius: FuncShape.card, child: child);
+    final clipped = ClipRRect(borderRadius: FuncShape.card, child: child);
+    if (Theme.of(context).brightness == Brightness.dark) return clipped;
+    return DecoratedBox(
+      position: DecorationPosition.foreground,
+      decoration: const BoxDecoration(
+        borderRadius: FuncShape.card,
+        border: Border.fromBorderSide(
+          BorderSide(color: FuncTokens.cocoaHairline),
+        ),
+      ),
+      child: clipped,
+    );
   }
 }
 
@@ -426,9 +440,22 @@ Widget illustHeroFlightShuttleBuilder(
   final fromBox = _heroScreenRect(fromHeroContext)?.size;
   final toBox = _heroScreenRect(toHeroContext)?.size;
   final cardIsFrom = identical(cardContext, fromHeroContext);
-  // A card's flight to and from its page lifts the card page's bars over
-  // the image ([_LiftedBars]).
-  final liftBars = cardFrame == null || size.isEmpty
+  final otherContext = cardIsFrom ? toHeroContext : fromHeroContext;
+  final otherRoute = ModalRoute.of(otherContext);
+  final otherSettings = otherRoute?.settings;
+  final toBoundedOverlay =
+      FuncPage.isBoundedOverlayRoute(otherRoute) ||
+      (otherSettings is FuncPage &&
+          otherSettings.boundedOverlayOnWide &&
+          !(otherRoute?.isFirst ?? true) &&
+          AppBreakpoints.useBoundedDetailOverlayOf(
+            cardContext,
+            HomeShellChrome.contentSizeOf(cardContext),
+          ));
+  // A card's flight to and from a full-screen page lifts the card page's bars
+  // over the image ([_LiftedBars]); a wide bounded modal overlay keeps the
+  // underlying feed and its top bar in place behind the scrim.
+  final liftBars = cardFrame == null || size.isEmpty || toBoundedOverlay
       ? null
       : () => _LiftedBars.capture(
           card: cardContext,
