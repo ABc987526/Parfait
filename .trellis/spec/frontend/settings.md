@@ -126,53 +126,52 @@ reviewed: 2026-11-17
   history page's overflow menu; there is no history settings page. The interface
   form (NAV-20) heads `/settings/navigation` and, like haptic strength, exists
   only where `Setting.available` says so: the row and its search entry alike.
-  When `HomeShellChrome.contentSizeOf` is at least `840dp` wide and
-  `viewport.width >= viewport.height * 0.75`, `/settings/all` stays inside the
-  shell beside `ShellRail` and splits into a 292dp index pane plus a nested
-  detail `Navigator` (`SettingsDetailScope`, `EmbeddedHeaderScope` flat neutral
-  headers, `MotionTokens.stateFadeCurve` with leaving `IgnorePointer`, and
+  When `MasterDetailWorkspace.canDisplay` holds (`HomeShellChrome.contentSizeOf`
+  `>= 840x480` and `viewport.width >= viewport.height * 0.75`), `/settings/all`
+  and leaf settings routes wrapped in `SettingsAdaptiveHost` stay inside
+  `MasterDetailWorkspace`: a 280dp `surfaceContainerLow` index pane (`52dp` top
+  header with `1dp` `brandHairline`, `showChevron: false` rows) and a `1dp`
+  `brandHairline`-separated nested detail `Navigator` (`SettingsDetailScope`,
+  `EmbeddedHeaderScope` flat aligned `52dp` headers,
+  `MotionTokens.stateFadeCurve` with leaving `IgnorePointer`, and
   `settingsNarrowBody` left-aligned up to 780dp).
 - **Why:** The same setting on two pages drifted apart; hardwareless iPads omit
-  dead haptic sliders while Taptic iPhones expose them; and wide desktop
-  settings need comfortable left-aligned room beside the persistent shell rail
-  without double top bars.
+  dead haptic sliders while Taptic iPhones expose them; and unified `280dp`
+  master-detail hosting keeps deep-linked settings pages coherent beside the
+  collapsed shell rail without double headers or orphaned single-column sheets.
 - **Check:** `test/settings_search_test.dart` "every catalog entry is on its page"; `test/settings_master_detail_test.dart` "wide desktop uses master-detail with nested navigation; below 840dp stays single column"
-- **Code:** `lib/features/settings/settings_catalog.dart`, `lib/features/settings/settings_page.dart`, `lib/features/settings/settings_helpers.dart`, `lib/features/settings/pages/motion_settings_page.dart`
+- **Code:** `lib/app/widgets/master_detail_workspace.dart`, `lib/app/navigation/route_branches.dart`, `lib/features/settings/settings_catalog.dart`, `lib/features/settings/settings_page.dart`, `lib/features/settings/settings_helpers.dart`, `lib/features/settings/pages/motion_settings_page.dart`
 
 ## Me tab
 
-### SET-07 The Me tab puts content before settings on unified cards
-- **Rule:** The Me root has no buttons on its top bar. First comes the account
-  header (`PersonCard`, PAGE-07: 72dp avatar, name with neutral "Premium" pill,
-  user ID, opening the profile; trailing manage icon button; or one sign-in
-  button when signed out). Next comes the last eight history records as a row of
-  square covers with "see all" (hidden when empty), then the content entries
-  (bookmarks, following, watchlist, watch later, novel markers, local novels,
-  download tasks with active count, and any off-bar destinations) and the
-  settings/about entries, each rendered as a divider-free `surfaceContainer`
-  card row (`FuncSpacing.sm` gap) with a 40dp circular `CategoryColors` icon
-  disc (`SET-08`). An illustration cover opens the detail pager over the row's
-  illustrations; covers in `IllustStore` fly via Hero (`'me-history'`, TRANS-07)
-  while unseen ones do not. Covered by any route (read from route secondary
-  animations, never `TickerMode`), the row holds its order and slides to the new
-  order on `MotionTokens.spatial` once uncovered. From `840×480` content size,
-  the Me tab lays out as a centred 1080dp-max two-column dashboard
-  (`ValueKey('me-wide-dashboard')`: account header, recent row and system cards
-  leading; content cards trailing), preserving the recent row via a `GlobalKey`.
+### SET-07 The Me tab puts content before settings on unified workspaces and cards
+- **Rule:** The Me root has no buttons on its narrow top bar. On narrow layouts
+  (`!MasterDetailWorkspace.canDisplay`), first comes the account header
+  (`_AccountHeader`: 52dp avatar, name with neutral "Premium" pill, user ID,
+  opening the profile; trailing manage icon button; or one sign-in button when
+  signed out). Next comes the last eight history records as a row of square
+  covers with "see all" (hidden when empty), followed by four grouped
+  `SettingsGroup` / `SettingsTile.topLevel` sections (`showChevron: true`,
+  `40dp` `CategoryColors` icon discs, `SET-08`, and live double-line count
+  subtitles for downloads, watch later and local novels) ordering library,
+  collections, recent tools and settings/about. An illustration cover opens the
+  detail pager over the row's illustrations; covers in `IllustStore` fly via
+  Hero (`'me-history'`, TRANS-07) while unseen ones do not; covered by any
+  route (read from route secondary animations, never `TickerMode`), the row
+  holds its order and slides on `MotionTokens.spatial` once uncovered. When
+  `MasterDetailWorkspace.canDisplay` holds (`>= 840x480` content), the Me tab
+  mounts `MasterDetailWorkspace` (`280dp` left rail with a `40dp`
+  `_CompactAccountHeader` card, grouped `showChevron: false` index items for
+  profile, history, bookmarks, following, watchlist, watch later, novel markers,
+  local novels, downloads, reverse image, and settings/about on touch tablets
+  without `DesktopCommandBarScope`), preserving the workspace detail pane under
+  `EmbeddedHeaderScope`.
 - **Why:** User decision: settings filled two thirds of the page in a
   style of their own, and nothing showed what the user saw last; then
-  (10-21) the page read as unpolished next to mature apps, and YouTube's
-  layout was chosen: a list over a grid, one settings entry at the end
-  over a bar button. The flight needs the work's ratio on its first frame, and a
-  history record has none. Each work the pager shows moves to the front
-  of the history, so a row reordered mid-flight would land the image on
-  another work's cover. Swapped in place at the landing, covers changed
-  right where the eye was; waiting for the next visit left the row stale
-  (user decision 10-20: catch up at the landing, with the slide). Read
-  from TickerMode, a page not opened from the row (the profile, the
-  history page) let the row reorder behind it, and the slide was over
-  before the user came back. 10-25: the header, plain, did not show it
-  opened the profile; it took the person card every author block uses
-  (user decision).
+  narrow Me grouped rows clarify visual hierarchy while wide tablets/desktops
+  share the same 280dp `MasterDetailWorkspace` pattern as Settings without
+  duplicating `DesktopCommandBar` / `ShellRail` settings footers. The history
+  row holds its order while covered so Hero landing flights target the right
+  cover before sliding to match recent history.
 - **Check:** `test/settings_test.dart` "the Me header, manage button and end rows open their pages" "signed out, the Me header is one button to the login" "the dashboard badge counts downloads as they start and end" "the recent row follows the history and pages in its own order" "a recent cover flies to its work and back, an unseen one not" "a page over the row holds its order until it has left"
-- **Code:** `lib/features/settings/me_dashboard_page.dart`
+- **Code:** `lib/app/widgets/master_detail_workspace.dart`, `lib/app/widgets/settings/settings_group.dart`, `lib/app/widgets/settings/settings_tile.dart`, `lib/features/settings/me_dashboard_page.dart`

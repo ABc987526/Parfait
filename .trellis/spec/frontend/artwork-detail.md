@@ -191,28 +191,32 @@ reviewed: 2026-11-17
 ## Chrome
 
 ### DETAIL-09 The action bar is a centered opaque capsule or pinned inspector bar
-- **Rule:** On single-column layouts (including the embedded desktop inspector),
-  download and bookmark sit in one floating capsule (`DetailActionBar`)
-  horizontally centered at the bottom edge (`FuncSpacing.lg` margin above the
-  safe inset): 56dp high, opaque `FuncSemanticTokens.surface` with a
-  `brandHairline` border and `layerLift` shadow (THEME-20). Comments are written
-  from the comment section (DETAIL-17). The top bar carries only the ⋮ menu
-  (share, edit bookmark, watch later, page selection, work info and mutes with
-  text labels; no action depends only on a long press, FB-03). In two-pane stage
-  mode (`DETAIL-14`), the outer `AppBar` and floating `DetailActionBar` are
-  omitted while the secondary pane pins `DetailAuthorCard` and the inline action
-  bar (bookmark, download, Share and one deduplicated ⋮ menu).
-- **Why:** User decision: an opaque centered capsule matches Android's thumb
-  reach without frosted text smearing or covering the trailing follow button on
-  `PersonCard`, while left-aligned wrapping `InfoBlock` stats stay clear of it
-  and two-pane stages avoid duplicate floating chrome.
-- **Check:** `test/illust_detail_actions_test.dart` "the ⋮ menu carries the long-press actions too"
+- **Rule:** On single-column pushed detail pages, download and bookmark sit in
+  one floating capsule (`DetailActionBar`) horizontally centered at the bottom
+  edge (`FuncSpacing.sm` margin above the safe inset): 56dp high, opaque
+  `FuncSemanticTokens.surface` with a `brandHairline` border and `layerLift`
+  shadow (THEME-20). Comments are written from the comment section (DETAIL-17).
+  The top bar carries only the ⋮ menu (share, edit bookmark, watch later, page
+  selection, work info and mutes with text labels; no action depends only on a
+  long press, FB-03). In `embeddedInspector: true` (`DesktopGalleryInspector`)
+  and two-pane stage mode (`DETAIL-14`), the outer `AppBar` and bottom floating
+  `DetailActionBar` are omitted: two-pane stage pins `DetailAuthorCard` plus the
+  inline action bar (`BookmarkSwitchButton` + count pill, `DetailDownloadButton`,
+  Share and deduplicated ⋮ menu), while `embeddedInspector` pins a compact
+  `AuthorSummary` header (18dp avatar, conditional `FollowSwitchButton`,
+  `Icons.open_in_full` expand and `Icons.close` dismiss buttons) directly above
+  that inline action row (with work-info jump in its ⋮ menu).
+- **Why:** Single-column mobile pages keep primary actions in thumb reach
+  without frosted text smearing or covering the author card, while wide two-pane
+  stages and the desktop side inspector eliminate bottom floating capsules that
+  occlude artwork or duplicate chrome.
+- **Check:** `test/illust_detail_actions_test.dart` "the ⋮ menu carries the long-press actions too" "splits into image pager and meta column"
 - **Code:** `lib/features/illust/detail/widgets/detail_action_bar.dart`, `lib/features/illust/detail/illust_detail_content.dart`, `lib/features/illust/detail/illust_detail_page.dart`
 
 ### DETAIL-14 Landscape stage, bounded modal overlay, and universal desktop gallery inspector
 - **Rule:** Desktop galleries offer two `DesktopDetailMode` choices (`NAV-17`):
   `modal` (pushed stage) and `inspector` (`>= 1040dp` viewport and `>= 760dp`
-  host content width via `DesktopInspectableGallery`, opening a `440–560dp`
+  host content width via `DesktopInspectableGallery`, opening a `420–520dp`
   trailing `DesktopGalleryInspector` across recommended, ranking, new, search
   results, profile, bookmark-tag, history, watch-later and series illust
   feeds). The

@@ -201,24 +201,24 @@ reviewed: 2026-11-17
   is exposed via `AppChoiceChip` in the settings sheet (`NAV-17`) and
   controls two-page spreads in paginated mode (selecting a non-`off` mode
   switches scroll mode to `pages`). In `FoldPosture.book`, left and right
-  spread pages align strictly to the local hinge edges without crossing the
-  gap; elsewhere `auto` spreads wide landscape viewports (`>= 960dp` and
-  aspect `> 1.15`). Scroll mode shows the paginated layout's lines as one
-  `ListView` column (`NovelScrollColumn`), each line at its measured extent, so
-  pages stay the unit of progress, chapters, jumps and bilingual batches. A
-  page that ran on continues the column; a chapter starts after `chapterGap`,
-  an author's `[newpage]` after a short faint rule (`pageBreakGap`); an image
-  keeps its page-tall slot. Lines paint only between the page margins and
-  touches land anywhere. A tap anywhere toggles the chrome or opens the
-  image under it, unless it caught the column moving: then it only stops it.
-  A scroll that settles reports the line at the top and its page; `goToPage`
-  scrolls that page's first line to the top. Switching modes opens the page
-  holding the top line, or the column at the page's first line.
-- **Why:** Pages turned left and right were the only way to read; long
-  novels and phones read by scrolling (user request, 11-01). Foldables in
-  book posture and wide landscape tablets gain natural two-page spreads when
-  aligned clear of the physical hinge.
-- **Check:** `test/novel_reader_settings_test.dart` "theme falls back to system, page turn to scroll"; `test/novel_reader_test.dart` "the scroll column runs pages on, with a rule at a new page and a gap" "scroll mode: a tap toggles the chrome or opens an image; one"; `test/novel_reader_stage_test.dart` "scroll mode: open writes nothing, a settle writes once;"
+  spread pages align strictly to each pane around the hinge gap; elsewhere
+  `auto` spreads wide landscape viewports (`>= 960dp`, aspect `> 1.15`).
+  `NovelLayoutStyle.spreadContentWidth` clamps each leaf column to `380–540dp`
+  across a `44dp` spine hairline (`_spreadGap`), and flat spreads center the
+  whole two-page spread under `FittedBox(BoxFit.scaleDown, topCenter)` while
+  centering the immersive bottom progress readout on the spine axis. Scroll
+  mode shows the paginated layout's lines as one `ListView` column
+  (`NovelScrollColumn`), each line at its measured extent, so pages stay the
+  unit of progress, chapters, jumps and bilingual batches. A page that ran on
+  continues the column; a chapter starts after `chapterGap`, `[newpage]`
+  after a short faint rule (`pageBreakGap`); images keep their page-tall slot.
+  Lines paint only between the page margins and touches land anywhere; a tap
+  toggles chrome or opens an image unless it stops a moving column. Switching
+  modes preserves the top line's page.
+- **Why:** Long novels and phones favor scrolling, while foldables in book
+  posture and wide tablets/desktops read best as balanced, centered pocketbook
+  spreads with aligned spine rhythm.
+- **Check:** `test/novel_reader_settings_test.dart` "theme falls back to system, page turn to scroll"; `test/novel_reader_test.dart` "the scroll column runs pages on, with a rule at a new page and a gap" "scroll mode: a tap toggles the chrome or opens an image; one" "wide landscape spread shows two pages and steps by two"; `test/novel_reader_stage_test.dart` "scroll mode: open writes nothing, a settle writes once;"
 - **Code:** `lib/core/novel/reader_settings.dart`, `lib/features/novel/novel_layout.dart`, `lib/features/novel/novel_reader.dart`, `lib/features/novel/novel_reader_views.dart`, `lib/features/novel/novel_reader_stage.dart`, `lib/features/novel/novel_reader_stage_widgets.dart`
 
 ### NOVEL-14 An author's links lead where they say
@@ -253,7 +253,9 @@ reviewed: 2026-11-17
   in, opens scrolled to it, and grows to half the screen. The slider and
   its buttons stay put; below them the bookmark and the chapters scroll
   inside what is left of the sheet, and on a window under 480dp tall the
-  list may shrink to two rows. The settings sheet scrolls the same way.
+  list may shrink to two rows. The settings sheet scrolls the same way, and
+  reader panels use `showAppAdaptiveSideSheet` (`maxWidth: 380`) on wide
+  viewports.
 - **Why:** Pixiv's bookmark, kept with the account, was unreachable;
   a long table of contents showed four rows and no place in it (user
   request, 11-02). On a turned phone both sheets overflowed.

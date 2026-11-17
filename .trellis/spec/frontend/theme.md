@@ -181,11 +181,15 @@ reviewed: 2026-11-17
 - **Check:** manual
 - **Code:** `lib/app/widgets/tag_chips.dart`
 
-### THEME-10 Prompts are inverted chrome
-- **Rule:** Prompts use `inverseSurface` / `onInverseSurface` with
-  `inversePrimary` actions, and float at the layer elevation like the
-  other layers (THEME-20). Do not restyle them to a container tier.
-- **Why:** A container-tier prompt blends into sheets and cards.
+### THEME-10 Prompts follow inverted light / elevated dark chrome
+- **Rule:** On light themes, prompts (`PromptHost`) use `inverseSurface` /
+  `onInverseSurface` with `inversePrimary` actions; on dark themes, prompts use
+  `surfaceContainerHigh` with `onSurface` text, `primary` actions, and a
+  `outlineVariant` border (`FuncShape.card`), floating at the layer elevation
+  (THEME-20).
+- **Why:** Light themes need high-contrast dark banners, whereas dark themes
+  avoid harsh white slabs by elevating onto `surfaceContainerHigh` with a crisp
+  hairline border so toasts stay legible above sheets and cards.
 - **Check:** manual
 - **Code:** `lib/app/widgets/prompt_host.dart`
 
