@@ -5,7 +5,7 @@ applies_to:
   - lib/app/format/**
   - lib/features/**
   - lib/l10n/**
-reviewed: 2026-10-17
+reviewed: 2026-11-17
 ---
 
 # Layout across locales, text sizes and keyboards
@@ -206,17 +206,17 @@ reviewed: 2026-10-17
 
 ### LAYOUT-14 One page, one margin
 - **Rule:** A page keeps one horizontal margin for its text, rows and
-  cards: 16dp on list, card, settings and artwork detail pages, 8dp
-  around the artwork grids of feed pages. The detail page's related works
-  grid keeps the page's 16dp. A hint or overlay takes the margin of the
-  content under it, and a full-width button lines up with the cards above
-  it.
+  cards: 16dp on list, card, settings and artwork detail pages, and 14dp
+  (`FuncSpacing.lg - FuncSpacing.xxs`) around `IllustFeedGrid` with 12dp
+  inter-card gutters. The detail page's related works grid keeps the
+  page's 16dp. A hint or overlay takes the margin of the content under
+  it, and a full-width button lines up with the cards above it.
 - **Why:** Pages mixed 12, 16 and 24dp, so the blocks of one page did not
-  line up and pages of one kind differed. The detail page kept 24dp
-  until 10-21; user decision (10-21): an 8dp related grid stood off the
-  16dp text and author strip above it on the same page.
+  line up and pages of one kind differed. Feed grids breathe slightly
+  wider (14dp outer padding, 12dp gutters) while detail's related works
+  stay aligned with the 16dp text and author strip above them.
 - **Check:** manual
-- **Code:** `lib/app/theme/func_tokens.dart`
+- **Code:** `lib/app/theme/func_tokens.dart`, `lib/app/widgets/feed/feed_grid.dart`
 
 ### LAYOUT-15 An inline icon button's glyph sits on the content edge
 - **Rule:** At the end of a row, the last icon button's glyph, not its

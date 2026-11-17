@@ -4,7 +4,7 @@ applies_to:
   - lib/app/theme/**
   - lib/app/widgets/**
   - lib/app/app.dart
-reviewed: 2026-11-15
+reviewed: 2026-11-17
 ---
 
 # Theme, color and type
@@ -20,14 +20,19 @@ reviewed: 2026-11-15
 ## Sources
 
 ### THEME-01 One theme, read from context
-- **Rule:** `replicaTheme` builds the only light and dark `ThemeData`.
-  Feature code reads colors, text styles and component defaults from
-  `Theme.of(context)`; it never builds a second palette or copies a
-  component theme locally. `MaterialUiCompatibilityBridge` is installed
-  once in the app builder.
+- **Rule:** `replicaTheme` builds the only light and dark `ThemeData` (with
+  `NoSplash.splashFactory` and visible `onSurface` `highlightColor`,
+  `hoverColor` and `focusColor` state layers so `InkWell`, `ListTile` and
+  buttons keep crisp press/hover/focus feedback; tinted pills put their fill on
+  the outer `Material` rather than inside `InkWell.child`). Feature code reads
+  colors, text styles and component defaults from `Theme.of(context)`; it never
+  builds a second palette or copies a component theme locally.
+  `MaterialUiCompatibilityBridge` is installed once in the app builder.
 - **Why:** Local palettes drifted from the theme and broke dark mode and
-  system colors.
-- **Check:** manual
+  system colors; a transparent `highlightColor` under `NoSplash` left rows and
+  buttons with zero press feedback, and opaque child boxes hid `InkWell` state
+  layers.
+- **Check:** `test/replica_theme_test.dart` "replicaTheme provides visible pressed state feedback for InkWell, ListTile, and buttons"
 - **Code:** `lib/app/theme/replica_theme.dart`, `lib/app/app.dart`
 
 ### THEME-02 No bundled font
@@ -137,7 +142,7 @@ reviewed: 2026-11-15
 - **Check:** `test/replica_theme_test.dart` "a disabled switch that is on takes no accent", "text on the error fill reads at 4.5:1 in both themes"
 - **Code:** `lib/app/theme/replica_theme.dart`, `lib/app/theme/category_colors.dart`, `lib/app/widgets/tag_chips.dart`, `lib/app/widgets/danger_filled_button.dart`, `lib/app/widgets/settings/settings_choice_tile.dart`
 
-### THEME-18 The accent is two colors: text and fill
+### THEME-18 The accent is two colors: text and fill, plus compact branded headers
 - **Rule:** With the default palette, `colorScheme.primary` paints text,
   small icons, indicators and outlines: #B44673 on the light theme,
   #EBA6C6 on the dark. `FuncSemanticTokens.brand` (#E077A6 in both) under
@@ -145,18 +150,20 @@ reviewed: 2026-11-15
   `filledButtonTheme`, the follow button, the solid `ReplicaButton`.
   Selection is a pale container under dark text on the light theme
   (#F5D6E4 / #6D3047) and a deep one under light text on the dark
-  (#5C3443 / #FEE8F3); it is never the fill. These, and
-  `inversePrimary`, are tokens, not M3's generated tones. A system
-  palette paints all of them from its own roles.
+  (#5C3443 / #FEE8F3); it is never the fill. Compact rail-less top bars
+  (`< 600dp`, non-embedded, non-immersed and without `DesktopCommandBar`) paint
+  `brandedHeaderSurface` (#9E3661 default light, luminance-clamped under
+  dynamic colors), `brandedHeaderForeground` and `brandedHeaderTabUnselected`
+  so titles, selected tabs and unselected tabs all keep at least 4.5:1 AA
+  contrast; rail shells (`>= 600dp`) keep the page-surface top bar. A system
+  palette supplies its own accent roles while clamping light header luminance.
 - **Why:** The brand pink measured about 2.9:1 as text on the light page.
-  User decision: fills keep the brand pink with white text
-  (2.85:1, accepted); M3's own deeper tones read as berry red, and a pink
-  container under dark text was rejected. User decision (11-09): the pink
-  is a soft cherry-blossom pink taken from an illustration's hair, the
-  text tier deepened along its shading, which warms as it darkens; M3's
-  generated selection tones drifted toward purple.
-- **Check:** `test/replica_theme_test.dart` "fills are the brand pink under white; selection stays tonal"
-- **Code:** `lib/app/theme/replica_theme.dart`, `lib/app/theme/func_tokens.dart`
+  User decision: fills keep the brand pink with white text (2.85:1, accepted),
+  cherry-blossom text/selection tokens avoid M3's purple drift, and Shaft-style
+  branded headers are restricted to compact phones and deepened for AA contrast
+  so tablet/foldable rails never clash or hide white status-bar clocks.
+- **Check:** `test/replica_theme_test.dart` "fills are the brand pink under white; selection stays tonal" "compact branded header keeps >= 4.5:1 for title, selected tab, and unselected tab"
+- **Code:** `lib/app/theme/replica_theme.dart`, `lib/app/theme/func_tokens.dart`, `lib/app/theme/func_semantic_tokens.dart`, `lib/app/widgets/app_top_bar.dart`
 
 ### THEME-08 Status color goes on the icon, not the text
 - **Rule:** In status rows the icon carries the semantic color (success,
@@ -196,13 +203,14 @@ reviewed: 2026-11-15
 ### THEME-12 Spacing and radii use tokens
 - **Rule:** In `lib/app/**` and `lib/features/**` (outside
   `lib/app/theme/**`), numeric `EdgeInsets` and `Radius.circular` values,
-  and `SizedBox` gaps between children, use `FuncSpacing` and `FuncShape`.
-  Pick the nearest token (6 → `sm`, 10 → `md` for card text indent else
-  `sm`, 20 → `xl` for page margins else `lg`, 28 → `xxl`). Exceptions are
-  allow-listed per file with a reason and a count.
+  and `SizedBox` gaps between children, use `FuncSpacing` and `FuncShape`
+  (`badge` 6, `control` 10, `card` 12, `panel` 16, `dialog` 18, `sheet` top-22,
+  `pill` 999). Pick the nearest spacing token (6 → `sm`, 10 → `md` for card text
+  indent else `sm`, 20 → `xl` for page margins else `lg`, 28 → `xxl`).
+  Exceptions are allow-listed per file with a reason and a count.
 - **Why:** Hand-picked values drifted page by page.
 - **Check:** `test/architecture/spacing_tokens_test.dart`
-- **Code:** `lib/app/theme/func_tokens.dart`
+- **Code:** `lib/app/theme/func_semantic_tokens.dart`, `lib/app/theme/func_tokens.dart`
 
 ### THEME-13 Text fields share one look
 - **Rule:** Text fields use the theme's outlined decoration with a
@@ -313,7 +321,10 @@ reviewed: 2026-11-15
   layer elevation. Lifts and `colorScheme.shadow` are the cocoa ink on the
   light theme, not black; the bar shadow stays neutral. A translucent
   layer frosts what passes under it and draws its lift outside its own
-  shape. Work cards take no shadow and no outline. The shadows:
+  shape. Work cards take no shadow; in the light theme, artwork thumbnails
+  and series covers draw a faint 1dp inner `FuncTokens.cocoaHairline`
+  (`0x143A2A2E`) frame so white-ground illustrations hold their edge on
+  `#FFF9FE` (none on dark). The shadows:
   - `barShadow` and `topBarShadow` where content scrolls under a bar;
   - `layerLift` under a layer resting above the page (the detail capsule);
   - `cardLift` under a card that is an object of its own (the detail

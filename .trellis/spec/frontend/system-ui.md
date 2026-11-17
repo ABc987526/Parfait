@@ -2,10 +2,11 @@
 prefix: SYS
 applies_to:
   - lib/app/system_ui.dart
+  - lib/app/widgets/app_top_bar.dart
   - lib/features/novel/**
   - lib/features/illust/viewer/**
   - lib/features/profile/profile_header_delegate.dart
-reviewed: 2026-10-14
+reviewed: 2026-11-17
 ---
 
 # System bars and immersive pages
@@ -20,16 +21,21 @@ reviewed: 2026-10-14
 - **Check:** `test/architecture/feedback_channels_test.dart` "system UI has exactly one owner"
 - **Code:** `lib/app/system_ui.dart`
 
-### SYS-02 Override bar style by wrapping, never by resetting
+### SYS-02 Override bar style by wrapping, decoupling top and bottom bars when needed
 - **Rule:** A page needing another bar style wraps itself in
-  `FuncSystemBars(background:)`; unmounting restores the root style on the
-  next frame. A sheet opened over such a page wraps itself too, so a light
-  sheet over a dark reader flips the navigation-bar icons while it covers
-  them.
-- **Why:** Imperative resets missed pop paths and left light icons on a
-  light page.
+  `FuncSystemBars(background:, navBarBackground:)`; unmounting restores the root
+  style on the next frame. `funcSystemBarsStyle(statusBarBackground,
+  {navBarBackground})` decouples status-bar icon contrast from the bottom
+  system navigation bar: `AppTopBar` estimates status-bar brightness from its
+  resolved opaque header surface (`ThemeData.estimateBrightnessForColor`, so
+  compact dark branded headers and dynamic palettes stay legible) while
+  keeping `navBarBackground` on the page's `theme.brightness`. A sheet opened
+  over a dark page wraps itself too so its light surface flips the nav-bar
+  icons while covering them.
+- **Why:** Imperative resets missed pop paths, and coupling both bars to a
+  dark compact header painted white navigation-bar icons onto a light page.
 - **Check:** `test/system_ui_test.dart` "a scoped FuncSystemBars overrides the root and restores"
-- **Code:** `lib/app/system_ui.dart`
+- **Code:** `lib/app/system_ui.dart`, `lib/app/widgets/app_top_bar.dart`
 
 ### SYS-03 Immersive pages restore the bars on the successful pop
 - **Rule:** A page that hides the system bars enters `immersiveSticky` in

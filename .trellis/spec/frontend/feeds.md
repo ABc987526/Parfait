@@ -9,7 +9,7 @@ applies_to:
   - lib/app/format/content_locale.dart
   - lib/features/**/*_page.dart
   - lib/core/bookmark/bookmark_actions.dart
-reviewed: 2026-11-15
+reviewed: 2026-11-17
 ---
 
 # Feeds: states, grid, pull to refresh, skeletons
@@ -101,13 +101,15 @@ reviewed: 2026-11-15
 
 ### FEED-19 Grid columns follow the user's density
 - **Rule:** Every illustration grid is an `IllustFeedGrid` and takes its
-  column count from `illustColumnsFor(extent, density)`, the density
-  being the `feedDensity` setting: the narrowest card is 120, 180 or
-  360dp and the fewest columns 3, 2 or 1 (compact, standard,
-  comfortable), so a phone shows three, two or one and wider layouts add
-  columns in proportion. Standard is the default and the old grid.
+  column count from `illustColumnsForContext(context, extent, density)`
+  over `illustColumnsFor(extent, density)`: the narrowest card is 120,
+  180 or 360dp and the fewest columns 3, 2 or 1 (compact, standard,
+  comfortable), while on `FormFactor.pc` the default `standard` density
+  widens the minimum card extent to 216dp (minimum 2 columns) so wide
+  desktops breathe at ~5 columns rather than cramped strips.
 - **Why:** User decision: quick scanning wanted more columns, slow
-  looking a single one; a per-page setting would split one habit.
+  looking a single one, and desktop monitors needed wider default gutters
+  and card extents without splitting the setting per page.
 - **Check:** `test/responsive_layout_test.dart` "illustColumnsFor derives columns from the extent and density" "IllustFeedGrid counts columns on the sliver extent, not the window"
 - **Code:** `lib/app/widgets/feed/feed_grid.dart`, `lib/core/settings/app_settings.dart`
 
@@ -203,8 +205,9 @@ reviewed: 2026-11-15
   width is at least `AppBreakpoints.medium` (600dp) and clears selection when
   narrowed below 600dp. It supports hover selection badges, `Ctrl`/`Cmd`+Click
   individual toggles, `Shift`+Click inclusive range selection, `Ctrl`/`Cmd`+A
-  select-all, and Esc or system back dismissal, displaying `FeedBatchActionBar`
-  for bounded-concurrency public/private batch bookmarking
+  select-all, and Esc or system back dismissal, displaying one floating
+  `FeedBatchActionBar` (integrating select-all and clear with no duplicate top
+  selection strip) for bounded-concurrency public/private batch bookmarking
   (`BookmarkActions.addBatch`) and original downloads.
 - **Why:** Wide desktop and tablet feeds need fast batch triage without polluting
   compact phone browsing or firing uncapped parallel network writes.

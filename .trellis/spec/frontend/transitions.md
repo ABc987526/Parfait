@@ -9,7 +9,7 @@ applies_to:
   - lib/app/widgets/feed/illust_card*.dart
   - lib/features/illust/**
   - android/app/src/main/AndroidManifest.xml
-reviewed: 2026-10-29
+reviewed: 2026-11-17
 ---
 
 # Page transitions, back gesture and Hero flights
@@ -236,7 +236,9 @@ reviewed: 2026-10-29
   or the whole page without one), or over the route holding
   the card's navigator (the viewer on the root navigator over a branch's
   detail page; `HeroPageCover`, the more opaque of a leaving page and its
-  reopened successor), by flight
+  reopened successor; `boundedOverlayOnWide` routes skip `_LiftedBars.capture`
+  so underlying feed bars stay put while their scrim fades smoothly over the
+  full route progress), by flight
   progress where no page registered one. Flight progress (radius, the
   cropped part's reveal) is read off the shuttle's size between the two
   ends, not the route animation. Ignore horizontal route transforms, and
@@ -283,8 +285,9 @@ reviewed: 2026-10-29
 
 ### TRANS-11 Card rounding lives inside the Hero child
 - **Rule:** The card's corner clip (`IllustHeroCardFrame`) wraps the Hero
-  child, and feed cards draw no outline. Only a flight with a card end
-  rounds its corners; detail ↔ viewer flies square. A card that shows
+  child (drawing a faint 1dp inner `cocoaHairline` frame on the light theme per
+  THEME-20, none on dark). Only a flight with a card end rounds its corners;
+  detail ↔ viewer flies square. A card that shows
   only part of the image (the top of a taller one, the middle of a wider
   one) hands its `cropAspect` to the flight, which lays the image out
   covering the rect, top-aligned and centered across, and cuts it to the

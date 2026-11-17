@@ -10,6 +10,7 @@ applies_to:
   - lib/app/widgets/func_bottom_nav.dart
   - lib/app/widgets/app_tab_bar.dart
   - lib/app/widgets/app_top_bar.dart
+  - lib/app/widgets/feed/desktop_gallery_controls.dart
   - lib/app/widgets/tab_swipe_switcher.dart
   - lib/app/widgets/replica_scaffold.dart
   - lib/app/motion/scroll_hide.dart
@@ -21,7 +22,7 @@ applies_to:
   - lib/features/search/search_page.dart
   - lib/features/illust/detail/illust_detail_page.dart
   - lib/features/illust/detail/widgets/detail_overlay_frame.dart
-reviewed: 2026-11-15
+reviewed: 2026-11-17
 ---
 
 # Navigation, shell and tabs
@@ -137,8 +138,8 @@ reviewed: 2026-11-15
   its side (NAV-20). Labels share one `LabelFit` capped at 1.3x text scale.
   From 600dp wide (a turned phone, NAV-20) each destination puts its icon
   beside its label, as wide as both, and the group is centred (Compose's
-  `ShortNavigationBar` in a medium window); the ripple is a pill the bar's
-  height. Narrower, or when a label would not fit beside its icon at
+  `ShortNavigationBar` in a medium window) with no pill backdrop or extra
+  horizontal padding. Narrower, or when a label would not fit beside its icon at
   `LabelFit.minScale` (Japanese at 1.3x on 600dp), the destinations
   share the width, icon over label.
 - **Why:** User decision after comparing with Shaft: no capsule or
@@ -307,12 +308,12 @@ reviewed: 2026-11-15
   | Setting with more values | `SettingsGroup` of `SettingsChoiceTile`s |
   | Two-way property | `SettingsControl` switch |
   | Choice of action | One button per action |
-  | List filter | `FilterMenuButton` ("current value ▾" + menu) |
+  | List filter or desktop gallery header (`FeedDensity`, `DesktopDetailMode`) | `FilterMenuButton` / `DesktopGalleryControls` ("current value ▾" + `AppMenuButton`) |
 
 - **Why:** User decision: pill-shaped segmented buttons are removed from the
-  whole app.
+  whole app, including desktop gallery headers.
 - **Check:** `test/architecture/no_segmented_test.dart`
-- **Code:** `lib/app/widgets/filter_menu_button.dart`
+- **Code:** `lib/app/widgets/filter_menu_button.dart`, `lib/app/widgets/feed/desktop_gallery_controls.dart`
 
 ### NAV-18 Page top bars are AppTopBar
 - **Rule:** Every page's top bar is `AppTopBar`; no raw `AppBar` or
@@ -336,42 +337,31 @@ reviewed: 2026-11-15
 ### NAV-20 Three forms: a phone's bar, a touch rail, a PC rail
 - **Rule:** User decision: the shell is laid out for a `FormFactor`
   (`lib/app/layout/form_factor.dart`), published by `FormFactorScope` in
-  `AppChrome`. A phone, a display whose shortest side is under 600dp
-  (`AppBreakpoints.isPhoneDisplay`, read from `View.display`; Android's
-  sw600dp line), always shows the bottom bar, turned or not. A larger
-  touch screen is `touch`; a desktop (Windows, Linux, macOS) is `pc`
-  unless the user picks the touch shell under 「界面形态」, a setting
-  only desktops offer. From 600dp wide both swap the bar for `ShellRail`,
-  after Shaft's tablet rail: a header, the destinations from the top as
-  one tab group, a short rule, then shortcuts to the bookmarks and the
-  downloads, which open their pages without taking the selection. The
-  selected entry sits on `primary` at 15%; the rail casts `barShadow`
-  over the content instead of a divider, and scrolls when the window is
-  too short. A touch rail defaults to the 88dp icon-over-label column;
-  when the window is at least `840×480` (`FormFactor.canToggleRail`), its
-  header offers the menu button to open the 256dp panel via
-  `AppSettings.railExpanded`, while narrower or shorter (`< 480dp`) touch
-  windows stay collapsed with the app's icon. A PC rail's header is always a
-  menu button that opens the 256dp labelled panel; it opens by itself from
-  1600dp until the user toggles it, then stays as left. The panel
-  opens and closes by animating the rail's width (`MotionTokens.chrome`)
-  and the room the branches give up together, the two forms cross-fading
-  inside the moving edge; the shell's form itself still changes at once
-  when a resize crosses the 600dp line. Beside a
-  rail, `/me` and `/downloads` open on the current branch's stack, so the
-  rail stays; from the viewer they stay overlays (NAV-04). Pages size themselves from `HomeShellChrome.contentSizeOf`
-  (the window less the rail), not the window. An immersive page hides the
-  rail through `shellRailHiddenProvider` while its route is current or
-  only popups (sheets, dialogs) cover it (the novel reader); it releases
-  the rail after the frame, never in dispose.
-- **Why:** On a turned phone five labelled items overflowed 411dp; the
-  scrolling rail that fixed it took 80dp of a phone's width, and the user
-  wanted phones, touch tablets and desktops told apart rather than one
-  width ladder for all. The extended rail took 256dp from content on
-  tablets; a desktop user wants to choose. Opening the profile or the
-  downloads as overlays covered the rail; the reader showed the rail
-  beside the text whenever a sheet opened over it.
-- **Check:** `test/home_branch_stack_test.dart` "a turned phone keeps the bottom bar" "a short window on a tablet gets a scrolling icon rail" "a PC rail opens from extra-large widths until the user" "the PC rail opens and closes by width rather than in one frame" "with reduced motion the PC rail changes width at once" "the interface form changes the shell at once and keeps the" "beside the rail, the downloads and the profile open in the"; `test/novel_reader_stage_test.dart` "the current reader hides the shell rail, under its panels"; `test/layout_breakpoints_test.dart` "a phone, a touch screen or a PC, by display and platform"
+  `AppChrome`. A phone (`AppBreakpoints.isPhoneDisplay`, shortest side `< 600dp`
+  from `View.display`) always shows the bottom bar. Larger touch screens are
+  `touch`; desktops (Windows, Linux, macOS) are `pc` unless the user picks the
+  touch shell under 「界面形态」. From 600dp wide both swap the bar for
+  `ShellRail`: 74dp collapsed (`ShellRail.width`) and 204dp expanded
+  (`ShellRail.expandedWidth`), laid out inside its live width so short-window
+  scrollbars are never clipped and expanded labels share `LabelFit`. Without
+  `DesktopCommandBarScope`, the rail shows a header, the tab destinations, a
+  short rule, and non-selecting shortcuts to bookmarks and downloads; under
+  `DesktopCommandBarScope`, it omits duplicate collapse/bookmark/download items
+  and anchors theme and settings (`router.go('/settings/all')` with
+  `settingsSelected` highlight, never stacking cross-branch pushes) at the
+  bottom. `FormFactor.railExpanded` is the single source of truth across shell,
+  command bar and macOS menu bar: `false` whenever `!canToggleRail`, collapsed
+  by default on touch (toggleable from `840×480`), and open by default on PC
+  from `1200dp` (`AppBreakpoints.large`) until toggled. Width animates on
+  `MotionTokens.chrome` while the 600dp form switch is instant. Beside a rail,
+  `/me` and `/downloads` open on the current branch's stack except from the
+  viewer (NAV-04). Pages size from `HomeShellChrome.contentSizeOf`, and
+  immersive pages hide the rail via `shellRailHiddenProvider` after the frame.
+- **Why:** Turned phones overflowed on a rail; tablets needed compact 74dp
+  chrome while desktops needed a unified 1200dp auto-expand state across window
+  and menu controls without duplicate shortcuts or infinite `/settings/all`
+  pushes.
+- **Check:** `test/home_branch_stack_test.dart` "a turned phone keeps the bottom bar" "a short window on a tablet gets a scrolling icon rail" "a PC rail opens from large widths until the user" "the PC rail opens and closes by width rather than in one frame" "with reduced motion the PC rail changes width at once" "the interface form changes the shell at once and keeps the" "beside the rail, the downloads and the profile open in the"; `test/novel_reader_stage_test.dart` "the current reader hides the shell rail, under its panels"; `test/layout_breakpoints_test.dart` "a phone, a touch screen or a PC, by display and platform"
 - **Code:** `lib/app/layout/form_factor.dart`, `lib/app/widgets/shell_rail.dart`, `lib/app/widgets/home_branch_stack.dart`, `lib/app/navigation/home_shell_metrics.dart`
 
 ### NAV-24 A wide destination bar: tabs, actions, then search
@@ -468,15 +458,17 @@ reviewed: 2026-11-15
 ### NAV-26 Desktop command bar, macOS menu bar and per-branch forward history
 - **Rule:** On desktop platforms (Windows, macOS, Linux), `AppChrome` mounts
   the 48dp `DesktopCommandBar` (rail toggle, back/forward, refresh, search field
-  with keyword pills, reverse search, R-18/AI filter popovers, account switcher,
-  window drag/caption regions) and wraps routes in `DesktopCommandBarScope` so
-  page headers hide duplicate search and refresh triggers; macOS also mounts
-  `DesktopMenuBar` (`PlatformMenuBar`). Narrow or pre-home views keep window
-  chrome only. `ForwardHistoryStack` maintains per-branch forward stacks and
-  clears the active bucket on fresh pushes, while `KeyboardBack` dedupes
-  keyboard and mouse back/forward signals within 120 ms.
+  with `'⌘K'` on macOS / `'Ctrl K'` elsewhere and keyword pills, reverse search,
+  anchored scrim-less `showAppPanel` popovers for `Icons.shield_outlined` R-18/AI
+  filters and account switching, and window drag/caption regions with `2px`
+  unmaximized top/right resize borders so Win11 Snap Layouts stay reachable) and
+  wraps routes in `DesktopCommandBarScope`; `DesktopCommandBarController` hides
+  the bar while the dark `ImageViewerPage` is active (preserving macOS traffic
+  light insets), and macOS mounts `DesktopMenuBar`. `ForwardHistoryStack` keeps
+  per-branch forward stacks while `KeyboardBack` dedupes back/forward within
+  120 ms.
 - **Why:** Desktop shells require unified titlebar commands, native macOS
-  menus, and isolated browser-like forward navigation without double headers or
-  double-firing side buttons.
+  menus, unclipped dark-stage viewing, and isolated browser-like forward
+  navigation without double headers or blocked window caption edges.
 - **Check:** `test/desktop_ux_phase2_test.dart` "DesktopCommandBar chrome, drag regions, header deduplication, and popovers" "DesktopMenuBar restricts to macOS and wires View, Navigation, Bookmarks, Downloads, and Search" "ForwardHistoryStack replays per-branch forward entries and debounces mouse back/forward"
-- **Code:** `lib/app/window/desktop_command_bar.dart`, `lib/app/window/desktop_menu_bar.dart`, `lib/app/window/desktop_title_bar.dart`, `lib/app/navigation/forward_history.dart`, `lib/app/navigation/keyboard_back.dart`
+- **Code:** `lib/app/window/desktop_command_bar.dart`, `lib/app/window/desktop_menu_bar.dart`, `lib/app/window/desktop_title_bar.dart`, `lib/app/navigation/forward_history.dart`, `lib/app/navigation/keyboard_back.dart`, `windows/runner/flutter_window.cpp`

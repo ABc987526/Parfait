@@ -10,7 +10,7 @@ applies_to:
   - lib/app/navigation/route_animation.dart
   - lib/app/layout/sliver_width_builder.dart
   - lib/app/startup_gate.dart
-reviewed: 2026-11-15
+reviewed: 2026-11-17
 ---
 
 # Motion, press feedback and the rebuild budget
@@ -113,14 +113,15 @@ reviewed: 2026-11-15
 ## Press and removal
 
 ### MOTION-06 One kind of press feedback per element
-- **Rule:** Every tappable element shows a press, and only one kind: a
-  ripple where ink fits the visible shape (rows, tiles, menu items,
-  buttons, the bottom bar), `PressScale` on cards (0.97) and pills (0.96).
-  A card holding a button of its own (`PersonCard`) takes the ripple
-  instead: the button's press holds the card's ink back. `TagChip` has
-  no ink because its 48dp target is larger than the pill. A disabled
-  element gets no press. Small targets reach 48dp without growing the
-  visible shape, and neighbouring targets touch.
+- **Rule:** Every tappable element shows a press, and only one kind: an ink
+  highlight state layer where the surface fits the visible shape (rows, tiles,
+  menu items, buttons, the bottom bar, THEME-01), or `PressScale` on cards
+  (0.97, including pointer `IllustCard`s) and pills (0.96). A card holding a
+  button of its own (`PersonCard`) takes the surface highlight instead: the
+  button's press holds the card's highlight back. `TagChip` has no ink because
+  its 48dp target is larger than the pill. A disabled element gets no press.
+  Small targets reach 48dp without growing the visible shape, and neighbouring
+  targets touch.
 - **Why:** Ripple plus scale on one card read as two presses; ink filling
   an invisible margin looked like a misfire. `PressScale` listens to raw
   pointers, so a press on a button inside a scaled card shrank the card
@@ -274,10 +275,11 @@ reviewed: 2026-11-15
 ### MOTION-17 GPU pipelines a first use would compile are warmed at start
 - **Rule:** `PipelineWarmup` paints, in the app's first frames, what
   compiles a pipeline on first use: the Hero flight's clipped and
-  transformed image, and under an `InkSparkle` theme the ripple shader,
-  drawn transparent inside a rounded clip as a ripple draws it. It keeps
-  the shader's program for the process, so `InkSparkle` gets the same
-  one. The content stays its first child throughout.
+  transformed image, a rounded clip press-highlight pass under `NoSplash`, and
+  under an `InkSparkle` theme the ripple shader, drawn transparent inside a
+  rounded clip as a ripple draws it. It keeps the shader's program for the
+  process, so `InkSparkle` gets the same one. The content stays its first child
+  throughout.
 - **Why:** The first back flight dropped frames, and the first tap spent
   16 ms of a raster frame compiling the ripple. Unwrapping the content
   when the warm-up ended remounted the app.
@@ -370,15 +372,24 @@ reviewed: 2026-11-15
   down; `HomeBranchStack` over `ShellRail` animates branch switches with a
   150 ms `MotionTokens.desktopBranchSwitch` fade plus 12dp short slide (or instant
   cut under reduced motion); and `SmoothWheelScroll` calls `jumpTo` with
-  `Duration.zero` on discrete wheel ticks rather than queuing synthetic easing.
+  `Duration.zero` on discrete wheel ticks while dispatching user-scroll
+  direction notifications (`dispatchWheelUserScroll`) so `ScrollHide` bars
+  follow mouse wheels cleanly.
 - **Why:** Touch tap-delay filters, full-viewport mobile slide travel, and
   synthetic easing inertia make mouse clicks and precision wheel scrolling feel
-  sluggish on desktop.
+  sluggish on desktop, and `jumpTo` alone would not notify scroll-hiding bars.
 - **Check:** `test/desktop_ux_phase2_test.dart` "Pointer mode skips PressScale 100ms delay, animates ShellRail fade+slide at 150ms, and SmoothWheelScroll jumps instantly"
-- **Code:** `lib/app/motion/press_scale.dart`, `lib/app/motion/motion_tokens.dart`, `lib/app/widgets/home_branch_stack.dart`, `lib/app/widgets/smooth_wheel_scroll.dart`
+- **Code:** `lib/app/motion/press_scale.dart`, `lib/app/motion/motion_tokens.dart`, `lib/app/motion/scroll_hide.dart`, `lib/app/widgets/home_branch_stack.dart`, `lib/app/widgets/smooth_wheel_scroll.dart`
 
-### MOTION-24 iOS frosted card menu and shared canvas dismiss suppress displacement under reduced motion
-- **Rule:** Under reduced motion (`!MotionTokens.enabled(context)`), `IosCardContextMenu` omits spring lift translation and fades in place, and iOS `FuncPage` shared-element drag dismiss suppresses canvas translation, scaling, and `FuncShape.dialog` corner rounding while keeping backdrop fade and dismiss completion intact.
-- **Why:** Spatial zoom and canvas translation trigger discomfort under reduced-motion accessibility settings, whereas backdrop opacity continues communicating gesture progress cleanly.
+### MOTION-24 Frosted card menu and drag-to-dismiss suppress displacement under reduced motion
+- **Rule:** Under reduced motion (`!MotionTokens.enabled(context)`),
+  `IosCardContextMenu` omits spring lift translation and fades in place,
+  `DragToDismiss` suppresses drag offset and scale while keeping threshold pop
+  completion, and iOS `FuncPage` shared-element drag dismiss suppresses canvas
+  translation, scaling, and `FuncShape.dialog` corner rounding while keeping
+  backdrop fade and dismiss completion intact.
+- **Why:** Spatial zoom and drag translation trigger discomfort under
+  reduced-motion accessibility settings, whereas backdrop opacity continues
+  communicating gesture progress cleanly.
 - **Check:** `test/card_action_test.dart` "iOS card context menu respects reduced motion without scaling", `test/func_page_test.dart` "iOS sharedElement canvas dismiss disables scale and displacement under reduced motion", `test/multiplatform_matrix_gate_test.dart` "reduced motion gate disables scale and displacement on shared-element dismiss and context menu"
-- **Code:** `lib/app/widgets/card_actions/ios_card_context_menu.dart`, `lib/app/navigation/func_page.dart`, `lib/app/motion/motion_tokens.dart`
+- **Code:** `lib/app/widgets/card_actions/ios_card_context_menu.dart`, `lib/app/motion/drag_to_dismiss.dart`, `lib/app/navigation/func_page.dart`, `lib/app/motion/motion_tokens.dart`

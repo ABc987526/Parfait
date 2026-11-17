@@ -3,7 +3,7 @@ prefix: NOVEL
 applies_to:
   - lib/features/novel/**
   - lib/core/novel/**
-reviewed: 2026-11-15
+reviewed: 2026-11-17
 ---
 
 # Novel markup and reader
@@ -178,8 +178,10 @@ reviewed: 2026-11-15
   page's lines fill — centred, at `ContentWidths.article` and the
   layout's horizontal padding — not on the window's left edge, and on
   `FoldPosture.book` with a valid hinge it stays constrained to the left
-  pane (`width: hingeBounds.left`) so text never crosses the crease. In the
-  chrome's bottom bar the
+  pane (`width: hingeBounds.left`) so text never crosses the crease; it splits
+  into an ellipsizing `Flexible` title and a fixed `page/total · percent%`
+  suffix inside `MergeSemantics` so long titles never truncate reading progress
+  or translation status. In the chrome's bottom bar the
   progress readout is an outlined pill ending in an expand glyph, which
   opens the progress sheet; its outline is the text color at
   `novelReaderPillOutlineAlpha`, no fainter than keeps 3:1 on every

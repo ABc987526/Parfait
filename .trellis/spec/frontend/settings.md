@@ -3,7 +3,7 @@ prefix: SET
 applies_to:
   - lib/app/widgets/settings/**
   - lib/features/settings/**
-reviewed: 2026-11-15
+reviewed: 2026-11-17
 ---
 
 # Settings pages and the Me tab
@@ -26,11 +26,10 @@ reviewed: 2026-11-15
   of its own. Notes on how to use a setting are not written (PAGE-20).
   On one page either every group has a title or none does. A leaving
   `Removable` row stops counting from the exit's first frame.
-- **Why:** User decision: separate cards on settings pages replaced the 2dp
-  segmented list. The Me tab is not a settings page and lists its rows
-  plainly (SET-07). Notes set apart from their row and a
+- **Why:** User decision: separate cards on settings and the Me dashboard
+  replaced segmented lists and dividers. Notes set apart from their row and a
   page with one titled group read as unrelated. An empty group's note on
-  a card read as a row to press (user report, 10-25).
+  a card read as a row to press.
 - **Check:** `test/architecture/settings_rows_test.dart` "SettingsSection is gone from lib/"; `test/muted_items_page_test.dart` "an empty group says it is empty, off the cards"
 - **Code:** `lib/app/widgets/settings/settings_group.dart`
 
@@ -48,16 +47,19 @@ reviewed: 2026-11-15
 - **Code:** `lib/app/widgets/settings/settings_menu_tile.dart`, `lib/app/widgets/settings/settings_choice_tile.dart`
 
 ### SET-08 Page entries carry a circle in their group's color
-- **Rule:** A row that opens a settings page from the index is
-  `SettingsTile.topLevel`, its icon on a circle in its group's
-  category tone (THEME-07): appearance purple, browse blue, network and
-  download green, data orange; account, about and developer neutral.
-  Rows inside a settings page show the bare icon.
-- **Why:** User decision: the circle marks the top level, and one color
-  per group tells the groups apart before their titles are read; on
-  sub-pages the circle outweighed the setting rows around it.
+- **Rule:** A row that opens a settings page from the index (`SettingsTile.topLevel`)
+  or a section from the Me dashboard carries its icon on a 40dp circle in its
+  group's category tone (`CategoryColors`, THEME-07): appearance purple, browse
+  blue, network and download green, data orange; account, about and developer
+  neutral (`neutralCategoryTone`). Rows inside a settings sub-page show the bare
+  icon. Selected `SettingsTile`s step their overlay alpha across default/focused
+  (0.12), hovered (0.16) and pressed (0.20), and `AccountSettingsPage` keeps the
+  selected account's ID subtitle on `onSurfaceVariant`.
+- **Why:** User decision: the circle marks top-level navigation across both Me
+  and Settings and tells groups apart before their titles are read; on sub-pages
+  the circle outweighed the setting rows around it.
 - **Check:** manual
-- **Code:** `lib/app/widgets/settings/settings_tile.dart`, `lib/features/settings/settings_page.dart`
+- **Code:** `lib/app/widgets/settings/settings_tile.dart`, `lib/features/settings/settings_page.dart`, `lib/features/settings/me_dashboard_page.dart`, `lib/features/settings/pages/account_settings_page.dart`
 
 ### SET-09 A form is one card with its save at the end
 - **Rule:** A form's fields and its `FilledButton` save sit in one
@@ -116,57 +118,47 @@ reviewed: 2026-11-15
 - **Check:** `test/settings_search_test.dart` "title hits come before option hits, case and spaces ignored" "a result opens its page with the setting revealed and marked"
 - **Code:** `lib/features/settings/settings_catalog.dart`, `lib/app/widgets/settings/settings_anchor.dart`
 
-### SET-06 Each setting has one home page
-- **Rule:** `/settings/motion` holds animation speed,
-  reduced motion, press feedback and haptic strength. Credential export
-  is in account management. History switches and delete-all are in the
-  history page's overflow menu; there is no history settings page. The
-  interface form (NAV-20) heads `/settings/navigation` and, like the
-  haptic strength, exists only where `Setting.available` says so: the row
-  and its search entry alike.
-- **Why:** The same setting on two pages drifted apart.
-- **Check:** `test/settings_search_test.dart` "every catalog entry is on its page"
-- **Code:** `lib/features/settings/settings_catalog.dart`
+### SET-06 Each setting has one home page and master-detail layout on wide workspaces
+- **Rule:** `/settings/motion` holds animation speed, reduced motion, press
+  feedback and haptic strength (shown on Android and on iOS devices where
+  `hapticsCapabilityProvider` reports `tier != HapticsTier.none`). Credential
+  export is in account management. History switches and delete-all are in the
+  history page's overflow menu; there is no history settings page. The interface
+  form (NAV-20) heads `/settings/navigation` and, like haptic strength, exists
+  only where `Setting.available` says so: the row and its search entry alike.
+  When `HomeShellChrome.contentSizeOf` is at least `840dp` wide and
+  `viewport.width >= viewport.height * 0.75`, `/settings/all` stays inside the
+  shell beside `ShellRail` and splits into a 292dp index pane plus a nested
+  detail `Navigator` (`SettingsDetailScope`, `EmbeddedHeaderScope` flat neutral
+  headers, `MotionTokens.stateFadeCurve` with leaving `IgnorePointer`, and
+  `settingsNarrowBody` left-aligned up to 780dp).
+- **Why:** The same setting on two pages drifted apart; hardwareless iPads omit
+  dead haptic sliders while Taptic iPhones expose them; and wide desktop
+  settings need comfortable left-aligned room beside the persistent shell rail
+  without double top bars.
+- **Check:** `test/settings_search_test.dart` "every catalog entry is on its page"; `test/settings_master_detail_test.dart` "wide desktop uses master-detail with nested navigation; below 840dp stays single column"
+- **Code:** `lib/features/settings/settings_catalog.dart`, `lib/features/settings/settings_page.dart`, `lib/features/settings/settings_helpers.dart`, `lib/features/settings/pages/motion_settings_page.dart`
 
 ## Me tab
 
-### SET-07 The Me tab puts content before settings
-- **Rule:** The Me root is laid out as YouTube's: no buttons on its top
-  bar, and no card but the account header. First the account header, a
-  `PersonCard` (PAGE-07): a 72dp avatar, the name with a neutral
-  "Premium" pill for a premium account, and the user ID under it,
-  together one button that opens the profile (its screen-reader hint
-  says so); account management is its own icon button at the card's
-  end, its glyph on the card's padding. Signed out, the header is one
-  button to the login, with no manage button. Then the last eight
-  history records as a row of covers with
-  "see all" (hidden when the history is empty), then the content entries
-  as list rows with a neutral icon (bookmarks, following, watchlist,
-  watch later, local novels, download tasks with the active-task count
-  at the row's end, then each destination the user took off the bottom
-  bar), then a divider and two rows: settings (the index) and about. The
-  settings groups and the developer group live on the index only. A
-  cover is square and shows the top of
-  a taller image, the middle of a wider one. An illustration cover opens
-  the detail pager over the row's illustrations in their order at the
-  tap. A cover whose work is in the illustration store flies to the
-  detail page and back (TRANS-09, its own scope per TRANS-07); one whose
-  work is not opens with no flight and takes none back. While any page
-  covers the row (opened from it or from anywhere, in the branch or on
-  the root navigator over the shell) it keeps its order; once that page
-  has left (its image landed) it takes the new order at once: each cover slides from
-  where it was to its place on `MotionTokens.spatial`, one new to the row
-  slides in from the leading edge and fades in, a new order mid-slide
-  carries on from where each cover is, and reduced motion moves them at
-  once. Hidden (another tab) the row takes the new order when it shows.
-  "Covered" is read from the secondary animations of the row's route and
-  of the shell's route, never from TickerMode: the Overlay stops tickers
-  under any opaque page, so TickerMode cannot tell a page from a tab. When
-  `HomeShellChrome.contentSizeOf` is at least `840×480`, the Me tab lays
-  out as a centred 1080dp-max two-column dashboard
-  (`ValueKey('me-wide-dashboard')`: account header, recent row and settings
-  in the leading column beside the content shortcuts), preserving the
-  recent row across resizes via a persistent `GlobalKey`.
+### SET-07 The Me tab puts content before settings on unified cards
+- **Rule:** The Me root has no buttons on its top bar. First comes the account
+  header (`PersonCard`, PAGE-07: 72dp avatar, name with neutral "Premium" pill,
+  user ID, opening the profile; trailing manage icon button; or one sign-in
+  button when signed out). Next comes the last eight history records as a row of
+  square covers with "see all" (hidden when empty), then the content entries
+  (bookmarks, following, watchlist, watch later, novel markers, local novels,
+  download tasks with active count, and any off-bar destinations) and the
+  settings/about entries, each rendered as a divider-free `surfaceContainer`
+  card row (`FuncSpacing.sm` gap) with a 40dp circular `CategoryColors` icon
+  disc (`SET-08`). An illustration cover opens the detail pager over the row's
+  illustrations; covers in `IllustStore` fly via Hero (`'me-history'`, TRANS-07)
+  while unseen ones do not. Covered by any route (read from route secondary
+  animations, never `TickerMode`), the row holds its order and slides to the new
+  order on `MotionTokens.spatial` once uncovered. From `840×480` content size,
+  the Me tab lays out as a centred 1080dp-max two-column dashboard
+  (`ValueKey('me-wide-dashboard')`: account header, recent row and system cards
+  leading; content cards trailing), preserving the recent row via a `GlobalKey`.
 - **Why:** User decision: settings filled two thirds of the page in a
   style of their own, and nothing showed what the user saw last; then
   (10-21) the page read as unpolished next to mature apps, and YouTube's

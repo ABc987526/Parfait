@@ -31,7 +31,7 @@ applies_to:
   - lib/app/scroll_behavior.dart
   - lib/features/illust/detail/**
   - lib/features/novel/novel_page.dart
-reviewed: 2026-11-15
+reviewed: 2026-11-17
 ---
 
 # Page-specific rules
@@ -433,17 +433,18 @@ reviewed: 2026-11-15
 - **Code:** `lib/app/widgets/display_actions.dart`, `lib/app/motion/app_overlays.dart`, `lib/app/widgets/card_actions/card_action_sheet.dart`, `lib/app/widgets/tag_actions_sheet.dart`, `lib/app/widgets/bookmark_switch_button.dart`, `lib/app/widgets/feed/illust_card.dart`, `lib/app/scroll_behavior.dart`, `lib/app/pull_to_refresh.dart`
 
 ### PAGE-24 Pointer work card hover pills and selectable comment lists
-- **Rule:** Under `InputModality.pointer`, `IllustCard` omits `PressScale` shrink
-  and touch long-press gestures (retaining secondary-click context menus and
-  keyboard menu keys), reveals 28dp author avatar and bookmark quick-action
-  hover pills along the card overlay footer, and wraps card content in
+- **Rule:** Under `InputModality.pointer`, `IllustCard` keeps immediate
+  `PressScale` feedback (MOTION-23) while omitting touch long-press gestures
+  (retaining silent secondary-click context menus and keyboard menu keys),
+  reveals the 28dp author avatar pill at bottom-start and bookmark pill at
+  bottom-end on hover (clearing Ugoira/AI badges, while top-start R-18 badges
+  shift past multi-select checkboxes), and wraps card content in
   `SelectionContainer.disabled` to prevent stray drag selections. `CommentsPage`
-  wraps comment lists in `SelectionArea` while excluding the bottom
-  `CommentComposer`.
-- **Why:** Pointer cards benefit from single-click hover shortcuts instead of
-  touch scaling and hidden long presses, while comment threads should allow
+  wraps comment lists in `SelectionArea` while excluding `CommentComposer`.
+- **Why:** Pointer cards pair crisp click scaling with non-overlapping hover
+  shortcuts instead of hidden touch long presses, while comment threads allow
   direct text copying without interfering with card gestures.
-- **Check:** `test/desktop_ux_phase2_test.dart` "Pointer IllustCard omits PressScale and long-press and reveals quick author and bookmark hover pills" "SelectionArea wraps detail and comments text while excluding IllustCard, collapsed fade, and touch tags"
+- **Check:** `test/desktop_ux_phase2_test.dart` "Pointer IllustCard keeps immediate PressScale, omits touch long-press, and reveals quick author and bookmark hover pills" "SelectionArea wraps detail and comments text while excluding IllustCard, collapsed fade, and touch tags"
 - **Code:** `lib/app/widgets/feed/illust_card.dart`, `lib/features/comments/comments_page.dart`
 
 ### PAGE-25 Five-scenario responsive and input-modality verification matrix
