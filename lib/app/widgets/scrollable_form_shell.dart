@@ -5,7 +5,9 @@ import 'package:material_ui/material_ui.dart';
 
 import '../layout/app_breakpoints.dart';
 import '../layout/content_widths.dart';
+import '../window/desktop_command_bar.dart' show DesktopCommandBarScope;
 import 'ambient_wash.dart';
+import 'app_top_bar.dart' show EmbeddedHeaderScope;
 import 'replica_scaffold.dart';
 import '../theme/func_semantic_tokens.dart';
 
@@ -37,10 +39,13 @@ class ScrollableFormShell extends StatelessWidget {
     required this.primaryAction,
     this.secondary,
     this.contentMaxWidth = ContentWidths.form,
+    this.primaryActionMaxWidth,
     this.title,
     this.actions,
     this.brandGlow = false,
   });
+
+  static const double _centeredSingleActionMaxWidth = 320;
 
   /// Top slot — brand lockup or page heading. Scrolls with the content.
   final Widget header;
@@ -62,6 +67,11 @@ class ScrollableFormShell extends StatelessWidget {
   /// a breakpoint. Defaults to [ContentWidths.form].
   final double contentMaxWidth;
 
+  /// Optional width cap for [primaryAction]. When null and centered on a wide
+  /// surface, single non-row primary actions cap at 320dp instead of
+  /// stretching across [contentMaxWidth].
+  final double? primaryActionMaxWidth;
+
   /// AppBar title forwarded to [ReplicaScaffold].
   final Widget? title;
 
@@ -75,28 +85,36 @@ class ScrollableFormShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
-      // The outer layout includes the toolbar; use the same body height the
-      // Scaffold will give the form so short-window geometry is unchanged.
       final media = MediaQuery.of(context);
+      final canPop = Navigator.of(context).canPop();
+      final desktopOwned =
+          DesktopCommandBarScope.isActiveOf(context) &&
+          !EmbeddedHeaderScope.isActiveOf(context);
+      final showBack = !desktopOwned && canPop;
+      final hasActions = actions != null && actions!.isNotEmpty;
+      final showTopBar = title != null || hasActions || showBack;
+
+      final topSafe = media.padding.top;
+      final topBarTotal = showTopBar ? topSafe + kToolbarHeight : topSafe;
       final bottomInset = math.max(
         media.padding.bottom,
         media.viewInsets.bottom,
       );
-      // Both bounds yield the body's share of the window: the toolbar and
-      // the bottom inset are not available to the form. The minimum can
-      // therefore exceed the maximum on a short window with a bottom
-      // inset (a folded cover screen, a phone with the keyboard up); a
-      // non-normalized BoxConstraints would assert inside
-      // `bodyConstraints.biggest`. Clamp the minimum to the maximum so
-      // the pair stays valid.
+      final bottomSafe = showTopBar
+          ? 0.0
+          : math.max(0.0, media.padding.bottom - media.viewInsets.bottom);
+
+      // Subtract actual top chrome/status inset and bottom safe/IME inset so
+      // `_minColumnHeight` matches the real scrollable viewport height and
+      // never overflows past the bottom home indicator (P0-8).
       final bodyMaxHeight = math.max(
         0.0,
-        constraints.maxHeight - kToolbarHeight - bottomInset,
+        constraints.maxHeight - topBarTotal - bottomInset,
       );
       final bodyMinHeight = math.max(
         0.0,
         math.min(
-          constraints.minHeight - kToolbarHeight - bottomInset,
+          constraints.minHeight - topBarTotal - bottomInset,
           bodyMaxHeight,
         ),
       );
@@ -106,24 +124,38 @@ class ScrollableFormShell extends StatelessWidget {
       );
       final beside = AppBreakpoints.useSideBySideForm(bodyConstraints.biggest);
       final form = beside
-          ? _sideBySide(bodyConstraints)
-          : _stacked(bodyConstraints);
-      final body = !brandGlow
-          ? form
-          : Stack(
-              fit: StackFit.expand,
-              children: [
-                _BrandGlow(beside: beside, maxExtent: contentMaxWidth),
-                form,
-              ],
-            );
-      return ReplicaScaffold(
-        title: title,
-        actions: actions,
-        // The form occupies the right half in a short side-by-side window;
-        // a centred full-page inset would put the bar over neither column.
-        contentWidth: beside ? null : contentMaxWidth,
-        child: body,
+          ? _sideBySide(bodyConstraints, bottomSafe: bottomSafe)
+          : _stacked(bodyConstraints, bottomSafe: bottomSafe);
+      if (showTopBar) {
+        final body = !brandGlow
+            ? form
+            : Stack(
+                fit: StackFit.expand,
+                children: [
+                  _BrandGlow(beside: beside, maxExtent: contentMaxWidth),
+                  form,
+                ],
+              );
+        return ReplicaScaffold(
+          title: title,
+          actions: actions,
+          // The form occupies the right half in a short side-by-side window;
+          // a centred full-page inset would put the bar over neither column.
+          contentWidth: beside ? null : contentMaxWidth,
+          child: body,
+        );
+      }
+      final safeForm = SafeArea(top: true, bottom: false, child: form);
+      return Scaffold(
+        body: !brandGlow
+            ? safeForm
+            : Stack(
+                fit: StackFit.expand,
+                children: [
+                  _BrandGlow(beside: beside, maxExtent: contentMaxWidth),
+                  safeForm,
+                ],
+              ),
       );
     },
   );
@@ -138,7 +170,7 @@ class ScrollableFormShell extends StatelessWidget {
   static double _minColumnHeight(double height) =>
       (height - 2 * FuncSpacing.xl).clamp(0.0, double.infinity);
 
-  Widget _stacked(BoxConstraints constraints) {
+  Widget _stacked(BoxConstraints constraints, {required double bottomSafe}) {
     final horizontal = _horizontalPadding(constraints.maxWidth);
     final centered = constraints.maxWidth >= AppBreakpoints.expanded;
     return SingleChildScrollView(
@@ -146,7 +178,7 @@ class ScrollableFormShell extends StatelessWidget {
         horizontal,
         FuncSpacing.xl,
         horizontal,
-        FuncSpacing.xl,
+        FuncSpacing.xl + bottomSafe,
       ),
       child: Center(
         child: ConstrainedBox(
@@ -166,7 +198,7 @@ class ScrollableFormShell extends StatelessWidget {
                     header,
                     const SizedBox(height: FuncSpacing.xl),
                     content,
-                    _actionColumn(gap: FuncSpacing.xl),
+                    _actionColumn(gap: FuncSpacing.xl, centered: true),
                   ],
                 )
               : Column(
@@ -194,14 +226,14 @@ class ScrollableFormShell extends StatelessWidget {
   /// A short, wide window (a phone held sideways) has no room to stack the
   /// header above the form: the header takes the start half, the form and
   /// its action the end half, so the action is on the first screen.
-  Widget _sideBySide(BoxConstraints constraints) {
+  Widget _sideBySide(BoxConstraints constraints, {required double bottomSafe}) {
     final half = constraints.maxWidth / 2;
     final horizontal = _horizontalPadding(half);
     final padding = EdgeInsets.fromLTRB(
       horizontal,
       FuncSpacing.xl,
       horizontal,
-      FuncSpacing.xl,
+      FuncSpacing.xl + bottomSafe,
     );
     return Row(
       children: [
@@ -232,19 +264,34 @@ class ScrollableFormShell extends StatelessWidget {
     );
   }
 
-  Widget _actionColumn({double gap = FuncSpacing.xxxl}) => Column(
-    mainAxisSize: MainAxisSize.min,
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      SizedBox(height: gap),
-      primaryAction,
-      if (secondary != null) ...[
-        const SizedBox(height: FuncSpacing.sm),
-        secondary!,
+  Widget _actionColumn({double gap = FuncSpacing.xxxl, bool centered = false}) {
+    final capWidth = centered
+        ? primaryActionMaxWidth ??
+              (primaryAction is! Row ? _centeredSingleActionMaxWidth : null)
+        : null;
+    final resolvedPrimaryAction = capWidth == null
+        ? primaryAction
+        : Align(
+            alignment: Alignment.center,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: capWidth),
+              child: SizedBox(width: double.infinity, child: primaryAction),
+            ),
+          );
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(height: gap),
+        resolvedPrimaryAction,
+        if (secondary != null) ...[
+          const SizedBox(height: FuncSpacing.sm),
+          secondary!,
+        ],
+        const SizedBox(height: FuncSpacing.xl),
       ],
-      const SizedBox(height: FuncSpacing.xl),
-    ],
-  );
+    );
+  }
 }
 
 /// The app icon through the ambient tone lock, blurred, fading out

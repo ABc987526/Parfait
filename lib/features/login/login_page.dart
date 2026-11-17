@@ -4,6 +4,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../app/layout/app_breakpoints.dart';
 import '../../app/motion/app_overlays.dart';
 import '../../app/motion/reveal.dart';
 import '../../app/theme/func_semantic_tokens.dart';
@@ -265,12 +266,17 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
     );
 
+    final inlineTitle =
+        widget.isFirst ||
+        MediaQuery.sizeOf(context).width >= AppBreakpoints.expanded;
+
     return ScrollableFormShell(
       brandGlow: true,
-      title: widget.isFirst ? null : title,
-      // The first-run variant shows the title inside the scrollable body —
-      // same treatment as the onboarding pages sharing this shell.
-      header: widget.isFirst ? title : const SizedBox.shrink(),
+      title: inlineTitle ? null : title,
+      // First-run onboarding and wide/desktop viewports keep the heading
+      // inside the scrollable centered form group so it never strands at the
+      // top window edge.
+      header: inlineTitle ? title : const SizedBox.shrink(),
       content: _buildNetworkOptions(context, text: text),
       primaryAction: _buildMainActions(text),
       secondary: _buildSecondary(

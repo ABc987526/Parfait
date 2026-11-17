@@ -284,8 +284,12 @@ class DevShellHostState extends State<DevShellHost> {
         trafficLightWidth: 78,
         trafficLightHeight: 16,
       ),
-      TargetPlatform.windows || TargetPlatform.linux =>
-        const DesktopWindowPlatformMetrics(usesSystemTitleBar: false),
+      TargetPlatform.windows => const DesktopWindowPlatformMetrics(
+        usesSystemTitleBar: false,
+      ),
+      TargetPlatform.linux => const DesktopWindowPlatformMetrics(
+        usesSystemTitleBar: true,
+      ),
       _ => null,
     };
   }

@@ -323,7 +323,7 @@ class _DesktopWindowFrameState extends State<DesktopWindowFrame> {
   ) {
     _lastActions = actions;
     _lastChrome = chrome;
-    if (widget.suppressOverlayBar) {
+    if (widget.suppressOverlayBar && !chrome.isFullScreen) {
       _lastRegionSignature = null;
       return;
     }
@@ -946,6 +946,161 @@ class SimulatedMacTrafficLights extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Floating window chrome (caption drag zone, native/simulated traffic lights,
+/// and custom minimize/maximize/close buttons) mounted when `DesktopCommandBar`
+/// hides itself on desktop (e.g. inside `ImageViewerPage`).
+class DesktopFallbackWindowChrome extends StatefulWidget {
+  const DesktopFallbackWindowChrome({
+    super.key,
+    required this.chrome,
+    required this.child,
+  });
+
+  final DesktopChromeMetrics chrome;
+  final Widget child;
+
+  @override
+  State<DesktopFallbackWindowChrome> createState() =>
+      _DesktopFallbackWindowChromeState();
+}
+
+class _DesktopFallbackWindowChromeState
+    extends State<DesktopFallbackWindowChrome> {
+  final GlobalKey _dragKey = GlobalKey();
+  final GlobalKey _maximizeKey = GlobalKey();
+  final GlobalKey _captionButtonsKey = GlobalKey();
+
+  bool _regionMeasurePending = false;
+  String? _lastRegionSignature;
+  DesktopChromeMetrics? _lastChrome;
+
+  void _scheduleRegionPublish(DesktopChromeMetrics chrome) {
+    _lastChrome = chrome;
+    final actions = chrome.actions;
+    if (actions == null || _regionMeasurePending) return;
+    _regionMeasurePending = true;
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      _regionMeasurePending = false;
+      if (!mounted) return;
+      final currentChrome = _lastChrome;
+      final currentActions = currentChrome?.actions;
+      if (currentActions == null || currentChrome == null) return;
+      final regions = <DesktopTitleBarRegion>[];
+      if (currentChrome.hasCustomChrome) {
+        final dragRect = _globalRectOf(_dragKey);
+        if (dragRect != null && !dragRect.isEmpty) {
+          regions.add(DesktopTitleBarRegion(rect: dragRect, kind: 'caption'));
+        }
+        if (currentChrome.showCustomButtons) {
+          final maxRect = _globalRectOf(_maximizeKey);
+          if (maxRect != null && !maxRect.isEmpty) {
+            regions.add(DesktopTitleBarRegion(rect: maxRect, kind: 'maximize'));
+          }
+          final buttonsRect = _globalRectOf(_captionButtonsKey);
+          if (buttonsRect != null && !buttonsRect.isEmpty) {
+            regions.add(
+              DesktopTitleBarRegion(rect: buttonsRect, kind: 'buttons'),
+            );
+          }
+        }
+      }
+      final signature = [
+        for (final r in regions)
+          '${r.kind}:${r.rect.left.toStringAsFixed(1)},'
+              '${r.rect.top.toStringAsFixed(1)},'
+              '${r.rect.right.toStringAsFixed(1)},'
+              '${r.rect.bottom.toStringAsFixed(1)}',
+      ].join(';');
+      if (signature == _lastRegionSignature) return;
+      _lastRegionSignature = signature;
+      final publishWithHeight = currentActions.onRegionsWithHeightChanged;
+      if (publishWithHeight != null && currentChrome.hasCustomChrome) {
+        publishWithHeight(regions, currentChrome.titleBarHeight);
+      } else {
+        currentActions.onRegionsChanged(regions);
+      }
+    });
+  }
+
+  Rect? _globalRectOf(GlobalKey key) {
+    final renderObject = key.currentContext?.findRenderObject();
+    if (renderObject is! RenderBox ||
+        !renderObject.attached ||
+        !renderObject.hasSize) {
+      return null;
+    }
+    return renderObject.localToGlobal(Offset.zero) & renderObject.size;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final chrome = widget.chrome;
+    _scheduleRegionPublish(chrome);
+    if (!chrome.hasCustomChrome) {
+      return widget.child;
+    }
+    final platform = Theme.of(context).platform;
+    final actions = chrome.actions;
+    final showMacLights =
+        platform == TargetPlatform.macOS && chrome.showSimulatedTrafficLights;
+    final dragZone = Positioned(
+      top: 0,
+      left: chrome.showCustomButtons ? 0 : chrome.leadingInset,
+      right: chrome.trailingInset,
+      height: chrome.titleBarHeight,
+      child: KeyedSubtree(
+        key: _dragKey,
+        child: platform == TargetPlatform.windows
+            ? const IgnorePointer(child: SizedBox.expand())
+            : GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onPanStart: actions == null
+                    ? null
+                    : (_) => actions.onStartDragging(),
+                onDoubleTap: actions?.onTitleBarDoubleClick,
+                child: const SizedBox.expand(),
+              ),
+      ),
+    );
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        widget.child,
+        dragZone,
+        if (showMacLights)
+          PositionedDirectional(
+            top: 0,
+            start: 0,
+            width: chrome.leadingInset > 0
+                ? chrome.leadingInset
+                : _macFallbackTrafficLightWidth,
+            height: chrome.titleBarHeight,
+            child: SimulatedMacTrafficLights(height: chrome.titleBarHeight),
+          ),
+        if (chrome.showCustomButtons)
+          Positioned(
+            top: 0,
+            right: 0,
+            height: chrome.titleBarHeight,
+            child: KeyedSubtree(
+              key: _captionButtonsKey,
+              child: DesktopWindowCaptionButtons(
+                height: chrome.titleBarHeight,
+                isMaximized: chrome.isMaximized,
+                isActive: chrome.isActive,
+                nativeHoveredButton: chrome.hostMetrics?.hoveredButton ?? '',
+                nativePressedButton: chrome.hostMetrics?.pressedButton ?? '',
+                maximizeKey: _maximizeKey,
+                actions: actions,
+                brightnessListenable: chrome.brightnessListenable,
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

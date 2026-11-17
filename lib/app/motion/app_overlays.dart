@@ -6,9 +6,13 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../core/debug/frame_probe.dart';
 import '../layout/app_breakpoints.dart';
+import '../layout/form_factor.dart';
 import '../layout/input_modality.dart';
 import '../theme/func_semantic_tokens.dart';
 import '../widgets/prompt_host.dart';
+import '../window/desktop_command_bar.dart'
+    show DesktopCommandBarScope, kDesktopCommandBarHeight;
+import '../window/desktop_title_bar.dart' show DesktopChromeMetrics;
 import 'motion_tokens.dart';
 
 /// Whether secondary overlays should use bounded container presentations
@@ -91,6 +95,41 @@ Future<T?> showAppBottomSheet<T>({
   );
 }
 
+bool _resolveUseRootNavigator(BuildContext context, bool? useRootNavigator) =>
+    useRootNavigator ??
+    FormFactor.of(context).hasRail(MediaQuery.sizeOf(context).width);
+
+double _desktopCommandBarTopClearance(
+  BuildContext context,
+  NavigatorState navigator,
+) {
+  if (!DesktopCommandBarScope.isActiveOf(context)) return 0;
+  final chrome = DesktopChromeMetrics.maybeOf(context);
+  if (chrome?.isFullScreen ?? false) return 0;
+  final commandBar = DesktopCommandBarScope.controllerOf(context);
+  if (commandBar != null && commandBar.hidden.value) return 0;
+  final overlayRo = navigator.overlay?.context.findRenderObject();
+  final overlayTop = overlayRo is RenderBox && overlayRo.hasSize
+      ? overlayRo.localToGlobal(Offset.zero).dy
+      : 0.0;
+  return math.max(0.0, kDesktopCommandBarHeight - overlayTop);
+}
+
+BorderSide _darkOverlayBorder(BuildContext context) {
+  final theme = Theme.of(context);
+  if (theme.brightness != Brightness.dark) return BorderSide.none;
+  return BorderSide(
+    color: theme.colorScheme.outlineVariant.withValues(alpha: 0.45),
+  );
+}
+
+Widget _withTopClearance(double topClearance, Widget child) => topClearance > 0
+    ? Padding(
+        padding: EdgeInsets.only(top: topClearance),
+        child: child,
+      )
+    : child;
+
 /// Adaptive dialog: renders a centered bounded modal dialog when
 /// [useWideOverlay] holds, falling back to [showAppBottomSheet] on compact
 /// viewports.
@@ -109,8 +148,12 @@ Future<T?> showAppAdaptiveDialog<T>({
   bool showDragHandle = false,
   bool barrierDismissible = true,
   String? barrierLabel,
-  bool useRootNavigator = false,
+  bool? useRootNavigator,
 }) {
+  final resolvedUseRootNavigator = _resolveUseRootNavigator(
+    context,
+    useRootNavigator,
+  );
   if (!useWideOverlay(context)) {
     return showAppBottomSheet<T>(
       context: context,
@@ -119,10 +162,14 @@ Future<T?> showAppAdaptiveDialog<T>({
       isScrollControlled: isScrollControlled,
       useSafeArea: useSafeArea,
       showDragHandle: showDragHandle,
-      useRootNavigator: useRootNavigator,
+      useRootNavigator: resolvedUseRootNavigator,
     );
   }
-  final navigator = Navigator.of(context, rootNavigator: useRootNavigator);
+  final navigator = Navigator.of(
+    context,
+    rootNavigator: resolvedUseRootNavigator,
+  );
+  final topClearance = _desktopCommandBarTopClearance(context, navigator);
   final theme = Theme.of(context);
   final surfaceColor =
       backgroundColor ??
@@ -131,6 +178,7 @@ Future<T?> showAppAdaptiveDialog<T>({
   return navigator.push(
     _AppDialogRoute<T>(
       context: context,
+      topClearance: topClearance,
       builder: (routeContext) {
         final window = MediaQuery.sizeOf(routeContext);
         final keyboardInset = MediaQuery.viewInsetsOf(routeContext).bottom;
@@ -139,7 +187,7 @@ Future<T?> showAppAdaptiveDialog<T>({
           math.min(window.width * 0.72, 640.0),
         );
         return Padding(
-          padding: EdgeInsets.only(bottom: keyboardInset),
+          padding: EdgeInsets.only(top: topClearance, bottom: keyboardInset),
           child: Center(
             child: Padding(
               padding: insetPadding,
@@ -152,8 +200,9 @@ Future<T?> showAppAdaptiveDialog<T>({
                   color: surfaceColor,
                   surfaceTintColor: Colors.transparent,
                   elevation: 6,
-                  shape: const RoundedRectangleBorder(
+                  shape: RoundedRectangleBorder(
                     borderRadius: FuncShape.dialog,
+                    side: _darkOverlayBorder(routeContext),
                   ),
                   clipBehavior: Clip.antiAlias,
                   child: MediaQuery.removePadding(
@@ -205,8 +254,12 @@ Future<T?> showAppAdaptivePopover<T>({
   bool showDragHandle = false,
   bool barrierDismissible = true,
   String? barrierLabel,
-  bool useRootNavigator = false,
+  bool? useRootNavigator,
 }) {
+  final resolvedUseRootNavigator = _resolveUseRootNavigator(
+    context,
+    useRootNavigator,
+  );
   if (!usePointerOverlay(context)) {
     if (useWideOverlay(context)) {
       return showAppAdaptiveDialog<T>(
@@ -219,7 +272,7 @@ Future<T?> showAppAdaptivePopover<T>({
         showDragHandle: showDragHandle,
         barrierDismissible: barrierDismissible,
         barrierLabel: barrierLabel,
-        useRootNavigator: useRootNavigator,
+        useRootNavigator: resolvedUseRootNavigator,
       );
     }
     return showAppBottomSheet<T>(
@@ -229,10 +282,13 @@ Future<T?> showAppAdaptivePopover<T>({
       isScrollControlled: isScrollControlled,
       useSafeArea: useSafeArea,
       showDragHandle: showDragHandle,
-      useRootNavigator: useRootNavigator,
+      useRootNavigator: resolvedUseRootNavigator,
     );
   }
-  final navigator = Navigator.of(context, rootNavigator: useRootNavigator);
+  final navigator = Navigator.of(
+    context,
+    rootNavigator: resolvedUseRootNavigator,
+  );
   final theme = Theme.of(context);
   final localizations = MaterialLocalizations.of(context);
   final surfaceColor =
@@ -250,7 +306,10 @@ Future<T?> showAppAdaptivePopover<T>({
         color: surfaceColor,
         surfaceTintColor: Colors.transparent,
         elevation: 6,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: _darkOverlayBorder(routeContext),
+        ),
         clipBehavior: Clip.antiAlias,
         child: MediaQuery.removePadding(
           context: routeContext,
@@ -287,8 +346,12 @@ Future<T?> showAppAdaptiveSideSheet<T>({
   bool showDragHandle = false,
   bool barrierDismissible = true,
   String? barrierLabel,
-  bool useRootNavigator = false,
+  bool? useRootNavigator,
 }) {
+  final resolvedUseRootNavigator = _resolveUseRootNavigator(
+    context,
+    useRootNavigator,
+  );
   if (!useWideOverlay(context)) {
     return showAppBottomSheet<T>(
       context: context,
@@ -297,10 +360,14 @@ Future<T?> showAppAdaptiveSideSheet<T>({
       isScrollControlled: isScrollControlled,
       useSafeArea: useSafeArea,
       showDragHandle: showDragHandle,
-      useRootNavigator: useRootNavigator,
+      useRootNavigator: resolvedUseRootNavigator,
     );
   }
-  final navigator = Navigator.of(context, rootNavigator: useRootNavigator);
+  final navigator = Navigator.of(
+    context,
+    rootNavigator: resolvedUseRootNavigator,
+  );
+  final topClearance = _desktopCommandBarTopClearance(context, navigator);
   final theme = Theme.of(context);
   final localizations = MaterialLocalizations.of(context);
   final surfaceColor =
@@ -313,32 +380,37 @@ Future<T?> showAppAdaptiveSideSheet<T>({
   );
   return navigator.push(
     _AppAdaptiveSideSheetRoute<T>(
+      topClearance: topClearance,
       builder: (routeContext) {
         final rtl = Directionality.of(routeContext) == TextDirection.rtl;
         final sheetWidth = math.min(
           width,
           math.min(MediaQuery.sizeOf(routeContext).width * 0.72, 640.0),
         );
-        return Align(
-          alignment: AlignmentDirectional.centerEnd,
-          child: SizedBox(
-            width: sheetWidth,
-            height: double.infinity,
-            child: Material(
-              color: surfaceColor,
-              surfaceTintColor: Colors.transparent,
-              elevation: 6,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadiusDirectional.horizontal(
-                  start: FuncShape.sheet.topLeft,
+        return _withTopClearance(
+          topClearance,
+          Align(
+            alignment: AlignmentDirectional.centerEnd,
+            child: SizedBox(
+              width: sheetWidth,
+              height: double.infinity,
+              child: Material(
+                color: surfaceColor,
+                surfaceTintColor: Colors.transparent,
+                elevation: 6,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadiusDirectional.horizontal(
+                    start: FuncShape.sheet.topLeft,
+                  ),
+                  side: _darkOverlayBorder(routeContext),
                 ),
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: MediaQuery.removePadding(
-                context: routeContext,
-                removeLeft: !rtl,
-                removeRight: rtl,
-                child: _clampingScroll(routeContext, builder(routeContext)),
+                clipBehavior: Clip.antiAlias,
+                child: MediaQuery.removePadding(
+                  context: routeContext,
+                  removeLeft: !rtl,
+                  removeRight: rtl,
+                  child: _clampingScroll(routeContext, builder(routeContext)),
+                ),
               ),
             ),
           ),
@@ -543,6 +615,7 @@ class _AppDialogRoute<T> extends DialogRoute<T> {
   _AppDialogRoute({
     required super.context,
     required super.builder,
+    this.topClearance = 0,
     super.themes,
     super.barrierColor,
     super.barrierDismissible,
@@ -551,10 +624,15 @@ class _AppDialogRoute<T> extends DialogRoute<T> {
     super.animationStyle,
   });
 
+  final double topClearance;
+
   @override
-  Widget buildModalBarrier() => PromptCover(
-    animation: animation!,
-    child: _ReleaseDismissBarrier(route: this),
+  Widget buildModalBarrier() => _withTopClearance(
+    topClearance,
+    PromptCover(
+      animation: animation!,
+      child: _ReleaseDismissBarrier(route: this),
+    ),
   );
 }
 
@@ -906,6 +984,7 @@ class _AppAdaptiveSideSheetRoute<T> extends PopupRoute<T> {
     required this.duration,
     required this.reverseDuration,
     required this.curve,
+    this.topClearance = 0,
   }) : _barrierColor = barrierColor,
        _barrierDismissible = barrierDismissible,
        _barrierLabel = barrierLabel;
@@ -918,6 +997,7 @@ class _AppAdaptiveSideSheetRoute<T> extends PopupRoute<T> {
   final Duration duration;
   final Duration reverseDuration;
   final Curve curve;
+  final double topClearance;
 
   @override
   Duration get transitionDuration => duration;
@@ -942,9 +1022,12 @@ class _AppAdaptiveSideSheetRoute<T> extends PopupRoute<T> {
   ) => themes.wrap(builder(context));
 
   @override
-  Widget buildModalBarrier() => PromptCover(
-    animation: animation!,
-    child: _ReleaseDismissBarrier(route: this),
+  Widget buildModalBarrier() => _withTopClearance(
+    topClearance,
+    PromptCover(
+      animation: animation!,
+      child: _ReleaseDismissBarrier(route: this),
+    ),
   );
 
   @override

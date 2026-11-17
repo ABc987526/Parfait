@@ -1,4 +1,4 @@
-import 'package:flutter/widgets.dart';
+import 'package:material_ui/material_ui.dart';
 
 abstract final class AppIcons {
   static const String _fontFamily = 'iconFont';
@@ -13,11 +13,7 @@ abstract final class AppIcons {
     fontFamily: _fontFamily,
     matchTextDirection: true,
   );
-  static const n = IconData(
-    0xe905,
-    fontFamily: _fontFamily,
-    matchTextDirection: true,
-  );
+  static const IconData n = Icons.fiber_new_outlined;
   static const ranking = IconData(
     0xe906,
     fontFamily: _fontFamily,

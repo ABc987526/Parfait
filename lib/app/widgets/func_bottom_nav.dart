@@ -24,7 +24,7 @@ IconData homeDestinationIcon(HomeDestination destination) =>
     switch (destination) {
       HomeDestination.recommended => AppIcons.home,
       HomeDestination.ranking => AppIcons.ranking,
-      HomeDestination.newWorks => AppIcons.n,
+      HomeDestination.newWorks => Icons.fiber_new_outlined,
       HomeDestination.search => AppIcons.search,
       HomeDestination.me => Icons.person_outline,
     };

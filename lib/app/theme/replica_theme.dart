@@ -217,6 +217,7 @@ ThemeData replicaTheme(
       // One colour in both states: content scrolled under the bar is marked
       // by AppTopBar's shadow, not by a tint or an elevation shadow (which
       // does not show on the dark page; `topBarShadow` is darker there).
+      centerTitle: false,
       backgroundColor: background,
       foregroundColor: text,
       elevation: 0,
@@ -298,7 +299,14 @@ ThemeData replicaTheme(
       elevation: _layerElevation,
       // M3's dialog and sheet defaults cast a transparent shadow.
       shadowColor: colorScheme.shadow,
-      shape: const RoundedRectangleBorder(borderRadius: FuncShape.dialog),
+      shape: RoundedRectangleBorder(
+        borderRadius: FuncShape.dialog,
+        side: dark
+            ? BorderSide(
+                color: colorScheme.outlineVariant.withValues(alpha: 0.45),
+              )
+            : BorderSide.none,
+      ),
     ),
     bottomSheetTheme: BottomSheetThemeData(
       backgroundColor: colorScheme.surfaceContainer,
@@ -309,11 +317,37 @@ ThemeData replicaTheme(
       shadowColor: colorScheme.shadow,
       showDragHandle: true,
       dragHandleColor: colorScheme.onSurfaceVariant,
-      shape: const RoundedRectangleBorder(borderRadius: FuncShape.sheet),
+      shape: RoundedRectangleBorder(
+        borderRadius: FuncShape.sheet,
+        side: dark
+            ? BorderSide(
+                color: colorScheme.outlineVariant.withValues(alpha: 0.45),
+              )
+            : BorderSide.none,
+      ),
     ),
-    menuTheme: const MenuThemeData(
-      style: MenuStyle(elevation: WidgetStatePropertyAll(_layerElevation)),
+    menuTheme: MenuThemeData(
+      style: MenuStyle(
+        elevation: const WidgetStatePropertyAll(_layerElevation),
+        side: dark
+            ? WidgetStatePropertyAll(
+                BorderSide(
+                  color: colorScheme.outlineVariant.withValues(alpha: 0.45),
+                ),
+              )
+            : null,
+      ),
     ),
+    popupMenuTheme: dark
+        ? PopupMenuThemeData(
+            shape: RoundedRectangleBorder(
+              borderRadius: FuncShape.card,
+              side: BorderSide(
+                color: colorScheme.outlineVariant.withValues(alpha: 0.45),
+              ),
+            ),
+          )
+        : null,
     // A count badge is an indicator in the brand fill, not M3's error red.
     badgeTheme: BadgeThemeData(backgroundColor: brand, textColor: onBrand),
     // Filled buttons are brand fills; disabled, they take M3's disabled

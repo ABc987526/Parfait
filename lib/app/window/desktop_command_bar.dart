@@ -21,6 +21,7 @@ import '../person_avatar.dart';
 import '../pull_to_refresh.dart';
 import '../theme/func_semantic_tokens.dart';
 import '../theme/func_tokens.dart';
+import '../widgets/app_top_bar.dart' show kDesktopPageHeaderHeight;
 import '../widgets/replica_switch_tile.dart';
 import '../widgets/settings/persist_settings.dart';
 import 'desktop_title_bar.dart';
@@ -404,6 +405,7 @@ class _DesktopCommandBarState extends ConsumerState<DesktopCommandBar> {
     required double minWidth,
     required double maxWidth,
     required double maxHeight,
+    double minTop = FuncSpacing.xs,
     required WidgetBuilder builder,
   }) async {
     final navContext = _navContext();
@@ -436,6 +438,7 @@ class _DesktopCommandBarState extends ConsumerState<DesktopCommandBar> {
         minWidth: minWidth,
         maxWidth: maxWidth,
         maxHeight: maxHeight,
+        minTop: minTop,
         child: builder(panelContext),
       ),
     );
@@ -456,42 +459,60 @@ class _DesktopCommandBarState extends ConsumerState<DesktopCommandBar> {
         minWidth: 240,
         maxWidth: 288,
         maxHeight: 240,
+        minTop: kDesktopPageHeaderHeight + FuncSpacing.xs,
         builder: (popoverContext) => Consumer(
           builder: (popoverContext, popRef, _) {
             final l10n = popoverContext.l10n;
             final settings =
                 popRef.watch(settingsProvider).value ?? widget.settings;
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ReplicaSwitchTile(
-                  key: const Key('desktop-command-filter-r18'),
-                  title: Text(l10n.blockR18),
-                  value: settings.enableLocalBlockR18,
-                  onTap: () => unawaited(
-                    persistSettings(
-                      popoverContext,
-                      () => popRef
-                          .read(settingsProvider.notifier)
-                          .setLocalBlockR18(!settings.enableLocalBlockR18),
+            const tilePadding = EdgeInsets.symmetric(
+              horizontal: FuncSpacing.md,
+              vertical: FuncSpacing.xs,
+            );
+            return Theme(
+              data: Theme.of(popoverContext).copyWith(
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(minHeight: 40),
+                    child: ReplicaSwitchTile(
+                      key: const Key('desktop-command-filter-r18'),
+                      contentPadding: tilePadding,
+                      title: Text(l10n.blockR18),
+                      value: settings.enableLocalBlockR18,
+                      onTap: () => unawaited(
+                        persistSettings(
+                          popoverContext,
+                          () => popRef
+                              .read(settingsProvider.notifier)
+                              .setLocalBlockR18(!settings.enableLocalBlockR18),
+                        ),
+                      ),
                     ),
                   ),
-                ),
-                const Divider(height: 1),
-                ReplicaSwitchTile(
-                  key: const Key('desktop-command-filter-ai'),
-                  title: Text(l10n.blockAI),
-                  value: settings.enableLocalBlockAI,
-                  onTap: () => unawaited(
-                    persistSettings(
-                      popoverContext,
-                      () => popRef
-                          .read(settingsProvider.notifier)
-                          .setLocalBlockAI(!settings.enableLocalBlockAI),
+                  const Divider(height: 1),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(minHeight: 40),
+                    child: ReplicaSwitchTile(
+                      key: const Key('desktop-command-filter-ai'),
+                      contentPadding: tilePadding,
+                      title: Text(l10n.blockAI),
+                      value: settings.enableLocalBlockAI,
+                      onTap: () => unawaited(
+                        persistSettings(
+                          popoverContext,
+                          () => popRef
+                              .read(settingsProvider.notifier)
+                              .setLocalBlockAI(!settings.enableLocalBlockAI),
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             );
           },
         ),
@@ -597,9 +618,10 @@ class _DesktopCommandBarState extends ConsumerState<DesktopCommandBar> {
                   title: Text(l10n.accountSettings),
                   onTap: () {
                     Navigator.of(popoverContext).pop();
-                    if (liveRouterUri(widget.router).path !=
-                        '/settings/account') {
-                      widget.router.go('/settings/account');
+                    final currentUri = liveRouterUri(widget.router);
+                    if (currentUri.path != '/settings/all' ||
+                        currentUri.queryParameters['section'] != 'account') {
+                      widget.router.go('/settings/all?section=account');
                     }
                   },
                 ),
@@ -654,6 +676,27 @@ class _DesktopCommandBarState extends ConsumerState<DesktopCommandBar> {
       choice: railChoice,
     );
     final searchWidth = (windowSize.width * 0.27).clamp(210.0, 360.0);
+    final showShortcutBadge = windowSize.width >= 680;
+    final showBrandWordmark = windowSize.width >= 600;
+    final showBrandPill = windowSize.width >= 500;
+    final compactWindow = windowSize.width < 500;
+    final leadingGap = compactWindow ? FuncSpacing.sm : FuncSpacing.md;
+    final estimatedLeft =
+        leadingInset +
+        leadingGap +
+        (canToggleRail ? 34.0 : 0.0) +
+        (showBrandPill ? (showBrandWordmark ? 110.0 : 42.0) : 0.0) +
+        90.0;
+    final estimatedRight =
+        (contextAction != null ? 44.0 : 0.0) +
+        66.0 +
+        (showCustomButtons ? 146.0 : FuncSpacing.md);
+    final freeMiddle = math.max(
+      0.0,
+      windowSize.width - estimatedLeft - estimatedRight - FuncSpacing.sm,
+    );
+    final compactSearch = compactWindow || freeMiddle < 120.0;
+    final effectiveSearchWidth = math.min(searchWidth, freeMiddle);
 
     const iconConstraints = BoxConstraints(minWidth: 30, minHeight: 30);
     const iconPadding = EdgeInsets.all(FuncSpacing.xs);
@@ -684,7 +727,7 @@ class _DesktopCommandBarState extends ConsumerState<DesktopCommandBar> {
                             )
                           : null,
                     ),
-                  const SizedBox(width: FuncSpacing.md),
+                  SizedBox(width: leadingGap),
                   if (!isPreHome) ...[
                     if (canToggleRail) ...[
                       _commandIconButton(
@@ -708,40 +751,46 @@ class _DesktopCommandBarState extends ConsumerState<DesktopCommandBar> {
                       ),
                       const SizedBox(width: FuncSpacing.xs),
                     ],
-                    DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: tokens.brandTintWeak,
-                        borderRadius: FuncShape.pill,
-                        border: Border.all(color: tokens.brandHairline),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: FuncSpacing.sm + FuncSpacing.xxs,
-                          vertical: FuncSpacing.xs,
+                    if (showBrandPill) ...[
+                      DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: tokens.brandTintWeak,
+                          borderRadius: FuncShape.pill,
+                          border: Border.all(color: tokens.brandHairline),
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Image.asset(
-                              'assets/branding/parfait_icon.png',
-                              width: 15,
-                              height: 15,
-                              excludeFromSemantics: true,
-                            ),
-                            const SizedBox(width: FuncSpacing.xs),
-                            Text(
-                              'Parfait',
-                              style: theme.textTheme.labelMedium?.copyWith(
-                                color: colors.primary,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: -0.2,
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: showBrandWordmark
+                                ? FuncSpacing.sm + FuncSpacing.xxs
+                                : FuncSpacing.sm,
+                            vertical: FuncSpacing.xs,
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Image.asset(
+                                'assets/branding/parfait_icon.png',
+                                width: 15,
+                                height: 15,
+                                excludeFromSemantics: true,
                               ),
-                            ),
-                          ],
+                              if (showBrandWordmark) ...[
+                                const SizedBox(width: FuncSpacing.xs),
+                                Text(
+                                  'Parfait',
+                                  style: theme.textTheme.labelMedium?.copyWith(
+                                    color: colors.primary,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: -0.2,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: FuncSpacing.sm),
+                      const SizedBox(width: FuncSpacing.sm),
+                    ],
                     ValueListenableBuilder<ForwardHistoryState>(
                       valueListenable: history.stateListenable,
                       builder: (context, historyState, _) => Row(
@@ -790,25 +839,77 @@ class _DesktopCommandBarState extends ConsumerState<DesktopCommandBar> {
                     child: _DragSpacer(key: _leftDragKey, actions: actions),
                   ),
                   if (!isPreHome)
-                    SizedBox(
-                      width: searchWidth,
-                      child: SearchShortcutAnchor(
-                        onTrigger: () => unawaited(_openSearch(uri)),
-                        child: _SearchCommandPill(
-                          key: _searchPillKey,
-                          hint: l10n.searchHint,
-                          keyword: keywordText,
-                          reverseTooltip: l10n.searchReverseImage,
-                          onTapPill: () => unawaited(_openSearch(uri)),
-                          onTapReverse: () {
-                            final navContext = _navContext();
-                            if (navContext != null) {
-                              unawaited(openReverseImageSearch(navContext));
-                            }
-                          },
-                        ),
-                      ),
-                    ),
+                    compactSearch
+                        ? SearchShortcutAnchor(
+                            onTrigger: () => unawaited(_openSearch(uri)),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                KeyedSubtree(
+                                  key: _searchPillKey,
+                                  child: _commandIconButton(
+                                    context,
+                                    key: const Key(
+                                      'desktop-command-search-pill',
+                                    ),
+                                    constraints: iconConstraints,
+                                    padding: iconPadding,
+                                    iconSize: 17,
+                                    tooltip: l10n.searchHint,
+                                    onPressed: () =>
+                                        unawaited(_openSearch(uri)),
+                                    icon: const Icon(Icons.search),
+                                  ),
+                                ),
+                                _commandIconButton(
+                                  context,
+                                  key: const Key(
+                                    'desktop-command-reverse-search',
+                                  ),
+                                  constraints: iconConstraints,
+                                  padding: iconPadding,
+                                  iconSize: 16,
+                                  tooltip: l10n.searchReverseImage,
+                                  onPressed: () {
+                                    final navContext = _navContext();
+                                    if (navContext != null) {
+                                      unawaited(
+                                        openReverseImageSearch(navContext),
+                                      );
+                                    }
+                                  },
+                                  icon: const Icon(Icons.photo_camera_outlined),
+                                ),
+                              ],
+                            ),
+                          )
+                        : ConstrainedBox(
+                            constraints: BoxConstraints(
+                              maxWidth: effectiveSearchWidth,
+                            ),
+                            child: SizedBox(
+                              width: effectiveSearchWidth,
+                              child: SearchShortcutAnchor(
+                                onTrigger: () => unawaited(_openSearch(uri)),
+                                child: _SearchCommandPill(
+                                  key: _searchPillKey,
+                                  hint: l10n.searchHint,
+                                  keyword: keywordText,
+                                  reverseTooltip: l10n.searchReverseImage,
+                                  showShortcutBadge: showShortcutBadge,
+                                  onTapPill: () => unawaited(_openSearch(uri)),
+                                  onTapReverse: () {
+                                    final navContext = _navContext();
+                                    if (navContext != null) {
+                                      unawaited(
+                                        openReverseImageSearch(navContext),
+                                      );
+                                    }
+                                  },
+                                ),
+                              ),
+                            ),
+                          ),
                   Expanded(
                     child: _DragSpacer(key: _rightDragKey, actions: actions),
                   ),
@@ -931,6 +1032,7 @@ class _SearchCommandPill extends StatelessWidget {
     required this.hint,
     required this.keyword,
     required this.reverseTooltip,
+    required this.showShortcutBadge,
     required this.onTapPill,
     required this.onTapReverse,
   });
@@ -938,6 +1040,7 @@ class _SearchCommandPill extends StatelessWidget {
   final String hint;
   final String keyword;
   final String reverseTooltip;
+  final bool showShortcutBadge;
   final VoidCallback onTapPill;
   final VoidCallback onTapReverse;
 
@@ -983,7 +1086,7 @@ class _SearchCommandPill extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (!hasKeyword)
+                if (showShortcutBadge && !hasKeyword)
                   DecoratedBox(
                     decoration: BoxDecoration(
                       color: colors.surfaceContainerHigh,
@@ -1035,6 +1138,7 @@ class _CommandAnchoredMenuLayer extends StatefulWidget {
     required this.minWidth,
     required this.maxWidth,
     required this.maxHeight,
+    required this.minTop,
     required this.child,
   });
 
@@ -1045,6 +1149,7 @@ class _CommandAnchoredMenuLayer extends StatefulWidget {
   final double minWidth;
   final double maxWidth;
   final double maxHeight;
+  final double minTop;
   final Widget child;
 
   @override
@@ -1083,6 +1188,7 @@ class _CommandAnchoredMenuLayerState extends State<_CommandAnchoredMenuLayer> {
         minWidth: widget.minWidth,
         maxWidth: widget.maxWidth,
         maxHeight: widget.maxHeight,
+        minTop: widget.minTop,
       ),
       child: TapRegion(
         groupId: widget.groupId,
@@ -1127,6 +1233,7 @@ class _CommandMenuLayoutDelegate extends SingleChildLayoutDelegate {
     required this.minWidth,
     required this.maxWidth,
     required this.maxHeight,
+    required this.minTop,
   });
 
   final Rect anchor;
@@ -1134,6 +1241,7 @@ class _CommandMenuLayoutDelegate extends SingleChildLayoutDelegate {
   final double minWidth;
   final double maxWidth;
   final double maxHeight;
+  final double minTop;
 
   @override
   BoxConstraints getConstraintsForChild(BoxConstraints constraints) {
@@ -1157,15 +1265,19 @@ class _CommandMenuLayoutDelegate extends SingleChildLayoutDelegate {
   Offset getPositionForChild(Size size, Size childSize) {
     const edge = FuncSpacing.sm;
     final maxDx = math.max(edge, size.width - edge - childSize.width);
+    final effectiveMinTop = math.min(
+      minTop,
+      math.max(FuncSpacing.xs, size.height - edge - childSize.height),
+    );
     final maxDy = math.max(
-      FuncSpacing.xs,
+      effectiveMinTop,
       size.height - edge - childSize.height,
     );
     final rawX = textDirection == TextDirection.rtl
         ? anchor.left
         : anchor.right - childSize.width;
-    final rawY = math.max(FuncSpacing.xs, anchor.bottom + FuncSpacing.xs);
-    return Offset(rawX.clamp(edge, maxDx), rawY.clamp(FuncSpacing.xs, maxDy));
+    final rawY = math.max(effectiveMinTop, anchor.bottom + FuncSpacing.xs);
+    return Offset(rawX.clamp(edge, maxDx), rawY.clamp(effectiveMinTop, maxDy));
   }
 
   @override
@@ -1174,7 +1286,8 @@ class _CommandMenuLayoutDelegate extends SingleChildLayoutDelegate {
       textDirection != oldDelegate.textDirection ||
       minWidth != oldDelegate.minWidth ||
       maxWidth != oldDelegate.maxWidth ||
-      maxHeight != oldDelegate.maxHeight;
+      maxHeight != oldDelegate.maxHeight ||
+      minTop != oldDelegate.minTop;
 }
 
 /// Command bar buttons mount in `MaterialApp.router(builder: ...)` above
