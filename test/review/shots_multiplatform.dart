@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:parfait/app/layout/input_modality.dart';
 import 'package:parfait/app/pixiv_image.dart';
+import 'package:parfait/app/widgets/feed/desktop_inspector_scope.dart';
 import 'package:parfait/app/widgets/feed/feed_selection.dart';
 import 'package:parfait/app/widgets/feed/illust_card.dart';
 import 'package:parfait/core/novel/reader_settings.dart';
@@ -46,6 +47,23 @@ void main() {
     before: (tester, router) async {
       unawaited(router.push('/recommended/illust/1000'));
       await tester.pump();
+    },
+  );
+
+  testShot(
+    'mp/desktop-detail-inspector',
+    location: '/recommended',
+    before: (tester, router) async {
+      final modeToggle = find.byKey(const Key('desktop-detail-mode-inspector'));
+      if (modeToggle.evaluate().isNotEmpty) {
+        await tester.tap(modeToggle.first);
+        await settleReview(tester);
+      }
+      final card = find.byType(IllustCard);
+      if (card.evaluate().isNotEmpty &&
+          DesktopInspectorScope.maybeOf(tester.element(card.first)) != null) {
+        await tester.tap(card.first);
+      }
     },
   );
 
@@ -102,6 +120,8 @@ void main() {
       }
     },
   );
+
+  testShot('mp/desktop-settings', location: '/settings/all');
 
   testShot(
     'mp/progressive-detail',
