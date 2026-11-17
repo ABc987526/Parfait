@@ -23,10 +23,11 @@ RecommendedContentType _recommendedType(String? raw) =>
       orElse: () => RecommendedContentType.illust,
     );
 
-NewFeedScope _newFeedScope(String? raw) => NewFeedScope.values.firstWhere(
-  (scope) => scope.name == raw,
-  orElse: () => NewFeedScope.following,
-);
+NewFeedScope _newFeedScope(String? raw) => switch (raw?.toLowerCase()) {
+  'everyone' || 'all' => NewFeedScope.everyone,
+  'mypixiv' || 'my_pixiv' => NewFeedScope.myPixiv,
+  'following' || 'follow' || _ => NewFeedScope.following,
+};
 
 SearchResultType _searchType(String? raw) => SearchResultType.values.firstWhere(
   (value) => value.name == raw,
@@ -34,13 +35,28 @@ SearchResultType _searchType(String? raw) => SearchResultType.values.firstWhere(
 );
 
 /// Extracts the active `(keyword, type)` pair when [uri] points at a search
-/// results route, or `null` on any other location.
+/// results or tag feed route, or `null` on any other location.
 ({String keyword, SearchResultType type})? searchResultsQueryFromUri(Uri uri) {
-  if (!uri.path.endsWith('/search/results')) return null;
-  return (
-    keyword: uri.queryParameters['q'] ?? '',
-    type: _searchType(uri.queryParameters['type']),
-  );
+  if (uri.path.endsWith('/search/results')) {
+    return (
+      keyword: uri.queryParameters['q'] ?? '',
+      type: _searchType(uri.queryParameters['type']),
+    );
+  }
+  final segments = uri.path.split('/');
+  if (segments.length >= 3 && segments[segments.length - 2] == 'tag') {
+    final rawTag = segments.last;
+    if (rawTag.isNotEmpty) {
+      String keyword;
+      try {
+        keyword = Uri.decodeComponent(rawTag);
+      } on FormatException {
+        keyword = rawTag;
+      }
+      return (keyword: keyword, type: _searchType(uri.queryParameters['type']));
+    }
+  }
+  return null;
 }
 
 T _searchEnum<T>(

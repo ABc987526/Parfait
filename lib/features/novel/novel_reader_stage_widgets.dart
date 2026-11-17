@@ -186,109 +186,127 @@ extension _NovelReaderStageSheets on _NovelReaderStageState {
             // The sheet is at most 9/16 of the screen: on a turned phone
             // the settings scroll inside it.
             final desktop = useWideOverlay(context);
+            final theme = Theme.of(context);
+            final chipLabelStyle = theme.textTheme.labelLarge;
             return SingleChildScrollView(
               padding: MediaQuery.of(context).padding,
               child: Padding(
                 padding: EdgeInsets.fromLTRB(
-                  FuncSpacing.xl,
+                  FuncSpacing.lg,
                   desktop ? FuncSpacing.lg : 0,
-                  FuncSpacing.xl,
+                  FuncSpacing.lg,
                   FuncSpacing.xl,
                 ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _SettingsSliderRow(
-                      label: l10n.novelFontSize,
-                      value: _settings.fontSize,
-                      min: NovelReaderSettings.minFontSize,
-                      max: NovelReaderSettings.maxFontSize,
-                      onChanged: (v) => apply(_settings.copyWith(fontSize: v)),
+                child: ChipTheme(
+                  data: ChipTheme.of(context).copyWith(
+                    labelStyle: chipLabelStyle,
+                    secondaryLabelStyle: chipLabelStyle,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: FuncSpacing.sm,
+                      vertical: FuncSpacing.xs,
                     ),
-                    // Slider range == the model's clamp range (1.3–2.4):
-                    // the old 1.1–2.2 span was a dead zone at the bottom
-                    // and unreachable at the top.
-                    _SettingsSliderRow(
-                      label: l10n.novelLineHeight,
-                      value: _settings.lineHeight,
-                      min: NovelReaderSettings.minLineHeight,
-                      max: NovelReaderSettings.maxLineHeight,
-                      divisions: 11,
-                      onChanged: (v) =>
-                          apply(_settings.copyWith(lineHeight: v)),
+                    labelPadding: const EdgeInsets.symmetric(
+                      horizontal: FuncSpacing.xxs,
                     ),
-                    const SizedBox(height: FuncSpacing.md),
-                    Wrap(
-                      spacing: 8,
-                      children: [
-                        for (final (pageTurn, label) in [
-                          (NovelPageTurn.scroll, l10n.novelPageTurnScroll),
-                          (NovelPageTurn.pages, l10n.novelPageTurnPages),
-                        ])
-                          AppChoiceChip(
-                            label: Text(label),
-                            selected: _settings.pageTurn == pageTurn,
-                            onSelected: () =>
-                                apply(_settings.copyWith(pageTurn: pageTurn)),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: FuncSpacing.sm),
-                    Text(
-                      l10n.novelSpreadMode,
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                    const SizedBox(height: FuncSpacing.xs),
-                    Wrap(
-                      spacing: FuncSpacing.sm,
-                      runSpacing: FuncSpacing.xs,
-                      children: [
-                        for (final (mode, label) in [
-                          (NovelSpreadMode.off, l10n.novelSpreadOff),
-                          (NovelSpreadMode.auto, l10n.novelSpreadAuto),
-                          (
-                            NovelSpreadMode.landscape,
-                            l10n.novelSpreadLandscape,
-                          ),
-                          (NovelSpreadMode.always, l10n.novelSpreadAlways),
-                        ])
-                          AppChoiceChip(
-                            label: Text(label),
-                            selected: _settings.spreadMode == mode,
-                            onSelected: () => apply(
-                              _settings.copyWith(
-                                spreadMode: mode,
-                                pageTurn:
-                                    mode != NovelSpreadMode.off &&
-                                        _settings.pageTurn ==
-                                            NovelPageTurn.scroll
-                                    ? NovelPageTurn.pages
-                                    : null,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _SettingsSliderRow(
+                        label: l10n.novelFontSize,
+                        value: _settings.fontSize,
+                        min: NovelReaderSettings.minFontSize,
+                        max: NovelReaderSettings.maxFontSize,
+                        onChanged: (v) =>
+                            apply(_settings.copyWith(fontSize: v)),
+                      ),
+                      // Slider range == the model's clamp range (1.3–2.4):
+                      // the old 1.1–2.2 span was a dead zone at the bottom
+                      // and unreachable at the top.
+                      _SettingsSliderRow(
+                        label: l10n.novelLineHeight,
+                        value: _settings.lineHeight,
+                        min: NovelReaderSettings.minLineHeight,
+                        max: NovelReaderSettings.maxLineHeight,
+                        divisions: 11,
+                        onChanged: (v) =>
+                            apply(_settings.copyWith(lineHeight: v)),
+                      ),
+                      const SizedBox(height: FuncSpacing.md),
+                      Wrap(
+                        spacing: FuncSpacing.sm,
+                        runSpacing: FuncSpacing.xs,
+                        children: [
+                          for (final (pageTurn, label) in [
+                            (NovelPageTurn.scroll, l10n.novelPageTurnScroll),
+                            (NovelPageTurn.pages, l10n.novelPageTurnPages),
+                          ])
+                            AppChoiceChip(
+                              label: Text(label),
+                              selected: _settings.pageTurn == pageTurn,
+                              onSelected: () =>
+                                  apply(_settings.copyWith(pageTurn: pageTurn)),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: FuncSpacing.sm),
+                      Text(
+                        l10n.novelSpreadMode,
+                        style: theme.textTheme.bodyMedium,
+                      ),
+                      const SizedBox(height: FuncSpacing.xs),
+                      Wrap(
+                        spacing: FuncSpacing.sm,
+                        runSpacing: FuncSpacing.xs,
+                        children: [
+                          for (final (mode, label) in [
+                            (NovelSpreadMode.off, l10n.novelSpreadOff),
+                            (NovelSpreadMode.auto, l10n.novelSpreadAuto),
+                            (
+                              NovelSpreadMode.landscape,
+                              l10n.novelSpreadLandscape,
+                            ),
+                            (NovelSpreadMode.always, l10n.novelSpreadAlways),
+                          ])
+                            AppChoiceChip(
+                              label: Text(label),
+                              selected: _settings.spreadMode == mode,
+                              onSelected: () => apply(
+                                _settings.copyWith(
+                                  spreadMode: mode,
+                                  pageTurn:
+                                      mode != NovelSpreadMode.off &&
+                                          _settings.pageTurn ==
+                                              NovelPageTurn.scroll
+                                      ? NovelPageTurn.pages
+                                      : null,
+                                ),
                               ),
                             ),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: FuncSpacing.sm),
-                    Wrap(
-                      spacing: 8,
-                      children: [
-                        for (final (theme, label) in [
-                          (NovelReaderTheme.system, l10n.novelThemeSystem),
-                          (NovelReaderTheme.paper, l10n.novelThemePaper),
-                          (NovelReaderTheme.sepia, l10n.novelThemeSepia),
-                          (NovelReaderTheme.night, l10n.novelThemeNight),
-                        ])
-                          AppChoiceChip(
-                            label: Text(label),
-                            selected: _settings.theme == theme,
-                            onSelected: () =>
-                                apply(_settings.copyWith(theme: theme)),
-                          ),
-                      ],
-                    ),
-                  ],
+                        ],
+                      ),
+                      const SizedBox(height: FuncSpacing.sm),
+                      Wrap(
+                        spacing: FuncSpacing.sm,
+                        runSpacing: FuncSpacing.xs,
+                        children: [
+                          for (final (themeOption, label) in [
+                            (NovelReaderTheme.system, l10n.novelThemeSystem),
+                            (NovelReaderTheme.paper, l10n.novelThemePaper),
+                            (NovelReaderTheme.sepia, l10n.novelThemeSepia),
+                            (NovelReaderTheme.night, l10n.novelThemeNight),
+                          ])
+                            AppChoiceChip(
+                              label: Text(label),
+                              selected: _settings.theme == themeOption,
+                              onSelected: () =>
+                                  apply(_settings.copyWith(theme: themeOption)),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             );

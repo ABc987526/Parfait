@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/clipboard.dart';
 import '../../../../app/format/app_format.dart';
+import '../../../../app/layout/form_factor.dart';
+import '../../../../app/layout/input_modality.dart';
 import '../../../../app/navigation/routes.dart';
 import '../../../../app/theme/func_semantic_tokens.dart';
 import '../../../../app/widgets/author_summary.dart';
@@ -245,7 +247,7 @@ class DetailAuthorCard extends ConsumerWidget {
 }
 
 /// The tags, each searching on a tap or, in the block mode, muting.
-class _TagsSection extends ConsumerWidget {
+class _TagsSection extends ConsumerStatefulWidget {
   const _TagsSection({
     required this.entity,
     required this.blockMode,
@@ -257,18 +259,33 @@ class _TagsSection extends ConsumerWidget {
   final VoidCallback onToggleBlockMode;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_TagsSection> createState() => _TagsSectionState();
+}
+
+class _TagsSectionState extends ConsumerState<_TagsSection> {
+  final _chipKeys = <int, GlobalKey>{};
+
+  GlobalKey _chipKey(int index) => _chipKeys.putIfAbsent(index, GlobalKey.new);
+
+  @override
+  Widget build(BuildContext context) {
+    final entity = widget.entity;
+    final blockMode = widget.blockMode;
     // Tag chips now block through the MuteStore: tag mutes sync with the
     // official /v1/mute list instead of the legacy local-only pref.
     final mutedTags = ref.watch(muteStoreProvider.select((s) => s.tags));
     final muteStore = ref.read(muteStoreProvider.notifier);
-    // The same entries as the long-press panel, beside the pointer on a PC
-    // (R11).
-    void showTagActions(IllustTag tag, {Offset? position}) {
+    // The same entries as the long-press panel, beside the chip/pointer on a
+    // PC (R11).
+    void showTagActions(
+      BuildContext anchorContext,
+      IllustTag tag, {
+      Offset? position,
+    }) {
       final muted = mutedTags.contains(tag.name);
       unawaited(
         showTagActionsSheet(
-          context,
+          anchorContext,
           tag: tag.name,
           muted: muted,
           position: position,
@@ -276,44 +293,133 @@ class _TagsSection extends ConsumerWidget {
           onToggleMute: () => unawaited(
             toggleTagMute(context, muteStore, tag.name, muted: muted),
           ),
-          onMuteMode: onToggleBlockMode,
+          onMuteMode: widget.onToggleBlockMode,
         ),
       );
     }
 
+    VoidCallback tapFor(IllustTag tag) => () {
+      if (blockMode) {
+        unawaited(
+          toggleTagMute(
+            context,
+            muteStore,
+            tag.name,
+            muted: mutedTags.contains(tag.name),
+          ),
+        );
+      } else {
+        unawaited(openTagSearch(context, tag.name));
+      }
+    };
+
+    final isPc = FormFactor.of(context) == FormFactor.pc;
     return _Section(
       heading: context.l10n.detailSectionTags,
-      child: TagChips(
-        children: [
-          for (final tag in entity.tags)
-            TagChip(
-              label: tag.name,
-              translated: tag.translatedName,
-              blockMode: blockMode,
-              blocked: mutedTags.contains(tag.name),
-              onTap: () {
-                if (blockMode) {
-                  unawaited(
-                    toggleTagMute(
-                      context,
-                      muteStore,
-                      tag.name,
-                      muted: mutedTags.contains(tag.name),
+      child: isPc
+          ? Wrap(
+              children: [
+                for (var i = 0; i < entity.tags.length; i++)
+                  _DesktopAnchoredTagChip(
+                    key: ValueKey('tag-anchor-$i-${entity.tags[i].name}'),
+                    tag: entity.tags[i],
+                    blockMode: blockMode,
+                    blocked: mutedTags.contains(entity.tags[i].name),
+                    onTap: tapFor(entity.tags[i]),
+                    onShowActions: (anchorContext, {position}) =>
+                        showTagActions(
+                          anchorContext,
+                          entity.tags[i],
+                          position: position,
+                        ),
+                  ),
+              ],
+            )
+          : TagChips(
+              children: [
+                for (var i = 0; i < entity.tags.length; i++)
+                  TagChip(
+                    key: _chipKey(i),
+                    label: entity.tags[i].name,
+                    translated: entity.tags[i].translatedName,
+                    blockMode: blockMode,
+                    blocked: mutedTags.contains(entity.tags[i].name),
+                    onTap: tapFor(entity.tags[i]),
+                    // Long-press opens the direct action menu (search /
+                    // copy / mute / batch-mute entry) instead of silently
+                    // flipping the block mode.
+                    onLongPress: () => showTagActions(
+                      _chipKey(i).currentContext ?? context,
+                      entity.tags[i],
                     ),
-                  );
-                } else {
-                  unawaited(openTagSearch(context, tag.name));
-                }
-              },
-              // Long-press opens the direct action menu (search /
-              // copy / mute / batch-mute entry) instead of silently
-              // flipping the block mode.
-              onLongPress: () => showTagActions(tag),
-              onSecondaryTapAt: (position) =>
-                  showTagActions(tag, position: position),
+                    onSecondaryTapAt: (position) => showTagActions(
+                      _chipKey(i).currentContext ?? context,
+                      entity.tags[i],
+                      position: position,
+                    ),
+                  ),
+              ],
             ),
-        ],
-      ),
+    );
+  }
+}
+
+/// Anchors tag action popovers on desktop (`FormFactor.pc`) directly to the
+/// clicked [TagChip] rather than falling back to a window-centered modal over
+/// the artwork stage when triggered via long-press.
+class _DesktopAnchoredTagChip extends StatefulWidget {
+  const _DesktopAnchoredTagChip({
+    super.key,
+    required this.tag,
+    required this.blockMode,
+    required this.blocked,
+    required this.onTap,
+    required this.onShowActions,
+  });
+
+  final IllustTag tag;
+  final bool blockMode;
+  final bool blocked;
+  final VoidCallback onTap;
+  final void Function(BuildContext anchorContext, {Offset? position})
+  onShowActions;
+
+  @override
+  State<_DesktopAnchoredTagChip> createState() =>
+      _DesktopAnchoredTagChipState();
+}
+
+class _DesktopAnchoredTagChipState extends State<_DesktopAnchoredTagChip> {
+  final _anchorKey = GlobalKey();
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: IgnorePointer(
+            child: ExcludeSemantics(
+              child: InputModalityScope(
+                initialModality: InputModality.pointer,
+                child: SizedBox.expand(key: _anchorKey),
+              ),
+            ),
+          ),
+        ),
+        TagChip(
+          label: widget.tag.name,
+          translated: widget.tag.translatedName,
+          blockMode: widget.blockMode,
+          blocked: widget.blocked,
+          onTap: widget.onTap,
+          onLongPress: () =>
+              widget.onShowActions(_anchorKey.currentContext ?? context),
+          onSecondaryTapAt: (position) => widget.onShowActions(
+            _anchorKey.currentContext ?? context,
+            position: position,
+          ),
+        ),
+      ],
     );
   }
 }

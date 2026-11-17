@@ -230,19 +230,32 @@ int illustColumnsFor(double crossAxisExtent, FeedDensity density) {
   );
 }
 
+/// Desktop (`FormFactor.pc`) column ladder: wider card extents across all
+/// three densities so 1280px–1440px monitors step cleanly (~4/5/6 columns)
+/// without collapsing `compact` into cramped 10-column strips.
+({double minCardExtent, int minColumns}) _pcDensityGrid(FeedDensity density) =>
+    switch (density) {
+      FeedDensity.compact => (minCardExtent: 176, minColumns: 3),
+      FeedDensity.standard => (minCardExtent: 216, minColumns: 2),
+      FeedDensity.comfortable => (minCardExtent: 268, minColumns: 1),
+    };
+
 /// Column count for a masonry grid with the given cross-axis extent at
-/// [density]. On desktop (`FormFactor.pc`) default `standard` density breathes
-/// wider (~216dp minimum card extent) so 1440px monitors show ~5 spacious
-/// columns instead of 7 narrow strips.
+/// [density]. On desktop (`FormFactor.pc`) all three densities use balanced
+/// desktop card extents ([_pcDensityGrid]) while mobile/tablet viewports keep
+/// [illustColumnsFor] unchanged.
 int illustColumnsForContext(
   BuildContext context,
   double crossAxisExtent,
   FeedDensity density,
 ) {
-  if (FormFactor.of(context) == FormFactor.pc &&
-      density == FeedDensity.standard) {
-    if (crossAxisExtent <= 0) return 2;
-    return math.max(2, (crossAxisExtent / 216).floor());
+  if (FormFactor.of(context) == FormFactor.pc) {
+    final grid = _pcDensityGrid(density);
+    if (crossAxisExtent <= 0) return grid.minColumns;
+    return math.max(
+      grid.minColumns,
+      (crossAxisExtent / grid.minCardExtent).floor(),
+    );
   }
   return illustColumnsFor(crossAxisExtent, density);
 }
