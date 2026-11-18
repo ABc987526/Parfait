@@ -43,22 +43,24 @@ void main() {
     await tester.pumpAndSettle();
 
     // The identity block stays one content width instead of stretching the
-    // name and the buttons to the window's two edges (B3).
+    // name and the buttons to the window's two edges (B3), while the tab
+    // bar and works gallery use the full wide surface.
     expect(find.byKey(const ValueKey('profile-wide-split')), findsOneWidget);
     final name = tester.getRect(
       find.byKey(const ValueKey('profile-expanded-name')),
     );
     final share = tester.getRect(find.byIcon(AppIcons.share).first);
     final follow = tester.getRect(find.byType(FollowSwitchButton));
-    expect(follow.left, name.left);
+    expect(follow.left, greaterThanOrEqualTo(name.right));
     expect(follow.left, lessThan(share.left));
-    expect(
-      follow.top - name.bottom,
-      allOf(greaterThanOrEqualTo(0), lessThan(80)),
-    );
+    expect((follow.center.dy - name.center.dy).abs(), lessThan(48));
     expect(
       share.right - name.left,
       lessThanOrEqualTo(ContentWidths.management),
+    );
+    expect(
+      tester.getRect(find.byKey(const ValueKey('profile-tabs'))).width,
+      1920,
     );
   });
 

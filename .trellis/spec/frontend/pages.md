@@ -54,14 +54,19 @@ reviewed: 2026-11-18
   A preview snapshot without counters
   keeps all four tabs; a tab that disappears on refresh falls back to the
   first. When `HomeShellChrome.contentSizeOf` is at least `840×480`,
-  `UserPage` splits into a 332dp left identity sidebar (banner, avatar, name,
-  actions, stats, bio) beside a dedicated right tab bar and `TabBarView`
-  (`ValueKey('profile-wide-split')`), and `ProfileSkeleton` mirrors the
-  two-column split while omitting duplicate desktop back arrows.
+  `UserPage` switches to a wide panoramic top header (`156dp` full-width banner,
+  `88dp` overlapping avatar, horizontal `ContentWidths.management`-capped
+  identity/actions/stats/bio block) above a pinned full-width tab and gallery
+  controls strip (`ValueKey('profile-wide-split')`, `NestedScrollView`) so the
+  works `TabBarView` uses the full desktop/tablet canvas width, and
+  `ProfileSkeleton` mirrors the panoramic header while omitting duplicate
+  desktop back arrows.
 - **Why:** Counts in labels widened the row past an equal share and
   flipped it to scrolling once the detail loaded, showing a stale total over an
-  empty feed read as broken, and on wide tablets/desktops a matching two-column
-  skeleton prevents a full-width mobile banner flash before detail resolves.
+  empty feed read as broken, and on wide tablets/desktops a narrow left sidebar
+  cramped short bios with dead whitespace while pinching the gallery next to an
+  existing navigation rail; the panoramic top header gives full canvas width
+  to artworks with a matching panoramic skeleton before detail resolves.
 - **Check:** `test/user_profile_test.dart` "work tabs follow the types a user has; each list shows its" "a profile without works opens on its first other tab" "a tab that disappears on refresh falls back to the first"; `test/user_profile_wide_test.dart` "wide profile skeleton avoids duplicate back button and empty works hide total"
 - **Code:** `lib/features/profile/user_page.dart`, `lib/features/profile/profile_header_delegate.dart`, `lib/features/profile/profile_skeleton.dart`, `lib/features/profile/profile_illust_feed.dart`
 

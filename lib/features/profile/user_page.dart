@@ -7,12 +7,14 @@ import 'package:material_ui/material_ui.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../app/layout/app_breakpoints.dart';
+import '../../app/layout/content_widths.dart';
 import '../../app/motion/app_overlays.dart';
+import '../../app/motion/hero_transition.dart' show LiftableBar;
 import '../../app/motion/motion_tokens.dart';
 import '../../app/motion/reveal.dart';
 import '../../app/motion/state_fade.dart';
 import '../../app/format/app_format.dart';
-import '../../app/layout/app_breakpoints.dart';
 import '../../app/navigation/home_shell_metrics.dart';
 import '../../app/navigation/routes.dart';
 import '../../app/person_avatar.dart';
@@ -805,7 +807,6 @@ class _UserPageState extends ConsumerState<UserPage>
       isMuted: muted,
       onToggleMute: onToggleMute,
     );
-    const sidebarWidth = 332.0;
     final hasEditAction = widget.isMe && widget.onEditProfile != null;
     final hasFollowAction = !widget.isMe;
     final shareButton = Builder(
@@ -859,181 +860,306 @@ class _UserPageState extends ConsumerState<UserPage>
             ),
           staleBanner,
           Expanded(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                SizedBox(
-                  width: sidebarWidth,
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(FuncSpacing.lg),
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.surface,
-                        borderRadius: FuncShape.card,
-                        border: Border.all(color: hairline),
-                      ),
-                      child: ClipRRect(
-                        borderRadius: FuncShape.card,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            SizedBox(
-                              height: 108 + 28,
-                              child: Stack(
-                                clipBehavior: Clip.none,
-                                children: [
-                                  Positioned(
-                                    top: 0,
-                                    left: 0,
-                                    right: 0,
-                                    height: 108,
-                                    child: ProfileBannerBackground(user: user),
-                                  ),
-                                  PositionedDirectional(
-                                    start: FuncSpacing.lg,
-                                    bottom: 0,
-                                    child: KeyedSubtree(
-                                      key: const ValueKey(
-                                        'profile-expanded-avatar',
-                                      ),
-                                      child: PersonAvatar(
-                                        imageUrl: user.profileImageUrl,
-                                        radius: 36,
-                                        ring: true,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(
-                                FuncSpacing.lg,
-                                FuncSpacing.md,
-                                FuncSpacing.lg,
-                                FuncSpacing.lg,
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    key: const ValueKey(
-                                      'profile-expanded-name',
-                                    ),
-                                    user.name,
-                                    style: theme.textTheme.titleLarge?.copyWith(
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  if (user.account.isNotEmpty) ...[
-                                    const SizedBox(height: FuncSpacing.xxs),
-                                    Text(
-                                      '@${user.account}',
-                                      style: theme.textTheme.bodyMedium
-                                          ?.copyWith(
-                                            color: theme
-                                                .colorScheme
-                                                .onSurfaceVariant,
-                                          ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ],
-                                  const SizedBox(height: FuncSpacing.sm),
-                                  Row(
-                                    children: [
-                                      if (primaryAction != null) ...[
-                                        Flexible(child: primaryAction),
-                                        const SizedBox(width: FuncSpacing.xs),
-                                      ],
-                                      shareButton,
-                                    ],
-                                  ),
-                                  if (stats.isNotEmpty) ...[
-                                    const SizedBox(height: FuncSpacing.sm),
-                                    ProfileStatRow(stats: stats),
-                                  ],
-                                  if (bio != null && bio.isNotEmpty) ...[
-                                    const SizedBox(height: FuncSpacing.md),
-                                    SelectableText(
-                                      bio,
-                                      style: theme.textTheme.bodyMedium,
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+            child: DesktopInspectableGallery(
+              active: _showsIllustGallery(_selectedTab),
+              child: NestedScrollView(
+                key: const ValueKey('profile-wide-scroll'),
+                controller: _outerScrollController,
+                physics: NestedRefreshOuterPhysics(
+                  parent: ScrollConfiguration.of(
+                    context,
+                  ).getScrollPhysics(context),
+                ),
+                headerSliverBuilder: (context, innerBoxIsScrolled) => [
+                  SliverToBoxAdapter(
+                    child: _WideProfileBannerHeader(
+                      user: user,
+                      bio: bio,
+                      stats: stats,
+                      primaryAction: primaryAction,
+                      shareButton: shareButton,
                     ),
                   ),
-                ),
-                VerticalDivider(width: 1, thickness: 1, color: hairline),
-                Expanded(
-                  child: Column(
-                    children: [
-                      Material(
-                        key: const ValueKey('profile-tabs'),
-                        color: theme.scaffoldBackgroundColor,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            border: Border(bottom: BorderSide(color: hairline)),
-                          ),
-                          child: SizedBox(
-                            height: useDesktopChrome ? 52 : kToolbarHeight,
-                            child: Row(
+                  SliverPersistentHeader(
+                    pinned: true,
+                    delegate: _WideProfileTabsDelegate(
+                      controller: tabController,
+                      labels: [for (final tab in _tabs) _tabLabel(tab)],
+                      onTabTap: _onTabTap,
+                      dragBehavior: tabDragBehavior,
+                      scrolled: innerBoxIsScrolled,
+                      useDesktopChrome: useDesktopChrome,
+                      showsGalleryControls: _showsIllustGallery(_selectedTab),
+                      followed: followed,
+                      muted: muted,
+                      selectedTab: _selectedTab,
+                      hairline: hairline,
+                      trailing: useDesktopChrome
+                          ? Row(
+                              mainAxisSize: MainAxisSize.min,
                               children: [
-                                Expanded(
-                                  child: ScrollConfiguration(
-                                    behavior: tabDragBehavior,
-                                    child: AppTabBar(
-                                      controller: tabController,
-                                      onTap: _onTabTap,
-                                      labels: [
-                                        for (final tab in _tabs) _tabLabel(tab),
-                                      ],
-                                    ),
-                                  ),
+                                DesktopGalleryControls(
+                                  visible: _showsIllustGallery(_selectedTab),
                                 ),
-                                if (useDesktopChrome) ...[
-                                  DesktopGalleryControls(
-                                    visible: _showsIllustGallery(_selectedTab),
-                                  ),
-                                  overflowMenu,
-                                  const SizedBox(width: FuncSpacing.xs),
-                                ],
+                                overflowMenu,
+                                const SizedBox(width: FuncSpacing.xs),
                               ],
-                            ),
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: DesktopInspectableGallery(
-                          active: _showsIllustGallery(_selectedTab),
-                          child: TabBarView(
-                            controller: tabController,
-                            children: [
-                              for (final tab in _tabs)
-                                PrimaryScrollController.none(
-                                  child: _buildTabBody(tab, user, statistics),
-                                ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
+                            )
+                          : null,
+                    ),
                   ),
+                ],
+                body: TabBarView(
+                  controller: tabController,
+                  children: [
+                    for (final (index, tab) in _tabs.indexed)
+                      _SelectedTabScroll(
+                        selected: index == _selectedIndex,
+                        child: _buildTabBody(tab, user, statistics),
+                      ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ],
       ),
     );
   }
+}
+
+class _WideProfileBannerHeader extends StatelessWidget {
+  const _WideProfileBannerHeader({
+    required this.user,
+    required this.bio,
+    required this.stats,
+    required this.primaryAction,
+    required this.shareButton,
+  });
+
+  static const double _bannerHeight = 156.0;
+  static const double _avatarDiameter = 88.0;
+
+  final UserEntity user;
+  final String? bio;
+  final List<ProfileHeaderStat> stats;
+  final Widget? primaryAction;
+  final Widget shareButton;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isRtl = Directionality.of(context) == TextDirection.rtl;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SizedBox(
+              height: _bannerHeight,
+              child: ProfileBannerBackground(user: user),
+            ),
+            Padding(
+              padding: const EdgeInsetsDirectional.fromSTEB(
+                FuncSpacing.xl + _avatarDiameter + FuncSpacing.xl,
+                FuncSpacing.md,
+                FuncSpacing.xl,
+                FuncSpacing.lg,
+              ),
+              child: Align(
+                alignment: AlignmentDirectional.topStart,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    maxWidth: ContentWidths.management,
+                    minHeight: _avatarDiameter / 2 + FuncSpacing.sm,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Flexible(
+                            fit: FlexFit.loose,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  key: const ValueKey('profile-expanded-name'),
+                                  user.name,
+                                  style: theme.textTheme.headlineSmall
+                                      ?.copyWith(fontWeight: FontWeight.w700),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                if (user.account.isNotEmpty) ...[
+                                  const SizedBox(height: FuncSpacing.xxs),
+                                  Text(
+                                    '@${user.account}',
+                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                      color: theme.colorScheme.onSurfaceVariant,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: FuncSpacing.lg),
+                          if (primaryAction != null) ...[
+                            primaryAction!,
+                            const SizedBox(width: FuncSpacing.xs),
+                          ],
+                          shareButton,
+                        ],
+                      ),
+                      if (stats.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: FuncSpacing.xs),
+                          child: Transform.translate(
+                            offset: Offset(
+                              isRtl ? FuncSpacing.xs : -FuncSpacing.xs,
+                              0,
+                            ),
+                            child: ProfileStatRow(stats: stats),
+                          ),
+                        ),
+                      if (bio != null && bio!.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: FuncSpacing.sm),
+                          child: Text(
+                            bio!,
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodyMedium,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        PositionedDirectional(
+          start: FuncSpacing.xl,
+          top: _bannerHeight - _avatarDiameter / 2,
+          child: KeyedSubtree(
+            key: const ValueKey('profile-expanded-avatar'),
+            child: PersonAvatar(
+              imageUrl: user.profileImageUrl,
+              radius: _avatarDiameter / 2,
+              ring: true,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _WideProfileTabsDelegate extends SliverPersistentHeaderDelegate {
+  const _WideProfileTabsDelegate({
+    required this.controller,
+    required this.labels,
+    required this.onTabTap,
+    required this.dragBehavior,
+    required this.scrolled,
+    required this.useDesktopChrome,
+    required this.showsGalleryControls,
+    required this.followed,
+    required this.muted,
+    required this.selectedTab,
+    required this.hairline,
+    required this.trailing,
+  });
+
+  final TabController controller;
+  final List<String> labels;
+  final ValueChanged<int> onTabTap;
+  final ScrollBehavior dragBehavior;
+  final bool scrolled;
+  final bool useDesktopChrome;
+  final bool showsGalleryControls;
+  final bool followed;
+  final bool muted;
+  final _ProfileTab? selectedTab;
+  final Color hairline;
+  final Widget? trailing;
+
+  @override
+  double get minExtent =>
+      useDesktopChrome ? kDesktopPageHeaderHeight : kToolbarHeight;
+
+  @override
+  double get maxExtent => minExtent;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    final theme = Theme.of(context);
+    return LiftableBar(
+      child: ScrollEdgeShadow(
+        visible: scrolled,
+        child: Material(
+          key: const ValueKey('profile-tabs'),
+          color: theme.scaffoldBackgroundColor,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              border: scrolled
+                  ? null
+                  : Border(bottom: BorderSide(color: hairline)),
+            ),
+            child: SizedBox(
+              height: minExtent,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsetsDirectional.only(
+                        start: FuncSpacing.sm,
+                      ),
+                      child: ScrollConfiguration(
+                        behavior: dragBehavior,
+                        child: AppTabBar(
+                          controller: controller,
+                          onTap: onTabTap,
+                          labels: labels,
+                        ),
+                      ),
+                    ),
+                  ),
+                  ?trailing,
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  bool shouldRebuild(covariant _WideProfileTabsDelegate oldDelegate) =>
+      oldDelegate.controller != controller ||
+      !listEquals(oldDelegate.labels, labels) ||
+      oldDelegate.onTabTap != onTabTap ||
+      oldDelegate.dragBehavior != dragBehavior ||
+      oldDelegate.scrolled != scrolled ||
+      oldDelegate.useDesktopChrome != useDesktopChrome ||
+      oldDelegate.showsGalleryControls != showsGalleryControls ||
+      oldDelegate.followed != followed ||
+      oldDelegate.muted != muted ||
+      oldDelegate.selectedTab != selectedTab ||
+      oldDelegate.hairline != hairline;
 }
 
 class _LiveWorksTotal extends ConsumerWidget {

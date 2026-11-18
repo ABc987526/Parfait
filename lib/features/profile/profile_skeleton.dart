@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 
 import '../../app/layout/app_breakpoints.dart';
+import '../../app/layout/content_widths.dart';
 import '../../app/navigation/home_shell_metrics.dart';
 import '../../app/theme/func_semantic_tokens.dart';
 import '../../app/widgets/app_top_bar.dart';
@@ -16,10 +17,11 @@ import 'profile_illust_feed.dart';
 /// the tab slot, then the works grid — instead of a bare spinner.
 ///
 /// On wide viewports (`>= 840×480` content area) it mirrors `_buildWideProfile`
-/// with a 332dp left artist card skeleton beside the right tab strip and grid
-/// skeleton (omitting duplicate desktop back arrows). On narrower windows it
-/// follows `_ProfileExpandedIdentity`'s vertical rhythm, or a one-row identity
-/// under a toolbar-high banner on short windows.
+/// with a full-width panoramic banner header (`156dp`), `88dp` overlapping
+/// avatar, horizontal identity/stat skeleton beside the full-width pinned tab
+/// slot and grid skeleton (omitting duplicate desktop back arrows). On narrower
+/// windows it follows `_ProfileExpandedIdentity`'s vertical rhythm, or a
+/// one-row identity under a toolbar-high banner on short windows.
 ///
 /// The banner is structure, not a bone: it keeps the real header's
 /// `surfaceContainerHigh` and sits beneath [FuncSkeleton] so the shimmer
@@ -28,7 +30,8 @@ import 'profile_illust_feed.dart';
 class ProfileSkeleton extends StatelessWidget {
   const ProfileSkeleton({super.key});
 
-  static const _wideSidebarWidth = 332.0;
+  static const _wideBannerHeight = 156.0;
+  static const _wideAvatarDiameter = 88.0;
 
   Widget _statBones(TextTheme textTheme) {
     return Row(
@@ -72,8 +75,6 @@ class ProfileSkeleton extends StatelessWidget {
     final hairline = tokens?.brandHairline ?? colorScheme.outlineVariant;
     final useDesktopChrome = DesktopCommandBarScope.isActiveOf(context);
     final loadingLabel = context.l10n.profileLoading;
-    const bannerHeight = 108.0;
-    const avatarDiameter = 72.0;
 
     return KeyedSubtree(
       key: const ValueKey('profile-wide-split'),
@@ -83,129 +84,96 @@ class ProfileSkeleton extends StatelessWidget {
           Expanded(
             child: FuncSkeleton(
               label: loadingLabel,
-              child: Row(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  SizedBox(
-                    width: _wideSidebarWidth,
-                    child: SingleChildScrollView(
-                      physics: const NeverScrollableScrollPhysics(),
-                      padding: const EdgeInsets.all(FuncSpacing.lg),
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: colorScheme.surface,
-                          borderRadius: FuncShape.card,
-                          border: Border.all(color: hairline),
-                        ),
-                        child: ClipRRect(
-                          borderRadius: FuncShape.card,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              SizedBox(
-                                height: bannerHeight + 28,
-                                child: Stack(
-                                  clipBehavior: Clip.none,
-                                  children: [
-                                    Positioned(
-                                      top: 0,
-                                      left: 0,
-                                      right: 0,
-                                      height: bannerHeight,
-                                      child: ColoredBox(
-                                        color: colorScheme.surfaceContainerHigh,
-                                      ),
-                                    ),
-                                    const PositionedDirectional(
-                                      start: FuncSpacing.lg,
-                                      bottom: 0,
-                                      child: SkeletonBone.circle(
-                                        key: ValueKey(
-                                          'profile-skeleton-avatar',
-                                        ),
-                                        diameter: avatarDiameter,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.fromLTRB(
-                                  FuncSpacing.lg,
-                                  FuncSpacing.md,
-                                  FuncSpacing.lg,
-                                  FuncSpacing.lg,
+                  Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          SizedBox(
+                            height: _wideBannerHeight,
+                            child: ColoredBox(
+                              color: colorScheme.surfaceContainerHigh,
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsetsDirectional.fromSTEB(
+                              FuncSpacing.xl +
+                                  _wideAvatarDiameter +
+                                  FuncSpacing.xl,
+                              FuncSpacing.md,
+                              FuncSpacing.xl,
+                              FuncSpacing.lg,
+                            ),
+                            child: Align(
+                              alignment: AlignmentDirectional.topStart,
+                              child: ConstrainedBox(
+                                constraints: const BoxConstraints(
+                                  maxWidth: ContentWidths.management,
+                                  minHeight:
+                                      _wideAvatarDiameter / 2 + FuncSpacing.sm,
                                 ),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    FractionallySizedBox(
+                                    SkeletonBone.text(
                                       key: const ValueKey(
                                         'profile-skeleton-name',
                                       ),
-                                      widthFactor: 0.55,
-                                      child: SkeletonBone.text(
-                                        style: textTheme.titleLarge?.copyWith(
-                                          fontWeight: FontWeight.w700,
-                                        ),
+                                      width: 180,
+                                      style: textTheme.headlineSmall?.copyWith(
+                                        fontWeight: FontWeight.w700,
                                       ),
                                     ),
                                     const SizedBox(height: FuncSpacing.xxs),
-                                    FractionallySizedBox(
-                                      widthFactor: 0.35,
-                                      child: SkeletonBone.text(
-                                        style: textTheme.bodyMedium,
-                                      ),
-                                    ),
-                                    const SizedBox(height: FuncSpacing.sm),
-                                    _statBones(textTheme),
-                                    const SizedBox(height: FuncSpacing.md),
-                                    FractionallySizedBox(
-                                      widthFactor: 0.85,
-                                      child: SkeletonBone.text(
-                                        style: textTheme.bodyMedium,
-                                      ),
+                                    SkeletonBone.text(
+                                      width: 112,
+                                      style: textTheme.bodyMedium,
                                     ),
                                     const SizedBox(height: FuncSpacing.xs),
-                                    FractionallySizedBox(
-                                      widthFactor: 0.6,
-                                      child: SkeletonBone.text(
-                                        style: textTheme.bodyMedium,
-                                      ),
+                                    _statBones(textTheme),
+                                    const SizedBox(height: FuncSpacing.sm),
+                                    SkeletonBone.text(
+                                      width: 340,
+                                      style: textTheme.bodyMedium,
                                     ),
                                   ],
                                 ),
                               ),
-                            ],
+                            ),
                           ),
+                        ],
+                      ),
+                      const PositionedDirectional(
+                        start: FuncSpacing.xl,
+                        top: _wideBannerHeight - _wideAvatarDiameter / 2,
+                        child: SkeletonBone.circle(
+                          key: ValueKey('profile-skeleton-avatar'),
+                          diameter: _wideAvatarDiameter,
                         ),
                       ),
+                    ],
+                  ),
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: theme.scaffoldBackgroundColor,
+                      border: Border(bottom: BorderSide(color: hairline)),
+                    ),
+                    child: SizedBox(
+                      key: const ValueKey('profile-skeleton-tabs'),
+                      width: double.infinity,
+                      height: useDesktopChrome
+                          ? kDesktopPageHeaderHeight
+                          : kToolbarHeight,
                     ),
                   ),
-                  VerticalDivider(width: 1, thickness: 1, color: hairline),
                   Expanded(
-                    child: Column(
-                      children: [
-                        DecoratedBox(
-                          decoration: BoxDecoration(
-                            color: theme.scaffoldBackgroundColor,
-                            border: Border(bottom: BorderSide(color: hairline)),
-                          ),
-                          child: SizedBox(
-                            key: const ValueKey('profile-skeleton-tabs'),
-                            width: double.infinity,
-                            height: useDesktopChrome
-                                ? kDesktopPageHeaderHeight
-                                : kToolbarHeight,
-                          ),
-                        ),
-                        Expanded(
-                          child: IllustGridSkeleton(
-                            label: loadingLabel,
-                            padding: gridPadding,
-                          ),
-                        ),
-                      ],
+                    child: IllustGridSkeleton(
+                      label: loadingLabel,
+                      padding: gridPadding,
                     ),
                   ),
                 ],

@@ -263,10 +263,10 @@ reviewed: 2026-11-18
 - **Check:** `test/illust_card_badges_test.dart`
 - **Code:** `lib/app/widgets/entity_row.dart`
 
-### THEME-16 Icons are bespoke outlined SVG glyphs; filled marks selection or state
-- **Rule:** App UI icons come from the unified bespoke `24×24` (`1.75dp`
-  rounded-stroke) SVG system compiled deterministically into
-  `assets/icon.ttf` (`AppIcons` in `lib/app/icons/app_icons.dart`, built
+### THEME-16 Icons are unified outlined vector glyphs; filled marks selection or state
+- **Rule:** App UI icons come from the unified `24×24` MingCute (plus
+  matching Phosphor fallbacks) vector glyph system compiled deterministically
+  into `assets/icon.ttf` (`AppIcons` in `lib/app/icons/app_icons.dart`, built
   via `tool/build_icons.py`). An action, an unselected destination or a
   placeholder uses the outlined glyph. The `*Filled` twin marks a state:
   a selected primary navigation or workspace rail destination
@@ -282,8 +282,8 @@ reviewed: 2026-11-18
   account management. Unmuting is a text button: no icon says it.
 - **Why:** Mixing stock Material outlines and uneven icon sets broke
   stroke weight consistency and muddled meanings across pages; unifying
-  every glyph under `AppIcons` keeps `1.75dp` geometry and distinct
-  outlined vs `*Filled` state contrast across light, dark, mobile, and
+  every glyph under `AppIcons` keeps optical geometry consistent and keeps
+  distinct outlined vs `*Filled` state contrast across light, dark, mobile, and
   desktop shells.
 - **Check:** `test/architecture/icon_style_test.dart` "a filled icon with an outlined twin marks a state", `test/icon_font_test.dart` "pubspec registers the iconFont family pointing at assets/icon.ttf"
 - **Code:** `lib/app/icons/app_icons.dart`, `tool/build_icons.py`, `lib/app/widgets/card_actions/illust_card_actions.dart`, `lib/app/widgets/watchlist_toggle.dart`
