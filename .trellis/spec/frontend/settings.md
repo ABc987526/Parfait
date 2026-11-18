@@ -3,7 +3,7 @@ prefix: SET
 applies_to:
   - lib/app/widgets/settings/**
   - lib/features/settings/**
-reviewed: 2026-11-17
+reviewed: 2026-11-18
 ---
 
 # Settings pages and the Me tab
@@ -134,7 +134,10 @@ reviewed: 2026-11-17
   `brandHairline`-separated nested detail `Navigator` (`SettingsDetailScope`,
   `EmbeddedHeaderScope` flat aligned `52dp` headers,
   `MotionTokens.stateFadeCurve` with leaving `IgnorePointer`, and
-  `settingsNarrowBody` left-aligned up to 780dp).
+  `settingsNarrowBody` left-aligned up to 780dp); secondary leaf paths
+  (`/settings/about/licenses`, `/settings/network/advanced`,
+  `/settings/navigation/bottom-bar`, `/settings/translate/credentials`) map to
+  their parent category and scroll the active rail entry into view.
 - **Why:** The same setting on two pages drifted apart; hardwareless iPads omit
   dead haptic sliders while Taptic iPhones expose them; and unified `280dp`
   master-detail hosting keeps deep-linked settings pages coherent beside the
@@ -145,8 +148,10 @@ reviewed: 2026-11-17
 ## Me tab
 
 ### SET-07 The Me tab puts content before settings on unified workspaces and cards
-- **Rule:** The Me root has no buttons on its narrow top bar. On narrow layouts
-  (`!MasterDetailWorkspace.canDisplay`), first comes the account header
+- **Rule:** On narrow layouts (`!MasterDetailWorkspace.canDisplay`), the Me root
+  shows an `Icons.settings_outlined` shortcut (`settingsTitle` tooltip) in
+  `AppTopBar.actions` (omitted when `DesktopCommandBarScope` owns chrome)
+  while keeping the bottom `设置` row (`SET-08`). First comes the account header
   (`_AccountHeader`: 52dp avatar, name with neutral "Premium" pill, user ID,
   opening the profile; trailing manage icon button; or one sign-in button when
   signed out). Next comes the last eight history records as a row of square
@@ -160,18 +165,20 @@ reviewed: 2026-11-17
   route (read from route secondary animations, never `TickerMode`), the row
   holds its order and slides on `MotionTokens.spatial` once uncovered. When
   `MasterDetailWorkspace.canDisplay` holds (`>= 840x480` content), the Me tab
-  mounts `MasterDetailWorkspace` (`280dp` left rail with a `40dp`
-  `_CompactAccountHeader` card, grouped `showChevron: false` index items for
-  profile, history, bookmarks, following, watchlist, watch later, novel markers,
-  local novels, downloads, reverse image, and settings/about on touch tablets
-  without `DesktopCommandBarScope`), preserving the workspace detail pane under
-  `EmbeddedHeaderScope`.
+  mounts `MasterDetailWorkspace` wrapping its nested detail `Navigator` in
+  `SettingsDetailScope` (`780dp` left-aligned `settingsNarrowBody` and aligned
+  `AppTopBar`): a `280dp` left rail (`40dp` `_CompactAccountHeader` card,
+  grouped `showChevron: false` index items, plus settings/about on touch tablets
+  without `DesktopCommandBarScope`) and a default `_MeOverviewPane` showing a
+  profile summary card, `_RecentHistory` (`86dp` covers or an empty-history
+  card), and a 2-column collection grid (`收藏`, `关注`, `追更`, `稍后再看`)
+  jumping directly to sub-sections instead of duplicating vertical data rows.
 - **Why:** User decision: settings filled two thirds of the page in a
   style of their own, and nothing showed what the user saw last; then
   narrow Me grouped rows clarify visual hierarchy while wide tablets/desktops
-  share the same 280dp `MasterDetailWorkspace` pattern as Settings without
-  duplicating `DesktopCommandBar` / `ShellRail` settings footers. The history
-  row holds its order while covered so Hero landing flights target the right
-  cover before sliding to match recent history.
-- **Check:** `test/settings_test.dart` "the Me header, manage button and end rows open their pages" "signed out, the Me header is one button to the login" "the dashboard badge counts downloads as they start and end" "the recent row follows the history and pages in its own order" "a recent cover flies to its work and back, an unseen one not" "a page over the row holds its order until it has left"
+  share the same 280dp `MasterDetailWorkspace` pattern and `SettingsDetailScope`
+  alignment as Settings without duplicating data lists or desktop footers. The
+  history row holds its order while covered so Hero landing flights target the
+  right cover before sliding to match recent history.
+- **Check:** `test/settings_test.dart` "the Me header, manage button and end rows open their pages" "signed out, the Me header is one button to the login" "the dashboard badge counts downloads as they start and end" "the recent row follows the history and pages in its own order" "a recent cover flies to its work and back, an unseen one not" "a page over the row holds its order until it has left"; `test/settings_master_detail_test.dart` "wide Me dashboard wraps SettingsDetailScope and shows overview grid"
 - **Code:** `lib/app/widgets/master_detail_workspace.dart`, `lib/app/widgets/settings/settings_group.dart`, `lib/app/widgets/settings/settings_tile.dart`, `lib/features/settings/me_dashboard_page.dart`

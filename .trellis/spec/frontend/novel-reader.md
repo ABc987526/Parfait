@@ -3,7 +3,7 @@ prefix: NOVEL
 applies_to:
   - lib/features/novel/**
   - lib/core/novel/**
-reviewed: 2026-11-17
+reviewed: 2026-11-18
 ---
 
 # Novel markup and reader
@@ -113,9 +113,14 @@ reviewed: 2026-11-17
   `InputModality.pointer`, the stage renders a lightweight translucent
   pill (`ValueKey('novel-pointer-cue')`) at the top-end corner to reveal the
   chrome on click without changing `PopScope` or center-tap semantics.
-- **Why:** The hint painted under the exiting bottom bar. Text showing
-  through see-through bars read as a smudge behind the controls, and desktop
-  mouse users had no visible affordance to summon hidden chrome.
+  `_ReaderRailSuppression` hides `ShellRail` from the very first loading/error
+  frame (`NovelStatusScaffold` uses `AppTopBar` respecting
+  `DesktopCommandBarScope`), and wide modal `SideSheet`s hide the background
+  floating reader bars while open.
+- **Why:** The hint painted under the exiting bottom bar, text showing
+  through see-through bars smeared behind controls, mouse users needed a
+  visible chrome affordance, loading-state rail transitions jumped by 200dp,
+  and an open side sheet previously cut across the floating bottom bar.
 - **Check:** `test/novel_reader_chrome_test.dart` "the progress hint never overlaps the sliding bottom bar"
 - **Code:** `lib/features/novel/novel_reader_stage.dart`, `lib/features/novel/novel_reader_stage_widgets.dart`
 
@@ -213,7 +218,11 @@ reviewed: 2026-11-17
   continues the column; a chapter starts after `chapterGap`, `[newpage]`
   after a short faint rule (`pageBreakGap`); images keep their page-tall slot.
   Lines paint only between the page margins and touches land anywhere; a tap
-  toggles chrome or opens an image unless it stops a moving column. Switching
+  toggles chrome or opens an image unless it stops a moving column. Scroll mode
+  reserves `kToolbarHeight + FuncSpacing.sm` top padding so expanded top
+  chrome never occludes line 1 of the title, and `_TextAreaClip` pairs
+  `16dp` `ShaderMaskLayer` top/bottom edge fades with initial whole-line
+  bottom alignment (`cleanBottom`) to avoid half-cut lines. Switching
   modes preserves the top line's page.
 - **Why:** Long novels and phones favor scrolling, while foldables in book
   posture and wide tablets/desktops read best as balanced, centered pocketbook
@@ -254,8 +263,9 @@ reviewed: 2026-11-17
   its buttons stay put; below them the bookmark and the chapters scroll
   inside what is left of the sheet, and on a window under 480dp tall the
   list may shrink to two rows. The settings sheet scrolls the same way, and
-  reader panels use `showAppAdaptiveSideSheet` (`maxWidth: 380`) on wide
-  viewports.
+  reader panels use `showAppAdaptiveSideSheet` (`maxWidth: 380`) with a
+  `_ReaderSheetHeader` close button (`Icons.close`, `closeButtonTooltip`) on
+  wide viewports.
 - **Why:** Pixiv's bookmark, kept with the account, was unreachable;
   a long table of contents showed four rows and no place in it (user
   request, 11-02). On a turned phone both sheets overflowed.

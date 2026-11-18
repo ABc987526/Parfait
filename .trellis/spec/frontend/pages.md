@@ -31,7 +31,7 @@ applies_to:
   - lib/app/scroll_behavior.dart
   - lib/features/illust/detail/**
   - lib/features/novel/novel_page.dart
-reviewed: 2026-11-17
+reviewed: 2026-11-18
 ---
 
 # Page-specific rules
@@ -49,18 +49,21 @@ reviewed: 2026-11-17
 ### PAGE-01 Profile tabs list only the work types a user has
 - **Rule:** The profile has one tab per work type with a count above zero
   (illust, manga, novel, illust series), labelled with the name alone.
-  Each work list starts with its total. A preview snapshot without counters
+  Each work list shows its total (`_LiveWorksTotal`) only while loaded works
+  are visible (hidden during empty, initial loading, and initial error states).
+  A preview snapshot without counters
   keeps all four tabs; a tab that disappears on refresh falls back to the
   first. When `HomeShellChrome.contentSizeOf` is at least `840×480`,
   `UserPage` splits into a 332dp left identity sidebar (banner, avatar, name,
   actions, stats, bio) beside a dedicated right tab bar and `TabBarView`
-  (`ValueKey('profile-wide-split')`).
+  (`ValueKey('profile-wide-split')`), and `ProfileSkeleton` mirrors the
+  two-column split while omitting duplicate desktop back arrows.
 - **Why:** Counts in labels widened the row past an equal share and
-  flipped it to scrolling once the detail loaded; on wide tablets and
-  desktops, a persistent sidebar keeps artist context visible without
-  stretching the banner across wide viewports.
-- **Check:** `test/user_profile_test.dart` "work tabs follow the types a user has; each list shows its" "a profile without works opens on its first other tab" "a tab that disappears on refresh falls back to the first"
-- **Code:** `lib/features/profile/user_page.dart`, `lib/features/profile/profile_header_delegate.dart`
+  flipped it to scrolling once the detail loaded, showing a stale total over an
+  empty feed read as broken, and on wide tablets/desktops a matching two-column
+  skeleton prevents a full-width mobile banner flash before detail resolves.
+- **Check:** `test/user_profile_test.dart` "work tabs follow the types a user has; each list shows its" "a profile without works opens on its first other tab" "a tab that disappears on refresh falls back to the first"; `test/user_profile_wide_test.dart` "wide profile skeleton avoids duplicate back button and empty works hide total"
+- **Code:** `lib/features/profile/user_page.dart`, `lib/features/profile/profile_header_delegate.dart`, `lib/features/profile/profile_skeleton.dart`, `lib/features/profile/profile_illust_feed.dart`
 
 ### PAGE-22 Bookmarks list illustrations or novels by a kind menu
 - **Rule:** The profile's bookmarks tab starts its filter row with a kind
@@ -384,12 +387,14 @@ reviewed: 2026-11-17
   that width to `AppTopBar` (`contentWidth`, through `ReplicaScaffold`):
   the settings and download-settings pages at `ContentWidths.settings`, the
   download-tasks page at `ContentWidths.management`, comments
-  and bookmark tags at `ContentWidths.management`, the welcome and login
-  forms at `ContentWidths.form`. The toolbar's back target then starts on the
-  column's left edge, its title just past the back control, and its
-  actions end on the column's right edge; the bookmark tags page's
-  public/private switch in the title row follows the same edges. The
-  bar's surface and shadow still span the whole window, and below the
+  and bookmark tags at `ContentWidths.management`, and welcome/login
+  forms at `ContentWidths.form` (reverse-image search keeps its `AppTopBar`
+  left-aligned and groups its picker button under the engine chips). The
+  toolbar's back target then starts on the column's left edge, its title just
+  past the back control, and its actions end on the column's right edge; the
+  bookmark tags page's public/private switch and tag-feed subtitle inherit the
+  `AppTopBar` `DefaultTextStyle` foreground across branded and flat headers.
+  The bar's surface and shadow still span the whole window, and below the
   column width the bar keeps its page-edge layout.
 - **Why:** On a wide window the back button and the page's actions sat at
   the window's edges while the page content was a 600–840dp column in

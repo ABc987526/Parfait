@@ -6,7 +6,7 @@ applies_to:
   - lib/app/layout/app_breakpoints.dart
   - lib/app/layout/window_layout_spec.dart
   - lib/app/layout/two_pane.dart
-reviewed: 2026-11-17
+reviewed: 2026-11-18
 ---
 
 # Artwork detail page and viewer
@@ -31,25 +31,27 @@ reviewed: 2026-11-17
 ### DETAIL-02 A short first image sits low in its slot, the Hero inside it
 - **Rule:** On compact widths (under 600dp) a short first illustration
   (single, or first of a set; not manga, ugoira, a panorama or two-pane)
-  shown alone sits where centering it in 0.7 × viewport height would put
-  it. Its slot is the band above it plus its ratio box; nothing below, so
-  the expand button and the title follow right under the image. An
-  expanded set drops the band. The Hero, placeholder and error states
-  stay inside the ratio box, not the slot. Page 1 always goes through the
-  slot box so expanding a set never remounts it. Outside selection the
-  band carries the work's ambient light (THEME-19), rising from the image
+  shown alone computes `rawBand = max(0, 0.7 × viewportHeight - natural) / 2`
+  and applies `band = rawBand` only when `rawBand >= kToolbarHeight` (`56dp`);
+  portrait works with `rawBand < kToolbarHeight` collapse `band` to `0.0`
+  (`artworkUnderBar = true`) so the image starts under `statusInset` instead
+  of bisecting toolbar icons mid-bar. Its slot is the band above it plus its
+  ratio box; nothing below, so the expand button and the title follow right
+  under the image. An expanded set drops the band. The Hero, placeholder and
+  error states stay inside the ratio box, not the slot. Page 1 always goes
+  through the slot box so expanding a set never remounts it. Outside selection
+  the band carries the work's ambient light (THEME-19), rising from the image
   once it has landed. In selection, every
   page's badge keeps one inset from its image's top-end corner, moved
   down only by the part of the image the toolbar covers.
 - **Why:** A wide image at the very top was hard to see and to tap; the
-  matching band below it only pushed the title down. The flight landed on
-  empty slot space, and the blank band was a third of the first screen;
-  remounting page 1 lost its decode. On a portrait
-  tablet the slot only opened a gap. A badge moved down a toolbar's
-  height on an image the bar did not reach sat mid-image (user report,
-  10-24).
-- **Check:** `test/illust_detail_page_test.dart` "a short first image sits a band low; Hero and badge keep to it" "gives the first image of a set the same slot" "the band lights up from the image once it has landed"
-- **Code:** `lib/features/illust/detail/widgets/page_image.dart`
+  matching band below it only pushed the title down, while a sub-toolbar band
+  on 3:4 portrait works split the back and overflow icons across the artwork's
+  top edge. The flight landed on empty slot space, and remounting page 1 lost
+  its decode. On a portrait tablet the slot only opened a gap. A badge moved
+  down a toolbar's height on an image the bar did not reach sat mid-image.
+- **Check:** `test/illust_detail_page_test.dart` "a short first image sits a band low; Hero and badge keep to it" "a portrait 3:4 image collapses sub-toolbar band so icons stay over artwork" "gives the first image of a set the same slot" "the band lights up from the image once it has landed"
+- **Code:** `lib/features/illust/detail/illust_detail_content.dart`, `lib/features/illust/detail/widgets/page_image.dart`
 
 ### DETAIL-03 A panorama scrolls before the pager takes over
 - **Rule:** A page whose natural height is under 60% of 280dp shows in a
@@ -219,7 +221,9 @@ reviewed: 2026-11-17
   host content width via `DesktopInspectableGallery`, opening a `420–520dp`
   trailing `DesktopGalleryInspector` across recommended, ranking, new, search
   results, profile, bookmark-tag, history, watch-later and series illust
-  feeds). The
+  feeds); on `FormFactor.pc`, `FeedDensity.standard` uses
+  `minCardExtent: 204` (`_pcDensityGrid`) so 1280px windows keep 3 masonry
+  columns beside the inspector while 1440px full-width keeps 5. The
   inspector embeds `IllustDetailPage(embeddedInspector: true)` under its own
   `'desktop-inspector'` Hero scope so browsing history (`HistoryVisibility`),
   multi-page/ugoira, `detailQualityProvider`, actions, comments and related
@@ -234,14 +238,18 @@ reviewed: 2026-11-17
   under a stable `Stack`). On large flat screens (`>= 960×600`),
   `FuncPage(boundedOverlayOnWide: true)` and `DetailOverlayFrame` float the
   stage over a full-cycle faded scrim without lifting underlying feed bars,
-  anchoring the child with a `GlobalKey` across resizes (`NAV-21`); `SwipePaging`
+  anchoring the child with a `GlobalKey` across resizes (`NAV-21`), synchronizing
+  `HomeShellModalScrim` over `ShellRail` (`NAV-20`), and exposing `Icons.close`
+  (`closeButtonTooltip`, including loading, error, restricted, and not-found
+  outer `AppTopBar` states) instead of a back arrow; `SwipePaging`
   hands edge swipes to the work pager (`ExcludeFocus` on inactive neighbours)
   and paints decoded grid stand-ins before build.
 - **Why:** Users switch between a 90%+ modal stage and side-by-side feed
   scanning without sacrificing history or detail features, while hinge-aware
-  panes and unblurred stages keep foldables and desktop animations fast.
-- **Check:** `test/layout_breakpoints_test.dart` "two-pane detail needs a landscape area at least medium wide" "the secondary column stays between its bounds" "renders primary and secondary side by side" "AdaptiveTwoPane avoids vertical book hinge including rail" "AdaptiveTwoPane splits vertically on tabletop hinge" "AdaptiveTwoPane pointer handle resizes and saves ratio"; `test/illust_detail_actions_test.dart` "splits into image pager and meta column" "a layout switch fades the page in rather than swapping it"; `test/illust_detail_pager_test.dart` "an image pager at its last page hands the swipe to the work pager" "an image pager at its first image hands a backward swipe to the work pager, then follows the finger" "a two-pane stand-in paints the grid image on the stage"
-- **Code:** `lib/app/layout/app_breakpoints.dart`, `lib/app/layout/two_pane.dart`, `lib/app/layout/window_layout_spec.dart`, `lib/app/navigation/func_page.dart`, `lib/app/widgets/feed/desktop_inspector_scope.dart`, `lib/features/illust/detail/widgets/desktop_gallery_inspector.dart`, `lib/features/illust/detail/widgets/detail_overlay_frame.dart`, `lib/features/illust/detail/illust_detail_page.dart`, `lib/features/illust/detail/illust_detail_content.dart`, `lib/features/illust/detail/widgets/detail_image_pager.dart`, `lib/features/illust/detail/illust_detail_pager_page.dart`
+  panes, rail-synced modal scrims, consistent close affordances, and unblurred
+  stages keep foldables and desktop animations cohesive.
+- **Check:** `test/layout_breakpoints_test.dart` "two-pane detail needs a landscape area at least medium wide" "the secondary column stays between its bounds" "renders primary and secondary side by side" "AdaptiveTwoPane avoids vertical book hinge including rail" "AdaptiveTwoPane splits vertically on tabletop hinge" "AdaptiveTwoPane pointer handle resizes and saves ratio"; `test/illust_detail_actions_test.dart` "splits into image pager and meta column" "a layout switch fades the page in rather than swapping it"; `test/illust_detail_pager_test.dart` "an image pager at its last page hands the swipe to the work pager" "an image pager at its first image hands a backward swipe to the work pager, then follows the finger" "a two-pane stand-in paints the grid image on the stage"; `test/responsive_layout_test.dart` "PC standard grid keeps 3 columns at 1280px inspector width"; `test/home_branch_stack_test.dart` "ShellRail dims behind bounded DetailOverlayFrame and dismisses on tap"
+- **Code:** `lib/app/layout/app_breakpoints.dart`, `lib/app/layout/two_pane.dart`, `lib/app/layout/window_layout_spec.dart`, `lib/app/navigation/func_page.dart`, `lib/app/widgets/feed/feed_grid.dart`, `lib/app/widgets/feed/desktop_inspector_scope.dart`, `lib/features/illust/detail/widgets/desktop_gallery_inspector.dart`, `lib/features/illust/detail/widgets/detail_overlay_frame.dart`, `lib/features/illust/detail/illust_detail_page.dart`, `lib/features/illust/detail/illust_detail_content.dart`, `lib/features/illust/detail/widgets/detail_image_pager.dart`, `lib/features/illust/detail/illust_detail_pager_page.dart`
 
 ### DETAIL-18 Single-column detail text keeps the article width
 - **Rule:** In the single-column layout, when the page's content area is

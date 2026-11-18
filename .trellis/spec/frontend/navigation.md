@@ -22,7 +22,7 @@ applies_to:
   - lib/features/search/search_page.dart
   - lib/features/illust/detail/illust_detail_page.dart
   - lib/features/illust/detail/widgets/detail_overlay_frame.dart
-reviewed: 2026-11-17
+reviewed: 2026-11-18
 ---
 
 # Navigation, shell and tabs
@@ -264,7 +264,9 @@ reviewed: 2026-11-17
   row 600dp or wider caps each share at 120dp, or the widest label plus
   its padding when that is wider, and keeps to the start edge; a narrower
   one is always split in full. Otherwise the row scrolls from the start
-  edge with a 48dp `ScrollEdgeFade`. On a wide window a page's tabs may
+  edge with a 48dp `ScrollEdgeFade` (using compact `FuncSpacing.sm`
+  `labelPadding` under 420dp so wide localized tabs such as Russian fit
+  whole). On a wide window a page's tabs may
   share the title's row (`AppTopBar.tabsBesideTitle`, NAV-24); the shares
   still cap at the widest label and keep to the start edge, however
   narrow the row. Labels are measured in the style
@@ -345,18 +347,22 @@ reviewed: 2026-11-17
   `labelSmall` compact padding so all four locales fit without ellipsis; `204dp`
   expanded). Without `DesktopCommandBarScope`, the rail includes a header,
   tabs, rule, and bookmarks/downloads shortcuts; under `DesktopCommandBarScope`,
-  it omits duplicate shortcuts, anchors theme/settings (`router.go('/settings/all')`
-  with `settingsSelected`), and auto-collapses to `74dp` while
-  `desktopOwned && (me || settingsSelected)` on `>= 840dp` (`HomeBranchStack`)
-  to preserve `MasterDetailWorkspace` pane room. `FormFactor.railExpanded` keeps
-  shell, command bar, and macOS menu bar in sync (`1200dp` PC default until
-  toggled). Beside a rail, `/me` and `/downloads` push on the active branch
-  except from the viewer (NAV-04); immersive routes hide the rail post-frame.
+  it omits duplicate shortcuts and anchors theme/settings
+  (`router.go('/settings/all')` with `settingsSelected`). Across both touch
+  tablets and PCs, `HomeBranchStack` auto-collapses the rail to `74dp` while
+  `(me || settingsSelected)` on `>= 840dp` to preserve `MasterDetailWorkspace`
+  room, and paints a route-synchronized `0x990C0B0E` dismissible scrim
+  (`HomeShellModalScrim`) over `ShellRail` while a foreground bounded
+  `DetailOverlayFrame` is open without breaking the branch `HeroController`.
+  `FormFactor.railExpanded` keeps shell, command bar, and macOS menu bar in
+  sync (`1200dp` PC default until toggled). Beside a rail, `/me` and
+  `/downloads` push on the active branch except from the viewer (NAV-04);
+  immersive routes hide the rail post-frame.
 - **Why:** Tablets and desktops share adaptive rail sizing while auto-collapsing
-  beside wide master-detail workspaces and fitting localized rail labels without
-  clipping.
-- **Check:** `test/home_branch_stack_test.dart` "a turned phone keeps the bottom bar" "a short window on a tablet gets a scrolling icon rail" "a PC rail opens from large widths until the user" "the PC rail opens and closes by width rather than in one frame" "with reduced motion the PC rail changes width at once" "the interface form changes the shell at once and keeps the" "beside the rail, the downloads and the profile open in the"; `test/locale_layout/compact_controls_test.dart` "compact ShellRail keeps every label untruncated across locales"; `test/novel_reader_stage_test.dart` "the current reader hides the shell rail, under its panels"; `test/layout_breakpoints_test.dart` "a phone, a touch screen or a PC, by display and platform"
-- **Code:** `lib/app/layout/form_factor.dart`, `lib/app/widgets/func_bottom_nav.dart`, `lib/app/widgets/shell_rail.dart`, `lib/app/widgets/home_branch_stack.dart`, `lib/app/navigation/home_shell_metrics.dart`
+  beside wide master-detail workspaces, dimming in sync with bounded modal
+  overlays, and fitting localized rail labels without clipping.
+- **Check:** `test/home_branch_stack_test.dart` "a turned phone keeps the bottom bar" "a short window on a tablet gets a scrolling icon rail" "a PC rail opens from large widths until the user" "the PC rail opens and closes by width rather than in one frame" "with reduced motion the PC rail changes width at once" "the interface form changes the shell at once and keeps the" "beside the rail, the downloads and the profile open in the" "ShellRail dims behind bounded DetailOverlayFrame and dismisses on tap" "tablet landscape auto-collapses expanded ShellRail on Me and Settings"; `test/locale_layout/compact_controls_test.dart` "compact ShellRail keeps every label untruncated across locales"; `test/novel_reader_stage_test.dart` "the current reader hides the shell rail, under its panels"; `test/layout_breakpoints_test.dart` "a phone, a touch screen or a PC, by display and platform"
+- **Code:** `lib/app/layout/form_factor.dart`, `lib/app/widgets/func_bottom_nav.dart`, `lib/app/widgets/shell_rail.dart`, `lib/app/widgets/home_branch_stack.dart`, `lib/app/navigation/home_shell_metrics.dart`, `lib/features/illust/detail/widgets/detail_overlay_frame.dart`
 
 ### NAV-24 A wide destination bar: tabs, actions, then search
 - **Rule:** Where the shell shows a rail (`PageHeader.isWide`, NAV-20), a
