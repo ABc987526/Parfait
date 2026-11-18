@@ -1,7 +1,13 @@
 import 'dart:async';
 import 'dart:math' as math;
 
-import 'package:flutter/foundation.dart' show listEquals;
+import 'package:flutter/foundation.dart' show ValueListenable, listEquals;
+import 'package:flutter/rendering.dart'
+    show
+        BoxHitTestResult,
+        ContainerBoxParentData,
+        ContainerRenderObjectMixin,
+        RenderBoxContainerDefaultsMixin;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
@@ -207,7 +213,7 @@ class _MeDashboardPageState extends ConsumerState<MeDashboardPage> {
         ),
         children: [
           _AccountHeader(account: state?.current),
-          _RecentHistory(key: _historyKey),
+          _RecentHistory(key: _historyKey, showEmptyCard: true),
           const _MeNarrowGroups(),
           const FuncNavBarSpacer(),
         ],
@@ -555,8 +561,8 @@ final _recentHistoryProvider = FutureProvider.autoDispose<List<HistoryRecord>>((
 });
 
 /// The works seen last, as a row of covers; "view all" opens the history.
-/// Hidden on narrow Me when empty; wide overview optionally renders a
-/// restrained empty prompt card instead.
+/// Renders a restrained empty-history entry card when empty and [showEmptyCard]
+/// is true so users can still reach [HistoryPage].
 class _RecentHistory extends ConsumerStatefulWidget {
   const _RecentHistory({super.key, this.showEmptyCard = false});
 
@@ -614,13 +620,27 @@ class _RecentHistoryState extends ConsumerState<_RecentHistory>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final route = ModalRoute.of(context);
-    final navigator = Navigator.maybeOf(context);
-    final shell = navigator == null ? null : ModalRoute.of(navigator.context);
-    final covers = [
-      ?route?.secondaryAnimation,
-      if (!identical(shell, route)) ?shell?.secondaryAnimation,
-    ];
+    final covers = <Animation<double>>[];
+    final seenRoutes = <ModalRoute<dynamic>>{};
+    void collect(ModalRoute<dynamic>? candidate) {
+      if (candidate == null || !seenRoutes.add(candidate)) return;
+      final secondary = candidate.secondaryAnimation;
+      if (secondary != null && !covers.contains(secondary)) {
+        covers.add(secondary);
+      }
+    }
+
+    collect(ModalRoute.of(context));
+    final seenNavigators = <NavigatorState>{};
+    var navigator = Navigator.maybeOf(context);
+    while (navigator != null && seenNavigators.add(navigator)) {
+      final navContext = navigator.context;
+      collect(ModalRoute.of(navContext));
+      // Navigator.maybeOf(navContext) returns `navigator` itself because
+      // `navContext` is its own StatefulElement; use findAncestorStateOfType
+      // to step strictly above it toward the root Navigator.
+      navigator = navContext.findAncestorStateOfType<NavigatorState>();
+    }
     if (listEquals(covers, _covers)) return;
     for (final cover in _covers) {
       cover.removeStatusListener(_onCover);
@@ -786,17 +806,18 @@ class _RecentHistoryState extends ConsumerState<_RecentHistory>
     }
     final store = ref.watch(illustStoreProvider);
     return Padding(
-      padding: const EdgeInsets.only(bottom: FuncSpacing.xl),
+      padding: const EdgeInsets.only(bottom: FuncSpacing.xl - FuncSpacing.xs),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
             // A group heading's inset: the group's and the title's own.
+            // Bottom is 0 to offset the cover row's FuncSpacing.xs lift headroom.
             padding: const EdgeInsets.fromLTRB(
               FuncSpacing.lg + FuncSpacing.lg,
               0,
               FuncSpacing.lg,
-              FuncSpacing.xs,
+              0,
             ),
             child: Row(
               children: [
@@ -824,26 +845,38 @@ class _RecentHistoryState extends ConsumerState<_RecentHistory>
             ),
           ),
           SizedBox(
-            height: _RecentHistory._cover,
+            height: _RecentHistory._cover + 2 * FuncSpacing.xs,
             child: IllustPagerScope(
               source: _pager,
               // Eight covers at most: built all at once, keyed by work, so
               // each keeps its state as the order changes.
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: FuncSpacing.lg),
-                child: Row(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: FuncSpacing.lg,
+                  vertical: FuncSpacing.xs,
+                ),
+                child: _HistoryCoverRow(
+                  coverSize: _RecentHistory._cover,
+                  gap: _RecentHistory._gap,
+                  textDirection: Directionality.of(context),
                   children: [
-                    for (final (index, record) in shown.indexed) ...[
-                      if (index > 0) const SizedBox(width: _RecentHistory._gap),
-                      _RowSlot(
+                    for (final (index, record) in shown.indexed)
+                      _HistoryCoverSlot(
                         key: ValueKey(_keyOf(record)),
-                        order: _order,
-                        from: _from[_keyOf(record)],
-                        entering: _joined.contains(_keyOf(record)),
-                        child: _rowCover(store, record),
+                        paintPriority: _paintPriority(
+                          index: index,
+                          total: shown.length,
+                          from: _from[_keyOf(record)],
+                          entering: _joined.contains(_keyOf(record)),
+                        ),
+                        child: _RowSlot(
+                          order: _order,
+                          from: _from[_keyOf(record)],
+                          entering: _joined.contains(_keyOf(record)),
+                          child: _rowCover(store, record),
+                        ),
                       ),
-                    ],
                   ],
                 ),
               ),
@@ -853,6 +886,217 @@ class _RecentHistoryState extends ConsumerState<_RecentHistory>
       ),
     );
   }
+
+  static int _paintPriority({
+    required int index,
+    required int total,
+    required int? from,
+    required bool entering,
+  }) {
+    if ((from != null && from > 0) || (index == 0 && entering)) {
+      return 2 + (total - index);
+    }
+    if (from != null && from < 0) return 0;
+    return 1;
+  }
+}
+
+class _HistoryCoverSlotData extends ContainerBoxParentData<RenderBox> {
+  int paintPriority = 1;
+}
+
+class _HistoryCoverSlot extends ParentDataWidget<_HistoryCoverSlotData> {
+  const _HistoryCoverSlot({
+    super.key,
+    required this.paintPriority,
+    required super.child,
+  });
+
+  final int paintPriority;
+
+  @override
+  void applyParentData(RenderObject renderObject) {
+    final data = renderObject.parentData! as _HistoryCoverSlotData;
+    if (data.paintPriority != paintPriority) {
+      data.paintPriority = paintPriority;
+      renderObject.parent?.markNeedsPaint();
+    }
+  }
+
+  @override
+  Type get debugTypicalAncestorWidgetClass => _HistoryCoverRow;
+}
+
+/// Lays out recent history covers left-to-right (or RTL) in widget/semantics
+/// order while painting promoted forward-moving covers above displaced ones so
+/// crossing cards never clip the leading cover in half.
+class _HistoryCoverRow extends MultiChildRenderObjectWidget {
+  const _HistoryCoverRow({
+    required this.coverSize,
+    required this.gap,
+    required this.textDirection,
+    required super.children,
+  });
+
+  final double coverSize;
+  final double gap;
+  final TextDirection textDirection;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _RenderHistoryCoverRow(
+        coverSize: coverSize,
+        gap: gap,
+        textDirection: textDirection,
+      );
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderHistoryCoverRow renderObject,
+  ) {
+    renderObject
+      ..coverSize = coverSize
+      ..gap = gap
+      ..textDirection = textDirection;
+  }
+}
+
+class _RenderHistoryCoverRow extends RenderBox
+    with
+        ContainerRenderObjectMixin<RenderBox, _HistoryCoverSlotData>,
+        RenderBoxContainerDefaultsMixin<RenderBox, _HistoryCoverSlotData> {
+  _RenderHistoryCoverRow({
+    required double coverSize,
+    required double gap,
+    required TextDirection textDirection,
+  }) : _coverSize = coverSize,
+       _gap = gap,
+       _textDirection = textDirection;
+
+  double _coverSize;
+  set coverSize(double value) {
+    if (_coverSize == value) return;
+    _coverSize = value;
+    markNeedsLayout();
+  }
+
+  double _gap;
+  set gap(double value) {
+    if (_gap == value) return;
+    _gap = value;
+    markNeedsLayout();
+  }
+
+  TextDirection _textDirection;
+  set textDirection(TextDirection value) {
+    if (_textDirection == value) return;
+    _textDirection = value;
+    markNeedsLayout();
+  }
+
+  @override
+  void setupParentData(RenderBox child) {
+    if (child.parentData is! _HistoryCoverSlotData) {
+      child.parentData = _HistoryCoverSlotData();
+    }
+  }
+
+  Size _rowSize(int count) {
+    if (count == 0) return Size(0, _coverSize);
+    return Size(count * _coverSize + (count - 1) * _gap, _coverSize);
+  }
+
+  @override
+  double computeMinIntrinsicWidth(double height) => _rowSize(childCount).width;
+
+  @override
+  double computeMaxIntrinsicWidth(double height) => _rowSize(childCount).width;
+
+  @override
+  double computeMinIntrinsicHeight(double width) => _coverSize;
+
+  @override
+  double computeMaxIntrinsicHeight(double width) => _coverSize;
+
+  @override
+  Size computeDryLayout(BoxConstraints constraints) =>
+      constraints.constrain(_rowSize(childCount));
+
+  @override
+  void performLayout() {
+    final count = childCount;
+    size = constraints.constrain(_rowSize(count));
+    final childConstraints = BoxConstraints.tightFor(
+      width: _coverSize,
+      height: _coverSize,
+    );
+    final stride = _coverSize + _gap;
+    final ltr = _textDirection == TextDirection.ltr;
+    var index = 0;
+    var child = firstChild;
+    while (child != null) {
+      child.layout(childConstraints, parentUsesSize: false);
+      final data = child.parentData! as _HistoryCoverSlotData;
+      final slot = ltr ? index : count - 1 - index;
+      data.offset = Offset(slot * stride, 0);
+      child = data.nextSibling;
+      index++;
+    }
+  }
+
+  List<RenderBox> _paintOrderedChildren() {
+    final ordered = <RenderBox>[];
+    var child = firstChild;
+    while (child != null) {
+      ordered.add(child);
+      child = (child.parentData! as _HistoryCoverSlotData).nextSibling;
+    }
+    final indexed = ordered.indexed.toList()
+      ..sort((a, b) {
+        final pa = (a.$2.parentData! as _HistoryCoverSlotData).paintPriority;
+        final pb = (b.$2.parentData! as _HistoryCoverSlotData).paintPriority;
+        final byPriority = pa.compareTo(pb);
+        return byPriority != 0 ? byPriority : a.$1.compareTo(b.$1);
+      });
+    return [for (final (_, box) in indexed) box];
+  }
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    for (final child in _paintOrderedChildren()) {
+      final data = child.parentData! as _HistoryCoverSlotData;
+      context.paintChild(child, data.offset + offset);
+    }
+  }
+
+  @override
+  bool hitTestChildren(BoxHitTestResult result, {required Offset position}) {
+    for (final child in _paintOrderedChildren().reversed) {
+      final data = child.parentData! as _HistoryCoverSlotData;
+      final hit = result.addWithPaintOffset(
+        offset: data.offset,
+        position: position,
+        hitTest: (result, transformed) =>
+            child.hitTest(result, position: transformed),
+      );
+      if (hit) return true;
+    }
+    return false;
+  }
+}
+
+class _SlotLift extends InheritedWidget {
+  const _SlotLift({required this.scale, required super.child});
+
+  final ValueListenable<double> scale;
+
+  static ValueListenable<double>? of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<_SlotLift>()?.scale;
+
+  @override
+  bool updateShouldNotify(_SlotLift oldWidget) =>
+      !identical(scale, oldWidget.scale);
 }
 
 /// A cover's place on the row. When the row takes a new order, a cover
@@ -862,7 +1106,6 @@ class _RecentHistoryState extends ConsumerState<_RecentHistory>
 /// once.
 class _RowSlot extends StatefulWidget {
   const _RowSlot({
-    super.key,
     required this.order,
     required this.from,
     required this.entering,
@@ -891,11 +1134,15 @@ class _RowSlotState extends State<_RowSlot>
   /// The fade of a cover joining the row: an effect, shorter than the move.
   static const _fadeIn = Interval(0, 0.5);
 
-  late final _controller = AnimationController(vsync: this, value: 1);
+  late final _controller = AnimationController(vsync: this, value: 1)
+    ..addListener(_syncLift);
+  late final ValueNotifier<double> _liftScale = ValueNotifier(1.0);
 
   /// The slide's start, in logical pixels from the cover's place.
   double _start = 0;
   bool _fading = false;
+  bool _movingForward = true;
+  bool _lifting = false;
   bool _started = false;
 
   @override
@@ -903,7 +1150,9 @@ class _RowSlotState extends State<_RowSlot>
     super.didChangeDependencies();
     if (_started) return;
     _started = true;
-    if (widget.entering) _slide(from: -1, fade: true);
+    if (widget.entering) {
+      _slide(from: -1, fade: true, forward: true, lift: false);
+    }
   }
 
   @override
@@ -911,47 +1160,76 @@ class _RowSlotState extends State<_RowSlot>
     super.didUpdateWidget(oldWidget);
     if (widget.order == oldWidget.order) return;
     final from = widget.from;
-    if (from != null && from != 0) _slide(from: from, fade: false);
+    if (from != null && from != 0) {
+      _slide(from: from, fade: false, forward: from > 0, lift: from > 0);
+    }
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _controller
+      ..removeListener(_syncLift)
+      ..dispose();
+    _liftScale.dispose();
     super.dispose();
   }
 
-  double get _offset =>
-      _start * (1 - MotionTokens.spatialCurve.transform(_controller.value));
+  void _syncLift() {
+    final next = !_lifting || _controller.isCompleted
+        ? 1.0
+        : 1.0 + 0.04 * math.sin(_controller.value * math.pi);
+    if (_liftScale.value != next) _liftScale.value = next;
+  }
 
-  void _slide({required int from, required bool fade}) {
+  // Promoted cards glide forward swiftly while displaced cards yield gently,
+  // avoiding a symmetric dead-center eclipse between adjacent covers.
+  static const _forwardCurve = Cubic(0.2, 0, 0, 1);
+  static const _backwardCurve = Cubic(0.7, 0, 0.3, 1);
+
+  Curve get _slideCurve => _movingForward ? _forwardCurve : _backwardCurve;
+
+  double get _offset => _start * (1 - _slideCurve.transform(_controller.value));
+
+  void _slide({
+    required int from,
+    required bool fade,
+    required bool forward,
+    required bool lift,
+  }) {
     final duration = MotionTokens.resolve(context, MotionTokens.spatial);
     if (duration == Duration.zero) return;
     final leading = Directionality.of(context) == TextDirection.ltr ? 1 : -1;
     _start = _offset + from * _stride * leading;
     _fading = fade;
+    _movingForward = forward;
+    _lifting = lift;
     _controller
       ..duration = duration
       ..forward(from: 0);
+    _syncLift();
   }
 
   @override
-  Widget build(BuildContext context) => AnimatedBuilder(
-    animation: _controller,
-    child: widget.child,
-    builder: (context, child) {
-      final moved = Transform.translate(
-        offset: Offset(_offset, 0),
-        child: child,
-      );
-      return _fading
-          ? Opacity(
-              opacity: _fadeIn.transform(_controller.value),
-              // Still one object to a screen reader while it fades in.
-              alwaysIncludeSemantics: true,
-              child: moved,
-            )
-          : moved;
-    },
+  Widget build(BuildContext context) => _SlotLift(
+    scale: _liftScale,
+    child: AnimatedBuilder(
+      animation: _controller,
+      child: widget.child,
+      builder: (context, child) {
+        final moved = Transform.translate(
+          offset: Offset(_offset, 0),
+          child: child,
+        );
+        return _fading
+            ? Opacity(
+                opacity: _fadeIn.transform(_controller.value),
+                // Still one object to a screen reader while it fades in.
+                alwaysIncludeSemantics: true,
+                child: moved,
+              )
+            : moved;
+      },
+    ),
   );
 }
 
@@ -1011,6 +1289,32 @@ class _RecentCover extends StatelessWidget {
         );
       }
     }
+    final content = InkWell(
+      onTap: onTap,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          image ??
+              Icon(novel ? Icons.menu_book_outlined : Icons.image_outlined),
+          if (novel)
+            const Positioned(
+              left: 7,
+              top: 7,
+              child: EntityBadge(icon: Icons.menu_book_outlined),
+            ),
+        ],
+      ),
+    );
+    final scheme = Theme.of(context).colorScheme;
+    Widget buildCard(double elevation) => Material(
+      color: scheme.surfaceContainer,
+      elevation: elevation,
+      shadowColor: scheme.shadow,
+      shape: const RoundedRectangleBorder(borderRadius: FuncShape.card),
+      clipBehavior: Clip.antiAlias,
+      child: content,
+    );
+    final lift = _SlotLift.of(context);
     return Semantics(
       container: true,
       button: true,
@@ -1019,29 +1323,28 @@ class _RecentCover extends StatelessWidget {
       excludeSemantics: true,
       child: SizedBox.square(
         dimension: _size,
-        child: Material(
-          color: Theme.of(context).colorScheme.surfaceContainer,
-          shape: const RoundedRectangleBorder(borderRadius: FuncShape.card),
-          clipBehavior: Clip.antiAlias,
-          child: InkWell(
-            onTap: onTap,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                image ??
-                    Icon(
-                      novel ? Icons.menu_book_outlined : Icons.image_outlined,
+        child: lift == null
+            ? buildCard(0)
+            : ValueListenableBuilder<double>(
+                valueListenable: lift,
+                child: content,
+                builder: (_, scale, child) {
+                  final elevation = ((scale - 1.0) / 0.04).clamp(0.0, 1.0) * 4;
+                  return Transform.scale(
+                    scale: scale,
+                    child: Material(
+                      color: scheme.surfaceContainer,
+                      elevation: elevation,
+                      shadowColor: scheme.shadow,
+                      shape: const RoundedRectangleBorder(
+                        borderRadius: FuncShape.card,
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: child,
                     ),
-                if (novel)
-                  const Positioned(
-                    left: 7,
-                    top: 7,
-                    child: EntityBadge(icon: Icons.menu_book_outlined),
-                  ),
-              ],
-            ),
-          ),
-        ),
+                  );
+                },
+              ),
       ),
     );
   }

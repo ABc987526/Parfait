@@ -57,7 +57,9 @@ class _HistoryVisibilityState extends State<HistoryVisibility>
   late HistoryTracker _tracker;
   RouteObserver<ModalRoute<dynamic>> _observer = replicaRouteObserver;
   ModalRoute<dynamic>? _route;
+  Animation<double>? _routeAnimation;
   bool _routeVisible = false;
+  bool _routeSettled = false;
   bool _foreground = true;
   bool _effectiveVisible = false;
   bool _didResolveRoute = false;
@@ -91,15 +93,49 @@ class _HistoryVisibilityState extends State<HistoryVisibility>
     final route = ModalRoute.of(context);
     final observer =
         RouteObserverScope.maybeOf(context) ?? replicaRouteObserver;
-    if (!identical(route, _route) || !identical(observer, _observer)) {
+    final routeChanged = !identical(route, _route);
+    if (routeChanged || !identical(observer, _observer)) {
       if (_route != null) _observer.unsubscribe(this);
       _observer = observer;
       _route = route;
       if (route != null) _observer.subscribe(this, route);
     }
+    if (routeChanged || _routeAnimation == null) {
+      final animation = route?.animation;
+      if (!identical(animation, _routeAnimation)) {
+        _routeAnimation?.removeStatusListener(_onRouteAnimationStatus);
+        _routeAnimation = animation;
+        animation?.addStatusListener(_onRouteAnimationStatus);
+      }
+      if (routeChanged) {
+        _routeSettled = _isRouteSettled(route);
+      }
+    }
     if (!_didResolveRoute) {
       _didResolveRoute = true;
       _routeVisible = route?.isCurrent ?? true;
+      _routeSettled = _isRouteSettled(route);
+      _updateVisibility();
+    } else if (!_routeSettled && _isRouteSettled(route)) {
+      _routeSettled = true;
+      _updateVisibility();
+    }
+  }
+
+  /// True once the enclosing route is onstage and its push transition has
+  /// finished (or when no transition exists, such as a root/harness route).
+  /// During a Hero push's offstage measurement pass Flutter temporarily sets
+  /// `route.animation` to `kAlwaysCompleteAnimation`, so checking `offstage`
+  /// avoids treating an interrupted 4-12 frame push as a settled view.
+  static bool _isRouteSettled(ModalRoute<dynamic>? route) {
+    if (route == null) return true;
+    if (route.offstage) return false;
+    return route.animation?.isCompleted ?? true;
+  }
+
+  void _onRouteAnimationStatus(AnimationStatus _) {
+    if (!_routeSettled && _isRouteSettled(_route)) {
+      _routeSettled = true;
       _updateVisibility();
     }
   }
@@ -150,7 +186,7 @@ class _HistoryVisibilityState extends State<HistoryVisibility>
   }
 
   void _updateVisibility() {
-    final next = _routeVisible && _foreground && widget.active;
+    final next = _routeVisible && _routeSettled && _foreground && widget.active;
     if (next == _effectiveVisible) return;
     _effectiveVisible = next;
     _run(next ? _tracker.start() : _tracker.pauseAndCommit());
@@ -181,6 +217,7 @@ class _HistoryVisibilityState extends State<HistoryVisibility>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _routeAnimation?.removeStatusListener(_onRouteAnimationStatus);
     if (_route != null) _observer.unsubscribe(this);
     _run(_tracker.finish());
     super.dispose();

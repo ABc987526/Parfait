@@ -4,10 +4,13 @@ import 'package:material_ui/material_ui.dart';
 import '../../../app/haptics/app_haptics.dart';
 import '../../../app/motion/reveal.dart';
 import '../../../app/theme/func_semantic_tokens.dart';
+import '../../../app/theme/func_tokens.dart';
 import '../../../app/widgets/app_top_bar.dart';
 import '../../../app/widgets/func_bottom_nav.dart';
 import '../../../app/widgets/settings/settings_control.dart';
 import '../../../app/widgets/settings/settings_group.dart';
+import '../../../app/window/desktop_command_bar.dart'
+    show DesktopCommandBarScope;
 import '../../../core/navigation/home_destination.dart';
 import '../../../core/settings/arrangement.dart';
 import '../../../core/settings/settings_controller.dart';
@@ -239,14 +242,64 @@ class _DestinationSwitch extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SettingsControl(
+    final desktopOwned = DesktopCommandBarScope.isActiveOf(context);
+    Widget control = SettingsControl(
       title: Text(homeDestinationLabel(context, destination)),
-      subtitle: destination.hideable
+      subtitle: destination.hideable || desktopOwned
           ? null
           : Text(context.l10n.bottomBarMeLocked),
       secondary: Icon(homeDestinationIcon(destination)),
       value: shown,
       onChanged: onChanged,
     );
+    if (shown && onChanged == null) {
+      final scheme = Theme.of(context).colorScheme;
+      final baseTheme = SwitchTheme.of(context);
+      final iconColor =
+          scheme.brightness == Brightness.dark &&
+              scheme.onPrimary.computeLuminance() > 0.5
+          ? scheme.primaryContainer
+          : scheme.primary;
+      control = SwitchTheme(
+        data: baseTheme.copyWith(
+          trackColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.disabled) &&
+                states.contains(WidgetState.selected)) {
+              return Color.alphaBlend(
+                scheme.primary.withValues(alpha: 0.40),
+                scheme.surfaceContainerHighest,
+              );
+            }
+            return baseTheme.trackColor?.resolve(states);
+          }),
+          thumbColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.disabled) &&
+                states.contains(WidgetState.selected)) {
+              return scheme.onPrimary;
+            }
+            return baseTheme.thumbColor?.resolve(states);
+          }),
+          trackOutlineColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.disabled) &&
+                states.contains(WidgetState.selected)) {
+              return FuncTokens.transparent;
+            }
+            return baseTheme.trackOutlineColor?.resolve(states);
+          }),
+          thumbIcon: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.disabled) &&
+                states.contains(WidgetState.selected)) {
+              return Icon(
+                destination.hideable ? Icons.check : Icons.lock_outline,
+                color: iconColor,
+              );
+            }
+            return baseTheme.thumbIcon?.resolve(states);
+          }),
+        ),
+        child: control,
+      );
+    }
+    return control;
   }
 }
