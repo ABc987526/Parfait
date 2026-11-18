@@ -285,7 +285,7 @@ extension _IllustDetailContent on _IllustDetailPageState {
                 expanded: _pagesExpanded,
                 onPressed: _pagesExpanded
                     ? () => _collapsePages(firstPageEnd)
-                    : _expandPages,
+                    : () => _expandPagesFromSlot(layout.alone - layout.natural),
               ),
             ),
           ),
@@ -696,6 +696,19 @@ extension _IllustDetailContent on _IllustDetailPageState {
         child: page,
       ),
     );
+  }
+
+  /// Compensates for a collapsed short first image's top reading-slot band
+  /// when expanding the set after scrolling into that band, keeping page 1
+  /// anchored under `statusInset` with full `ArtworkControls` halo lift
+  /// instead of leaving a pre-scrolled opaque bar over the newly flush image.
+  void _expandPagesFromSlot(double removedBand) {
+    if (removedBand > 0 &&
+        _narrowScroll.hasClients &&
+        _narrowScroll.offset > 0) {
+      _narrowScroll.jumpTo(math.max(0.0, _narrowScroll.offset - removedBand));
+    }
+    _expandPages();
   }
 
   Widget _buildInspectorHeader(

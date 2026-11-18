@@ -248,7 +248,14 @@ class _NovelStatusScaffoldState extends ConsumerState<NovelStatusScaffold>
               onPressed: () => Navigator.of(context).maybePop(),
             ),
           ),
-        Expanded(child: widget.child),
+        Expanded(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 720),
+              child: widget.child,
+            ),
+          ),
+        ),
       ],
     );
   }

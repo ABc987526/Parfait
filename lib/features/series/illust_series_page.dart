@@ -76,36 +76,56 @@ class _IllustSeriesPageState extends ConsumerState<IllustSeriesPage> {
   @override
   Widget build(BuildContext context) {
     final seriesId = widget.seriesId;
+    final l10n = context.l10n;
     final async = ref.watch(illustSeriesFeedProvider(seriesId));
     final detail = ref.watch(illustSeriesStoreProvider)[seriesId];
     final desktopOwned = DesktopCommandBarScope.isActiveOf(context);
     final feedValue = async.asData?.value;
+    final rawTitle = (detail?.title ?? '').trim();
     final hasHeaderTitle =
-        detail != null &&
+        rawTitle.isNotEmpty &&
         feedValue != null &&
         !feedValue.showInitialError &&
         !feedValue.showInitialSpinner;
-    final rawTitle = (detail?.title ?? '').trim();
+    final categoryTitle = Text(
+      l10n.novelSeries,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
     final titleText = Text(
-      rawTitle.isEmpty ? context.l10n.seriesTitle : rawTitle,
+      rawTitle.isEmpty ? l10n.seriesTitle : rawTitle,
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
     );
     return Scaffold(
       appBar: AppTopBar(
-        title: hasHeaderTitle && !desktopOwned
-            ? ValueListenableBuilder<double>(
+        title: !hasHeaderTitle
+            ? titleText
+            : ValueListenableBuilder<double>(
                 valueListenable: _titleReveal,
-                builder: (context, reveal, child) => Opacity(
-                  opacity: reveal,
-                  child: ExcludeSemantics(
-                    excluding: reveal < 0.5,
-                    child: child,
-                  ),
-                ),
+                builder: (context, reveal, child) {
+                  if (desktopOwned) {
+                    if (reveal <= 0.45) {
+                      return Opacity(
+                        opacity: (1.0 - reveal / 0.45).clamp(0.0, 1.0),
+                        child: categoryTitle,
+                      );
+                    }
+                    return Opacity(
+                      opacity: ((reveal - 0.45) / 0.55).clamp(0.0, 1.0),
+                      child: child,
+                    );
+                  }
+                  return Opacity(
+                    opacity: reveal,
+                    child: ExcludeSemantics(
+                      excluding: reveal < 0.5,
+                      child: child,
+                    ),
+                  );
+                },
                 child: titleText,
-              )
-            : titleText,
+              ),
       ),
       body: DesktopInspectableGallery(
         child: async.when(
@@ -301,6 +321,17 @@ class _EpisodeRow extends StatelessWidget {
   }
 }
 
+double _seriesHeaderMaxWidth(double availableWidth) {
+  final columns = CardColumns.of(availableWidth);
+  if (columns >= 3) return availableWidth * 2 / columns;
+  if (columns == 2) {
+    return availableWidth <= ContentWidths.management
+        ? availableWidth
+        : availableWidth / 2;
+  }
+  return ContentWidths.article;
+}
+
 class _SeriesHeader extends ConsumerWidget {
   const _SeriesHeader({required this.detail});
 
@@ -309,6 +340,7 @@ class _SeriesHeader extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final tokens = FuncSemanticTokens.of(context);
     final cover = detail.coverUrl;
     final accountId = ref.watch(
       accountStoreProvider.select((async) => async.value?.usableCurrent?.id),
@@ -339,80 +371,101 @@ class _SeriesHeader extends ConsumerWidget {
     final recent = accountId == null
         ? null
         : recentOpenMap[SeriesRecentOpenStore.keyFor(accountId, detail.id)];
-    return Align(
-      alignment: AlignmentDirectional.topStart,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: ContentWidths.article),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            FuncSpacing.lg,
-            FuncSpacing.sm,
-            FuncSpacing.lg,
-            FuncSpacing.md,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (cover != null)
-                    DecoratedBox(
-                      position: DecorationPosition.foreground,
-                      decoration: BoxDecoration(
-                        borderRadius: FuncShape.control,
-                        border: theme.brightness == Brightness.light
-                            ? Border.all(
-                                color: FuncSemanticTokens.of(context).divider,
-                              )
-                            : null,
-                      ),
-                      child: ClipRRect(
-                        borderRadius: FuncShape.control,
-                        child: PixivImage(
-                          url: cover,
-                          width: 88,
-                          height: 88,
-                          memCacheWidth: PixivImage.decodeWidthOf(context, 88),
-                        ),
-                      ),
-                    ),
-                  if (cover != null) const SizedBox(width: FuncSpacing.md),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          detail.title,
-                          style: theme.textTheme.titleLarge,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        AuthorRow(userId: detail.userId, name: detail.userName),
-                        if (detail.workCount != null)
-                          Text(
-                            context.l10n.seriesWorksCount(detail.workCount!),
-                            style: theme.textTheme.bodySmall,
-                          ),
-                      ],
-                    ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final headerMaxWidth = _seriesHeaderMaxWidth(constraints.maxWidth);
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Align(
+              alignment: AlignmentDirectional.topStart,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: headerMaxWidth),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    FuncSpacing.lg,
+                    FuncSpacing.sm,
+                    FuncSpacing.lg,
+                    FuncSpacing.md,
                   ),
-                ],
-              ),
-              const SizedBox(height: FuncSpacing.md),
-              _SeriesActions(detail: detail, recent: recent),
-              if (detail.caption.isNotEmpty) ...[
-                const SizedBox(height: FuncSpacing.sm),
-                ExpandableText(
-                  TextSpan(text: detail.caption),
-                  maxLines: 3,
-                  style: theme.textTheme.bodySmall,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (cover != null)
+                            DecoratedBox(
+                              position: DecorationPosition.foreground,
+                              decoration: BoxDecoration(
+                                borderRadius: FuncShape.control,
+                                border: theme.brightness == Brightness.light
+                                    ? Border.all(color: tokens.divider)
+                                    : null,
+                              ),
+                              child: ClipRRect(
+                                borderRadius: FuncShape.control,
+                                child: PixivImage(
+                                  url: cover,
+                                  width: 88,
+                                  height: 88,
+                                  memCacheWidth: PixivImage.decodeWidthOf(
+                                    context,
+                                    88,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          if (cover != null)
+                            const SizedBox(width: FuncSpacing.md),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  detail.title,
+                                  style: theme.textTheme.titleLarge,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                AuthorRow(
+                                  userId: detail.userId,
+                                  name: detail.userName,
+                                ),
+                                if (detail.workCount != null)
+                                  Text(
+                                    context.l10n.seriesWorksCount(
+                                      detail.workCount!,
+                                    ),
+                                    style: theme.textTheme.bodySmall,
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: FuncSpacing.md),
+                      _SeriesActions(detail: detail, recent: recent),
+                      if (detail.caption.isNotEmpty) ...[
+                        const SizedBox(height: FuncSpacing.sm),
+                        ExpandableText(
+                          TextSpan(text: detail.caption),
+                          maxLines: 3,
+                          style: theme.textTheme.bodySmall,
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
-              ],
-            ],
-          ),
-        ),
-      ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: FuncSpacing.lg),
+              child: Divider(height: 1, color: tokens.divider),
+            ),
+          ],
+        );
+      },
     );
   }
 }
