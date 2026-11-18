@@ -265,7 +265,8 @@ reviewed: 2026-11-18
 
 ### THEME-16 Icons are unified outlined vector glyphs; filled marks selection or state
 - **Rule:** App UI icons come from the unified `24×24` MingCute (plus
-  matching Phosphor fallbacks) vector glyph system compiled deterministically
+  matching Apache-2.0 Material Symbols Rounded `leaderboard` and Phosphor
+  fallbacks) vector glyph system compiled deterministically
   into `assets/icon.ttf` (`AppIcons` in `lib/app/icons/app_icons.dart`, built
   via `tool/build_icons.py`). An action, an unselected destination or a
   placeholder uses the outlined glyph. The `*Filled` twin marks a state:
