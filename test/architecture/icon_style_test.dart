@@ -48,7 +48,6 @@ const _appFilledStates = <String, Set<String>>{
   // Me dashboard wide master-detail selection states.
   'lib/features/settings/me_dashboard_page.dart': {
     'heartFilled',
-    'userFilled',
     'watchLaterFilled',
   },
   // Settings index wide master-detail About selection state.

@@ -31,7 +31,6 @@ import '../../app/widgets/entity_row.dart' show EntityBadge;
 import '../../app/widgets/feed/feed_grid.dart'
     show IllustPagerAnchor, IllustPagerScope, IllustPagerSource;
 import '../../app/widgets/feed/feed_states.dart';
-import '../../app/widgets/feed/illust_card.dart';
 import '../../app/widgets/func_bottom_nav.dart';
 import '../../app/widgets/master_detail_workspace.dart';
 import '../../app/widgets/person_card.dart';
@@ -59,7 +58,6 @@ import '../../core/user/user_entity.dart';
 import '../../core/user/user_repository.dart';
 import '../../core/user/user_store.dart';
 import '../../core/watchlater/watch_later_store.dart';
-import '../../core/watchlist/watchlist_models.dart';
 import '../../core/watchlist/watchlist_store.dart';
 import '../../l10n/context.dart';
 import 'pages/download_tasks_page.dart';
@@ -68,11 +66,11 @@ import 'settings_helpers.dart';
 import 'settings_page.dart' show settingsPageIcons;
 
 enum _MeSection {
-  overview,
   bookmarks,
   following,
   watchlist,
   novelMarkers,
+  history,
   watchLater,
   localNovels,
   downloads,
@@ -106,12 +104,12 @@ class _MeNetworkScope extends InheritedWidget {
 
 class _MeDashboardPageState extends ConsumerState<MeDashboardPage> {
   /// Preserves `_RecentHistoryState` (keep-alive covers & reorder animations)
-  /// when crossing the narrow/wide breakpoint (`SET-07`).
+  /// across narrow dashboard rebuilds.
   final _historyKey = GlobalKey();
   final _detailNavigatorKey = GlobalKey<NavigatorState>(
     debugLabel: 'me-detail',
   );
-  _MeSection _selectedSection = _MeSection.overview;
+  _MeSection _selectedSection = _MeSection.bookmarks;
   bool _hasBeenVisible = false;
 
   void _selectSection(_MeSection section) {
@@ -156,14 +154,11 @@ class _MeDashboardPageState extends ConsumerState<MeDashboardPage> {
 
   Widget _buildWideDetail(_MeSection section) {
     return switch (section) {
-      _MeSection.overview => _MeOverviewPane(
-        historyKey: _historyKey,
-        onSelectSection: _selectSection,
-      ),
       _MeSection.bookmarks => const _MeBookmarksPane(),
       _MeSection.following => const _MeFollowingPane(),
       _MeSection.watchlist => const WatchlistPage(),
       _MeSection.novelMarkers => const NovelMarkersPage(),
+      _MeSection.history => const HistoryPage(),
       _MeSection.watchLater => const WatchLaterPage(),
       _MeSection.localNovels => const LocalNovelsPage(),
       _MeSection.downloads => const DownloadTasksPage(),
@@ -335,7 +330,7 @@ class _MeDashboardPageState extends ConsumerState<MeDashboardPage> {
     final signedIn = state?.usableCurrent != null;
     final effectiveSection =
         !signedIn && _selectedSection == _MeSection.novelMarkers
-        ? _MeSection.overview
+        ? _MeSection.bookmarks
         : _selectedSection;
     if (effectiveSection != _selectedSection) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -348,6 +343,7 @@ class _MeDashboardPageState extends ConsumerState<MeDashboardPage> {
       masterTop: _CompactAccountHeader(account: state?.current, detail: detail),
       masterBody: _MeWideRailGroups(
         signedIn: signedIn,
+        detail: detail,
         selected: effectiveSection,
         includeSettingsEntries: !desktopOwned,
         onSelectSection: _selectSection,
@@ -660,63 +656,67 @@ class _CompactAccountHeader extends StatelessWidget {
         color: colors.surfaceContainer,
         shape: const RoundedRectangleBorder(borderRadius: FuncShape.card),
         clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: value == null
-              ? () => openLogin(context)
-              : () => openMe(context),
-          child: Padding(
-            padding: const EdgeInsetsDirectional.fromSTEB(
-              FuncSpacing.md,
-              FuncSpacing.sm,
-              FuncSpacing.xs,
-              FuncSpacing.sm,
-            ),
-            child: Row(
-              children: [
-                SizedBox.square(
-                  dimension: _avatarDiameter,
-                  child: PersonAvatar(
-                    imageUrl: url,
-                    radius: _avatarDiameter / 2,
+        child: Semantics(
+          onTapHint: value == null ? null : l10n.meOpenProfile,
+          child: InkWell(
+            onTap: value == null
+                ? () => openLogin(context)
+                : () => openMe(context),
+            child: Padding(
+              padding: const EdgeInsetsDirectional.fromSTEB(
+                FuncSpacing.md,
+                FuncSpacing.sm,
+                FuncSpacing.xs,
+                FuncSpacing.sm,
+              ),
+              child: Row(
+                children: [
+                  SizedBox.square(
+                    dimension: _avatarDiameter,
+                    child: PersonAvatar(
+                      imageUrl: url,
+                      radius: _avatarDiameter / 2,
+                      ring: value != null,
+                    ),
                   ),
-                ),
-                const SizedBox(width: FuncSpacing.sm),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        value?.name ?? l10n.signedOut,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w600,
+                  const SizedBox(width: FuncSpacing.sm),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          value?.name ?? l10n.signedOut,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                      ),
-                      Text(
-                        value == null
-                            ? l10n.login
-                            : l10n.labelValue(
-                                l10n.profileId,
-                                '${value.userId}',
-                              ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: colors.onSurfaceVariant,
+                        Text(
+                          value == null
+                              ? l10n.login
+                              : l10n.labelValue(
+                                  l10n.profileId,
+                                  '${value.userId}',
+                                ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: colors.onSurfaceVariant,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-                if (value != null)
-                  IconButton(
-                    tooltip: l10n.accountManagement,
-                    icon: const Icon(AppIcons.accountManage),
-                    onPressed: () =>
-                        openSettingsPage(context, SettingsPageRef.account.path),
-                  ),
-              ],
+                  if (value != null)
+                    IconButton(
+                      tooltip: l10n.accountManagement,
+                      icon: const Icon(AppIcons.accountManage),
+                      onPressed: () =>
+                          openSettingsPage(context, SettingsPageRef.account.path),
+                    ),
+                ],
+              ),
             ),
           ),
         ),
@@ -1733,17 +1733,21 @@ class _MeNarrowGroups extends ConsumerWidget {
 }
 
 /// Wide [MasterDetailWorkspace] left-rail navigation groups for Me (`280dp`,
-/// `showChevron: false`). Touch tablets keep Settings/About here because their
-/// outer `ShellRail` does not render desktop bottom Settings controls.
+/// `showChevron: false`). Every section appears once here with live trailing
+/// counts and opens directly in the right pane; touch tablets keep
+/// Settings/About here because their outer `ShellRail` does not render desktop
+/// bottom Settings controls.
 class _MeWideRailGroups extends ConsumerWidget {
   const _MeWideRailGroups({
     required this.signedIn,
+    required this.detail,
     required this.selected,
     required this.includeSettingsEntries,
     required this.onSelectSection,
   });
 
   final bool signedIn;
+  final UserEntity? detail;
   final _MeSection selected;
   final bool includeSettingsEntries;
   final ValueChanged<_MeSection> onSelectSection;
@@ -1753,7 +1757,17 @@ class _MeWideRailGroups extends ConsumerWidget {
     final l10n = context.l10n;
     final downloadStats =
         ref.watch(_downloadStatsProvider).value ?? (active: 0, total: 0);
+    final watchLaterCount = ref.watch(watchLaterStoreProvider).value?.length;
+    final localNovelsCount = ref.watch(localNovelStoreProvider).value?.length;
+    final watchlistEntries = ref.watch(watchlistStoreProvider);
+    final activeWatchlist = watchlistEntries.values
+        .where((e) => e.shown)
+        .length;
     final offBar = ref.watch(homeArrangementProvider).hidden;
+    final resolvedDetail = signedIn ? detail : null;
+
+    String? countText(int? count) =>
+        count != null && count > 0 ? AppFormat.count(context, count) : null;
 
     return ListView(
       padding: const EdgeInsets.only(
@@ -1765,17 +1779,12 @@ class _MeWideRailGroups extends ConsumerWidget {
           title: Text(l10n.settingsGroupLibrary),
           children: [
             SettingsTile.topLevel(
-              icon: AppIcons.user,
-              selectedIcon: AppIcons.userFilled,
-              title: l10n.accountProfile,
-              selected: selected == _MeSection.overview,
-              showChevron: false,
-              onTap: () => onSelectSection(_MeSection.overview),
-            ),
-            SettingsTile.topLevel(
               icon: AppIcons.heart,
               selectedIcon: AppIcons.heartFilled,
               title: l10n.profileBookmarked,
+              trailingText: countText(
+                resolvedDetail?.totalIllustBookmarksPublic,
+              ),
               selected: selected == _MeSection.bookmarks,
               showChevron: false,
               onTap: () => onSelectSection(_MeSection.bookmarks),
@@ -1783,6 +1792,7 @@ class _MeWideRailGroups extends ConsumerWidget {
             SettingsTile.topLevel(
               icon: AppIcons.users,
               title: l10n.profileFollowing,
+              trailingText: countText(resolvedDetail?.totalFollowUsers),
               selected: selected == _MeSection.following,
               showChevron: false,
               onTap: () => onSelectSection(_MeSection.following),
@@ -1790,6 +1800,7 @@ class _MeWideRailGroups extends ConsumerWidget {
             SettingsTile.topLevel(
               icon: AppIcons.watchlist,
               title: l10n.watchlistTitle,
+              trailingText: countText(activeWatchlist),
               selected: selected == _MeSection.watchlist,
               showChevron: false,
               onTap: () => onSelectSection(_MeSection.watchlist),
@@ -1816,9 +1827,17 @@ class _MeWideRailGroups extends ConsumerWidget {
           title: Text(l10n.settingsGroupData),
           children: [
             SettingsTile.topLevel(
+              icon: AppIcons.history,
+              title: l10n.historySettings,
+              selected: selected == _MeSection.history,
+              showChevron: false,
+              onTap: () => onSelectSection(_MeSection.history),
+            ),
+            SettingsTile.topLevel(
               icon: AppIcons.watchLater,
               selectedIcon: AppIcons.watchLaterFilled,
               title: l10n.watchLaterTitle,
+              trailingText: countText(watchLaterCount),
               selected: selected == _MeSection.watchLater,
               showChevron: false,
               onTap: () => onSelectSection(_MeSection.watchLater),
@@ -1826,6 +1845,7 @@ class _MeWideRailGroups extends ConsumerWidget {
             SettingsTile.topLevel(
               icon: AppIcons.localNovel,
               title: l10n.localNovelsTitle,
+              trailingText: countText(localNovelsCount),
               selected: selected == _MeSection.localNovels,
               showChevron: false,
               onTap: () => onSelectSection(_MeSection.localNovels),
@@ -1833,6 +1853,9 @@ class _MeWideRailGroups extends ConsumerWidget {
             SettingsTile.topLevel(
               icon: AppIcons.downloading,
               title: l10n.downloaderSettings,
+              trailingText: downloadStats.active == 0
+                  ? countText(downloadStats.total)
+                  : null,
               selected: selected == _MeSection.downloads,
               showChevron: false,
               trailingBadge: Badge(
@@ -1863,608 +1886,6 @@ class _MeWideRailGroups extends ConsumerWidget {
             ],
           ),
       ],
-    );
-  }
-}
-
-/// Default right pane on wide Me workspaces: atmospheric Personal Studio
-/// header, compact live library metric bar, recent history strip, and live
-/// public bookmarks gallery preview.
-class _MeOverviewPane extends ConsumerWidget {
-  const _MeOverviewPane({
-    required this.historyKey,
-    required this.onSelectSection,
-  });
-
-  static const double _overviewWidth = 920;
-
-  final GlobalKey historyKey;
-  final ValueChanged<_MeSection> onSelectSection;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = context.l10n;
-    final networkActivated = _MeNetworkScope.of(context);
-    final state = ref.watch(accountStoreProvider).value;
-    final account = state?.current;
-    final usableAccount = state?.usableCurrent;
-    final userDetail = account == null
-        ? null
-        : ref.watch(userStoreProvider.select((users) => users[account.userId]));
-    final watchlistEntries = ref.watch(watchlistStoreProvider);
-    final watchLaterCount = ref.watch(watchLaterStoreProvider).value?.length;
-
-    return Scaffold(
-      appBar: AppTopBar(
-        contentWidth: _overviewWidth,
-        title: Text(l10n.accountProfile),
-      ),
-      body: Align(
-        alignment: AlignmentDirectional.topStart,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: _overviewWidth),
-          child: ScrollEdgeFade(
-            axis: Axis.vertical,
-            fadeExtent: FuncSpacing.lg,
-            child: ListView(
-              padding: const EdgeInsets.only(
-                top: FuncSpacing.md,
-                bottom: FuncSpacing.xl,
-              ),
-              children: [
-                _MeProfileOverview(account: account, detail: userDetail),
-                _MeOverviewLibraryStrip(
-                  account: account,
-                  userDetail: userDetail,
-                  watchlistEntries: watchlistEntries,
-                  watchLaterCount: watchLaterCount,
-                  onSelectSection: onSelectSection,
-                ),
-                _RecentHistory(key: historyKey, showEmptyCard: true),
-                if (usableAccount != null && networkActivated)
-                  _MeRecentBookmarksSection(
-                    userId: usableAccount.userId,
-                    onViewAll: () => onSelectSection(_MeSection.bookmarks),
-                  ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _MeProfileOverview extends StatelessWidget {
-  const _MeProfileOverview({required this.account, this.detail});
-
-  final Account? account;
-  final UserEntity? detail;
-
-  static const _avatarDiameter = 64.0;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final theme = Theme.of(context);
-    final colors = theme.colorScheme;
-    final tokens = FuncSemanticTokens.of(context);
-    final value = account;
-    final resolvedDetail = value != null && (detail?.hasDetail ?? false)
-        ? detail
-        : null;
-    final url = _resolvedAvatarUrl(value, detail);
-    final washUrl = _resolvedWashUrl(value, detail);
-    final handle = resolvedDetail?.account;
-    final subtitle = value == null
-        ? l10n.loginTitle
-        : [
-            if (handle != null && handle.isNotEmpty) '@$handle',
-            l10n.labelValue(l10n.profileId, '${value.userId}'),
-          ].join(' · ');
-
-    final content = InkWell(
-      onTap: value == null ? () => openLogin(context) : () => openMe(context),
-      child: Padding(
-        padding: const EdgeInsets.all(FuncSpacing.xl),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final compact =
-                constraints.maxWidth < 560 ||
-                MediaQuery.textScalerOf(context).scale(1) > 1.15;
-            final identity = Row(
-              children: [
-                SizedBox.square(
-                  dimension: _avatarDiameter,
-                  child: PersonAvatar(
-                    imageUrl: url,
-                    radius: _avatarDiameter / 2,
-                    ring: value != null,
-                  ),
-                ),
-                const SizedBox(width: FuncSpacing.lg),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Flexible(
-                            child: Text(
-                              value?.name ?? l10n.signedOut,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: tokens.display,
-                            ),
-                          ),
-                          if (value?.isPremium ?? false) ...[
-                            const SizedBox(width: FuncSpacing.sm),
-                            const _PremiumBadge(),
-                          ],
-                        ],
-                      ),
-                      const SizedBox(height: FuncSpacing.xxs),
-                      Text(
-                        subtitle,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: colors.onSurfaceVariant,
-                        ),
-                      ),
-                      if (value?.authState ==
-                          AccountAuthState.reauthRequired) ...[
-                        const SizedBox(height: FuncSpacing.xxs),
-                        Text(
-                          l10n.reauthRequired,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: colors.error,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ],
-            );
-            final actions = value == null
-                ? Wrap(
-                    spacing: FuncSpacing.sm,
-                    runSpacing: FuncSpacing.sm,
-                    children: [
-                      FilledButton.icon(
-                        onPressed: () => openLogin(context),
-                        icon: const Icon(AppIcons.login, size: 18),
-                        label: Text(l10n.login),
-                      ),
-                    ],
-                  )
-                : Wrap(
-                    spacing: FuncSpacing.sm,
-                    runSpacing: FuncSpacing.sm,
-                    alignment: WrapAlignment.end,
-                    children: [
-                      FilledButton.tonalIcon(
-                        onPressed: () => openMe(context),
-                        icon: const Icon(AppIcons.user, size: 18),
-                        label: Text(l10n.meOpenProfile),
-                      ),
-                      OutlinedButton.icon(
-                        onPressed: () => openSettingsPage(
-                          context,
-                          SettingsPageRef.account.path,
-                        ),
-                        icon: const Icon(AppIcons.accountManage, size: 18),
-                        label: Text(l10n.accountManagement),
-                      ),
-                    ],
-                  );
-            if (compact) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  identity,
-                  const SizedBox(height: FuncSpacing.md),
-                  Align(
-                    alignment: AlignmentDirectional.centerEnd,
-                    child: actions,
-                  ),
-                ],
-              );
-            }
-            return Row(
-              children: [
-                Expanded(child: identity),
-                const SizedBox(width: FuncSpacing.md),
-                actions,
-              ],
-            );
-          },
-        ),
-      ),
-    );
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        FuncSpacing.lg,
-        0,
-        FuncSpacing.lg,
-        FuncSpacing.xl,
-      ),
-      child: Material(
-        color: colors.surfaceContainer,
-        shape: const RoundedRectangleBorder(borderRadius: FuncShape.panel),
-        clipBehavior: Clip.antiAlias,
-        child: Semantics(
-          onTapHint: value == null ? null : l10n.meOpenProfile,
-          child: washUrl == null
-              ? content
-              : Stack(
-                  children: [
-                    Positioned.fill(
-                      child: _CardWashBackdrop(
-                        imageUrl: washUrl,
-                        surfaceColor: colors.surfaceContainer,
-                      ),
-                    ),
-                    content,
-                  ],
-                ),
-        ),
-      ),
-    );
-  }
-}
-
-class _MeOverviewLibraryStrip extends StatelessWidget {
-  const _MeOverviewLibraryStrip({
-    required this.account,
-    required this.userDetail,
-    required this.watchlistEntries,
-    required this.watchLaterCount,
-    required this.onSelectSection,
-  });
-
-  final Account? account;
-  final UserEntity? userDetail;
-  final Map<WatchlistKey, WatchlistEntry> watchlistEntries;
-  final int? watchLaterCount;
-  final ValueChanged<_MeSection> onSelectSection;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final detail = userDetail != null && userDetail!.hasDetail
-        ? userDetail
-        : null;
-    final bookmarksValue = account != null && detail != null
-        ? AppFormat.count(context, detail.totalIllustBookmarksPublic)
-        : null;
-    final followingValue = account != null && detail != null
-        ? AppFormat.count(context, detail.totalFollowUsers)
-        : null;
-    final activeWatchlist = watchlistEntries.values
-        .where((e) => e.shown)
-        .length;
-    final watchlistValue = activeWatchlist > 0
-        ? AppFormat.count(context, activeWatchlist)
-        : null;
-    final watchLaterValue = watchLaterCount != null && watchLaterCount! > 0
-        ? AppFormat.count(context, watchLaterCount!)
-        : null;
-
-    final items = [
-      (
-        icon: AppIcons.heart,
-        title: l10n.profileBookmarked,
-        count: bookmarksValue,
-        section: _MeSection.bookmarks,
-      ),
-      (
-        icon: AppIcons.users,
-        title: l10n.profileFollowing,
-        count: followingValue,
-        section: _MeSection.following,
-      ),
-      (
-        icon: AppIcons.watchlist,
-        title: l10n.watchlistTitle,
-        count: watchlistValue,
-        section: _MeSection.watchlist,
-      ),
-      (
-        icon: AppIcons.watchLater,
-        title: l10n.watchLaterTitle,
-        count: watchLaterValue,
-        section: _MeSection.watchLater,
-      ),
-    ];
-
-    Widget buildChip(int index) {
-      final item = items[index];
-      return _MeMetricTile(
-        icon: item.icon,
-        title: item.title,
-        count: item.count,
-        onTap: () => onSelectSection(item.section),
-      );
-    }
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        FuncSpacing.lg,
-        0,
-        FuncSpacing.lg,
-        FuncSpacing.xl,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              FuncSpacing.lg,
-              0,
-              FuncSpacing.lg,
-              FuncSpacing.sm,
-            ),
-            child: DefaultTextStyle.merge(
-              style: theme.textTheme.titleSmall?.copyWith(
-                color: scheme.onSurfaceVariant,
-                fontWeight: FontWeight.w600,
-              ),
-              child: Semantics(
-                header: true,
-                child: Text(l10n.settingsGroupLibrary),
-              ),
-            ),
-          ),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              if (constraints.maxWidth >= 560) {
-                return IntrinsicHeight(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      for (var i = 0; i < items.length; i++) ...[
-                        if (i > 0) const SizedBox(width: FuncSpacing.sm),
-                        Expanded(child: buildChip(i)),
-                      ],
-                    ],
-                  ),
-                );
-              }
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  IntrinsicHeight(
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Expanded(child: buildChip(0)),
-                        const SizedBox(width: FuncSpacing.sm),
-                        Expanded(child: buildChip(1)),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: FuncSpacing.sm),
-                  IntrinsicHeight(
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Expanded(child: buildChip(2)),
-                        const SizedBox(width: FuncSpacing.sm),
-                        Expanded(child: buildChip(3)),
-                      ],
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MeMetricTile extends StatelessWidget {
-  const _MeMetricTile({
-    required this.icon,
-    required this.title,
-    required this.count,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String title;
-  final String? count;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    return SettingsCard(
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: FuncSpacing.lg,
-            vertical: FuncSpacing.md,
-          ),
-          child: Row(
-            children: [
-              Icon(icon, size: 18, color: scheme.onSurfaceVariant),
-              const SizedBox(width: FuncSpacing.sm),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    if (count case final countText?) ...[
-                      Text(
-                        countText,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.titleMedium
-                            ?.copyWith(fontWeight: FontWeight.w700)
-                            .tabular,
-                      ),
-                    ],
-                    Text(
-                      title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: count == null
-                          ? theme.textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            )
-                          : theme.textTheme.labelMedium?.copyWith(
-                              color: scheme.onSurfaceVariant,
-                            ),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(
-                Icons.chevron_right,
-                size: 16,
-                color: scheme.onSurfaceVariant,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Live artwork preview grid of the signed-in user's recent public bookmark
-/// illustrations shown on the wide desktop Me studio overview.
-class _MeRecentBookmarksSection extends ConsumerStatefulWidget {
-  const _MeRecentBookmarksSection({
-    required this.userId,
-    required this.onViewAll,
-  });
-
-  final int userId;
-  final VoidCallback onViewAll;
-
-  @override
-  ConsumerState<_MeRecentBookmarksSection> createState() =>
-      _MeRecentBookmarksSectionState();
-}
-
-class _MeRecentBookmarksSectionState
-    extends ConsumerState<_MeRecentBookmarksSection> {
-  final _pager = IllustPagerSource();
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final theme = Theme.of(context);
-    final feedKey = ProfileFeedKey(
-      userId: widget.userId,
-      kind: ProfileFeedKind.bookmarks,
-      workType: UserWorkType.illust,
-      restrict: UserRestrict.public,
-    );
-    final feed = ref.watch(profileIllustFeedProvider(feedKey)).value;
-    if (feed == null ||
-        feed.showInitialError ||
-        feed.showInitialSpinner ||
-        feed.ids.isEmpty) {
-      return const SizedBox.shrink();
-    }
-    final store = ref.watch(illustStoreProvider);
-    final items = store.getAll(feed.ids).take(8).toList(growable: false);
-    if (items.isEmpty) return const SizedBox.shrink();
-    _pager.update([for (final item in items) item.id]);
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: FuncSpacing.xl),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              FuncSpacing.lg + FuncSpacing.lg,
-              0,
-              FuncSpacing.lg,
-              FuncSpacing.xs,
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Semantics(
-                    header: true,
-                    child: Text(
-                      l10n.profileBookmarked,
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-                TextButton(
-                  style: TextButton.styleFrom(
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    visualDensity: VisualDensity.compact,
-                  ),
-                  onPressed: widget.onViewAll,
-                  child: Text(l10n.detailViewAll),
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: FuncSpacing.lg),
-            child: IllustPagerScope(
-              source: _pager,
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final cols = constraints.maxWidth >= 680
-                      ? 4
-                      : constraints.maxWidth >= 460
-                      ? 3
-                      : 2;
-                  final rowCount = (items.length + cols - 1) ~/ cols;
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      for (var r = 0; r < rowCount; r++) ...[
-                        if (r > 0) const SizedBox(height: FuncSpacing.md),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            for (var c = 0; c < cols; c++) ...[
-                              if (c > 0) const SizedBox(width: FuncSpacing.md),
-                              Expanded(
-                                child: r * cols + c < items.length
-                                    ? IllustPagerAnchor(
-                                        illustId: items[r * cols + c].id,
-                                        child: IllustCard(
-                                          entity: items[r * cols + c],
-                                          heroScope: 'me-overview-bookmarks',
-                                        ),
-                                      )
-                                    : const SizedBox.shrink(),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ],
-                    ],
-                  );
-                },
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -2500,6 +1921,12 @@ class _MeBookmarksPaneState extends ConsumerState<_MeBookmarksPane> {
           actionLabel: l10n.login,
           onAction: () => openLogin(context),
         ),
+      );
+    }
+    if (!_MeNetworkScope.of(context)) {
+      return Scaffold(
+        appBar: AppTopBar(title: Text(l10n.profileBookmarked)),
+        body: const SizedBox.shrink(),
       );
     }
     final feedKey = ProfileFeedKey(
@@ -2582,6 +2009,12 @@ class _MeFollowingPaneState extends ConsumerState<_MeFollowingPane> {
           actionLabel: l10n.login,
           onAction: () => openLogin(context),
         ),
+      );
+    }
+    if (!_MeNetworkScope.of(context)) {
+      return Scaffold(
+        appBar: AppTopBar(title: Text(l10n.profileFollowing)),
+        body: const SizedBox.shrink(),
       );
     }
     return Scaffold(

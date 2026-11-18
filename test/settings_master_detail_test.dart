@@ -107,7 +107,7 @@ void main() {
   );
 
   testWidgets(
-    'wide Me dashboard wraps SettingsDetailScope and shows overview grid',
+    'wide Me dashboard wraps SettingsDetailScope and opens bookmarks directly',
     (tester) async {
       setViewSize(tester, const Size(1280, 800));
       final router = pixivRouter('/settings');
@@ -121,28 +121,45 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byKey(const ValueKey('me-wide-dashboard')), findsOneWidget);
+      final railList = find.byType(ListView).first;
+      expect(find.text('个人资料'), findsNothing);
+      for (final label in [
+        zh.profileBookmarked,
+        zh.profileFollowing,
+        zh.watchlistTitle,
+        zh.historySettings,
+        zh.watchLaterTitle,
+        zh.localNovelsTitle,
+        zh.downloaderSettings,
+      ]) {
+        expect(
+          find.descendant(of: railList, matching: find.text(label)),
+          findsOneWidget,
+        );
+      }
+
       final detailNav = find.byType(Navigator).last;
       final detailHeader = find.descendant(
         of: find.byType(AppTopBar),
-        matching: find.text('个人资料'),
+        matching: find.text(zh.profileBookmarked),
       );
       expect(detailHeader, findsOneWidget);
       expect(
         SettingsDetailScope.maybeOf(tester.element(detailHeader)),
         isNotNull,
       );
-      expect(
-        find.descendant(of: detailNav, matching: find.text(zh.historySettings)),
-        findsOneWidget,
+
+      await tester.tap(
+        find.descendant(of: railList, matching: find.text(zh.historySettings)),
       );
-      expect(
-        find.descendant(of: detailNav, matching: find.text(zh.historyEmpty)),
-        findsOneWidget,
-      );
+      await tester.pumpAndSettle();
       expect(
         find.descendant(
           of: detailNav,
-          matching: find.text(zh.settingsGroupLibrary),
+          matching: find.descendant(
+            of: find.byType(AppTopBar),
+            matching: find.text(zh.historySettings),
+          ),
         ),
         findsOneWidget,
       );
@@ -163,6 +180,10 @@ void main() {
           ),
         ),
         '/v1/user/bookmarks/illust': answer(pageJson('illusts', const [])),
+        '/v1/user/bookmark-tags/illust': answer({
+          'bookmark_tags': const <Map<String, Object?>>[],
+          'next_url': null,
+        }),
       });
       final container = await signedInApiContainer(
         api.client,
@@ -184,12 +205,14 @@ void main() {
 
       expect(api.sent('/v1/user/detail'), isEmpty);
       expect(api.sent('/v1/user/bookmarks/illust'), isEmpty);
+      expect(api.sent('/v1/user/bookmark-tags/illust'), isEmpty);
 
       router.go('/settings');
       await tester.pumpAndSettle();
 
       expect(api.sent('/v1/user/detail'), hasLength(1));
       expect(api.sent('/v1/user/bookmarks/illust'), hasLength(1));
+      expect(api.sent('/v1/user/bookmark-tags/illust'), hasLength(1));
     },
     variant: TargetPlatformVariant.only(TargetPlatform.windows),
   );

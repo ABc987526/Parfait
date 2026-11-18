@@ -186,26 +186,23 @@ reviewed: 2026-11-18
   When `MasterDetailWorkspace.canDisplay` holds (`>= 840x480` content), the Me
   tab mounts `MasterDetailWorkspace` (`masterBody` scrolled with vertical
   `ScrollEdgeFade`) wrapping its nested detail `Navigator` in
-  `SettingsDetailScope` (`920dp` `AppTopBar` content width / `780dp` left-aligned
-  `settingsNarrowBody` with vertical `ScrollEdgeFade`): a `280dp` left rail
-  (`40dp` `_CompactAccountHeader` card, grouped `showChevron: false` monochrome
-  index items with `*Filled` selected states `userFilled` / `heartFilled` /
-  `watchLaterFilled`, plus settings/about on touch tablets without
-  `DesktopCommandBarScope`) and a default Personal Studio `_MeOverviewPane`
-  showing an atmospheric `_MeProfileOverview` card (`AmbientWash` backdrop, 64dp
-  avatar, `@handle · 用户 ID`, inline profile/manage action buttons), a compact
-  4-metric `_MeOverviewLibraryStrip` (`收藏`, `关注`, `追更`, `稍后再看`, omitting
-  placeholder dashes when counts are unavailable), `_RecentHistory` (`86dp`
-  covers or an empty-history card), and a live responsive
-  `_MeRecentBookmarksSection` artwork grid (2/3/4 columns, up to 8
-  `IllustCard`s with `heroScope: 'me-overview-bookmarks'`).
+  `SettingsDetailScope`: a `280dp` left rail (`40dp` `_CompactAccountHeader`
+  card opening the signed-in user's profile or login with an inline
+  `AppIcons.accountManage` button, plus grouped `showChevron: false` monochrome
+  single-entry destination items with live `trailingText` counts and
+  `*Filled` selected states `heartFilled` / `watchLaterFilled`, including
+  `HistoryPage` under data and settings/about on touch tablets without
+  `DesktopCommandBarScope`) that opens directly onto `_MeBookmarksPane` (`收藏`)
+  without duplicating profile cards, library metric cards, or history strips in
+  a separate overview pane; `_MeBookmarksPane` and `_MeFollowingPane` defer
+  network-backed filters and feeds until `_MeNetworkScope.of(context)` is true.
 - **Why:** User decision: settings filled two thirds of the page in a
   style of their own, while static multi-hue icon lists under-utilized desktop
   canvas space; monochrome grouped rows clarify visual hierarchy on mobile, and
-  Personal Studio overview brings atmospheric identity and live bookmarked works
-  front and center on wide tablets/desktops inside the shared 280dp
-  `MasterDetailWorkspace` / `SettingsDetailScope` pattern. The history row holds
-  its order while covered so Hero landing flights target the right cover before
-  sliding to match recent history.
-- **Check:** `test/settings_test.dart` "the Me header, manage button and end rows open their pages" "signed out, the Me header is one button to the login" "the dashboard badge counts downloads as they start and end" "the recent row follows the history and pages in its own order" "a recent cover flies to its work and back, an unseen one not" "a page over the row holds its order until it has left"; `test/settings_master_detail_test.dart` "wide Me dashboard wraps SettingsDetailScope and shows overview grid"
+  removing the redundant overview studio eliminates duplicate entries in the wide
+  2-column workspace so every library section opens cleanly in one click inside
+  the shared 280dp `MasterDetailWorkspace` / `SettingsDetailScope` pattern. The
+  history row holds its order while covered so Hero landing flights target the
+  right cover before sliding to match recent history.
+- **Check:** `test/settings_test.dart` "the Me header, manage button and end rows open their pages" "signed out, the Me header is one button to the login" "the dashboard badge counts downloads as they start and end" "the recent row follows the history and pages in its own order" "a recent cover flies to its work and back, an unseen one not" "a page over the row holds its order until it has left"; `test/settings_master_detail_test.dart` "wide Me dashboard wraps SettingsDetailScope and opens bookmarks directly"
 - **Code:** `lib/app/widgets/master_detail_workspace.dart`, `lib/app/widgets/scroll_edge_fade.dart`, `lib/app/widgets/settings/settings_group.dart`, `lib/app/widgets/settings/settings_tile.dart`, `lib/core/history/history_visibility.dart`, `lib/features/settings/me_dashboard_page.dart`
