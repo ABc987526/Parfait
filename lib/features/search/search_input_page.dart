@@ -9,6 +9,7 @@ import '../../app/widgets/app_top_bar.dart';
 import '../../app/window/desktop_command_bar.dart';
 import '../../core/search/search_models.dart';
 import '../../l10n/context.dart';
+import 'search_filter_labels.dart';
 import 'search_input_engine.dart';
 
 /// The full-page search input: the engine in a page's own chrome.
@@ -46,6 +47,10 @@ class SearchInputPage extends StatelessWidget {
       onSubmit: (query) =>
           unawaited(openSearchResults(context, query, replaceCurrent: true)),
       builder: (context, parts) {
+        final showFilters = switch (parts.filterButton) {
+          SearchFilterButton(muted: true) => false,
+          _ => true,
+        };
         final Widget? leading = isModal
             ? IconButton(
                 tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
@@ -70,7 +75,7 @@ class SearchInputPage extends StatelessWidget {
                   contentWidth: ContentWidths.management,
                   titleSpacing: 0,
                   title: parts.tabs,
-                  actions: [parts.filterButton],
+                  actions: [if (showFilters) parts.filterButton],
                 )
               : AppTopBar(
                   automaticallyImplyLeading: false,
@@ -78,9 +83,14 @@ class SearchInputPage extends StatelessWidget {
                   leading: leading,
                   titleSpacing: 0,
                   title: parts.field,
-                  // The same slot as the result page's filter button, so the
-                  // field keeps its place across the push.
-                  actions: [parts.filterButton],
+                  // Reserve the trailing 48dp slot when user search hides its
+                  // filter button, so the field keeps its place across tabs
+                  // and across the push to results.
+                  actions: [
+                    showFilters
+                        ? parts.filterButton
+                        : const SizedBox(width: kMinInteractiveDimension),
+                  ],
                   bottom: PreferredSize(
                     preferredSize: parts.tabs.preferredSize,
                     child: ContentWidthCap(

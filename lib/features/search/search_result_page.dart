@@ -42,7 +42,6 @@ import 'search_text.dart';
 import '../../l10n/context.dart';
 import '../../app/widgets/smooth_wheel_scroll.dart';
 import '../../app/theme/func_semantic_tokens.dart';
-import '../../app/widgets/app_snack_bar.dart';
 import '../../app/layout/card_columns.dart';
 import '../../app/widgets/feed/load_more_listener.dart';
 
@@ -109,8 +108,8 @@ class _SearchResultPageState extends ConsumerState<SearchResultPage>
   SearchFilters _filtersFor(SearchResultType type) => switch (type) {
     SearchResultType.illust => _illustFilters,
     SearchResultType.novel => _novelFilters,
-    // User results have no filters — the muted button keeps the header slot,
-    // while showFilters guards the sheet and summary bar.
+    // User results have no filters — showFilters hides the button, sheet and
+    // summary bar.
     SearchResultType.user => _illustFilters,
   };
 
@@ -356,18 +355,12 @@ class _SearchResultPageState extends ConsumerState<SearchResultPage>
             ),
           )
         : null;
-    final filterButton = SearchFilterButton(
-      filters: showFilters
-          ? _filtersFor(_selectedType)
-          : IllustSearchFilters.defaults,
-      muted: !showFilters,
-      onPressed: showFilters
-          ? _editFilters
-          : () => showAppSnackBar(
-              context,
-              context.l10n.searchUserFiltersUnavailable,
-            ),
-    );
+    final filterButton = showFilters
+        ? SearchFilterButton(
+            filters: _filtersFor(_selectedType),
+            onPressed: _editFilters,
+          )
+        : null;
     // The Builder's rectangle is the field's own: the docked input anchors
     // under it (R10).
     Widget keywordField(BuildContext fieldContext) => SearchFieldButton(
@@ -385,7 +378,7 @@ class _SearchResultPageState extends ConsumerState<SearchResultPage>
     final impliesDismissal =
         ModalRoute.of(context)?.impliesAppBarDismissal ?? false;
     return DesktopCommandActionsAnchor(
-      action: hideWideSearchControls
+      action: hideWideSearchControls && filterButton != null
           ? Padding(
               padding: const EdgeInsets.symmetric(horizontal: FuncSpacing.xxs),
               child: filterButton,
@@ -425,12 +418,17 @@ class _SearchResultPageState extends ConsumerState<SearchResultPage>
             if (hideWideSearchControls && showGalleryControls)
               const SizedBox(width: FuncSpacing.sm),
             if (!hideWideSearchControls)
-              Padding(
-                padding: EdgeInsetsDirectional.only(
-                  end: wide ? FuncSpacing.xs : 0,
-                ),
-                child: filterButton,
-              ),
+              if (filterButton != null)
+                Padding(
+                  padding: EdgeInsetsDirectional.only(
+                    end: wide ? FuncSpacing.xs : 0,
+                  ),
+                  child: filterButton,
+                )
+              else if (!wide)
+                // Reserve the trailing 48dp slot on compact headers so the
+                // stadium query pill keeps its exact width across tab switches.
+                const SizedBox(width: kMinInteractiveDimension),
           ],
         ),
         body: DesktopInspectableGallery(

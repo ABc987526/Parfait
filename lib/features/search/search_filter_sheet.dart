@@ -52,6 +52,7 @@ class _SearchFilterSheet extends ConsumerStatefulWidget {
 
 class _SearchFilterSheetState extends ConsumerState<_SearchFilterSheet> {
   late SearchFilters _filters = widget.initial;
+  final _scrollController = ScrollController();
 
   late final TextEditingController _bookmarkMin;
   late final TextEditingController _bookmarkMax;
@@ -95,6 +96,7 @@ class _SearchFilterSheetState extends ConsumerState<_SearchFilterSheet> {
 
   @override
   void dispose() {
+    _scrollController.dispose();
     _bookmarkMin.dispose();
     _bookmarkMax.dispose();
     _widthMin.dispose();
@@ -241,7 +243,9 @@ class _SearchFilterSheetState extends ConsumerState<_SearchFilterSheet> {
             Flexible(
               fit: wide ? FlexFit.tight : FlexFit.loose,
               child: _BottomScrollFade(
+                controller: _scrollController,
                 child: SingleChildScrollView(
+                  controller: _scrollController,
                   padding: const EdgeInsets.fromLTRB(
                     FuncSpacing.xl,
                     FuncSpacing.xs,
@@ -271,9 +275,11 @@ class _SearchFilterSheetState extends ConsumerState<_SearchFilterSheet> {
               child: SafeArea(
                 top: false,
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(
+                  padding: EdgeInsets.symmetric(
                     horizontal: FuncSpacing.xl,
-                    vertical: FuncSpacing.md,
+                    vertical: usePointerOverlay(context)
+                        ? FuncSpacing.sm
+                        : FuncSpacing.md,
                   ),
                   child: _ActionBar(
                     apply: FilledButton(
@@ -597,11 +603,12 @@ class _ActionBar extends StatelessWidget {
 /// below the fold, so partially visible rows never look hard-sliced above the
 /// fixed action bar.
 class _BottomScrollFade extends StatefulWidget {
-  const _BottomScrollFade({required this.child});
+  const _BottomScrollFade({required this.controller, required this.child});
 
+  final ScrollController controller;
   final Widget child;
 
-  static const _fadeHeight = FuncSpacing.lg;
+  static const _fadeHeight = FuncSpacing.lg + FuncSpacing.xs;
   static const _edgeSlop = 0.5;
 
   @override
@@ -611,13 +618,52 @@ class _BottomScrollFade extends StatefulWidget {
 class _BottomScrollFadeState extends State<_BottomScrollFade> {
   var _hasMoreBelow = false;
 
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(_syncFromController);
+    _scheduleCheck();
+  }
+
+  @override
+  void didUpdateWidget(_BottomScrollFade oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller.removeListener(_syncFromController);
+      widget.controller.addListener(_syncFromController);
+    }
+    _scheduleCheck();
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_syncFromController);
+    super.dispose();
+  }
+
+  void _scheduleCheck() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _syncFromController();
+    });
+  }
+
+  void _syncFromController() {
+    if (!widget.controller.hasClients) return;
+    final position = widget.controller.position;
+    if (!position.hasContentDimensions) return;
+    _setMoreBelow(position.extentAfter > _BottomScrollFade._edgeSlop);
+  }
+
   bool _onMetrics(ScrollMetrics metrics) {
     if (metrics.axis != Axis.vertical) return false;
-    final more = metrics.extentAfter > _BottomScrollFade._edgeSlop;
+    _setMoreBelow(metrics.extentAfter > _BottomScrollFade._edgeSlop);
+    return false;
+  }
+
+  void _setMoreBelow(bool more) {
     if (more != _hasMoreBelow && mounted) {
       setState(() => _hasMoreBelow = more);
     }
-    return false;
   }
 
   @override
@@ -632,19 +678,25 @@ class _BottomScrollFadeState extends State<_BottomScrollFade> {
         child: ShaderMask(
           blendMode: BlendMode.dstIn,
           shaderCallback: (bounds) {
-            final stop = bounds.height <= 0
-                ? 0.0
-                : (1.0 - _BottomScrollFade._fadeHeight / bounds.height).clamp(
-                    0.5,
-                    1.0,
-                  );
             const shown = Color(0xFF000000);
             const hidden = Color(0x00000000);
+            if (!_hasMoreBelow || bounds.height <= 0) {
+              return const LinearGradient(
+                colors: [shown, shown],
+              ).createShader(bounds);
+            }
+            final start = (1.0 - _BottomScrollFade._fadeHeight / bounds.height)
+                .clamp(0.4, 1.0);
+            final end = (1.0 - FuncSpacing.xxs / bounds.height).clamp(
+              start,
+              1.0,
+            );
+            final mid = start + (end - start) * 0.5;
             return LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [shown, shown, _hasMoreBelow ? hidden : shown],
-              stops: [0.0, stop, 1.0],
+              colors: const [shown, shown, Color(0x66000000), hidden, hidden],
+              stops: [0.0, start, mid, end, 1.0],
             ).createShader(bounds);
           },
           child: widget.child,
