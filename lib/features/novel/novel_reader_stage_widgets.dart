@@ -31,7 +31,7 @@ extension _NovelReaderStageSheets on _NovelReaderStageState {
               child: Padding(
                 padding: EdgeInsets.fromLTRB(
                   FuncSpacing.xl,
-                  desktop ? FuncSpacing.xl : 0,
+                  desktop ? FuncSpacing.lg : 0,
                   FuncSpacing.xl,
                   FuncSpacing.xl,
                 ),
@@ -39,9 +39,10 @@ extension _NovelReaderStageSheets on _NovelReaderStageState {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      l10n.novelReadingProgress,
-                      style: Theme.of(context).textTheme.titleMedium,
+                    _ReaderSheetHeader(
+                      title: l10n.novelReadingProgress,
+                      showClose: desktop,
+                      onClose: () => Navigator.of(sheetContext).pop(),
                     ),
                     Row(
                       children: [
@@ -213,6 +214,13 @@ extension _NovelReaderStageSheets on _NovelReaderStageState {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      if (desktop) ...[
+                        _ReaderSheetHeader(
+                          title: l10n.novelReaderSettings,
+                          onClose: () => Navigator.of(sheetContext).pop(),
+                        ),
+                        const SizedBox(height: FuncSpacing.xs),
+                      ],
                       _SettingsSliderRow(
                         label: l10n.novelFontSize,
                         value: _settings.fontSize,
@@ -313,6 +321,40 @@ extension _NovelReaderStageSheets on _NovelReaderStageState {
           },
         );
       },
+    );
+  }
+}
+
+class _ReaderSheetHeader extends StatelessWidget {
+  const _ReaderSheetHeader({
+    required this.title,
+    required this.onClose,
+    this.showClose = true,
+  });
+
+  final String title;
+  final VoidCallback onClose;
+  final bool showClose;
+
+  @override
+  Widget build(BuildContext context) {
+    final titleWidget = Text(
+      title,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: Theme.of(context).textTheme.titleMedium,
+    );
+    if (!showClose) return titleWidget;
+    return Row(
+      children: [
+        Expanded(child: titleWidget),
+        IconButton(
+          tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
+          onPressed: onClose,
+          visualDensity: VisualDensity.compact,
+          icon: const Icon(Icons.close),
+        ),
+      ],
     );
   }
 }

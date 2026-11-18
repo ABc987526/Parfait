@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/gestures.dart'
     show
@@ -14,9 +15,11 @@ import 'package:flutter/rendering.dart'
         ClipRectLayer,
         HitTestEntry,
         LayerHandle,
+        PipelineOwner,
         RenderProxyBox,
         ScrollCacheExtent,
-        SelectedContent;
+        SelectedContent,
+        ShaderMaskLayer;
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:material_ui/material_ui.dart';
 
@@ -59,6 +62,8 @@ class NovelReader extends StatefulWidget {
     this.textColor,
     this.translations = const {},
     this.titleBlock,
+    this.scrollTopPadding,
+    this.scrollBottomPadding,
     this.onAnchorChanged,
     this.onCenterTap,
     this.onImageTap,
@@ -88,6 +93,15 @@ class NovelReader extends StatefulWidget {
 
   /// Title and byline at the top of the first page; null shows none.
   final NovelTitleBlock? titleBlock;
+
+  /// Optional top padding for the vertical scroll column so an opening
+  /// title block clears the stage's floating top chrome without shrinking
+  /// the viewport while scrolling; defaults to `style.verticalPadding`.
+  final double? scrollTopPadding;
+
+  /// Optional bottom padding for the vertical scroll column so the final
+  /// paragraph clears the stage's bottom chrome and edge fade.
+  final double? scrollBottomPadding;
 
   /// Fires when the current page's start anchor is reported — either by a
   /// layout commit re-asserting position ([NovelAnchorCause.layoutEcho]) or
@@ -714,6 +728,15 @@ class _NovelReaderState extends State<NovelReader> with WidgetsBindingObserver {
         kind: _style.lineStyle(kind, color),
     };
     final onImageTap = widget.onImageTap;
+    final topPadding = _scrollTopPadding;
+    final bottomPadding = _scrollBottomPadding;
+    final bottomSafe = _style.verticalPadding;
+    final cleanBottom = _initialCleanBottom(
+      column,
+      viewportHeight: layout.key.viewport.height,
+      topPadding: topPadding,
+      bottomSafe: bottomSafe,
+    );
     return SelectionArea(
       focusNode: _selectionFocusNode,
       onSelectionChanged: _onSelectionChanged,
@@ -727,13 +750,18 @@ class _NovelReaderState extends State<NovelReader> with WidgetsBindingObserver {
         child: NotificationListener<ScrollNotification>(
           onNotification: _onColumnScroll,
           child: _TextAreaClip(
-            inset: _style.verticalPadding,
+            bottomInset: bottomSafe,
+            cleanBottom: cleanBottom,
+            controller: _scrollController,
             child: SmoothWheelScroll(
               controller: _scrollController,
               builder: (context, controller, physics) => ListView.builder(
                 controller: controller,
                 physics: physics,
-                padding: EdgeInsets.symmetric(vertical: _style.verticalPadding),
+                padding: EdgeInsets.only(
+                  top: topPadding,
+                  bottom: bottomPadding,
+                ),
                 itemCount: column.items.length,
                 itemExtentBuilder: (index, _) =>
                     index < column.items.length ? column.extentAt(index) : null,
@@ -794,6 +822,49 @@ class _NovelReaderState extends State<NovelReader> with WidgetsBindingObserver {
     );
   }
 
+  static double? _initialCleanBottom(
+    NovelScrollColumn column, {
+    required double viewportHeight,
+    required double topPadding,
+    required double bottomSafe,
+  }) {
+    final maxBottom = viewportHeight - bottomSafe;
+    if (maxBottom <= topPadding) return null;
+    double? lastFullBottom;
+    var hasPartialLine = false;
+    for (var i = 0; i < column.items.length; i++) {
+      final itemTop = topPadding + column.offsetOf(i);
+      if (itemTop >= maxBottom) break;
+      final line = column.items[i].line;
+      if (line == null || (line.text.isEmpty && line.image == null)) {
+        continue;
+      }
+      final lineBottom = itemTop + line.height;
+      if (lineBottom <= maxBottom) {
+        lastFullBottom = lineBottom;
+      } else {
+        if (line.image == null) hasPartialLine = true;
+        break;
+      }
+    }
+    if (!hasPartialLine || lastFullBottom == null) return null;
+    if (lastFullBottom < viewportHeight * 0.5) return null;
+    return lastFullBottom;
+  }
+
+  double get _scrollTopPadding =>
+      widget.scrollTopPadding ?? _style.verticalPadding;
+
+  double get _scrollBottomPadding =>
+      widget.scrollBottomPadding ??
+      (_style.verticalPadding + _TextAreaClip.fadeHeight);
+
+  double get _scrollLeadExtra =>
+      math.max(0.0, _scrollTopPadding - _style.verticalPadding);
+
+  double _contentOffsetForPixels(double pixels) =>
+      math.max(0.0, pixels - _scrollLeadExtra);
+
   /// A scroll that settles reports the line now at the top and its page.
   bool _onColumnScroll(ScrollNotification notification) {
     if (notification.depth != 0 || notification is! ScrollEndNotification) {
@@ -804,7 +875,9 @@ class _NovelReaderState extends State<NovelReader> with WidgetsBindingObserver {
     final layout = _layout;
     if (layout == null) return false;
     final column = _columnOf(layout);
-    final item = column.itemAt(notification.metrics.pixels);
+    final item = column.itemAt(
+      _contentOffsetForPixels(notification.metrics.pixels),
+    );
     final anchor = column.anchorAt(item);
     if (anchor == _settledAnchor) return false;
     _settledAnchor = anchor;
@@ -821,12 +894,21 @@ class _NovelReaderState extends State<NovelReader> with WidgetsBindingObserver {
   }
 
   /// The scroll offset that puts [item] at the top of the text, short of
-  /// the column's end.
+  /// the column's end. Item 0 stays at offset 0 so the opening title block
+  /// keeps its full top chrome clearance; later jumps land on the standard
+  /// page margin so lines from the previous page scroll cleanly out of view.
   double _columnOffset(NovelLayout layout, int item) {
+    if (item <= 0) return 0;
     final column = _columnOf(layout);
     final end =
-        column.extent + _style.verticalPadding * 2 - layout.key.viewport.height;
-    return math.min(column.offsetOf(item), math.max(0.0, end));
+        column.extent +
+        _scrollTopPadding +
+        _scrollBottomPadding -
+        layout.key.viewport.height;
+    return math.min(
+      column.offsetOf(item) + _scrollLeadExtra,
+      math.max(0.0, end),
+    );
   }
 
   void _scrollTo(double offset, bool animate) {
@@ -1059,7 +1141,9 @@ class _NovelReaderState extends State<NovelReader> with WidgetsBindingObserver {
     if (layout == null || layout.pages.isEmpty) return null;
     if (scrolls && _scrollController.hasClients) {
       final column = _columnOf(layout);
-      return column.anchorAt(column.itemAt(_scrollController.offset));
+      return column.anchorAt(
+        column.itemAt(_contentOffsetForPixels(_scrollController.offset)),
+      );
     }
     return layout
         .pages[_reader.currentPage.clamp(0, layout.pages.length - 1)]
