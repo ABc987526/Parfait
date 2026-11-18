@@ -20,49 +20,66 @@ import 'package:parfait/app/icons/app_icons.dart';
 /// The profile header on a wide window, away from the phone-sized cases in
 /// user_profile_test.dart (which also keeps that file under the size limit).
 void main() {
-  testWidgets('a large window keeps the name and its buttons together', (
-    tester,
-  ) async {
-    setViewSize(tester, const Size(1920, 1080));
-    final container = await makeProfileWorld(
-      users: UserApi(
-        works: [
-          for (var id = 1; id <= 6; id++)
-            illustJson(id, width: 300, height: 400),
-        ],
-        detail: sampleUser(42).copyWith(totalIllusts: 6, hasDetail: true),
-      ),
-    );
-    await tester.pumpWidget(
-      localizedApp(
-        container: container,
-        builder: promptHostBuilder,
-        home: const UserPage(userId: 42),
-      ),
-    );
-    await tester.pumpAndSettle();
+  testWidgets(
+    'wide profile aligns two-band header margins with right actions and bio cap',
+    (tester) async {
+      setViewSize(tester, const Size(1920, 1080));
+      final container = await makeProfileWorld(
+        users: UserApi(
+          works: [
+            for (var id = 1; id <= 6; id++)
+              illustJson(id, width: 300, height: 400),
+          ],
+          detail: sampleUser(42).copyWith(
+            totalIllusts: 6,
+            totalFollowUsers: 50,
+            totalMyPixivUsers: 5,
+            comment: 'bio of user 42',
+            hasDetail: true,
+          ),
+        ),
+      );
+      await tester.pumpWidget(
+        localizedApp(
+          container: container,
+          builder: promptHostBuilder,
+          home: const UserPage(userId: 42),
+        ),
+      );
+      await tester.pumpAndSettle();
 
-    // The identity block stays one content width instead of stretching the
-    // name and the buttons to the window's two edges (B3), while the tab
-    // bar and works gallery use the full wide surface.
-    expect(find.byKey(const ValueKey('profile-wide-split')), findsOneWidget);
-    final name = tester.getRect(
-      find.byKey(const ValueKey('profile-expanded-name')),
-    );
-    final share = tester.getRect(find.byIcon(AppIcons.share).first);
-    final follow = tester.getRect(find.byType(FollowSwitchButton));
-    expect(follow.left, greaterThanOrEqualTo(name.right));
-    expect(follow.left, lessThan(share.left));
-    expect((follow.center.dy - name.center.dy).abs(), lessThan(48));
-    expect(
-      share.right - name.left,
-      lessThanOrEqualTo(ContentWidths.management),
-    );
-    expect(
-      tester.getRect(find.byKey(const ValueKey('profile-tabs'))).width,
-      1920,
-    );
-  });
+      // Band 1 spans the full 16dp header margin so primary/share actions align
+      // flush with the right edge, while Band 2 flushes inline stats and a
+      // ContentWidths.management-capped bio with the 16dp avatar left edge.
+      expect(find.byKey(const ValueKey('profile-wide-split')), findsOneWidget);
+      final avatar = tester.getRect(
+        find.byKey(const ValueKey('profile-expanded-avatar')),
+      );
+      final name = tester.getRect(
+        find.byKey(const ValueKey('profile-expanded-name')),
+      );
+      final share = tester.getRect(find.byIcon(AppIcons.share).first);
+      final follow = tester.getRect(find.byType(FollowSwitchButton));
+      final stat = tester.getRect(
+        find.byKey(const ValueKey('profile-stat-following-header')),
+      );
+      final statFigure = tester.getRect(find.text('50'));
+      final bio = tester.getRect(find.byKey(const ValueKey('profile-wide-bio')));
+      expect(avatar.left, 16);
+      expect(follow.left, greaterThanOrEqualTo(name.right));
+      expect(follow.left, lessThan(share.left));
+      expect((follow.center.dy - name.center.dy).abs(), lessThan(48));
+      expect(share.right, closeTo(1920 - 16, 0.5));
+      expect(stat.top, greaterThanOrEqualTo(avatar.bottom));
+      expect(statFigure.left, closeTo(avatar.left, 0.5));
+      expect(bio.left, closeTo(avatar.left, 0.5));
+      expect(bio.width, lessThanOrEqualTo(ContentWidths.management));
+      expect(
+        tester.getRect(find.byKey(const ValueKey('profile-tabs'))).width,
+        1920,
+      );
+    },
+  );
 
   testWidgets('profile wide split activates only at >= 840x480', (
     tester,

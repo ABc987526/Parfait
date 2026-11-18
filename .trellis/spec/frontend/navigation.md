@@ -261,7 +261,8 @@ reviewed: 2026-11-18
 ### NAV-14 Top tabs are AppTabBar and never shrink
 - **Rule:** Every tab row is `AppTabBar`. Labels stay at the themed size;
   the row divides the width evenly when the widest label fits a share. A
-  row 600dp or wider caps each share at 120dp, or the widest label plus
+  row 600dp or wider caps each share at `maxEqualSlotWidth ?? maxSlotWidth`
+  (`120dp` default, `76dp` on wide profile headers), or the widest label plus
   its padding when that is wider, and keeps to the start edge; a narrower
   one is always split in full. Otherwise the row scrolls from the start
   edge with a 48dp `ScrollEdgeFade(initialAfter: true)` (using compact

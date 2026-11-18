@@ -54,20 +54,27 @@ reviewed: 2026-11-18
   A preview snapshot without counters
   keeps all four tabs; a tab that disappears on refresh falls back to the
   first. When `HomeShellChrome.contentSizeOf` is at least `840×480`,
-  `UserPage` switches to a wide panoramic top header (`156dp` full-width banner,
-  `88dp` overlapping avatar, horizontal `ContentWidths.management`-capped
-  identity/actions/stats/bio block) above a pinned full-width tab and gallery
-  controls strip (`ValueKey('profile-wide-split')`, `NestedScrollView`) so the
-  works `TabBarView` uses the full desktop/tablet canvas width, and
-  `ProfileSkeleton` mirrors the panoramic header while omitting duplicate
-  desktop back arrows.
+  `UserPage` switches to a wide panoramic top header (`164dp` full-width banner,
+  `88dp` overlapping avatar aligned to the `16dp` `LAYOUT-14` margin, full-width
+  Band 1 putting name/`@account` beside the avatar and follow/share actions
+  anchored to the `16dp` right margin via `EdgeIconButtons.glyphInset` `LAYOUT-15`,
+  followed by `ContentWidths.management`-capped flush-left Band 2 single-line
+  inline stats and bio below the avatar) above a pinned full-width compact-slot
+  (`maxEqualSlotWidth: 76`) tab and gallery controls strip
+  (`ValueKey('profile-wide-split')`, `NestedScrollView`) so the works
+  `TabBarView` uses the full desktop/tablet canvas width, and `ProfileSkeleton`
+  mirrors the two-band panoramic header while omitting duplicate desktop back
+  arrows.
 - **Why:** Counts in labels widened the row past an equal share and
   flipped it to scrolling once the detail loaded, showing a stale total over an
   empty feed read as broken, and on wide tablets/desktops a narrow left sidebar
   cramped short bios with dead whitespace while pinching the gallery next to an
-  existing navigation rail; the panoramic top header gives full canvas width
-  to artworks with a matching panoramic skeleton before detail resolves.
-- **Check:** `test/user_profile_test.dart` "work tabs follow the types a user has; each list shows its" "a profile without works opens on its first other tab" "a tab that disappears on refresh falls back to the first"; `test/user_profile_wide_test.dart` "wide profile skeleton avoids duplicate back button and empty works hide total"
+  existing navigation rail; aligning the wide header to the 16dp `LAYOUT-14`
+  plumb line with right-anchored actions, capped Band 2 bio measure, and compact
+  76dp equal tabs removes L-shaped dead space, aligns actions above gallery
+  controls, and gives full canvas width to artworks with a matching skeleton
+  before detail resolves.
+- **Check:** `test/user_profile_test.dart` "work tabs follow the types a user has; each list shows its" "a profile without works opens on its first other tab" "a tab that disappears on refresh falls back to the first"; `test/user_profile_wide_test.dart` "wide profile aligns two-band header margins with right actions and bio cap" "wide profile skeleton avoids duplicate back button and empty works hide total"
 - **Code:** `lib/features/profile/user_page.dart`, `lib/features/profile/profile_header_delegate.dart`, `lib/features/profile/profile_skeleton.dart`, `lib/features/profile/profile_illust_feed.dart`
 
 ### PAGE-22 Bookmarks list illustrations or novels by a kind menu

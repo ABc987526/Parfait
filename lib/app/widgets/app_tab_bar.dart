@@ -25,6 +25,7 @@ class AppTabBar extends StatelessWidget implements PreferredSizeWidget {
     this.controller,
     this.onTap,
     this.labelWrapper,
+    this.maxEqualSlotWidth,
   });
 
   /// The labels, in tab order.
@@ -39,6 +40,10 @@ class AppTabBar extends StatelessWidget implements PreferredSizeWidget {
 
   /// Wraps the label of the tab at an index, e.g. in a long-press menu.
   final Widget Function(int index, Widget label)? labelWrapper;
+
+  /// Optional override for the wide-row equal slot ceiling (`maxSlotWidth`
+  /// when null); longer labels still expand every slot equally (`NAV-14`).
+  final double? maxEqualSlotWidth;
 
   static const _labelPadding = EdgeInsets.symmetric(horizontal: FuncSpacing.md);
   static const _compactScrollableLabelPadding = EdgeInsets.symmetric(
@@ -124,7 +129,7 @@ class AppTabBar extends StatelessWidget implements PreferredSizeWidget {
         // Rounded up: a slot of exactly the measured width can fall a
         // fraction short of the laid-out label and fade its last glyph.
         final slot = math.max(
-          maxSlotWidth,
+          maxEqualSlotWidth ?? maxSlotWidth,
           (widest + _labelPadding.horizontal).ceilToDouble(),
         );
         final width = slot * labels.length;

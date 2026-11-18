@@ -23,6 +23,7 @@ import '../../app/icons/app_icons.dart';
 import '../../app/widgets/app_snack_bar.dart';
 import '../../app/widgets/app_tab_bar.dart';
 import '../../app/widgets/app_top_bar.dart';
+import '../../app/widgets/edge_icon_buttons.dart';
 import '../../app/widgets/feed/desktop_gallery_controls.dart';
 import '../../app/widgets/feed/feed_states.dart';
 import '../../app/widgets/replica_scaffold.dart';
@@ -937,7 +938,7 @@ class _WideProfileBannerHeader extends StatelessWidget {
     required this.shareButton,
   });
 
-  static const double _bannerHeight = 156.0;
+  static const double _bannerHeight = 164.0;
   static const double _avatarDiameter = 88.0;
 
   final UserEntity user;
@@ -961,29 +962,28 @@ class _WideProfileBannerHeader extends StatelessWidget {
               child: ProfileBannerBackground(user: user),
             ),
             Padding(
-              padding: const EdgeInsetsDirectional.fromSTEB(
-                FuncSpacing.xl + _avatarDiameter + FuncSpacing.xl,
-                FuncSpacing.md,
-                FuncSpacing.xl,
-                FuncSpacing.lg,
-              ),
-              child: Align(
-                alignment: AlignmentDirectional.topStart,
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(
-                    maxWidth: ContentWidths.management,
-                    minHeight: _avatarDiameter / 2 + FuncSpacing.sm,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
+              padding: const EdgeInsets.only(bottom: FuncSpacing.lg),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Band 1: Full header width framing name/@handle beside the
+                  // avatar's lower half and actions flush to the right margin.
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(
+                      minHeight: _avatarDiameter / 2 + FuncSpacing.md,
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsetsDirectional.fromSTEB(
+                        FuncSpacing.lg + _avatarDiameter + FuncSpacing.lg,
+                        FuncSpacing.sm,
+                        FuncSpacing.lg - EdgeIconButtons.glyphInset,
+                        0,
+                      ),
+                      child: Row(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          Flexible(
-                            fit: FlexFit.loose,
+                          Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               mainAxisSize: MainAxisSize.min,
@@ -1018,36 +1018,67 @@ class _WideProfileBannerHeader extends StatelessWidget {
                           shareButton,
                         ],
                       ),
-                      if (stats.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(top: FuncSpacing.xs),
-                          child: Transform.translate(
-                            offset: Offset(
-                              isRtl ? FuncSpacing.xs : -FuncSpacing.xs,
-                              0,
-                            ),
-                            child: ProfileStatRow(stats: stats),
-                          ),
-                        ),
-                      if (bio != null && bio!.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(top: FuncSpacing.sm),
-                          child: Text(
-                            bio!,
-                            maxLines: 3,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.bodyMedium,
-                          ),
-                        ),
-                    ],
+                    ),
                   ),
-                ),
+                  // Band 2: Single-line inline stats and bio flush-left with
+                  // the 16dp avatar margin, capped for readable bio measure.
+                  if (stats.isNotEmpty || (bio != null && bio!.isNotEmpty))
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: FuncSpacing.lg,
+                      ),
+                      child: Align(
+                        alignment: AlignmentDirectional.topStart,
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(
+                            maxWidth: ContentWidths.management,
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (stats.isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.only(
+                                    top: FuncSpacing.xs,
+                                  ),
+                                  child: Transform.translate(
+                                    offset: Offset(
+                                      isRtl ? FuncSpacing.xs : -FuncSpacing.xs,
+                                      0,
+                                    ),
+                                    child: _WideProfileInlineStats(
+                                      stats: stats,
+                                    ),
+                                  ),
+                                ),
+                              if (bio != null && bio!.isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.only(
+                                    top: FuncSpacing.xs,
+                                  ),
+                                  child: Text(
+                                    key: const ValueKey('profile-wide-bio'),
+                                    bio!,
+                                    maxLines: 3,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                      height: 1.45,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
           ],
         ),
         PositionedDirectional(
-          start: FuncSpacing.xl,
+          start: FuncSpacing.lg,
           top: _bannerHeight - _avatarDiameter / 2,
           child: KeyedSubtree(
             key: const ValueKey('profile-expanded-avatar'),
@@ -1058,6 +1089,71 @@ class _WideProfileBannerHeader extends StatelessWidget {
             ),
           ),
         ),
+      ],
+    );
+  }
+}
+
+/// Horizontal inline counters for the wide panoramic profile header (`50 关注`),
+/// preserving per-stat semantics keys and tap navigation.
+class _WideProfileInlineStats extends StatelessWidget {
+  const _WideProfileInlineStats({required this.stats});
+
+  final List<ProfileHeaderStat> stats;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final figureStyle = theme.textTheme.titleMedium
+        ?.copyWith(fontWeight: FontWeight.w700)
+        .tabular;
+    final labelStyle = theme.textTheme.bodyMedium?.copyWith(
+      color: colors.onSurfaceVariant,
+    );
+
+    return Wrap(
+      spacing: FuncSpacing.md,
+      runSpacing: FuncSpacing.xxs,
+      children: [
+        for (final stat in stats)
+          Builder(
+            builder: (context) {
+              final figure = AppFormat.count(context, stat.value);
+              return Semantics(
+                key: ValueKey('profile-stat-${stat.id}-header'),
+                container: true,
+                button: stat.onTap != null,
+                label: '${stat.label}, $figure',
+                onTap: stat.onTap,
+                child: ExcludeSemantics(
+                  child: InkWell(
+                    borderRadius: FuncShape.control,
+                    onTap: stat.onTap,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(minHeight: 36),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: FuncSpacing.xs,
+                          vertical: FuncSpacing.xxs,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.baseline,
+                          textBaseline: TextBaseline.alphabetic,
+                          children: [
+                            Text(figure, style: figureStyle),
+                            const SizedBox(width: FuncSpacing.xs),
+                            Text(stat.label, style: labelStyle),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
       ],
     );
   }
@@ -1125,7 +1221,7 @@ class _WideProfileTabsDelegate extends SliverPersistentHeaderDelegate {
                   Expanded(
                     child: Padding(
                       padding: const EdgeInsetsDirectional.only(
-                        start: FuncSpacing.sm,
+                        start: FuncSpacing.xxs,
                       ),
                       child: ScrollConfiguration(
                         behavior: dragBehavior,
@@ -1133,6 +1229,7 @@ class _WideProfileTabsDelegate extends SliverPersistentHeaderDelegate {
                           controller: controller,
                           onTap: onTabTap,
                           labels: labels,
+                          maxEqualSlotWidth: 76,
                         ),
                       ),
                     ),

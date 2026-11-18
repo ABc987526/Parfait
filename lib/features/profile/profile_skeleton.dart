@@ -17,11 +17,12 @@ import 'profile_illust_feed.dart';
 /// the tab slot, then the works grid — instead of a bare spinner.
 ///
 /// On wide viewports (`>= 840×480` content area) it mirrors `_buildWideProfile`
-/// with a full-width panoramic banner header (`156dp`), `88dp` overlapping
-/// avatar, horizontal identity/stat skeleton beside the full-width pinned tab
-/// slot and grid skeleton (omitting duplicate desktop back arrows). On narrower
-/// windows it follows `_ProfileExpandedIdentity`'s vertical rhythm, or a
-/// one-row identity under a toolbar-high banner on short windows.
+/// with a full-width panoramic banner header (`164dp`), `88dp` overlapping
+/// avatar, two-band identity/stat skeleton (name & right action beside the
+/// avatar, single-line stats & bio flush-left under it) above the full-width
+/// pinned tab slot and grid skeleton (omitting duplicate desktop back arrows).
+/// On narrower windows it follows `_ProfileExpandedIdentity`'s vertical rhythm,
+/// or a one-row identity under a toolbar-high banner on short windows.
 ///
 /// The banner is structure, not a bone: it keeps the real header's
 /// `surfaceContainerHigh` and sits beneath [FuncSkeleton] so the shimmer
@@ -30,36 +31,20 @@ import 'profile_illust_feed.dart';
 class ProfileSkeleton extends StatelessWidget {
   const ProfileSkeleton({super.key});
 
-  static const _wideBannerHeight = 156.0;
+  static const _wideBannerHeight = 164.0;
   static const _wideAvatarDiameter = 88.0;
 
   Widget _statBones(TextTheme textTheme) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        for (final width in const [48.0, 56.0])
-          ConstrainedBox(
-            constraints: const BoxConstraints(
-              minHeight: kMinInteractiveDimension,
-            ),
-            child: Padding(
-              padding: const EdgeInsetsDirectional.only(
-                top: FuncSpacing.xxs,
-                bottom: FuncSpacing.xxs,
-                end: FuncSpacing.lg,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SkeletonBone.text(
-                    width: width * 0.6,
-                    style: textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  SkeletonBone.text(width: width, style: textTheme.labelMedium),
-                ],
+        for (final width in const [56.0, 64.0])
+          Padding(
+            padding: const EdgeInsetsDirectional.only(end: FuncSpacing.lg),
+            child: SkeletonBone.text(
+              width: width,
+              style: textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
               ),
             ),
           ),
@@ -100,55 +85,102 @@ class ProfileSkeleton extends StatelessWidget {
                             ),
                           ),
                           Padding(
-                            padding: const EdgeInsetsDirectional.fromSTEB(
-                              FuncSpacing.xl +
-                                  _wideAvatarDiameter +
-                                  FuncSpacing.xl,
-                              FuncSpacing.md,
-                              FuncSpacing.xl,
-                              FuncSpacing.lg,
+                            padding: const EdgeInsets.only(
+                              bottom: FuncSpacing.lg,
                             ),
-                            child: Align(
-                              alignment: AlignmentDirectional.topStart,
-                              child: ConstrainedBox(
-                                constraints: const BoxConstraints(
-                                  maxWidth: ContentWidths.management,
-                                  minHeight:
-                                      _wideAvatarDiameter / 2 + FuncSpacing.sm,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                ConstrainedBox(
+                                  constraints: const BoxConstraints(
+                                    minHeight:
+                                        _wideAvatarDiameter / 2 +
+                                        FuncSpacing.md,
+                                  ),
+                                  child: Padding(
+                                    padding:
+                                        const EdgeInsetsDirectional.fromSTEB(
+                                          FuncSpacing.lg +
+                                              _wideAvatarDiameter +
+                                              FuncSpacing.lg,
+                                          FuncSpacing.sm,
+                                          FuncSpacing.lg,
+                                          0,
+                                        ),
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              SkeletonBone.text(
+                                                key: const ValueKey(
+                                                  'profile-skeleton-name',
+                                                ),
+                                                width: 180,
+                                                style: textTheme.headlineSmall
+                                                    ?.copyWith(
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                    ),
+                                              ),
+                                              const SizedBox(
+                                                height: FuncSpacing.xxs,
+                                              ),
+                                              SkeletonBone.text(
+                                                width: 112,
+                                                style: textTheme.bodyMedium,
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        const SizedBox(width: FuncSpacing.lg),
+                                        const SkeletonBone(
+                                          width: 92,
+                                          height: 40,
+                                          borderRadius: FuncShape.pill,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                 ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    SkeletonBone.text(
-                                      key: const ValueKey(
-                                        'profile-skeleton-name',
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: FuncSpacing.lg,
+                                  ),
+                                  child: Align(
+                                    alignment: AlignmentDirectional.topStart,
+                                    child: ConstrainedBox(
+                                      constraints: const BoxConstraints(
+                                        maxWidth: ContentWidths.management,
                                       ),
-                                      width: 180,
-                                      style: textTheme.headlineSmall?.copyWith(
-                                        fontWeight: FontWeight.w700,
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const SizedBox(height: FuncSpacing.xs),
+                                          _statBones(textTheme),
+                                          const SizedBox(height: FuncSpacing.xs),
+                                          SkeletonBone.text(
+                                            width: 340,
+                                            style: textTheme.bodyMedium,
+                                          ),
+                                        ],
                                       ),
                                     ),
-                                    const SizedBox(height: FuncSpacing.xxs),
-                                    SkeletonBone.text(
-                                      width: 112,
-                                      style: textTheme.bodyMedium,
-                                    ),
-                                    const SizedBox(height: FuncSpacing.xs),
-                                    _statBones(textTheme),
-                                    const SizedBox(height: FuncSpacing.sm),
-                                    SkeletonBone.text(
-                                      width: 340,
-                                      style: textTheme.bodyMedium,
-                                    ),
-                                  ],
+                                  ),
                                 ),
-                              ),
+                              ],
                             ),
                           ),
                         ],
                       ),
                       const PositionedDirectional(
-                        start: FuncSpacing.xl,
+                        start: FuncSpacing.lg,
                         top: _wideBannerHeight - _wideAvatarDiameter / 2,
                         child: SkeletonBone.circle(
                           key: ValueKey('profile-skeleton-avatar'),
