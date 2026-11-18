@@ -88,6 +88,9 @@ class _DownloadDestinationPageState
         _albumController.text != (destination.customAlbumName ?? '')) {
       _albumController.text = destination.customAlbumName ?? '';
     }
+    final trimmedAlbum = _albumController.text.trim();
+    final savedAlbum = destination.customAlbumName?.trim() ?? '';
+    final canSaveAlbum = trimmedAlbum.isNotEmpty && trimmedAlbum != savedAlbum;
     return guardDraft(
       dirty: _albumDirty,
       child: Scaffold(
@@ -129,12 +132,15 @@ class _DownloadDestinationPageState
                             helperMaxLines: 3,
                           ),
                           maxLength: 64,
-                          onChanged: (_) => setState(() => _albumDirty = true),
+                          onChanged: (value) => setState(
+                            () => _albumDirty =
+                                value != (destination.customAlbumName ?? ''),
+                          ),
                         ),
                         Align(
                           alignment: Alignment.centerRight,
                           child: FilledButton(
-                            onPressed: _saveAlbum,
+                            onPressed: canSaveAlbum ? _saveAlbum : null,
                             child: Text(context.l10n.save),
                           ),
                         ),

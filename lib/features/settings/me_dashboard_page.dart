@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
@@ -42,8 +43,12 @@ import '../../core/localnovel/local_novel_store.dart';
 import '../../core/navigation/home_destination.dart';
 import '../../core/profile/profile_models.dart';
 import '../../core/settings/settings_controller.dart';
+import '../../core/user/user_entity.dart';
 import '../../core/user/user_repository.dart';
+import '../../core/user/user_store.dart';
 import '../../core/watchlater/watch_later_store.dart';
+import '../../core/watchlist/watchlist_models.dart';
+import '../../core/watchlist/watchlist_store.dart';
 import '../../l10n/context.dart';
 import 'pages/download_tasks_page.dart';
 import 'settings_catalog.dart';
@@ -162,6 +167,14 @@ class _MeDashboardPageState extends ConsumerState<MeDashboardPage> {
                   : AppTopBar(
                       contentWidth: ContentWidths.settings,
                       title: Text(context.l10n.homeMe),
+                      actions: [
+                        IconButton(
+                          tooltip: context.l10n.settingsTitle,
+                          icon: const Icon(Icons.settings_outlined),
+                          onPressed: () =>
+                              openSettingsPage(context, settingsIndexPath),
+                        ),
+                      ],
                     ),
               body: _narrowBody(context, accounts),
             ),
@@ -270,13 +283,18 @@ class _MeDashboardPageState extends ConsumerState<MeDashboardPage> {
         includeSettingsEntries: !desktopOwned,
         onSelectSection: _selectSection,
       ),
-      detail: HeroControllerScope.none(
-        child: Navigator(
-          key: _detailNavigatorKey,
-          onGenerateInitialRoutes: (_, _) => [
-            _buildDetailRoute(effectiveSection, instant: true),
-          ],
-          onGenerateRoute: (_) => _buildDetailRoute(effectiveSection),
+      detail: SettingsDetailScope(
+        onPush: (location) =>
+            GoRouter.maybeOf(context)?.push<void>(location) ??
+            Future<void>.value(),
+        child: HeroControllerScope.none(
+          child: Navigator(
+            key: _detailNavigatorKey,
+            onGenerateInitialRoutes: (_, _) => [
+              _buildDetailRoute(effectiveSection, instant: true),
+            ],
+            onGenerateRoute: (_) => _buildDetailRoute(effectiveSection),
+          ),
         ),
       ),
     );
@@ -537,17 +555,20 @@ final _recentHistoryProvider = FutureProvider.autoDispose<List<HistoryRecord>>((
 });
 
 /// The works seen last, as a row of covers; "view all" opens the history.
-/// Nothing while the history is empty.
+/// Hidden on narrow Me when empty; wide overview optionally renders a
+/// restrained empty prompt card instead.
 class _RecentHistory extends ConsumerStatefulWidget {
-  const _RecentHistory({super.key});
+  const _RecentHistory({super.key, this.showEmptyCard = false});
 
   static const _count = 8;
-  static const _cover = 88.0;
+  static const _cover = 86.0;
   static const _gap = FuncSpacing.sm;
 
   /// The row's own Hero scope (TRANS-07): the same work may sit on a feed
   /// still mounted in another branch.
   static const _heroScope = 'me-history';
+
+  final bool showEmptyCard;
 
   @override
   ConsumerState<_RecentHistory> createState() => _RecentHistoryState();
@@ -727,9 +748,43 @@ class _RecentHistoryState extends ConsumerState<_RecentHistory>
         .toList();
     if (records != null && showing && !_covered) _adopt(records);
     final shown = _shown;
-    if (shown.isEmpty) return const SizedBox.shrink();
-    final store = ref.watch(illustStoreProvider);
     final theme = Theme.of(context);
+    if (shown.isEmpty) {
+      if (!widget.showEmptyCard) return const SizedBox.shrink();
+      return SettingsGroup(
+        title: Text(context.l10n.historySettings),
+        children: [
+          InkWell(
+            onTap: () => unawaited(openHistory(context)),
+            child: Padding(
+              padding: const EdgeInsets.all(FuncSpacing.lg),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.history,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: FuncSpacing.md),
+                  Expanded(
+                    child: Text(
+                      context.l10n.historyEmpty,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                  Icon(
+                    Icons.chevron_right,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+    final store = ref.watch(illustStoreProvider);
     return Padding(
       padding: const EdgeInsets.only(bottom: FuncSpacing.xl),
       child: Column(
@@ -992,6 +1047,15 @@ class _RecentCover extends StatelessWidget {
   }
 }
 
+String? _joinSubtitleParts(Iterable<String?> parts) {
+  final clean = [
+    for (final part in parts)
+      if (part != null && part.trim().isNotEmpty) part.trim(),
+  ];
+  if (clean.isEmpty) return null;
+  return clean.join(' ·\u00A0');
+}
+
 String _downloadSummary(BuildContext context, _DownloadStats stats) {
   final l10n = context.l10n;
   if (stats.total == 0) return l10n.downloadTasksEmpty;
@@ -1004,7 +1068,7 @@ String _downloadSummary(BuildContext context, _DownloadStats stats) {
     l10n.downloadRunning,
     AppFormat.count(context, stats.active),
   );
-  return '$activeLabel · $totalLabel';
+  return _joinSubtitleParts([activeLabel, totalLabel]) ?? totalLabel;
 }
 
 String _watchLaterSummary(BuildContext context, int? count) {
@@ -1046,8 +1110,27 @@ class _MeNarrowGroups extends ConsumerWidget {
     );
     final settingsSubtitle = appSettings == null
         ? l10n.settingsBrowseHint
-        : '${themeModeLabel(context, appSettings.themeCode)} · '
-              '${languageDisplayName(appSettings.languageTag)}';
+        : _joinSubtitleParts([
+                themeModeLabel(context, appSettings.themeCode),
+                languageDisplayName(appSettings.languageTag),
+              ]) ??
+              l10n.settingsBrowseHint;
+    final bookmarksSubtitle = _joinSubtitleParts([
+      l10n.profileIllust,
+      l10n.profileNovel,
+    ]);
+    final followingSubtitle = _joinSubtitleParts([
+      l10n.restrictPublic,
+      l10n.restrictPrivate,
+    ]);
+    final watchlistSubtitle = _joinSubtitleParts([
+      l10n.watchlistManga,
+      l10n.watchlistNovel,
+    ]);
+    final novelMarkersSubtitle = _joinSubtitleParts([
+      l10n.novelReadingProgress,
+      l10n.novelMarker,
+    ]);
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -1059,26 +1142,27 @@ class _MeNarrowGroups extends ConsumerWidget {
             SettingsTile.topLevel(
               icon: Icons.favorite_border,
               title: l10n.profileBookmarked,
-              subtitle: Text(
-                '${l10n.profileIllust} · ${l10n.profileNovel} · '
-                '${l10n.bookmarkTags}',
-              ),
+              subtitle: bookmarksSubtitle == null
+                  ? null
+                  : Text(bookmarksSubtitle),
               tone: blueTone,
               onTap: () => unawaited(openMe(context, tab: MeTab.bookmarks)),
             ),
             SettingsTile.topLevel(
               icon: Icons.people_outline,
               title: l10n.profileFollowing,
-              subtitle: Text(
-                '${l10n.restrictPublic} · ${l10n.restrictPrivate}',
-              ),
+              subtitle: followingSubtitle == null
+                  ? null
+                  : Text(followingSubtitle),
               tone: blueTone,
               onTap: () => unawaited(openMe(context, tab: MeTab.following)),
             ),
             SettingsTile.topLevel(
               icon: Icons.library_books_outlined,
               title: l10n.watchlistTitle,
-              subtitle: Text('${l10n.watchlistManga} · ${l10n.watchlistNovel}'),
+              subtitle: watchlistSubtitle == null
+                  ? null
+                  : Text(watchlistSubtitle),
               tone: blueTone,
               onTap: () => unawaited(openWatchlist(context)),
             ),
@@ -1087,9 +1171,9 @@ class _MeNarrowGroups extends ConsumerWidget {
               SettingsTile.topLevel(
                 icon: Icons.bookmarks_outlined,
                 title: l10n.novelMarkers,
-                subtitle: Text(
-                  '${l10n.novelReadingProgress} · ${l10n.novelMarker}',
-                ),
+                subtitle: novelMarkersSubtitle == null
+                    ? null
+                    : Text(novelMarkersSubtitle),
                 tone: blueTone,
                 onTap: () => unawaited(openNovelMarkers(context)),
               ),
@@ -1098,7 +1182,6 @@ class _MeNarrowGroups extends ConsumerWidget {
                 SettingsTile.topLevel(
                   icon: homeDestinationIcon(destination),
                   title: homeDestinationLabel(context, destination),
-                  subtitle: Text(l10n.navigationSettings),
                   tone: blueTone,
                   onTap: () => openHomeDestination(context, destination),
                 ),
@@ -1307,8 +1390,8 @@ class _MeWideRailGroups extends ConsumerWidget {
   }
 }
 
-/// Default right pane on wide Me workspaces: recent browsing history plus
-/// live local library & download overview cards.
+/// Default right pane on wide Me workspaces: profile overview header, recent
+/// browsing history, and a 2-column collection summary grid.
 class _MeOverviewPane extends ConsumerWidget {
   const _MeOverviewPane({
     required this.historyKey,
@@ -1321,18 +1404,18 @@ class _MeOverviewPane extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
-    final scheme = Theme.of(context).colorScheme;
-    final orangeTone = categoryTone(scheme, CategoryHue.orange);
-    final greenTone = categoryTone(scheme, CategoryHue.green);
     final account = ref.watch(accountStoreProvider).value?.current;
+    final userDetail = account == null
+        ? null
+        : ref.watch(userStoreProvider.select((users) => users[account.userId]));
+    final watchlistEntries = ref.watch(watchlistStoreProvider);
     final watchLaterCount = ref.watch(watchLaterStoreProvider).value?.length;
-    final localNovelsCount = ref.watch(localNovelStoreProvider).value?.length;
-    final downloadStats =
-        ref.watch(_downloadStatsProvider).value ?? (active: 0, total: 0);
 
     return Scaffold(
       appBar: AppTopBar(
-        contentWidth: 780,
+        contentWidth: SettingsDetailScope.maybeOf(context) != null
+            ? 780
+            : ContentWidths.settings,
         title: Text(l10n.accountProfile),
         actions: [
           TextButton.icon(
@@ -1351,40 +1434,404 @@ class _MeOverviewPane extends ConsumerWidget {
             bottom: FuncSpacing.xl,
           ),
           children: [
-            _RecentHistory(key: historyKey),
-            SettingsGroup(
-              title: Text(l10n.settingsGroupData),
-              children: [
-                SettingsTile.topLevel(
-                  icon: Icons.bookmark_border,
-                  title: l10n.watchLaterTitle,
-                  subtitle: Text(_watchLaterSummary(context, watchLaterCount)),
-                  tone: orangeTone,
-                  onTap: () => onSelectSection(_MeSection.watchLater),
-                ),
-                SettingsTile.topLevel(
-                  icon: Icons.auto_stories_outlined,
-                  title: l10n.localNovelsTitle,
-                  subtitle: Text(
-                    _localNovelsSummary(context, localNovelsCount),
-                  ),
-                  tone: orangeTone,
-                  onTap: () => onSelectSection(_MeSection.localNovels),
-                ),
-                SettingsTile.topLevel(
-                  icon: Icons.downloading_outlined,
-                  title: l10n.downloaderSettings,
-                  subtitle: Text(_downloadSummary(context, downloadStats)),
-                  tone: greenTone,
-                  trailingBadge: Badge(
-                    isLabelVisible: downloadStats.active > 0,
-                    label: Text(AppFormat.count(context, downloadStats.active)),
-                  ),
-                  onTap: () => onSelectSection(_MeSection.downloads),
-                ),
-              ],
+            _MeProfileOverview(account: account),
+            _RecentHistory(key: historyKey, showEmptyCard: true),
+            _MeCollectionGrid(
+              account: account,
+              userDetail: userDetail,
+              watchlistEntries: watchlistEntries,
+              watchLaterCount: watchLaterCount,
+              onSelectSection: onSelectSection,
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MeProfileOverview extends StatelessWidget {
+  const _MeProfileOverview({required this.account});
+
+  final Account? account;
+
+  static const _avatarDiameter = 56.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final tokens = FuncSemanticTokens.of(context);
+    final value = account;
+    final url = value?.profileImageUrl;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        FuncSpacing.lg,
+        0,
+        FuncSpacing.lg,
+        FuncSpacing.xl,
+      ),
+      child: SettingsCard(
+        child: Semantics(
+          onTapHint: value == null ? null : l10n.meOpenProfile,
+          child: InkWell(
+            onTap: value == null
+                ? () => openLogin(context)
+                : () => openMe(context),
+            child: Padding(
+              padding: const EdgeInsets.all(FuncSpacing.lg),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final compact =
+                      constraints.maxWidth < 520 ||
+                      MediaQuery.textScalerOf(context).scale(1) > 1.15;
+                  final identity = Row(
+                    children: [
+                      SizedBox.square(
+                        dimension: _avatarDiameter,
+                        child: PersonAvatar(
+                          imageUrl: url == null || url.isEmpty ? null : url,
+                          radius: _avatarDiameter / 2,
+                        ),
+                      ),
+                      const SizedBox(width: FuncSpacing.lg),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    value?.name ?? l10n.signedOut,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: tokens.display,
+                                  ),
+                                ),
+                                if (value?.isPremium ?? false) ...[
+                                  const SizedBox(width: FuncSpacing.sm),
+                                  const _PremiumBadge(),
+                                ],
+                              ],
+                            ),
+                            const SizedBox(height: FuncSpacing.xxs),
+                            Text(
+                              value == null
+                                  ? l10n.loginTitle
+                                  : l10n.labelValue(
+                                      l10n.profileId,
+                                      '${value.userId}',
+                                    ),
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: colors.onSurfaceVariant,
+                              ),
+                            ),
+                            if (value?.authState ==
+                                AccountAuthState.reauthRequired) ...[
+                              const SizedBox(height: FuncSpacing.xxs),
+                              Text(
+                                l10n.reauthRequired,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: colors.error,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
+                  );
+                  final action = value == null
+                      ? FilledButton.icon(
+                          onPressed: () => openLogin(context),
+                          icon: const Icon(Icons.login_outlined, size: 18),
+                          label: Text(l10n.login),
+                        )
+                      : OutlinedButton.icon(
+                          onPressed: () => openSettingsPage(
+                            context,
+                            SettingsPageRef.account.path,
+                          ),
+                          icon: const Icon(
+                            Icons.manage_accounts_outlined,
+                            size: 18,
+                          ),
+                          label: Text(l10n.accountManagement),
+                        );
+                  if (compact) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        identity,
+                        const SizedBox(height: FuncSpacing.md),
+                        Align(
+                          alignment: AlignmentDirectional.centerEnd,
+                          child: action,
+                        ),
+                      ],
+                    );
+                  }
+                  return Row(
+                    children: [
+                      Expanded(child: identity),
+                      const SizedBox(width: FuncSpacing.md),
+                      action,
+                    ],
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MeCollectionGrid extends StatelessWidget {
+  const _MeCollectionGrid({
+    required this.account,
+    required this.userDetail,
+    required this.watchlistEntries,
+    required this.watchLaterCount,
+    required this.onSelectSection,
+  });
+
+  final Account? account;
+  final UserEntity? userDetail;
+  final Map<WatchlistKey, WatchlistEntry> watchlistEntries;
+  final int? watchLaterCount;
+  final ValueChanged<_MeSection> onSelectSection;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final blueTone = categoryTone(scheme, CategoryHue.blue);
+    final orangeTone = categoryTone(scheme, CategoryHue.orange);
+    final detail = userDetail != null && userDetail!.hasDetail
+        ? userDetail
+        : null;
+    final bookmarksValue = account != null && detail != null
+        ? AppFormat.count(context, detail.totalIllustBookmarksPublic)
+        : '—';
+    final followingValue = account != null && detail != null
+        ? AppFormat.count(context, detail.totalFollowUsers)
+        : '—';
+    final watchlistValue = watchlistEntries.isNotEmpty
+        ? AppFormat.count(
+            context,
+            watchlistEntries.values.where((e) => e.shown).length,
+          )
+        : '—';
+    final watchLaterValue = watchLaterCount == null
+        ? '—'
+        : AppFormat.count(context, watchLaterCount!);
+
+    final items = [
+      (
+        icon: Icons.favorite_border,
+        tone: blueTone,
+        title: l10n.profileBookmarked,
+        count: bookmarksValue,
+        subtitle:
+            _joinSubtitleParts([l10n.profileIllust, l10n.profileNovel]) ??
+            l10n.profileBookmarked,
+        section: _MeSection.bookmarks,
+      ),
+      (
+        icon: Icons.people_outline,
+        tone: blueTone,
+        title: l10n.profileFollowing,
+        count: followingValue,
+        subtitle:
+            _joinSubtitleParts([l10n.restrictPublic, l10n.restrictPrivate]) ??
+            l10n.profileFollowing,
+        section: _MeSection.following,
+      ),
+      (
+        icon: Icons.library_books_outlined,
+        tone: blueTone,
+        title: l10n.watchlistTitle,
+        count: watchlistValue,
+        subtitle:
+            _joinSubtitleParts([l10n.watchlistManga, l10n.watchlistNovel]) ??
+            l10n.watchlistTitle,
+        section: _MeSection.watchlist,
+      ),
+      (
+        icon: Icons.bookmark_border,
+        tone: orangeTone,
+        title: l10n.watchLaterTitle,
+        count: watchLaterValue,
+        subtitle: _watchLaterSummary(context, watchLaterCount),
+        section: _MeSection.watchLater,
+      ),
+    ];
+
+    Widget buildTile(int index) {
+      final item = items[index];
+      return _MeCollectionTile(
+        icon: item.icon,
+        tone: item.tone,
+        title: item.title,
+        count: item.count,
+        subtitle: item.subtitle,
+        onTap: () => onSelectSection(item.section),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        FuncSpacing.lg,
+        0,
+        FuncSpacing.lg,
+        FuncSpacing.xl,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              FuncSpacing.lg,
+              0,
+              FuncSpacing.lg,
+              FuncSpacing.sm,
+            ),
+            child: DefaultTextStyle.merge(
+              style: theme.textTheme.titleSmall?.copyWith(
+                color: scheme.onSurfaceVariant,
+                fontWeight: FontWeight.w600,
+              ),
+              child: Semantics(
+                header: true,
+                child: Text(l10n.settingsGroupLibrary),
+              ),
+            ),
+          ),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              if (constraints.maxWidth < 420) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (var i = 0; i < items.length; i++) ...[
+                      if (i > 0) const SizedBox(height: FuncSpacing.sm),
+                      buildTile(i),
+                    ],
+                  ],
+                );
+              }
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  IntrinsicHeight(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(child: buildTile(0)),
+                        const SizedBox(width: FuncSpacing.sm),
+                        Expanded(child: buildTile(1)),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: FuncSpacing.sm),
+                  IntrinsicHeight(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(child: buildTile(2)),
+                        const SizedBox(width: FuncSpacing.sm),
+                        Expanded(child: buildTile(3)),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MeCollectionTile extends StatelessWidget {
+  const _MeCollectionTile({
+    required this.icon,
+    required this.tone,
+    required this.title,
+    required this.count,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final CategoryTone tone;
+  final String title;
+  final String count;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final tokens = FuncSemanticTokens.of(context);
+    return SettingsCard(
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(FuncSpacing.lg),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  SizedBox.square(
+                    dimension: SettingsTile.iconDiameter,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: tone.fill,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(icon, color: tone.ink),
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    count,
+                    style: tokens.display
+                        .copyWith(fontWeight: FontWeight.w700)
+                        .tabular,
+                  ),
+                  const SizedBox(width: FuncSpacing.xs),
+                  Icon(
+                    Icons.chevron_right,
+                    size: 18,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ],
+              ),
+              const SizedBox(height: FuncSpacing.md),
+              Text(
+                title,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: FuncSpacing.xxs),
+              Text(
+                subtitle,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

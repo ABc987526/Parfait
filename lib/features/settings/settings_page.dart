@@ -3,7 +3,8 @@ import 'dart:async';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:flutter/rendering.dart' show ScrollCacheExtent;
+import 'package:flutter/rendering.dart'
+    show RenderAbstractViewport, ScrollCacheExtent;
 
 import '../../app/layout/content_widths.dart';
 import '../../app/layout/deferred_cache_scroll_view.dart';
@@ -103,6 +104,7 @@ class SettingsPage extends ConsumerStatefulWidget {
 class _SettingsPageState extends ConsumerState<SettingsPage> {
   final _query = TextEditingController();
   final _indexBodyKey = GlobalKey(debugLabel: 'settings-index-body');
+  final _selectedTileKey = GlobalKey(debugLabel: 'settings-selected-tile');
   final _detailNavigatorKey = GlobalKey<NavigatorState>(
     debugLabel: 'settings-detail',
   );
@@ -111,6 +113,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   late String _initialDetailLocation;
   late bool _initialIsNestedChild;
   bool _detailCanPop = false;
+  bool _pendingRevealSelected = false;
+  int _revealAttempts = 0;
 
   @override
   void initState() {
@@ -119,6 +123,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     _selectedPage = target.rootRef;
     _initialDetailLocation = target.detailLocation;
     _initialIsNestedChild = target.isNestedChild;
+    _pendingRevealSelected = _selectedPage != SettingsPageRef.account;
   }
 
   @override
@@ -135,7 +140,11 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           if (mounted) _openInDetailPane(target.detailLocation);
         });
       } else if (_selectedPage != target.rootRef) {
-        setState(() => _selectedPage = target.rootRef);
+        setState(() {
+          _selectedPage = target.rootRef;
+          _pendingRevealSelected = _selectedPage != SettingsPageRef.account;
+          _revealAttempts = 0;
+        });
       }
     }
   }
@@ -216,12 +225,56 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   }
 
   SettingsPageRef? _rootRefForSubPath(String path) {
-    if (path.startsWith('/settings/translate/credentials/')) {
+    if (path == '/settings/translate/credentials' ||
+        path.startsWith('/settings/translate/credentials/')) {
       return SettingsPageRef.translate;
     }
-    if (path == '/settings/about/licenses') return SettingsPageRef.about;
+    if (path == '/settings/about/licenses' ||
+        path.startsWith('/settings/about/')) {
+      return SettingsPageRef.about;
+    }
     if (path == '/settings/tasks') return SettingsPageRef.download;
     return null;
+  }
+
+  void _scheduleRevealSelected() {
+    if (!_pendingRevealSelected) return;
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _revealSelectedIfReady(),
+    );
+  }
+
+  void _revealSelectedIfReady() {
+    if (!mounted || !_pendingRevealSelected) return;
+    final ctx = _selectedTileKey.currentContext;
+    if (ctx == null) {
+      if (_revealAttempts < 6) {
+        _revealAttempts++;
+        _scheduleRevealSelected();
+      } else {
+        _pendingRevealSelected = false;
+      }
+      return;
+    }
+    _pendingRevealSelected = false;
+    _revealAttempts = 0;
+    final renderObject = ctx.findRenderObject();
+    if (renderObject == null) return;
+    final scrollable = Scrollable.maybeOf(ctx);
+    if (scrollable == null) return;
+    final viewport = RenderAbstractViewport.maybeOf(renderObject);
+    if (viewport == null) return;
+    final position = scrollable.position;
+    if (!position.hasContentDimensions) return;
+    final revealTop = viewport.getOffsetToReveal(renderObject, 0.0).offset;
+    final revealBottom = viewport.getOffsetToReveal(renderObject, 1.0).offset;
+    if (position.pixels < revealBottom || position.pixels > revealTop) {
+      final target = viewport
+          .getOffsetToReveal(renderObject, 0.5)
+          .offset
+          .clamp(position.minScrollExtent, position.maxScrollExtent);
+      position.jumpTo(target);
+    }
   }
 
   void _openInDetailPane(String location) {
@@ -229,7 +282,11 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     final pageRef = _pageRefForPath(uri.path);
     final rootRef = pageRef?.parent ?? pageRef ?? _rootRefForSubPath(uri.path);
     if (rootRef != null && rootRef != _selectedPage) {
-      setState(() => _selectedPage = rootRef);
+      setState(() {
+        _selectedPage = rootRef;
+        _pendingRevealSelected = true;
+        _revealAttempts = 0;
+      });
     }
     final isNestedChild =
         (pageRef != null && pageRef.parent != null) ||
@@ -301,10 +358,12 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
 
   Widget _buildDetailPage(Uri uri) {
     final path = uri.path;
-    if (path.startsWith('/settings/translate/credentials/')) {
-      final provider = path.substring(
-        '/settings/translate/credentials/'.length,
-      );
+    if (path == '/settings/translate/credentials' ||
+        path.startsWith('/settings/translate/credentials/')) {
+      const prefix = '/settings/translate/credentials/';
+      final provider = path.startsWith(prefix)
+          ? path.substring(prefix.length)
+          : '';
       return TranslationCredentialsPage(baidu: provider == 'baidu');
     }
     return switch (path) {
@@ -366,6 +425,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     final settings = ref.watch(settingsProvider);
     final query = _query.text;
     final masterDetail = MasterDetailWorkspace.canDisplay(context);
+    if (masterDetail && _pendingRevealSelected && query.trim().isEmpty) {
+      _scheduleRevealSelected();
+    }
 
     final Widget body = KeyedSubtree(
       key: _indexBodyKey,
@@ -379,6 +441,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           settings: resolvedSettings,
           query: query,
           selectedPage: masterDetail ? _selectedPage : null,
+          selectedTileKey: masterDetail ? _selectedTileKey : null,
           showChevron: !masterDetail,
           onSelectLocation: masterDetail ? _openInDetailPane : null,
           header: masterDetail
@@ -517,6 +580,7 @@ class _SettingsIndexList extends ConsumerWidget {
     required this.settings,
     required this.query,
     this.selectedPage,
+    this.selectedTileKey,
     this.showChevron = true,
     this.onSelectLocation,
     this.header,
@@ -525,6 +589,7 @@ class _SettingsIndexList extends ConsumerWidget {
   final AppSettings settings;
   final String query;
   final SettingsPageRef? selectedPage;
+  final GlobalKey? selectedTileKey;
   final bool showChevron;
   final ValueChanged<String>? onSelectLocation;
   final Widget? header;
@@ -540,11 +605,15 @@ class _SettingsIndexList extends ConsumerWidget {
           ref,
           settings,
           selectedPage: selectedPage,
+          selectedTileKey: selectedTileKey,
           showChevron: showChevron,
           onSelectLocation: onSelectLocation,
         ),
         _DeveloperSettingsGroup(
           selected: selectedPage == SettingsPageRef.frameProbe,
+          selectedTileKey: selectedPage == SettingsPageRef.frameProbe
+              ? selectedTileKey
+              : null,
           showChevron: showChevron,
           onSelectLocation: onSelectLocation,
         ),
@@ -605,6 +674,7 @@ List<Widget> _indexGroups(
   WidgetRef ref,
   AppSettings settings, {
   SettingsPageRef? selectedPage,
+  GlobalKey? selectedTileKey,
   bool showChevron = true,
   ValueChanged<String>? onSelectLocation,
 }) {
@@ -656,21 +726,24 @@ List<Widget> _indexGroups(
         title: Text(group.title),
         children: [
           for (final page in group.pages)
-            SettingsTile.topLevel(
-              setting: page,
-              icon: settingsPageIcons[page],
-              subtitle: _pageSummary(context, ref, settings, page),
-              tone: group.tone,
-              selected: selectedPage == page,
-              showChevron: showChevron,
-              onTap: () {
-                final select = onSelectLocation;
-                if (select != null) {
-                  select(page.path);
-                } else {
-                  openSettingsPage(context, page.path);
-                }
-              },
+            KeyedSubtree(
+              key: selectedPage == page ? selectedTileKey : null,
+              child: SettingsTile.topLevel(
+                setting: page,
+                icon: settingsPageIcons[page],
+                subtitle: _pageSummary(context, ref, settings, page),
+                tone: group.tone,
+                selected: selectedPage == page,
+                showChevron: showChevron,
+                onTap: () {
+                  final select = onSelectLocation;
+                  if (select != null) {
+                    select(page.path);
+                  } else {
+                    openSettingsPage(context, page.path);
+                  }
+                },
+              ),
             ),
         ],
       ),
@@ -741,11 +814,13 @@ Widget _pageSummary(
 class _DeveloperSettingsGroup extends ConsumerWidget {
   const _DeveloperSettingsGroup({
     this.selected = false,
+    this.selectedTileKey,
     this.showChevron = true,
     this.onSelectLocation,
   });
 
   final bool selected;
+  final GlobalKey? selectedTileKey;
   final bool showChevron;
   final ValueChanged<String>? onSelectLocation;
 
@@ -758,20 +833,23 @@ class _DeveloperSettingsGroup extends ConsumerWidget {
     return SettingsGroup(
       title: Text(context.l10n.settingsGroupDeveloper),
       children: [
-        SettingsTile.topLevel(
-          setting: probe,
-          icon: settingsPageIcons[probe],
-          tone: neutralCategoryTone(Theme.of(context).colorScheme),
-          selected: selected,
-          showChevron: showChevron,
-          onTap: () {
-            final select = onSelectLocation;
-            if (select != null) {
-              select(probe.path);
-            } else {
-              openSettingsPage(context, probe.path);
-            }
-          },
+        KeyedSubtree(
+          key: selected ? selectedTileKey : null,
+          child: SettingsTile.topLevel(
+            setting: probe,
+            icon: settingsPageIcons[probe],
+            tone: neutralCategoryTone(Theme.of(context).colorScheme),
+            selected: selected,
+            showChevron: showChevron,
+            onTap: () {
+              final select = onSelectLocation;
+              if (select != null) {
+                select(probe.path);
+              } else {
+                openSettingsPage(context, probe.path);
+              }
+            },
+          ),
         ),
       ],
     );
