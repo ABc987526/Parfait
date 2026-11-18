@@ -1,12 +1,14 @@
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:parfait/app/widgets/app_top_bar.dart';
 import 'package:parfait/core/auth/credential.dart';
 import 'package:parfait/core/network/compat/network_providers.dart';
 import 'package:parfait/core/translation/translation_service.dart'
     show translationCredentialStoreProvider;
 import 'package:parfait/features/settings/network_settings_page.dart';
 import 'package:parfait/features/settings/settings_catalog.dart';
+import 'package:parfait/features/settings/settings_helpers.dart';
 import 'package:parfait/features/settings/settings_page.dart';
 import 'package:parfait/l10n/app_localizations_zh.dart';
 
@@ -96,6 +98,50 @@ void main() {
       setViewSize(tester, const Size(800, 8000));
       await tester.pump();
       expect(find.byType(NetworkSettingsPage), findsNothing);
+    },
+    variant: TargetPlatformVariant.only(TargetPlatform.windows),
+  );
+
+  testWidgets(
+    'wide Me dashboard wraps SettingsDetailScope and shows overview grid',
+    (tester) async {
+      setViewSize(tester, const Size(1280, 800));
+      final router = pixivRouter('/settings');
+      await tester.pumpWidget(
+        localizedRouterApp(
+          router,
+          overrides: _overrides(),
+          builder: promptHostBuilder,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('me-wide-dashboard')), findsOneWidget);
+      final detailNav = find.byType(Navigator).last;
+      final detailHeader = find.descendant(
+        of: find.byType(AppTopBar),
+        matching: find.text('个人资料'),
+      );
+      expect(detailHeader, findsOneWidget);
+      expect(
+        SettingsDetailScope.maybeOf(tester.element(detailHeader)),
+        isNotNull,
+      );
+      expect(
+        find.descendant(of: detailNav, matching: find.text(zh.historySettings)),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: detailNav, matching: find.text(zh.historyEmpty)),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: detailNav,
+          matching: find.text(zh.settingsGroupLibrary),
+        ),
+        findsOneWidget,
+      );
     },
     variant: TargetPlatformVariant.only(TargetPlatform.windows),
   );

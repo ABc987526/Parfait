@@ -1325,6 +1325,61 @@ void main() {
     },
   );
 
+  testWidgets('Hero flight ignores deactivated endpoints without throwing', (
+    tester,
+  ) async {
+    setViewSize(tester, const Size(400, 800));
+    late BuildContext root;
+    final heroes = HeroController();
+    addTearDown(heroes.dispose);
+    late Route<void> firstRoute;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) {
+            root = context;
+            return Navigator(
+              observers: [heroes],
+              onGenerateRoute: (_) => firstRoute = FuncPage<void>(
+                child: Scaffold(
+                  body: Align(
+                    alignment: Alignment.topLeft,
+                    child: _hero('deactivated-hero', width: 120, height: 120),
+                  ),
+                ),
+              ).createRoute(root),
+            );
+          },
+        ),
+      ),
+    );
+    final nav = tester.state<NavigatorState>(find.byType(Navigator).last);
+    unawaited(
+      nav.push(
+        FuncPage<void>(
+          sharedElement: true,
+          child: Scaffold(
+            body: Align(
+              alignment: Alignment.center,
+              child: _hero('deactivated-hero', width: 320, height: 320),
+            ),
+          ),
+        ).createRoute(root),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(find.byType(HeroRectClip), findsOneWidget);
+
+    // Deactivate the source route mid-flight so _LiftedEndpoints sees !mounted.
+    nav.removeRoute(firstRoute);
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.byType(HeroRectClip), findsNothing);
+  });
+
   test('a failed anomaly write is logged and the next one lands', () async {
     installPreferencesForTest(_ListWriteFailsOnce());
     final log = HeroAnomalyLog(SharedPreferencesAsync());

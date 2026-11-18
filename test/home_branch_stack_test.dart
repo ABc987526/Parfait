@@ -875,4 +875,65 @@ void main() {
       expect(tester.getTopLeft(nav).dy, greaterThanOrEqualTo(_shortHeight));
     });
   });
+
+  testWidgets(
+    'ShellRail dims behind bounded DetailOverlayFrame and dismisses on tap',
+    (tester) async {
+      final router = await _pumpHome(tester, width: 1180, height: 820);
+      const railScrimKey = ValueKey('home-rail-modal-scrim');
+      expect(find.byKey(railScrimKey), findsNothing);
+
+      unawaited(router.push<void>('/recommended/illust/42'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('detail-overlay-scrim')),
+        findsOneWidget,
+      );
+      expect(find.byKey(railScrimKey), findsOneWidget);
+      final scrimBox = tester.widget<ColoredBox>(
+        find.descendant(
+          of: find.byKey(railScrimKey),
+          matching: find.byType(ColoredBox),
+        ),
+      );
+      expect(scrimBox.color, const Color(0x990C0B0E));
+      expect(find.byIcon(Icons.close), findsOneWidget);
+
+      await tester.tap(find.byKey(railScrimKey));
+      await tester.pumpAndSettle();
+      expect(router.state.uri.path, '/recommended');
+      expect(find.byKey(railScrimKey), findsNothing);
+    },
+    variant: TargetPlatformVariant.only(TargetPlatform.windows),
+  );
+
+  testWidgets(
+    'tablet landscape auto-collapses expanded ShellRail on Me and Settings',
+    (tester) async {
+      final router = await _pumpHome(
+        tester,
+        width: 1180,
+        height: 820,
+        display: const Size(1180, 820),
+      );
+      final rail = find.byType(ShellRail);
+      await tester.tap(find.byTooltip('展开侧栏'));
+      await tester.pumpAndSettle();
+      expect(tester.getSize(rail).width, ShellRail.expandedWidth);
+
+      await tester.tap(find.descendant(of: rail, matching: find.text('我的')));
+      await tester.pumpAndSettle();
+      expect(tester.getSize(rail).width, ShellRail.width);
+
+      unawaited(router.push<void>('/settings/all'));
+      await tester.pumpAndSettle();
+      expect(tester.getSize(rail).width, ShellRail.width);
+
+      await tester.tap(find.descendant(of: rail, matching: find.text('推荐')));
+      await tester.pumpAndSettle();
+      expect(tester.getSize(rail).width, ShellRail.expandedWidth);
+    },
+    variant: TargetPlatformVariant.only(TargetPlatform.iOS),
+  );
 }

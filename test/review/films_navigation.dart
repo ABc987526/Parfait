@@ -1,5 +1,6 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:parfait/app/motion/hero_rect_clip.dart';
 import 'package:parfait/app/pixiv_image.dart';
 
@@ -93,7 +94,7 @@ void main() {
     script: (film, router) async {
       await film.tap(find.byType(PixivImage), hold: 15);
       await film.frames(20);
-      await film.tap(back.last);
+      await _tapBackOrClose(film, back);
     },
   );
 
@@ -111,7 +112,7 @@ void main() {
       await film.tap(find.text('我的'));
       await film.tap(find.bySemanticsLabel('illust 1001'), hold: 6);
       await film.frames(10);
-      await film.tap(back.last);
+      await _tapBackOrClose(film, back);
     },
   );
 
@@ -443,6 +444,16 @@ void main() {
       await pullDown(distance: 190, moveFrames: 12);
     },
   );
+}
+
+/// Taps the visible back button on full-screen detail routes or falls back to
+/// the modal close icon under wide `boundedOverlay` presentations.
+Future<void> _tapBackOrClose(FilmRecorder film, Finder back) {
+  final hitBack = back.hitTestable();
+  final target = hitBack.evaluate().isNotEmpty
+      ? hitBack.last
+      : find.byIcon(Icons.close).hitTestable().last;
+  return film.tap(target);
 }
 
 /// Taps [at] and films until a Hero flight is in the air (or 30 frames: a

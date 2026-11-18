@@ -432,75 +432,76 @@ void main() {
   ) async {
     setViewSize(tester, const Size(400, 1600));
     final semantics = tester.ensureSemantics();
-    const account = Account(
-      id: '42',
-      userId: 42,
-      name: 'tester',
-      isPremium: true,
-    );
-    await seedAccounts(const [account], currentId: account.id);
-    final router = pixivRouter('/settings');
-    await tester.pumpWidget(
-      localizedRouterApp(
-        router,
-        overrides: [
-          credentialStoreProvider.overrideWithValue(
-            FakeCredentialStore(
-              values: const {
-                '42': Credential(accessToken: 'a', refreshToken: 'r'),
-              },
+    try {
+      const account = Account(
+        id: '42',
+        userId: 42,
+        name: 'tester',
+        isPremium: true,
+      );
+      await seedAccounts(const [account], currentId: account.id);
+      final router = pixivRouter('/settings');
+      await tester.pumpWidget(
+        localizedRouterApp(
+          router,
+          overrides: [
+            credentialStoreProvider.overrideWithValue(
+              FakeCredentialStore(
+                values: const {
+                  '42': Credential(accessToken: 'a', refreshToken: 'r'),
+                },
+              ),
             ),
-          ),
-        ],
-      ),
-    );
-    await tester.pumpAndSettle();
-    expect(find.byType(AppBar), findsOneWidget);
-    expect(
-      find.descendant(
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byType(AppBar), findsOneWidget);
+      final barSettings = find.descendant(
         of: find.byType(AppBar),
-        matching: find.byType(IconButton),
-      ),
-      findsNothing,
-      reason: 'settings open from the end row, not the bar',
-    );
-    // One node for who is signed in, read with the badge and the ID, and
-    // the manage button apart.
-    expect(
-      tester.getSemantics(find.text('tester')),
-      isSemantics(
-        label: 'tester\nPremium\n用户 ID：42',
-        isButton: true,
-        hasTapAction: true,
-        onTapHint: '打开个人主页',
-      ),
-    );
-    final manage = tester.getSemantics(find.byTooltip('账号管理'));
-    expect(manage, isSemantics(tooltip: '账号管理', isButton: true));
-    expect(manage.id, isNot(tester.getSemantics(find.text('tester')).id));
+        matching: find.byIcon(Icons.settings_outlined),
+      );
+      expect(barSettings, findsOneWidget);
+      // One node for who is signed in, read with the badge and the ID, and
+      // the manage button apart.
+      expect(
+        tester.getSemantics(find.text('tester')),
+        isSemantics(
+          label: 'tester\nPremium\n用户 ID：42',
+          isButton: true,
+          hasTapAction: true,
+          onTapHint: '打开个人主页',
+        ),
+      );
+      final manage = tester.getSemantics(find.byTooltip('账号管理'));
+      expect(manage, isSemantics(tooltip: '账号管理', isButton: true));
+      expect(manage.id, isNot(tester.getSemantics(find.text('tester')).id));
 
-    Future<void> opens(Finder target, String path) async {
-      await tester.tap(target);
+      Future<void> opens(Finder target, String path) async {
+        await tester.tap(target);
+        await tester.pumpAndSettle();
+        expect(router.state.uri.path, path);
+        await tester.binding.handlePopRoute();
+        await tester.pumpAndSettle();
+        expect(router.state.uri.path, '/settings');
+      }
+
+      await opens(barSettings, '/settings/all');
+      await opens(find.text('tester'), '/me');
+      await opens(find.text('小说书签'), '/settings/novel-markers');
+      await opens(find.byTooltip('账号管理'), '/settings/account');
+      await opens(find.text('关于'), '/settings/about');
+      await tester.tap(find.text('设置'));
       await tester.pumpAndSettle();
-      expect(router.state.uri.path, path);
-      await tester.binding.handlePopRoute();
-      await tester.pumpAndSettle();
-      expect(router.state.uri.path, '/settings');
+      expect(router.state.uri.path, '/settings/all');
+      expect(
+        find.text('帧探针'),
+        findsOneWidget,
+        reason: 'a build that can record lists the probe under the settings',
+      );
+    } finally {
+      semantics.dispose();
     }
-
-    await opens(find.text('tester'), '/me');
-    await opens(find.text('小说书签'), '/settings/novel-markers');
-    await opens(find.byTooltip('账号管理'), '/settings/account');
-    await opens(find.text('关于'), '/settings/about');
-    await tester.tap(find.text('设置'));
-    await tester.pumpAndSettle();
-    expect(router.state.uri.path, '/settings/all');
-    expect(
-      find.text('帧探针'),
-      findsOneWidget,
-      reason: 'a build that can record lists the probe under the settings',
-    );
-    semantics.dispose();
   });
 
   testWidgets('signed out, the Me header is one button to the login', (

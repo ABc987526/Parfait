@@ -511,6 +511,47 @@ void main() {
       },
     );
 
+    testWidgets(
+      'a portrait 3:4 image collapses sub-toolbar band so icons stay over artwork',
+      (tester) async {
+        tester.view.padding = const FakeViewPadding(top: 24);
+        final json = illustJson(
+          42,
+          pageCount: 2,
+          width: 600,
+          height: 800,
+          withMetaPages: true,
+        );
+        final (container, _, _) = await makeWorld(detailOverrides: {42: json});
+        container.read(illustStoreProvider).mergeAll([parseIllust(json)]);
+        await pumpDetail(
+          tester,
+          container,
+          seedStore: false,
+          locale: const Locale('zh', 'CN'),
+        );
+        await tester.pumpAndSettle();
+
+        final slot = tester.getRect(find.byType(DetailPageImage));
+        final hero = find.byWidgetPredicate(
+          (widget) => widget is Hero && widget.tag == illustHeroTag('feed', 42),
+        );
+        // 390 / (600 / 800) = 520 => rawBand = (844 * 0.7 - 520) / 2 = 35.4 < 56.
+        expect(slot.top, closeTo(24, 0.5));
+        expect(tester.getRect(hero).top, closeTo(24, 0.5));
+        expect(lifted(tester), isTrue);
+
+        final page1State = tester.state(find.byType(DetailPageImage).first);
+        await tester.tap(find.textContaining('展开'));
+        await tester.pumpAndSettle();
+        expect(find.byType(DetailPageImage), findsNWidgets(2));
+        expect(
+          tester.state(find.byType(DetailPageImage).first),
+          same(page1State),
+        );
+      },
+    );
+
     for (final reduce in [false, true]) {
       testWidgets(
         reduce

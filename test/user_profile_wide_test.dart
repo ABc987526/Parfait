@@ -1,8 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'package:parfait/app/layout/content_widths.dart';
+import 'package:parfait/app/widgets/feed/feed_states.dart';
 import 'package:parfait/app/widgets/follow_switch_button.dart';
+import 'package:parfait/app/window/desktop_command_bar.dart';
+import 'package:parfait/features/profile/profile_skeleton.dart';
 import 'package:parfait/features/profile/user_page.dart';
 
 import 'helpers/illust_fixtures.dart';
@@ -91,4 +96,39 @@ void main() {
     expect(find.byKey(const ValueKey('profile-wide-split')), findsNothing);
     expect(find.byKey(const ValueKey('profile-nested-scroll')), findsOneWidget);
   });
+
+  testWidgets(
+    'wide profile skeleton avoids duplicate back button and empty works hide total',
+    (tester) async {
+      setViewSize(tester, const Size(1280, 800));
+      final gate = Completer<void>();
+      addTearDown(() {
+        if (!gate.isCompleted) gate.complete();
+      });
+      final users = UserApi(
+        detail: sampleUser(42).copyWith(totalIllusts: 120, hasDetail: true),
+        works: const [],
+      )..detailGate = gate;
+      final container = await makeProfileWorld(users: users);
+      await tester.pumpWidget(
+        DesktopCommandBarScope(
+          active: true,
+          child: localizedApp(
+            container: container,
+            builder: promptHostBuilder,
+            home: const UserPage(userId: 42),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(find.byType(ProfileSkeleton), findsOneWidget);
+      expect(find.byKey(const ValueKey('profile-wide-split')), findsOneWidget);
+      expect(find.byType(BackButton), findsNothing);
+
+      gate.complete();
+      await tester.pumpAndSettle();
+      expect(find.byType(FeedEmpty), findsOneWidget);
+      expect(find.textContaining('共 '), findsNothing);
+    },
+  );
 }

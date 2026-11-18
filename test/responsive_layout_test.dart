@@ -5,6 +5,7 @@ import 'package:material_ui/material_ui.dart';
 
 import 'package:parfait/app/layout/card_columns.dart';
 import 'package:parfait/app/layout/content_widths.dart';
+import 'package:parfait/app/layout/form_factor.dart';
 import 'package:parfait/app/layout/sliver_width_builder.dart';
 import 'package:parfait/app/theme/func_semantic_tokens.dart';
 import 'package:parfait/app/theme/replica_theme.dart';
@@ -270,4 +271,23 @@ void main() {
 
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('PC standard grid keeps 3 columns at 1280px inspector width', (
+    tester,
+  ) async {
+    late BuildContext pcContext;
+    await tester.pumpWidget(
+      FormFactorScope(
+        choice: InterfaceForm.pc,
+        child: Builder(
+          builder: (context) {
+            pcContext = context;
+            return const SizedBox.shrink();
+          },
+        ),
+      ),
+    );
+    expect(illustColumnsForContext(pcContext, 616, FeedDensity.standard), 3);
+    expect(illustColumnsForContext(pcContext, 1140, FeedDensity.standard), 5);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.windows));
 }

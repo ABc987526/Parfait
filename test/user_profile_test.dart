@@ -670,8 +670,13 @@ void main() {
         totalNovelSeries: 2,
         hasDetail: true,
       ),
+      works: [_illust(1)],
     );
-    final container = await makeProfileWorld(users: repository);
+    final novels = answer(pageJson('novels', [novelJson(1)]));
+    final container = await makeProfileWorld(
+      users: repository,
+      routes: {'/v1/user/novels': novels},
+    );
     await _pumpProfile(tester, container);
 
     // Manga and series are empty, and novel series have no list of their

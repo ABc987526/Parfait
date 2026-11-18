@@ -107,12 +107,7 @@ void main() {
     variants: {ShotVariant.dark, ...overflowVariants, ShotVariant.largeText},
     before: (tester, router) async {
       await openCategories(tester, router);
-      await tester.tap(
-        find.descendant(
-          of: find.byType(BottomSheet),
-          matching: find.byIcon(Icons.edit_outlined),
-        ),
-      );
+      await tester.tap(find.byIcon(Icons.edit_outlined).last);
       await tester.pumpAndSettle();
     },
   );
