@@ -88,6 +88,22 @@ class MeDashboardPage extends ConsumerStatefulWidget {
   ConsumerState<MeDashboardPage> createState() => _MeDashboardPageState();
 }
 
+class _MeNetworkScope extends InheritedWidget {
+  const _MeNetworkScope({required this.activated, required super.child});
+
+  final bool activated;
+
+  static bool of(BuildContext context) =>
+      context
+          .dependOnInheritedWidgetOfExactType<_MeNetworkScope>()
+          ?.activated ??
+      true;
+
+  @override
+  bool updateShouldNotify(_MeNetworkScope oldWidget) =>
+      activated != oldWidget.activated;
+}
+
 class _MeDashboardPageState extends ConsumerState<MeDashboardPage> {
   /// Preserves `_RecentHistoryState` (keep-alive covers & reorder animations)
   /// when crossing the narrow/wide breakpoint (`SET-07`).
@@ -96,6 +112,7 @@ class _MeDashboardPageState extends ConsumerState<MeDashboardPage> {
     debugLabel: 'me-detail',
   );
   _MeSection _selectedSection = _MeSection.overview;
+  bool _hasBeenVisible = false;
 
   void _selectSection(_MeSection section) {
     if (section == _selectedSection) return;
@@ -155,9 +172,13 @@ class _MeDashboardPageState extends ConsumerState<MeDashboardPage> {
 
   @override
   Widget build(BuildContext context) {
+    final route = ModalRoute.of(context);
+    if (TickerMode.valuesOf(context).enabled && (route?.isCurrent ?? true)) {
+      _hasBeenVisible = true;
+    }
     final accounts = ref.watch(accountStoreProvider);
     final usable = accounts.value?.usableCurrent;
-    if (usable != null) {
+    if (usable != null && _hasBeenVisible) {
       ref.watch(userDetailControllerProvider(usable.userId));
     }
     final userDetail = usable == null
@@ -168,56 +189,59 @@ class _MeDashboardPageState extends ConsumerState<MeDashboardPage> {
         : null;
     final desktopOwned = DesktopCommandBarScope.isActiveOf(context);
     final wide = MasterDetailWorkspace.canDisplay(context);
-    return RefreshActionAnchor(
-      onRefresh: () {
-        ref.invalidate(_recentHistoryProvider);
-        ref.invalidate(_downloadStatsProvider);
-        ref.invalidate(watchLaterStoreProvider);
-        ref.invalidate(localNovelStoreProvider);
-        if (usable != null) {
-          ref.invalidate(userDetailControllerProvider(usable.userId));
-          ref.invalidate(
-            profileIllustFeedProvider(
-              ProfileFeedKey(
-                userId: usable.userId,
-                kind: ProfileFeedKind.bookmarks,
-                workType: UserWorkType.illust,
-                restrict: UserRestrict.public,
+    return _MeNetworkScope(
+      activated: _hasBeenVisible,
+      child: RefreshActionAnchor(
+        onRefresh: () {
+          ref.invalidate(_recentHistoryProvider);
+          ref.invalidate(_downloadStatsProvider);
+          ref.invalidate(watchLaterStoreProvider);
+          ref.invalidate(localNovelStoreProvider);
+          if (usable != null && _hasBeenVisible) {
+            ref.invalidate(userDetailControllerProvider(usable.userId));
+            ref.invalidate(
+              profileIllustFeedProvider(
+                ProfileFeedKey(
+                  userId: usable.userId,
+                  kind: ProfileFeedKind.bookmarks,
+                  workType: UserWorkType.illust,
+                  restrict: UserRestrict.public,
+                ),
               ),
-            ),
-          );
-        }
-        unawaited(ref.read(accountStoreProvider.notifier).reload());
-      },
-      child: wide
-          ? _wideBody(
-              context,
-              accounts,
-              detail: detail,
-              desktopOwned: desktopOwned,
-            )
-          : Scaffold(
-              // Root pages own no inline composer: leaving the default `true`
-              // would subscribe this whole subtree to per-frame viewInsets
-              // churn every time the IME animates — a relayout storm across
-              // all five live branches.
-              resizeToAvoidBottomInset: false,
-              appBar: desktopOwned
-                  ? null
-                  : AppTopBar(
-                      contentWidth: ContentWidths.settings,
-                      title: Text(context.l10n.homeMe),
-                      actions: [
-                        IconButton(
-                          tooltip: context.l10n.settingsTitle,
-                          icon: const Icon(AppIcons.settings),
-                          onPressed: () =>
-                              openSettingsPage(context, settingsIndexPath),
-                        ),
-                      ],
-                    ),
-              body: _narrowBody(context, accounts, detail: detail),
-            ),
+            );
+          }
+          unawaited(ref.read(accountStoreProvider.notifier).reload());
+        },
+        child: wide
+            ? _wideBody(
+                context,
+                accounts,
+                detail: detail,
+                desktopOwned: desktopOwned,
+              )
+            : Scaffold(
+                // Root pages own no inline composer: leaving the default `true`
+                // would subscribe this whole subtree to per-frame viewInsets
+                // churn every time the IME animates — a relayout storm across
+                // all five live branches.
+                resizeToAvoidBottomInset: false,
+                appBar: desktopOwned
+                    ? null
+                    : AppTopBar(
+                        contentWidth: ContentWidths.settings,
+                        title: Text(context.l10n.homeMe),
+                        actions: [
+                          IconButton(
+                            tooltip: context.l10n.settingsTitle,
+                            icon: const Icon(AppIcons.settings),
+                            onPressed: () =>
+                                openSettingsPage(context, settingsIndexPath),
+                          ),
+                        ],
+                      ),
+                body: _narrowBody(context, accounts, detail: detail),
+              ),
+      ),
     );
   }
 
@@ -1860,6 +1884,7 @@ class _MeOverviewPane extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
+    final networkActivated = _MeNetworkScope.of(context);
     final state = ref.watch(accountStoreProvider).value;
     final account = state?.current;
     final usableAccount = state?.usableCurrent;
@@ -1896,7 +1921,7 @@ class _MeOverviewPane extends ConsumerWidget {
                   onSelectSection: onSelectSection,
                 ),
                 _RecentHistory(key: historyKey, showEmptyCard: true),
-                if (usableAccount != null)
+                if (usableAccount != null && networkActivated)
                   _MeRecentBookmarksSection(
                     userId: usableAccount.userId,
                     onViewAll: () => onSelectSection(_MeSection.bookmarks),

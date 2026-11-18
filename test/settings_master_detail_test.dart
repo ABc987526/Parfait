@@ -4,16 +4,20 @@ import 'package:material_ui/material_ui.dart';
 import 'package:parfait/app/widgets/app_top_bar.dart';
 import 'package:parfait/core/auth/credential.dart';
 import 'package:parfait/core/network/compat/network_providers.dart';
+import 'package:parfait/core/paging/feed_snapshot_store.dart';
 import 'package:parfait/core/translation/translation_service.dart'
     show translationCredentialStoreProvider;
+import 'package:parfait/core/user/user_entity.dart';
 import 'package:parfait/features/settings/network_settings_page.dart';
 import 'package:parfait/features/settings/settings_catalog.dart';
 import 'package:parfait/features/settings/settings_helpers.dart';
 import 'package:parfait/features/settings/settings_page.dart';
 import 'package:parfait/l10n/app_localizations_zh.dart';
 
+import 'helpers/api_responses.dart';
 import 'helpers/fake_account.dart';
 import 'helpers/localized_app.dart';
+import 'helpers/memory_feed_snapshot_store.dart';
 import 'helpers/pixiv_router.dart';
 import 'helpers/prompt_host.dart';
 import 'helpers/settings_world.dart';
@@ -142,6 +146,50 @@ void main() {
         ),
         findsOneWidget,
       );
+    },
+    variant: TargetPlatformVariant.only(TargetPlatform.windows),
+  );
+
+  testWidgets(
+    'offstage Me dashboard defers profile and bookmark requests until visible',
+    (tester) async {
+      setViewSize(tester, const Size(1280, 800));
+      final api = PixivApi({
+        ...backgroundRoutes,
+        ...shellRoutes,
+        '/v1/user/detail': answer(
+          userDetailJson(
+            const UserEntity(id: 100, name: 'tester', account: 'tester'),
+          ),
+        ),
+        '/v1/user/bookmarks/illust': answer(pageJson('illusts', const [])),
+      });
+      final container = await signedInApiContainer(
+        api.client,
+        overrides: [
+          feedSnapshotStoreProvider.overrideWithValue(
+            MemoryFeedSnapshotStore(),
+          ),
+        ],
+      );
+      final router = pixivRouter('/recommended');
+      await tester.pumpWidget(
+        localizedRouterApp(
+          router,
+          container: container,
+          builder: promptHostBuilder,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(api.sent('/v1/user/detail'), isEmpty);
+      expect(api.sent('/v1/user/bookmarks/illust'), isEmpty);
+
+      router.go('/settings');
+      await tester.pumpAndSettle();
+
+      expect(api.sent('/v1/user/detail'), hasLength(1));
+      expect(api.sent('/v1/user/bookmarks/illust'), hasLength(1));
     },
     variant: TargetPlatformVariant.only(TargetPlatform.windows),
   );
