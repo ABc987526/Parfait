@@ -51,19 +51,21 @@ reviewed: 2026-11-18
 - **Check:** `test/selection_controls_haptics_test.dart`
 - **Code:** `lib/app/widgets/settings/settings_menu_tile.dart`, `lib/app/widgets/settings/settings_choice_tile.dart`, `lib/features/settings/pages/bottom_bar_settings_page.dart`
 
-### SET-08 Page entries carry a circle in their group's color
+### SET-08 Page entries use monochrome icons without color discs
 - **Rule:** A row that opens a settings page from the index (`SettingsTile.topLevel`)
-  or a section from the Me dashboard carries its icon on a 40dp circle in its
-  group's category tone (`CategoryColors`, THEME-07): appearance purple, browse
-  blue, network and download green, data orange; account, about and developer
-  neutral (`neutralCategoryTone`). Rows inside a settings sub-page show the bare
-  icon. Selected `SettingsTile`s step their overlay alpha across default/focused
-  (0.12), hovered (0.16) and pressed (0.20), and `AccountSettingsPage` keeps the
-  selected account's ID subtitle on `onSurfaceVariant`.
-- **Why:** User decision: the circle marks top-level navigation across both Me
-  and Settings and tells groups apart before their titles are read; on sub-pages
-  the circle outweighed the setting rows around it.
-- **Check:** manual
+  or a section from the Me dashboard renders a bare 22dp monochrome `AppIcons`
+  leading icon (`selected ? (selectedIcon ?? icon) : icon`, THEME-07, THEME-16)
+  with no colored circular backdrop. Library rows carry optional live
+  `trailingText` tabular counts ahead of the chevron instead of placeholder
+  double-line subtitles. Selected `SettingsTile`s step their overlay alpha
+  across default/focused (0.12), hovered (0.16) and pressed (0.20), and
+  `AccountSettingsPage` keeps the selected account's ID subtitle on
+  `onSurfaceVariant`.
+- **Why:** Multi-hue 40dp icon discs made Settings and Me read like noisy rainbow
+  lists and clashed with monochrome workspace navigation; bare 22dp glyphs with
+  `*Filled` selection states and trailing counts align hierarchy across mobile
+  and desktop without decorative color.
+- **Check:** `test/architecture/icon_style_test.dart`, `test/settings_test.dart`
 - **Code:** `lib/app/widgets/settings/settings_tile.dart`, `lib/features/settings/settings_page.dart`, `lib/features/settings/me_dashboard_page.dart`, `lib/features/settings/pages/account_settings_page.dart`
 
 ### SET-09 A form is one card with its save at the end
@@ -157,17 +159,21 @@ reviewed: 2026-11-18
 
 ### SET-07 The Me tab puts content before settings on unified workspaces and cards
 - **Rule:** On narrow layouts (`!MasterDetailWorkspace.canDisplay`), the Me root
-  shows an `Icons.settings_outlined` shortcut (`settingsTitle` tooltip) in
+  shows an `AppIcons.settings` shortcut (`settingsTitle` tooltip) in
   `AppTopBar.actions` (omitted when `DesktopCommandBarScope` owns chrome)
-  while keeping the bottom `设置` row (`SET-08`). First comes the account header
-  (`_AccountHeader`: 52dp avatar, name with neutral "Premium" pill, user ID,
-  opening the profile; trailing manage icon button; or one sign-in button when
-  signed out). Next comes the last eight history records as a row of square
-  covers (or an empty-history `暂无浏览历史` entry card without a `"see all"`
-  button when empty), followed by four grouped
-  `SettingsGroup` / `SettingsTile.topLevel` sections (`showChevron: true`,
-  `40dp` `CategoryColors` icon discs, `SET-08`, and live double-line count
-  subtitles for downloads, watch later and local novels) ordering library,
+  while keeping the bottom `设置` row (`SET-08`). First comes the atmospheric
+  account header (`_AccountHeader`: a `FuncShape.panel` card on `surfaceContainer`
+  layered with `_CardWashBackdrop` `AmbientWash` tinted from the user's cover/work
+  image at `decodeWidth: 96`, containing `PersonCard` at 52dp avatar, name with
+  neutral "Premium" pill, user ID, and trailing manage icon button — or one
+  sign-in button when signed out — plus a `brandHairline`-separated 3-column
+  interactive `收藏 / 关注 / 好P友` stat row once `userDetail` loads). Next
+  comes the last eight history records as a row of square covers (or an
+  empty-history `暂无浏览历史` entry card without a `"see all"` button when empty),
+  followed by monochrome grouped `SettingsGroup` / `SettingsTile.topLevel`
+  sections (`showChevron: true`, 22dp `AppIcons`, `SET-08`, single-line library
+  and collection rows carrying live `trailingText` counts when non-zero, keeping
+  `Badge` on downloads and subtitle on `设置` / `关于`) ordering library,
   collections, recent tools and settings/about. An illustration cover opens the
   detail pager over the row's illustrations; covers in `IllustStore` fly via
   Hero (`'me-history'`, TRANS-07) while unseen ones do not. The row uses
@@ -176,25 +182,30 @@ reviewed: 2026-11-18
   on `MotionTokens.spatial` once uncovered (painting hovered covers in the top
   layer with unclipped `FuncSpacing.xs` lift headroom and symmetric
   `Curves.easeInOutCubic` curves so promoted/displaced slots leave no gap, plus
-  horizontal `ScrollEdgeFade(axis: Axis.horizontal, fadeExtent: FuncSpacing.lg)`). When
-  `MasterDetailWorkspace.canDisplay` holds (`>= 840x480` content), the Me tab
-  mounts `MasterDetailWorkspace` (`masterBody` scrolled with vertical
+  horizontal `ScrollEdgeFade(axis: Axis.horizontal, fadeExtent: FuncSpacing.lg)`).
+  When `MasterDetailWorkspace.canDisplay` holds (`>= 840x480` content), the Me
+  tab mounts `MasterDetailWorkspace` (`masterBody` scrolled with vertical
   `ScrollEdgeFade`) wrapping its nested detail `Navigator` in
-  `SettingsDetailScope` (`780dp` left-aligned `settingsNarrowBody` with vertical
-  `ScrollEdgeFade` and aligned
-  `AppTopBar`): a `280dp` left rail (`40dp` `_CompactAccountHeader` card,
-  grouped `showChevron: false` index items, plus settings/about on touch tablets
-  without `DesktopCommandBarScope`) and a default `_MeOverviewPane` showing a
-  profile summary card, `_RecentHistory` (`86dp` covers or an empty-history
-  card), and a 2-column collection grid (`收藏`, `关注`, `追更`, `稍后再看`,
-  omitting placeholder dashes when counts are unavailable)
-  jumping directly to sub-sections instead of duplicating vertical data rows.
+  `SettingsDetailScope` (`920dp` `AppTopBar` content width / `780dp` left-aligned
+  `settingsNarrowBody` with vertical `ScrollEdgeFade`): a `280dp` left rail
+  (`40dp` `_CompactAccountHeader` card, grouped `showChevron: false` monochrome
+  index items with `*Filled` selected states `userFilled` / `heartFilled` /
+  `watchLaterFilled`, plus settings/about on touch tablets without
+  `DesktopCommandBarScope`) and a default Personal Studio `_MeOverviewPane`
+  showing an atmospheric `_MeProfileOverview` card (`AmbientWash` backdrop, 64dp
+  avatar, `@handle · 用户 ID`, inline profile/manage action buttons), a compact
+  4-metric `_MeOverviewLibraryStrip` (`收藏`, `关注`, `追更`, `稍后再看`, omitting
+  placeholder dashes when counts are unavailable), `_RecentHistory` (`86dp`
+  covers or an empty-history card), and a live responsive
+  `_MeRecentBookmarksSection` artwork grid (2/3/4 columns, up to 8
+  `IllustCard`s with `heroScope: 'me-overview-bookmarks'`).
 - **Why:** User decision: settings filled two thirds of the page in a
-  style of their own, and nothing showed what the user saw last; then
-  narrow Me grouped rows clarify visual hierarchy while wide tablets/desktops
-  share the same 280dp `MasterDetailWorkspace` pattern and `SettingsDetailScope`
-  alignment as Settings without duplicating data lists or desktop footers. The
-  history row holds its order while covered so Hero landing flights target the
-  right cover before sliding to match recent history.
+  style of their own, while static multi-hue icon lists under-utilized desktop
+  canvas space; monochrome grouped rows clarify visual hierarchy on mobile, and
+  Personal Studio overview brings atmospheric identity and live bookmarked works
+  front and center on wide tablets/desktops inside the shared 280dp
+  `MasterDetailWorkspace` / `SettingsDetailScope` pattern. The history row holds
+  its order while covered so Hero landing flights target the right cover before
+  sliding to match recent history.
 - **Check:** `test/settings_test.dart` "the Me header, manage button and end rows open their pages" "signed out, the Me header is one button to the login" "the dashboard badge counts downloads as they start and end" "the recent row follows the history and pages in its own order" "a recent cover flies to its work and back, an unseen one not" "a page over the row holds its order until it has left"; `test/settings_master_detail_test.dart` "wide Me dashboard wraps SettingsDetailScope and shows overview grid"
 - **Code:** `lib/app/widgets/master_detail_workspace.dart`, `lib/app/widgets/scroll_edge_fade.dart`, `lib/app/widgets/settings/settings_group.dart`, `lib/app/widgets/settings/settings_tile.dart`, `lib/core/history/history_visibility.dart`, `lib/features/settings/me_dashboard_page.dart`

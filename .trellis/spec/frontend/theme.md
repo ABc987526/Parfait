@@ -117,10 +117,9 @@ reviewed: 2026-11-18
   tonal buttons and progress tracks take the ladder's highest tier
   (faintly pink with it, THEME-05), never the accent. Group titles use
   `onSurfaceVariant`, never `primary`. Selected controls use
-  `primaryContainer` / `onPrimaryContainer`. Category tones
-  (`categoryTone`) are not the accent: they color only the icon circles
-  of top-level entries, by the kind of place each opens, and stay fixed
-  under system colors. Tag
+  `primaryContainer` / `onPrimaryContainer`. Top-level Settings and Me
+  entries use monochrome `AppIcons` on neutral surfaces (no multi-hue
+  category color discs; SET-08). Tag
   chips are neutral pills; only keyboard focus rings them in the accent.
   A disabled control takes M3's disabled colors (`onSurface` at 0.38 for
   content, 0.12 for containers), never the accent, even when it is on.
@@ -134,13 +133,12 @@ reviewed: 2026-11-18
   `DangerFilledButton` in `error` / `onError`; a reversible confirm keeps
   the brand fill.
 - **Why:** User decision: the accent loses its meaning when it decorates.
-  A system accent that recolored bookmarks collided with whichever
-  category shared its hue. A locked switch drawn in the accent read as
-  tappable. A red filter count read as an error; a pink description read
-  as a second selected item; removing an account in the same pink as
-  saving a setting gave no pause.
+  Removing multi-hue category discs prevents system colors and bookmarks
+  from competing with rainbow chrome, while a locked switch drawn in the
+  accent read as tappable, a red filter count read as an error, and removing
+  an account in the same pink as saving a setting gave no pause.
 - **Check:** `test/replica_theme_test.dart` "a disabled switch that is on takes no accent", "text on the error fill reads at 4.5:1 in both themes"
-- **Code:** `lib/app/theme/replica_theme.dart`, `lib/app/theme/category_colors.dart`, `lib/app/widgets/tag_chips.dart`, `lib/app/widgets/danger_filled_button.dart`, `lib/app/widgets/settings/settings_choice_tile.dart`
+- **Code:** `lib/app/theme/replica_theme.dart`, `lib/app/widgets/settings/settings_tile.dart`, `lib/app/widgets/tag_chips.dart`, `lib/app/widgets/danger_filled_button.dart`, `lib/app/widgets/settings/settings_choice_tile.dart`
 
 ### THEME-18 The accent is two colors: text and fill, plus compact branded headers
 - **Rule:** With the default palette, `colorScheme.primary` paints text,
@@ -265,20 +263,30 @@ reviewed: 2026-11-18
 - **Check:** `test/illust_card_badges_test.dart`
 - **Code:** `lib/app/widgets/entity_row.dart`
 
-### THEME-16 Icons are outlined; filled marks a state
-- **Rule:** An action, a destination or a placeholder uses the outlined
-  icon. The filled twin only marks a state: a toggle that is on (a
-  muted work or author, a work in watch-later) or a status (a download
-  task's). One glyph, one meaning: the bookmark is watch-later, the heart
-  is a pixiv bookmark, `collections_bookmark` is a series, the library
-  stack is following series (`library_books`, toggled with `library_add`
-  / `library_add_check`), the circled minus removes from a list,
-  `manage_accounts` opens account management. Unmuting is a text
-  button: no icon says it.
-- **Why:** The same action showed filled on one page and outlined on the
-  next; one bookmark glyph meant two features, and an eye read as "view".
-- **Check:** `test/architecture/icon_style_test.dart` "a filled icon with an outlined twin marks a state"
-- **Code:** `lib/app/widgets/card_actions/illust_card_actions.dart`, `lib/app/widgets/watchlist_toggle.dart`
+### THEME-16 Icons are bespoke outlined SVG glyphs; filled marks selection or state
+- **Rule:** App UI icons come from the unified bespoke `24×24` (`1.75dp`
+  rounded-stroke) SVG system compiled deterministically into
+  `assets/icon.ttf` (`AppIcons` in `lib/app/icons/app_icons.dart`, built
+  via `tool/build_icons.py`). An action, an unselected destination or a
+  placeholder uses the outlined glyph. The `*Filled` twin marks a state:
+  a selected primary navigation or workspace rail destination
+  (`FuncBottomNav`, `ShellRail`, `SettingsPage`, `MeDashboardPage`), a
+  toggle that is on (a muted work `AppIcons.eyeOffFilled`, muted user
+  `AppIcons.userOffFilled`, bookmarked heart `AppIcons.heartFilled`,
+  watch-later `AppIcons.watchLaterFilled`), or a download task status.
+  One glyph, one meaning: `AppIcons.watchLater` is watch-later,
+  `AppIcons.heart` is a pixiv bookmark, `AppIcons.series` is a series,
+  `AppIcons.watchlistAdd` / `AppIcons.watchlistAdded` toggles following
+  series, `AppIcons.motion` badges Ugoira works while `AppIcons.playCircle`
+  overlays the playable preview, and `AppIcons.accountManage` opens
+  account management. Unmuting is a text button: no icon says it.
+- **Why:** Mixing stock Material outlines and uneven icon sets broke
+  stroke weight consistency and muddled meanings across pages; unifying
+  every glyph under `AppIcons` keeps `1.75dp` geometry and distinct
+  outlined vs `*Filled` state contrast across light, dark, mobile, and
+  desktop shells.
+- **Check:** `test/architecture/icon_style_test.dart` "a filled icon with an outlined twin marks a state", `test/icon_font_test.dart` "pubspec registers the iconFont family pointing at assets/icon.ttf"
+- **Code:** `lib/app/icons/app_icons.dart`, `tool/build_icons.py`, `lib/app/widgets/card_actions/illust_card_actions.dart`, `lib/app/widgets/watchlist_toggle.dart`
 
 ### THEME-17 Every icon button names its action
 - **Rule:** Every `IconButton` has a localized tooltip saying what it
