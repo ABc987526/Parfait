@@ -294,17 +294,6 @@ class _RestrictedRow extends StatelessWidget {
   }
 }
 
-double _seriesHeaderMaxWidth(double availableWidth) {
-  final columns = CardColumns.of(availableWidth);
-  if (columns >= 3) return availableWidth * 2 / columns;
-  if (columns == 2) {
-    return availableWidth <= ContentWidths.management
-        ? availableWidth
-        : availableWidth / 2;
-  }
-  return ContentWidths.article;
-}
-
 class _SeriesHeader extends ConsumerStatefulWidget {
   const _SeriesHeader({required this.series, required this.info});
 
@@ -357,63 +346,58 @@ class _SeriesHeaderState extends ConsumerState<_SeriesHeader> {
       if (detail.isConcluded) l10n.novelSeriesConcluded,
       if (detail.isOriginal) l10n.novelSeriesOriginal,
     ].join(' · ');
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final headerMaxWidth = _seriesHeaderMaxWidth(constraints.maxWidth);
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Align(
-              alignment: AlignmentDirectional.topStart,
-              child: ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: headerMaxWidth),
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    FuncSpacing.lg,
-                    FuncSpacing.sm,
-                    FuncSpacing.lg,
-                    FuncSpacing.md,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (series.title case final title?)
-                        Text(
-                          title,
-                          style: theme.textTheme.titleLarge,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      if (user != null)
-                        AuthorRow(
-                          userId: user.id,
-                          name: user.name,
-                          avatarUrl: user.profileImageUrl,
-                        ),
-                      if (facts.isNotEmpty)
-                        Text(facts, style: theme.textTheme.bodySmall),
-                      const SizedBox(height: FuncSpacing.md),
-                      _SeriesActions(series: series, info: widget.info),
-                      if (detail.caption.isNotEmpty) ...[
-                        const SizedBox(height: FuncSpacing.sm),
-                        ExpandableText(
-                          TextSpan(text: detail.caption),
-                          maxLines: 3,
-                          style: theme.textTheme.bodySmall,
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Align(
+          alignment: AlignmentDirectional.topStart,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: ContentWidths.article),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                FuncSpacing.lg,
+                FuncSpacing.sm,
+                FuncSpacing.lg,
+                FuncSpacing.md,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (series.title case final title?)
+                    Text(
+                      title,
+                      style: theme.textTheme.titleLarge,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  if (user != null)
+                    AuthorRow(
+                      userId: user.id,
+                      name: user.name,
+                      avatarUrl: user.profileImageUrl,
+                    ),
+                  if (facts.isNotEmpty)
+                    Text(facts, style: theme.textTheme.bodySmall),
+                  const SizedBox(height: FuncSpacing.md),
+                  _SeriesActions(series: series, info: widget.info),
+                  if (detail.caption.isNotEmpty) ...[
+                    const SizedBox(height: FuncSpacing.sm),
+                    ExpandableText(
+                      TextSpan(text: detail.caption),
+                      maxLines: 3,
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ],
+                ],
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: FuncSpacing.lg),
-              child: Divider(height: 1, color: tokens.divider),
-            ),
-          ],
-        );
-      },
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: FuncSpacing.lg),
+          child: Divider(height: 1, color: tokens.divider),
+        ),
+      ],
     );
   }
 }

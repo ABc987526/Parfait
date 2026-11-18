@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:material_ui/material_ui.dart';
 
 import '../format/content_locale.dart';
@@ -138,7 +140,6 @@ class EntityRow extends StatelessWidget {
     // the primary/secondary hierarchy survives.
     final selectedText = colorScheme.onPrimaryContainer;
     final selectedSecondary = selectedText.withValues(alpha: 0.8);
-    const radius = FuncShape.control;
     final label =
         semanticLabel ?? (subtitle == null ? title : '$title, $subtitle');
 
@@ -156,8 +157,21 @@ class EntityRow extends StatelessWidget {
 
     // Several cards share the width: the row spreads its lines across the
     // whole cell instead of leaving the author, tags and counts in the
-    // leading text column (PAGE-16). One card keeps the stacked row.
+    // leading text column (PAGE-16), and bounds each cell with a flat tonal
+    // card surface so right-aligned metadata stays grouped with its own cover
+    // and title. One card keeps the stacked full-bleed row.
     final spread = CardCellScope.columnsOf(context) > 1;
+    final hasSurface = selected || spread;
+    final radius = spread ? FuncShape.card : FuncShape.control;
+    final resolvedPadding = padding.resolve(Directionality.of(context));
+    final effectivePadding = spread
+        ? EdgeInsets.fromLTRB(
+            math.min(resolvedPadding.left, FuncSpacing.md),
+            resolvedPadding.top,
+            math.min(resolvedPadding.right, FuncSpacing.md),
+            resolvedPadding.bottom,
+          )
+        : resolvedPadding;
     final titleLineWidget = _titleLine(
       Text(
         title,
@@ -219,6 +233,103 @@ class EntityRow extends StatelessWidget {
           )
         : null;
 
+    Widget rowBody = Material(
+      type: hasSurface ? MaterialType.canvas : MaterialType.transparency,
+      color: selected
+          ? colorScheme.primaryContainer
+          : (spread ? colorScheme.surfaceContainerLow : null),
+      borderRadius: radius,
+      // Only the selection surface needs the rounded clip — unselected
+      // multi-column cards paint their rounded fill directly and clip ink on
+      // InkWell without paying a saveLayer per row.
+      clipBehavior: selected ? Clip.antiAlias : Clip.none,
+      child: InkWell(
+        // The outer Semantics already exposes the actions — the ink
+        // response must not announce a second unlabeled button.
+        excludeFromSemantics: true,
+        onTap: onTap,
+        onLongPress: onLongPress,
+        onSecondaryTap: onLongPress,
+        // A long-press host plays its own AppHaptics role; the ink
+        // response's vibration would double it.
+        enableFeedback: onLongPress == null,
+        // Full-bleed rows ink edge to edge; rounded selection or multi-column
+        // card surfaces clip ink to their border radius.
+        borderRadius: hasSurface ? radius : null,
+        child: Padding(
+          padding: effectivePadding,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // The row's a11y identity is the Semantics label above —
+              // the cover and text children must not repeat it inside
+              // the merged label (a labeled node absorbs descendant
+              // text). Only [trailing] keeps its own node so embedded
+              // actions stay reachable.
+              ExcludeSemantics(child: leadingSlot),
+              const SizedBox(width: FuncSpacing.md),
+              Expanded(
+                child: ExcludeSemantics(
+                  child: Column(
+                    crossAxisAlignment: spread
+                        ? CrossAxisAlignment.stretch
+                        : CrossAxisAlignment.start,
+                    children: [
+                      if (overlineText != null) ...[
+                        overlineText,
+                        const SizedBox(height: FuncSpacing.xxs),
+                      ],
+                      titleLineWidget,
+                      if (spread) ...[
+                        if (facts != null) ...[
+                          const SizedBox(height: FuncSpacing.xs),
+                          facts,
+                        ],
+                      ] else ...[
+                        if (subtitleText != null) ...[
+                          const SizedBox(height: FuncSpacing.xs),
+                          subtitleText,
+                        ],
+                        if (metaText != null) ...[
+                          const SizedBox(height: FuncSpacing.xs),
+                          metaText,
+                        ],
+                        if (footnoteText != null) ...[
+                          const SizedBox(height: FuncSpacing.xs),
+                          footnoteText,
+                        ],
+                      ],
+                      if (progress != null) ...[
+                        const SizedBox(height: FuncSpacing.xs),
+                        LinearProgressIndicator(value: progress),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              if (trailing != null) ...[
+                const SizedBox(width: FuncSpacing.sm),
+                trailing!,
+              ],
+              if (selected) ...[
+                const SizedBox(width: FuncSpacing.sm),
+                Icon(Icons.check_circle, color: colorScheme.onPrimaryContainer),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+    if (spread) {
+      rowBody = Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: FuncSpacing.sm,
+          vertical: FuncSpacing.xs,
+        ),
+        child: rowBody,
+      );
+    }
+
     return Semantics(
       container: true,
       button: onTap != null || onLongPress != null,
@@ -226,93 +337,7 @@ class EntityRow extends StatelessWidget {
       label: label,
       onTap: onTap,
       onLongPress: onLongPress,
-      child: Material(
-        type: selected ? MaterialType.canvas : MaterialType.transparency,
-        color: selected ? colorScheme.primaryContainer : null,
-        borderRadius: radius,
-        // Only the selection surface needs the rounded clip — paying a
-        // saveLayer per unselected feed row is wasted raster work.
-        clipBehavior: selected ? Clip.antiAlias : Clip.none,
-        child: InkWell(
-          // The outer Semantics already exposes the actions — the ink
-          // response must not announce a second unlabeled button.
-          excludeFromSemantics: true,
-          onTap: onTap,
-          onLongPress: onLongPress,
-          onSecondaryTap: onLongPress,
-          // A long-press host plays its own AppHaptics role; the ink
-          // response's vibration would double it.
-          enableFeedback: onLongPress == null,
-          // Full-bleed rows ink edge to edge; only the rounded selection
-          // surface clips it.
-          borderRadius: selected ? radius : null,
-          child: Padding(
-            padding: padding,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // The row's a11y identity is the Semantics label above —
-                // the cover and text children must not repeat it inside
-                // the merged label (a labeled node absorbs descendant
-                // text). Only [trailing] keeps its own node so embedded
-                // actions stay reachable.
-                ExcludeSemantics(child: leadingSlot),
-                const SizedBox(width: FuncSpacing.md),
-                Expanded(
-                  child: ExcludeSemantics(
-                    child: Column(
-                      crossAxisAlignment: spread
-                          ? CrossAxisAlignment.stretch
-                          : CrossAxisAlignment.start,
-                      children: [
-                        if (overlineText != null) ...[
-                          overlineText,
-                          const SizedBox(height: FuncSpacing.xxs),
-                        ],
-                        titleLineWidget,
-                        if (spread) ...[
-                          if (facts != null) ...[
-                            const SizedBox(height: FuncSpacing.xs),
-                            facts,
-                          ],
-                        ] else ...[
-                          if (subtitleText != null) ...[
-                            const SizedBox(height: FuncSpacing.xs),
-                            subtitleText,
-                          ],
-                          if (metaText != null) ...[
-                            const SizedBox(height: FuncSpacing.xs),
-                            metaText,
-                          ],
-                          if (footnoteText != null) ...[
-                            const SizedBox(height: FuncSpacing.xs),
-                            footnoteText,
-                          ],
-                        ],
-                        if (progress != null) ...[
-                          const SizedBox(height: FuncSpacing.xs),
-                          LinearProgressIndicator(value: progress),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
-                if (trailing != null) ...[
-                  const SizedBox(width: FuncSpacing.sm),
-                  trailing!,
-                ],
-                if (selected) ...[
-                  const SizedBox(width: FuncSpacing.sm),
-                  Icon(
-                    Icons.check_circle,
-                    color: colorScheme.onPrimaryContainer,
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ),
-      ),
+      child: rowBody,
     );
   }
 

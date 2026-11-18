@@ -321,17 +321,6 @@ class _EpisodeRow extends StatelessWidget {
   }
 }
 
-double _seriesHeaderMaxWidth(double availableWidth) {
-  final columns = CardColumns.of(availableWidth);
-  if (columns >= 3) return availableWidth * 2 / columns;
-  if (columns == 2) {
-    return availableWidth <= ContentWidths.management
-        ? availableWidth
-        : availableWidth / 2;
-  }
-  return ContentWidths.article;
-}
-
 class _SeriesHeader extends ConsumerWidget {
   const _SeriesHeader({required this.detail});
 
@@ -371,101 +360,95 @@ class _SeriesHeader extends ConsumerWidget {
     final recent = accountId == null
         ? null
         : recentOpenMap[SeriesRecentOpenStore.keyFor(accountId, detail.id)];
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final headerMaxWidth = _seriesHeaderMaxWidth(constraints.maxWidth);
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Align(
-              alignment: AlignmentDirectional.topStart,
-              child: ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: headerMaxWidth),
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    FuncSpacing.lg,
-                    FuncSpacing.sm,
-                    FuncSpacing.lg,
-                    FuncSpacing.md,
-                  ),
-                  child: Column(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Align(
+          alignment: AlignmentDirectional.topStart,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: ContentWidths.article),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                FuncSpacing.lg,
+                FuncSpacing.sm,
+                FuncSpacing.lg,
+                FuncSpacing.md,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (cover != null)
-                            DecoratedBox(
-                              position: DecorationPosition.foreground,
-                              decoration: BoxDecoration(
-                                borderRadius: FuncShape.control,
-                                border: theme.brightness == Brightness.light
-                                    ? Border.all(color: tokens.divider)
-                                    : null,
+                      if (cover != null)
+                        DecoratedBox(
+                          position: DecorationPosition.foreground,
+                          decoration: BoxDecoration(
+                            borderRadius: FuncShape.control,
+                            border: theme.brightness == Brightness.light
+                                ? Border.all(color: tokens.divider)
+                                : null,
+                          ),
+                          child: ClipRRect(
+                            borderRadius: FuncShape.control,
+                            child: PixivImage(
+                              url: cover,
+                              width: 88,
+                              height: 88,
+                              memCacheWidth: PixivImage.decodeWidthOf(
+                                context,
+                                88,
                               ),
-                              child: ClipRRect(
-                                borderRadius: FuncShape.control,
-                                child: PixivImage(
-                                  url: cover,
-                                  width: 88,
-                                  height: 88,
-                                  memCacheWidth: PixivImage.decodeWidthOf(
-                                    context,
-                                    88,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          if (cover != null)
-                            const SizedBox(width: FuncSpacing.md),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  detail.title,
-                                  style: theme.textTheme.titleLarge,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                AuthorRow(
-                                  userId: detail.userId,
-                                  name: detail.userName,
-                                ),
-                                if (detail.workCount != null)
-                                  Text(
-                                    context.l10n.seriesWorksCount(
-                                      detail.workCount!,
-                                    ),
-                                    style: theme.textTheme.bodySmall,
-                                  ),
-                              ],
                             ),
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: FuncSpacing.md),
-                      _SeriesActions(detail: detail, recent: recent),
-                      if (detail.caption.isNotEmpty) ...[
-                        const SizedBox(height: FuncSpacing.sm),
-                        ExpandableText(
-                          TextSpan(text: detail.caption),
-                          maxLines: 3,
-                          style: theme.textTheme.bodySmall,
                         ),
-                      ],
+                      if (cover != null) const SizedBox(width: FuncSpacing.md),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              detail.title,
+                              style: theme.textTheme.titleLarge,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            AuthorRow(
+                              userId: detail.userId,
+                              name: detail.userName,
+                            ),
+                            if (detail.workCount != null)
+                              Text(
+                                context.l10n.seriesWorksCount(
+                                  detail.workCount!,
+                                ),
+                                style: theme.textTheme.bodySmall,
+                              ),
+                          ],
+                        ),
+                      ),
                     ],
                   ),
-                ),
+                  const SizedBox(height: FuncSpacing.md),
+                  _SeriesActions(detail: detail, recent: recent),
+                  if (detail.caption.isNotEmpty) ...[
+                    const SizedBox(height: FuncSpacing.sm),
+                    ExpandableText(
+                      TextSpan(text: detail.caption),
+                      maxLines: 3,
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ],
+                ],
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: FuncSpacing.lg),
-              child: Divider(height: 1, color: tokens.divider),
-            ),
-          ],
-        );
-      },
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: FuncSpacing.lg),
+          child: Divider(height: 1, color: tokens.divider),
+        ),
+      ],
     );
   }
 }
