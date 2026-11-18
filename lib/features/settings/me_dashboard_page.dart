@@ -14,6 +14,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../app/format/app_format.dart';
+import '../../app/icons/app_icons.dart';
 import '../../app/layout/content_widths.dart';
 import '../../app/motion/hero_transition.dart';
 import '../../app/motion/motion_tokens.dart';
@@ -21,14 +22,16 @@ import '../../app/navigation/routes.dart';
 import '../../app/person_avatar.dart';
 import '../../app/pixiv_image.dart';
 import '../../app/pull_to_refresh.dart';
-import '../../app/theme/category_colors.dart';
 import '../../app/theme/func_semantic_tokens.dart';
+import '../../app/theme/func_tokens.dart';
+import '../../app/widgets/ambient_wash.dart';
 import '../../app/widgets/app_top_bar.dart';
 import '../../app/widgets/edge_icon_buttons.dart';
 import '../../app/widgets/entity_row.dart' show EntityBadge;
 import '../../app/widgets/feed/feed_grid.dart'
     show IllustPagerAnchor, IllustPagerScope, IllustPagerSource;
 import '../../app/widgets/feed/feed_states.dart';
+import '../../app/widgets/feed/illust_card.dart';
 import '../../app/widgets/func_bottom_nav.dart';
 import '../../app/widgets/master_detail_workspace.dart';
 import '../../app/widgets/person_card.dart';
@@ -48,8 +51,10 @@ import '../../core/history/history_models.dart';
 import '../../core/history/history_repository.dart';
 import '../../core/localnovel/local_novel_store.dart';
 import '../../core/navigation/home_destination.dart';
+import '../../core/profile/profile_feed_controller.dart';
 import '../../core/profile/profile_models.dart';
 import '../../core/settings/settings_controller.dart';
+import '../../core/user/user_detail_controller.dart';
 import '../../core/user/user_entity.dart';
 import '../../core/user/user_repository.dart';
 import '../../core/user/user_store.dart';
@@ -61,7 +66,6 @@ import 'pages/download_tasks_page.dart';
 import 'settings_catalog.dart';
 import 'settings_helpers.dart';
 import 'settings_page.dart' show settingsPageIcons;
-import '../../app/icons/app_icons.dart';
 
 enum _MeSection {
   overview,
@@ -152,6 +156,16 @@ class _MeDashboardPageState extends ConsumerState<MeDashboardPage> {
   @override
   Widget build(BuildContext context) {
     final accounts = ref.watch(accountStoreProvider);
+    final usable = accounts.value?.usableCurrent;
+    if (usable != null) {
+      ref.watch(userDetailControllerProvider(usable.userId));
+    }
+    final userDetail = usable == null
+        ? null
+        : ref.watch(userStoreProvider.select((users) => users[usable.userId]));
+    final detail = userDetail != null && userDetail.hasDetail
+        ? userDetail
+        : null;
     final desktopOwned = DesktopCommandBarScope.isActiveOf(context);
     final wide = MasterDetailWorkspace.canDisplay(context);
     return RefreshActionAnchor(
@@ -160,10 +174,28 @@ class _MeDashboardPageState extends ConsumerState<MeDashboardPage> {
         ref.invalidate(_downloadStatsProvider);
         ref.invalidate(watchLaterStoreProvider);
         ref.invalidate(localNovelStoreProvider);
+        if (usable != null) {
+          ref.invalidate(userDetailControllerProvider(usable.userId));
+          ref.invalidate(
+            profileIllustFeedProvider(
+              ProfileFeedKey(
+                userId: usable.userId,
+                kind: ProfileFeedKind.bookmarks,
+                workType: UserWorkType.illust,
+                restrict: UserRestrict.public,
+              ),
+            ),
+          );
+        }
         unawaited(ref.read(accountStoreProvider.notifier).reload());
       },
       child: wide
-          ? _wideBody(context, accounts, desktopOwned: desktopOwned)
+          ? _wideBody(
+              context,
+              accounts,
+              detail: detail,
+              desktopOwned: desktopOwned,
+            )
           : Scaffold(
               // Root pages own no inline composer: leaving the default `true`
               // would subscribe this whole subtree to per-frame viewInsets
@@ -184,12 +216,16 @@ class _MeDashboardPageState extends ConsumerState<MeDashboardPage> {
                         ),
                       ],
                     ),
-              body: _narrowBody(context, accounts),
+              body: _narrowBody(context, accounts, detail: detail),
             ),
     );
   }
 
-  Widget _narrowBody(BuildContext context, AsyncValue<AccountState> accounts) {
+  Widget _narrowBody(
+    BuildContext context,
+    AsyncValue<AccountState> accounts, {
+    required UserEntity? detail,
+  }) {
     void reload() => ref.read(accountStoreProvider.notifier).reload();
     if (accounts.hasError) {
       return SettingsLoadError(
@@ -214,9 +250,9 @@ class _MeDashboardPageState extends ConsumerState<MeDashboardPage> {
           bottom: FuncSpacing.xl,
         ),
         children: [
-          _AccountHeader(account: state?.current),
+          _AccountHeader(account: state?.current, detail: detail),
           _RecentHistory(key: _historyKey, showEmptyCard: true),
-          const _MeNarrowGroups(),
+          _MeNarrowGroups(detail: detail),
           const FuncNavBarSpacer(),
         ],
       ),
@@ -226,6 +262,7 @@ class _MeDashboardPageState extends ConsumerState<MeDashboardPage> {
   Widget _wideBody(
     BuildContext context,
     AsyncValue<AccountState> accounts, {
+    required UserEntity? detail,
     required bool desktopOwned,
   }) {
     void reload() => ref.read(accountStoreProvider.notifier).reload();
@@ -284,7 +321,7 @@ class _MeDashboardPageState extends ConsumerState<MeDashboardPage> {
     return MasterDetailWorkspace(
       key: const ValueKey('me-wide-dashboard'),
       title: Text(context.l10n.homeMe),
-      masterTop: _CompactAccountHeader(account: state?.current),
+      masterTop: _CompactAccountHeader(account: state?.current, detail: detail),
       masterBody: _MeWideRailGroups(
         signedIn: signedIn,
         selected: effectiveSection,
@@ -309,16 +346,31 @@ class _MeDashboardPageState extends ConsumerState<MeDashboardPage> {
   }
 }
 
-/// The signed-in account on a [PersonCard]: avatar, name, user ID and the
-/// premium badge are the card, one button that opens the profile;
-/// managing and switching accounts is a button of its own inside it.
-/// Signed out, the card is one button to the login, with no manage button.
+String? _resolvedAvatarUrl(Account? account, UserEntity? detail) {
+  final primary = account?.profileImageUrl;
+  if (primary != null && primary.isNotEmpty) return primary;
+  final fallback = detail?.profileImageUrl;
+  if (fallback != null && fallback.isNotEmpty) return fallback;
+  return null;
+}
+
+String? _resolvedWashUrl(Account? account, UserEntity? detail) {
+  final cover = detail?.backgroundImageUrl;
+  if (cover != null && cover.isNotEmpty) return cover;
+  return _resolvedAvatarUrl(account, detail);
+}
+
+/// Atmospheric personal header for mobile Me dashboard: subtle [AmbientWash]
+/// backdrop when cover/avatar artwork is available, `PersonCard` identity
+/// (preserving its single button semantic label), and a crisp live 3-column
+/// stats footer once `userDetail` is loaded.
 class _AccountHeader extends StatelessWidget {
-  const _AccountHeader({required this.account});
+  const _AccountHeader({required this.account, this.detail});
 
   final Account? account;
+  final UserEntity? detail;
 
-  static const _avatarDiameter = 52.0;
+  static const _avatarDiameter = 54.0;
 
   @override
   Widget build(BuildContext context) {
@@ -327,7 +379,112 @@ class _AccountHeader extends StatelessWidget {
     final colors = theme.colorScheme;
     final tokens = FuncSemanticTokens.of(context);
     final value = account;
-    final url = value?.profileImageUrl;
+    final detail = value == null ? null : this.detail;
+    final url = _resolvedAvatarUrl(value, detail);
+    final washUrl = _resolvedWashUrl(value, detail);
+    final card = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        PersonCard(
+          color: FuncTokens.transparent,
+          onTap: value == null
+              ? () => openLogin(context)
+              : () => openMe(context),
+          tapHint: value == null ? null : l10n.meOpenProfile,
+          endPadding: PersonCard.padding - EdgeIconButtons.glyphInset,
+          trailing: value == null
+              ? null
+              : IconButton(
+                  tooltip: l10n.accountManagement,
+                  icon: const Icon(AppIcons.accountManage),
+                  onPressed: () =>
+                      openSettingsPage(context, SettingsPageRef.account.path),
+                ),
+          child: Row(
+            children: [
+              SizedBox.square(
+                dimension: _avatarDiameter,
+                child: PersonAvatar(
+                  imageUrl: url,
+                  radius: _avatarDiameter / 2,
+                  ring: value != null,
+                ),
+              ),
+              const SizedBox(width: FuncSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            value?.name ?? l10n.signedOut,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: tokens.display,
+                          ),
+                        ),
+                        if (value?.isPremium ?? false) ...[
+                          const SizedBox(width: FuncSpacing.sm),
+                          const _PremiumBadge(),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: FuncSpacing.xxs),
+                    Text(
+                      value == null
+                          ? l10n.login
+                          : l10n.labelValue(l10n.profileId, '${value.userId}'),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: colors.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (value != null && detail != null)
+          DecoratedBox(
+            decoration: BoxDecoration(
+              border: Border(top: BorderSide(color: tokens.brandHairline)),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _HeaderStatCell(
+                    label: l10n.profileBookmarked,
+                    value: AppFormat.count(
+                      context,
+                      detail.totalIllustBookmarksPublic,
+                    ),
+                    onTap: () =>
+                        unawaited(openMe(context, tab: MeTab.bookmarks)),
+                  ),
+                ),
+                Expanded(
+                  child: _HeaderStatCell(
+                    label: l10n.profileFollowing,
+                    value: AppFormat.count(context, detail.totalFollowUsers),
+                    onTap: () =>
+                        unawaited(openMe(context, tab: MeTab.following)),
+                  ),
+                ),
+                Expanded(
+                  child: _HeaderStatCell(
+                    label: l10n.profileMyPixiv,
+                    value: AppFormat.count(context, detail.totalMyPixivUsers),
+                    onTap: () => unawaited(openMe(context)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         FuncSpacing.lg,
@@ -335,58 +492,56 @@ class _AccountHeader extends StatelessWidget {
         FuncSpacing.lg,
         FuncSpacing.lg,
       ),
-      child: PersonCard(
-        onTap: value == null ? () => openLogin(context) : () => openMe(context),
-        tapHint: value == null ? null : l10n.meOpenProfile,
-        endPadding: PersonCard.padding - EdgeIconButtons.glyphInset,
-        trailing: value == null
-            ? null
-            : IconButton(
-                tooltip: l10n.accountManagement,
-                icon: const Icon(AppIcons.accountManage),
-                onPressed: () =>
-                    openSettingsPage(context, SettingsPageRef.account.path),
-              ),
-        child: Row(
-          children: [
-            SizedBox.square(
-              dimension: _avatarDiameter,
-              child: PersonAvatar(
-                imageUrl: url == null || url.isEmpty ? null : url,
-                radius: _avatarDiameter / 2,
-              ),
-            ),
-            const SizedBox(width: FuncSpacing.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+      child: Material(
+        color: colors.surfaceContainer,
+        shape: const RoundedRectangleBorder(borderRadius: FuncShape.panel),
+        clipBehavior: Clip.antiAlias,
+        child: washUrl == null
+            ? card
+            : Stack(
                 children: [
-                  Row(
-                    children: [
-                      Flexible(
-                        child: Text(
-                          value?.name ?? l10n.signedOut,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: tokens.display,
-                        ),
-                      ),
-                      if (value?.isPremium ?? false) ...[
-                        const SizedBox(width: FuncSpacing.sm),
-                        const _PremiumBadge(),
-                      ],
-                    ],
-                  ),
-                  const SizedBox(height: FuncSpacing.xxs),
-                  Text(
-                    value == null
-                        ? l10n.login
-                        : l10n.labelValue(l10n.profileId, '${value.userId}'),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: colors.onSurfaceVariant,
+                  Positioned.fill(
+                    child: _CardWashBackdrop(
+                      imageUrl: washUrl,
+                      surfaceColor: colors.surfaceContainer,
                     ),
                   ),
+                  card,
                 ],
+              ),
+      ),
+    );
+  }
+}
+
+class _CardWashBackdrop extends StatelessWidget {
+  const _CardWashBackdrop({required this.imageUrl, required this.surfaceColor});
+
+  final String imageUrl;
+  final Color surfaceColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: ExcludeSemantics(
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            AmbientWash(
+              image: PixivImage.providerFor(context, imageUrl, decodeWidth: 96),
+            ),
+            DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    surfaceColor.withValues(alpha: 0.42),
+                    surfaceColor.withValues(alpha: 0.90),
+                    surfaceColor,
+                  ],
+                  stops: const [0, 0.72, 1],
+                ),
               ),
             ),
           ],
@@ -396,12 +551,70 @@ class _AccountHeader extends StatelessWidget {
   }
 }
 
+class _HeaderStatCell extends StatelessWidget {
+  const _HeaderStatCell({
+    required this.label,
+    required this.value,
+    required this.onTap,
+  });
+
+  final String label;
+  final String value;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    return Semantics(
+      container: true,
+      button: true,
+      label: '$label, $value',
+      onTap: onTap,
+      child: ExcludeSemantics(
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: FuncSpacing.sm,
+              vertical: FuncSpacing.sm + FuncSpacing.xxs,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w700)
+                      .tabular,
+                ),
+                const SizedBox(height: FuncSpacing.xxs),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: colors.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Compact `40dp` identity card pinned below the `52dp` master header in the
 /// wide [MasterDetailWorkspace] Me rail.
 class _CompactAccountHeader extends StatelessWidget {
-  const _CompactAccountHeader({required this.account});
+  const _CompactAccountHeader({required this.account, this.detail});
 
   final Account? account;
+  final UserEntity? detail;
 
   static const _avatarDiameter = 40.0;
 
@@ -411,7 +624,7 @@ class _CompactAccountHeader extends StatelessWidget {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
     final value = account;
-    final url = value?.profileImageUrl;
+    final url = _resolvedAvatarUrl(value, value == null ? null : detail);
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         FuncSpacing.md,
@@ -439,7 +652,7 @@ class _CompactAccountHeader extends StatelessWidget {
                 SizedBox.square(
                   dimension: _avatarDiameter,
                   child: PersonAvatar(
-                    imageUrl: url == null || url.isEmpty ? null : url,
+                    imageUrl: url,
                     radius: _avatarDiameter / 2,
                   ),
                 ),
@@ -1364,51 +1577,25 @@ String? _joinSubtitleParts(Iterable<String?> parts) {
   return clean.join(' ·\u00A0');
 }
 
-String _downloadSummary(BuildContext context, _DownloadStats stats) {
-  final l10n = context.l10n;
-  if (stats.total == 0) return l10n.downloadTasksEmpty;
-  final totalLabel = l10n.labelValue(
-    l10n.downloadGroupTasks,
-    AppFormat.count(context, stats.total),
-  );
-  if (stats.active == 0) return totalLabel;
-  final activeLabel = l10n.labelValue(
-    l10n.downloadRunning,
-    AppFormat.count(context, stats.active),
-  );
-  return _joinSubtitleParts([activeLabel, totalLabel]) ?? totalLabel;
-}
-
-String _watchLaterSummary(BuildContext context, int? count) {
-  final l10n = context.l10n;
-  if (count == null || count == 0) return l10n.watchLaterEmpty;
-  return l10n.seriesWorksCount(count);
-}
-
-String _localNovelsSummary(BuildContext context, int? count) {
-  final l10n = context.l10n;
-  if (count == null || count == 0) return l10n.localNovelsEmpty;
-  return l10n.seriesWorksCount(count);
-}
-
-/// Narrow/single-column Me dashboard groups (`SET-01`, `SET-08`): every group is
-/// titled and every row carries a real double-line summary using `SettingsGroup`
-/// and [SettingsTile.topLevel].
+/// Narrow/single-column Me dashboard groups (`SET-01`, `SET-08`): monochrome
+/// leading icons, crisp single-line collection rows with live trailing counts,
+/// and summary lines reserved for Settings and About.
 class _MeNarrowGroups extends ConsumerWidget {
-  const _MeNarrowGroups();
+  const _MeNarrowGroups({this.detail});
+
+  final UserEntity? detail;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
-    final scheme = Theme.of(context).colorScheme;
-    final blueTone = categoryTone(scheme, CategoryHue.blue);
-    final orangeTone = categoryTone(scheme, CategoryHue.orange);
-    final greenTone = categoryTone(scheme, CategoryHue.green);
-    final neutralTone = neutralCategoryTone(scheme);
     final downloadStats =
         ref.watch(_downloadStatsProvider).value ?? (active: 0, total: 0);
     final watchLaterCount = ref.watch(watchLaterStoreProvider).value?.length;
     final localNovelsCount = ref.watch(localNovelStoreProvider).value?.length;
+    final watchlistEntries = ref.watch(watchlistStoreProvider);
+    final activeWatchlist = watchlistEntries.values
+        .where((e) => e.shown)
+        .length;
     final appSettings = ref.watch(settingsProvider).value;
     final offBar = ref.watch(homeArrangementProvider).hidden;
     final signedIn = ref.watch(
@@ -1416,6 +1603,7 @@ class _MeNarrowGroups extends ConsumerWidget {
         (async) => async.value?.usableCurrent != null,
       ),
     );
+    final detail = signedIn ? this.detail : null;
     final settingsSubtitle = appSettings == null
         ? l10n.settingsBrowseHint
         : _joinSubtitleParts([
@@ -1423,22 +1611,9 @@ class _MeNarrowGroups extends ConsumerWidget {
                 languageDisplayName(appSettings.languageTag),
               ]) ??
               l10n.settingsBrowseHint;
-    final bookmarksSubtitle = _joinSubtitleParts([
-      l10n.profileIllust,
-      l10n.profileNovel,
-    ]);
-    final followingSubtitle = _joinSubtitleParts([
-      l10n.restrictPublic,
-      l10n.restrictPrivate,
-    ]);
-    final watchlistSubtitle = _joinSubtitleParts([
-      l10n.watchlistManga,
-      l10n.watchlistNovel,
-    ]);
-    final novelMarkersSubtitle = _joinSubtitleParts([
-      l10n.novelReadingProgress,
-      l10n.novelMarker,
-    ]);
+
+    String? countText(int? count) =>
+        count != null && count > 0 ? AppFormat.count(context, count) : null;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -1450,28 +1625,19 @@ class _MeNarrowGroups extends ConsumerWidget {
             SettingsTile.topLevel(
               icon: AppIcons.heart,
               title: l10n.profileBookmarked,
-              subtitle: bookmarksSubtitle == null
-                  ? null
-                  : Text(bookmarksSubtitle),
-              tone: blueTone,
+              trailingText: countText(detail?.totalIllustBookmarksPublic),
               onTap: () => unawaited(openMe(context, tab: MeTab.bookmarks)),
             ),
             SettingsTile.topLevel(
               icon: AppIcons.users,
               title: l10n.profileFollowing,
-              subtitle: followingSubtitle == null
-                  ? null
-                  : Text(followingSubtitle),
-              tone: blueTone,
+              trailingText: countText(detail?.totalFollowUsers),
               onTap: () => unawaited(openMe(context, tab: MeTab.following)),
             ),
             SettingsTile.topLevel(
               icon: AppIcons.watchlist,
               title: l10n.watchlistTitle,
-              subtitle: watchlistSubtitle == null
-                  ? null
-                  : Text(watchlistSubtitle),
-              tone: blueTone,
+              trailingText: countText(activeWatchlist),
               onTap: () => unawaited(openWatchlist(context)),
             ),
             // Pixiv keeps novel markers with the signed-in account.
@@ -1479,10 +1645,6 @@ class _MeNarrowGroups extends ConsumerWidget {
               SettingsTile.topLevel(
                 icon: AppIcons.novelMarkers,
                 title: l10n.novelMarkers,
-                subtitle: novelMarkersSubtitle == null
-                    ? null
-                    : Text(novelMarkersSubtitle),
-                tone: blueTone,
                 onTap: () => unawaited(openNovelMarkers(context)),
               ),
             for (final destination in HomeDestination.values)
@@ -1490,7 +1652,6 @@ class _MeNarrowGroups extends ConsumerWidget {
                 SettingsTile.topLevel(
                   icon: homeDestinationIcon(destination),
                   title: homeDestinationLabel(context, destination),
-                  tone: blueTone,
                   onTap: () => openHomeDestination(context, destination),
                 ),
           ],
@@ -1501,22 +1662,21 @@ class _MeNarrowGroups extends ConsumerWidget {
             SettingsTile.topLevel(
               icon: AppIcons.watchLater,
               title: l10n.watchLaterTitle,
-              subtitle: Text(_watchLaterSummary(context, watchLaterCount)),
-              tone: orangeTone,
+              trailingText: countText(watchLaterCount),
               onTap: () => unawaited(openWatchLater(context)),
             ),
             SettingsTile.topLevel(
               icon: AppIcons.localNovel,
               title: l10n.localNovelsTitle,
-              subtitle: Text(_localNovelsSummary(context, localNovelsCount)),
-              tone: orangeTone,
+              trailingText: countText(localNovelsCount),
               onTap: () => unawaited(openLocalNovels(context)),
             ),
             SettingsTile.topLevel(
               icon: AppIcons.downloading,
               title: l10n.downloaderSettings,
-              subtitle: Text(_downloadSummary(context, downloadStats)),
-              tone: greenTone,
+              trailingText: downloadStats.active == 0
+                  ? countText(downloadStats.total)
+                  : null,
               trailingBadge: Badge(
                 isLabelVisible: downloadStats.active > 0,
                 label: Text(AppFormat.count(context, downloadStats.active)),
@@ -1532,14 +1692,12 @@ class _MeNarrowGroups extends ConsumerWidget {
               icon: AppIcons.settings,
               title: l10n.settingsTitle,
               subtitle: Text(settingsSubtitle),
-              tone: neutralTone,
               onTap: () => openSettingsPage(context, settingsIndexPath),
             ),
             SettingsTile.topLevel(
               icon: settingsPageIcons[SettingsPageRef.about]!,
               title: l10n.aboutSettings,
               subtitle: const _MeVersionSummary(),
-              tone: neutralTone,
               onTap: () =>
                   openSettingsPage(context, SettingsPageRef.about.path),
             ),
@@ -1569,11 +1727,6 @@ class _MeWideRailGroups extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
-    final scheme = Theme.of(context).colorScheme;
-    final blueTone = categoryTone(scheme, CategoryHue.blue);
-    final orangeTone = categoryTone(scheme, CategoryHue.orange);
-    final greenTone = categoryTone(scheme, CategoryHue.green);
-    final neutralTone = neutralCategoryTone(scheme);
     final downloadStats =
         ref.watch(_downloadStatsProvider).value ?? (active: 0, total: 0);
     final offBar = ref.watch(homeArrangementProvider).hidden;
@@ -1589,16 +1742,16 @@ class _MeWideRailGroups extends ConsumerWidget {
           children: [
             SettingsTile.topLevel(
               icon: AppIcons.user,
+              selectedIcon: AppIcons.userFilled,
               title: l10n.accountProfile,
-              tone: blueTone,
               selected: selected == _MeSection.overview,
               showChevron: false,
               onTap: () => onSelectSection(_MeSection.overview),
             ),
             SettingsTile.topLevel(
               icon: AppIcons.heart,
+              selectedIcon: AppIcons.heartFilled,
               title: l10n.profileBookmarked,
-              tone: blueTone,
               selected: selected == _MeSection.bookmarks,
               showChevron: false,
               onTap: () => onSelectSection(_MeSection.bookmarks),
@@ -1606,7 +1759,6 @@ class _MeWideRailGroups extends ConsumerWidget {
             SettingsTile.topLevel(
               icon: AppIcons.users,
               title: l10n.profileFollowing,
-              tone: blueTone,
               selected: selected == _MeSection.following,
               showChevron: false,
               onTap: () => onSelectSection(_MeSection.following),
@@ -1614,7 +1766,6 @@ class _MeWideRailGroups extends ConsumerWidget {
             SettingsTile.topLevel(
               icon: AppIcons.watchlist,
               title: l10n.watchlistTitle,
-              tone: blueTone,
               selected: selected == _MeSection.watchlist,
               showChevron: false,
               onTap: () => onSelectSection(_MeSection.watchlist),
@@ -1623,7 +1774,6 @@ class _MeWideRailGroups extends ConsumerWidget {
               SettingsTile.topLevel(
                 icon: AppIcons.novelMarkers,
                 title: l10n.novelMarkers,
-                tone: blueTone,
                 selected: selected == _MeSection.novelMarkers,
                 showChevron: false,
                 onTap: () => onSelectSection(_MeSection.novelMarkers),
@@ -1633,7 +1783,6 @@ class _MeWideRailGroups extends ConsumerWidget {
                 SettingsTile.topLevel(
                   icon: homeDestinationIcon(destination),
                   title: homeDestinationLabel(context, destination),
-                  tone: blueTone,
                   showChevron: false,
                   onTap: () => openHomeDestination(context, destination),
                 ),
@@ -1644,8 +1793,8 @@ class _MeWideRailGroups extends ConsumerWidget {
           children: [
             SettingsTile.topLevel(
               icon: AppIcons.watchLater,
+              selectedIcon: AppIcons.watchLaterFilled,
               title: l10n.watchLaterTitle,
-              tone: orangeTone,
               selected: selected == _MeSection.watchLater,
               showChevron: false,
               onTap: () => onSelectSection(_MeSection.watchLater),
@@ -1653,7 +1802,6 @@ class _MeWideRailGroups extends ConsumerWidget {
             SettingsTile.topLevel(
               icon: AppIcons.localNovel,
               title: l10n.localNovelsTitle,
-              tone: orangeTone,
               selected: selected == _MeSection.localNovels,
               showChevron: false,
               onTap: () => onSelectSection(_MeSection.localNovels),
@@ -1661,7 +1809,6 @@ class _MeWideRailGroups extends ConsumerWidget {
             SettingsTile.topLevel(
               icon: AppIcons.downloading,
               title: l10n.downloaderSettings,
-              tone: greenTone,
               selected: selected == _MeSection.downloads,
               showChevron: false,
               trailingBadge: Badge(
@@ -1679,14 +1826,12 @@ class _MeWideRailGroups extends ConsumerWidget {
               SettingsTile.topLevel(
                 icon: AppIcons.settings,
                 title: l10n.settingsTitle,
-                tone: neutralTone,
                 showChevron: false,
                 onTap: () => openSettingsPage(context, settingsIndexPath),
               ),
               SettingsTile.topLevel(
                 icon: settingsPageIcons[SettingsPageRef.about]!,
                 title: l10n.aboutSettings,
-                tone: neutralTone,
                 showChevron: false,
                 onTap: () =>
                     openSettingsPage(context, SettingsPageRef.about.path),
@@ -1698,13 +1843,16 @@ class _MeWideRailGroups extends ConsumerWidget {
   }
 }
 
-/// Default right pane on wide Me workspaces: profile overview header, recent
-/// browsing history, and a 2-column collection summary grid.
+/// Default right pane on wide Me workspaces: atmospheric Personal Studio
+/// header, compact live library metric bar, recent history strip, and live
+/// public bookmarks gallery preview.
 class _MeOverviewPane extends ConsumerWidget {
   const _MeOverviewPane({
     required this.historyKey,
     required this.onSelectSection,
   });
+
+  static const double _overviewWidth = 920;
 
   final GlobalKey historyKey;
   final ValueChanged<_MeSection> onSelectSection;
@@ -1712,7 +1860,9 @@ class _MeOverviewPane extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
-    final account = ref.watch(accountStoreProvider).value?.current;
+    final state = ref.watch(accountStoreProvider).value;
+    final account = state?.current;
+    final usableAccount = state?.usableCurrent;
     final userDetail = account == null
         ? null
         : ref.watch(userStoreProvider.select((users) => users[account.userId]));
@@ -1721,37 +1871,39 @@ class _MeOverviewPane extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppTopBar(
-        contentWidth: SettingsDetailScope.maybeOf(context) != null
-            ? 780
-            : ContentWidths.settings,
+        contentWidth: _overviewWidth,
         title: Text(l10n.accountProfile),
-        actions: [
-          TextButton.icon(
-            onPressed: account == null
-                ? () => openLogin(context)
-                : () => openMe(context),
-            icon: const Icon(AppIcons.externalLink, size: 18),
-            label: Text(account == null ? l10n.login : l10n.meOpenProfile),
-          ),
-        ],
       ),
-      body: settingsNarrowBody(
-        ListView(
-          padding: const EdgeInsets.only(
-            top: FuncSpacing.md,
-            bottom: FuncSpacing.xl,
-          ),
-          children: [
-            _MeProfileOverview(account: account),
-            _RecentHistory(key: historyKey, showEmptyCard: true),
-            _MeCollectionGrid(
-              account: account,
-              userDetail: userDetail,
-              watchlistEntries: watchlistEntries,
-              watchLaterCount: watchLaterCount,
-              onSelectSection: onSelectSection,
+      body: Align(
+        alignment: AlignmentDirectional.topStart,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: _overviewWidth),
+          child: ScrollEdgeFade(
+            axis: Axis.vertical,
+            fadeExtent: FuncSpacing.lg,
+            child: ListView(
+              padding: const EdgeInsets.only(
+                top: FuncSpacing.md,
+                bottom: FuncSpacing.xl,
+              ),
+              children: [
+                _MeProfileOverview(account: account, detail: userDetail),
+                _MeOverviewLibraryStrip(
+                  account: account,
+                  userDetail: userDetail,
+                  watchlistEntries: watchlistEntries,
+                  watchLaterCount: watchLaterCount,
+                  onSelectSection: onSelectSection,
+                ),
+                _RecentHistory(key: historyKey, showEmptyCard: true),
+                if (usableAccount != null)
+                  _MeRecentBookmarksSection(
+                    userId: usableAccount.userId,
+                    onViewAll: () => onSelectSection(_MeSection.bookmarks),
+                  ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -1759,11 +1911,12 @@ class _MeOverviewPane extends ConsumerWidget {
 }
 
 class _MeProfileOverview extends StatelessWidget {
-  const _MeProfileOverview({required this.account});
+  const _MeProfileOverview({required this.account, this.detail});
 
   final Account? account;
+  final UserEntity? detail;
 
-  static const _avatarDiameter = 56.0;
+  static const _avatarDiameter = 64.0;
 
   @override
   Widget build(BuildContext context) {
@@ -1772,7 +1925,140 @@ class _MeProfileOverview extends StatelessWidget {
     final colors = theme.colorScheme;
     final tokens = FuncSemanticTokens.of(context);
     final value = account;
-    final url = value?.profileImageUrl;
+    final resolvedDetail = value != null && (detail?.hasDetail ?? false)
+        ? detail
+        : null;
+    final url = _resolvedAvatarUrl(value, detail);
+    final washUrl = _resolvedWashUrl(value, detail);
+    final handle = resolvedDetail?.account;
+    final subtitle = value == null
+        ? l10n.loginTitle
+        : [
+            if (handle != null && handle.isNotEmpty) '@$handle',
+            l10n.labelValue(l10n.profileId, '${value.userId}'),
+          ].join(' · ');
+
+    final content = InkWell(
+      onTap: value == null ? () => openLogin(context) : () => openMe(context),
+      child: Padding(
+        padding: const EdgeInsets.all(FuncSpacing.xl),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final compact =
+                constraints.maxWidth < 560 ||
+                MediaQuery.textScalerOf(context).scale(1) > 1.15;
+            final identity = Row(
+              children: [
+                SizedBox.square(
+                  dimension: _avatarDiameter,
+                  child: PersonAvatar(
+                    imageUrl: url,
+                    radius: _avatarDiameter / 2,
+                    ring: value != null,
+                  ),
+                ),
+                const SizedBox(width: FuncSpacing.lg),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              value?.name ?? l10n.signedOut,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: tokens.display,
+                            ),
+                          ),
+                          if (value?.isPremium ?? false) ...[
+                            const SizedBox(width: FuncSpacing.sm),
+                            const _PremiumBadge(),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: FuncSpacing.xxs),
+                      Text(
+                        subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colors.onSurfaceVariant,
+                        ),
+                      ),
+                      if (value?.authState ==
+                          AccountAuthState.reauthRequired) ...[
+                        const SizedBox(height: FuncSpacing.xxs),
+                        Text(
+                          l10n.reauthRequired,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: colors.error,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            );
+            final actions = value == null
+                ? Wrap(
+                    spacing: FuncSpacing.sm,
+                    runSpacing: FuncSpacing.sm,
+                    children: [
+                      FilledButton.icon(
+                        onPressed: () => openLogin(context),
+                        icon: const Icon(AppIcons.login, size: 18),
+                        label: Text(l10n.login),
+                      ),
+                    ],
+                  )
+                : Wrap(
+                    spacing: FuncSpacing.sm,
+                    runSpacing: FuncSpacing.sm,
+                    alignment: WrapAlignment.end,
+                    children: [
+                      FilledButton.tonalIcon(
+                        onPressed: () => openMe(context),
+                        icon: const Icon(AppIcons.user, size: 18),
+                        label: Text(l10n.meOpenProfile),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: () => openSettingsPage(
+                          context,
+                          SettingsPageRef.account.path,
+                        ),
+                        icon: const Icon(AppIcons.accountManage, size: 18),
+                        label: Text(l10n.accountManagement),
+                      ),
+                    ],
+                  );
+            if (compact) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  identity,
+                  const SizedBox(height: FuncSpacing.md),
+                  Align(
+                    alignment: AlignmentDirectional.centerEnd,
+                    child: actions,
+                  ),
+                ],
+              );
+            }
+            return Row(
+              children: [
+                Expanded(child: identity),
+                const SizedBox(width: FuncSpacing.md),
+                actions,
+              ],
+            );
+          },
+        ),
+      ),
+    );
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         FuncSpacing.lg,
@@ -1780,123 +2066,33 @@ class _MeProfileOverview extends StatelessWidget {
         FuncSpacing.lg,
         FuncSpacing.xl,
       ),
-      child: SettingsCard(
+      child: Material(
+        color: colors.surfaceContainer,
+        shape: const RoundedRectangleBorder(borderRadius: FuncShape.panel),
+        clipBehavior: Clip.antiAlias,
         child: Semantics(
           onTapHint: value == null ? null : l10n.meOpenProfile,
-          child: InkWell(
-            onTap: value == null
-                ? () => openLogin(context)
-                : () => openMe(context),
-            child: Padding(
-              padding: const EdgeInsets.all(FuncSpacing.lg),
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final compact =
-                      constraints.maxWidth < 520 ||
-                      MediaQuery.textScalerOf(context).scale(1) > 1.15;
-                  final identity = Row(
-                    children: [
-                      SizedBox.square(
-                        dimension: _avatarDiameter,
-                        child: PersonAvatar(
-                          imageUrl: url == null || url.isEmpty ? null : url,
-                          radius: _avatarDiameter / 2,
-                        ),
+          child: washUrl == null
+              ? content
+              : Stack(
+                  children: [
+                    Positioned.fill(
+                      child: _CardWashBackdrop(
+                        imageUrl: washUrl,
+                        surfaceColor: colors.surfaceContainer,
                       ),
-                      const SizedBox(width: FuncSpacing.lg),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Flexible(
-                                  child: Text(
-                                    value?.name ?? l10n.signedOut,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: tokens.display,
-                                  ),
-                                ),
-                                if (value?.isPremium ?? false) ...[
-                                  const SizedBox(width: FuncSpacing.sm),
-                                  const _PremiumBadge(),
-                                ],
-                              ],
-                            ),
-                            const SizedBox(height: FuncSpacing.xxs),
-                            Text(
-                              value == null
-                                  ? l10n.loginTitle
-                                  : l10n.labelValue(
-                                      l10n.profileId,
-                                      '${value.userId}',
-                                    ),
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: colors.onSurfaceVariant,
-                              ),
-                            ),
-                            if (value?.authState ==
-                                AccountAuthState.reauthRequired) ...[
-                              const SizedBox(height: FuncSpacing.xxs),
-                              Text(
-                                l10n.reauthRequired,
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: colors.error,
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ],
-                  );
-                  final action = value == null
-                      ? FilledButton.icon(
-                          onPressed: () => openLogin(context),
-                          icon: const Icon(AppIcons.login, size: 18),
-                          label: Text(l10n.login),
-                        )
-                      : OutlinedButton.icon(
-                          onPressed: () => openSettingsPage(
-                            context,
-                            SettingsPageRef.account.path,
-                          ),
-                          icon: const Icon(AppIcons.accountManage, size: 18),
-                          label: Text(l10n.accountManagement),
-                        );
-                  if (compact) {
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        identity,
-                        const SizedBox(height: FuncSpacing.md),
-                        Align(
-                          alignment: AlignmentDirectional.centerEnd,
-                          child: action,
-                        ),
-                      ],
-                    );
-                  }
-                  return Row(
-                    children: [
-                      Expanded(child: identity),
-                      const SizedBox(width: FuncSpacing.md),
-                      action,
-                    ],
-                  );
-                },
-              ),
-            ),
-          ),
+                    ),
+                    content,
+                  ],
+                ),
         ),
       ),
     );
   }
 }
 
-class _MeCollectionGrid extends StatelessWidget {
-  const _MeCollectionGrid({
+class _MeOverviewLibraryStrip extends StatelessWidget {
+  const _MeOverviewLibraryStrip({
     required this.account,
     required this.userDetail,
     required this.watchlistEntries,
@@ -1915,8 +2111,6 @@ class _MeCollectionGrid extends StatelessWidget {
     final l10n = context.l10n;
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final blueTone = categoryTone(scheme, CategoryHue.blue);
-    final orangeTone = categoryTone(scheme, CategoryHue.orange);
     final detail = userDetail != null && userDetail!.hasDetail
         ? userDetail
         : null;
@@ -1926,65 +2120,49 @@ class _MeCollectionGrid extends StatelessWidget {
     final followingValue = account != null && detail != null
         ? AppFormat.count(context, detail.totalFollowUsers)
         : null;
-    final watchlistValue = watchlistEntries.isNotEmpty
-        ? AppFormat.count(
-            context,
-            watchlistEntries.values.where((e) => e.shown).length,
-          )
+    final activeWatchlist = watchlistEntries.values
+        .where((e) => e.shown)
+        .length;
+    final watchlistValue = activeWatchlist > 0
+        ? AppFormat.count(context, activeWatchlist)
         : null;
-    final watchLaterValue = watchLaterCount == null
-        ? null
-        : AppFormat.count(context, watchLaterCount!);
+    final watchLaterValue = watchLaterCount != null && watchLaterCount! > 0
+        ? AppFormat.count(context, watchLaterCount!)
+        : null;
 
     final items = [
       (
         icon: AppIcons.heart,
-        tone: blueTone,
         title: l10n.profileBookmarked,
         count: bookmarksValue,
-        subtitle:
-            _joinSubtitleParts([l10n.profileIllust, l10n.profileNovel]) ??
-            l10n.profileBookmarked,
         section: _MeSection.bookmarks,
       ),
       (
         icon: AppIcons.users,
-        tone: blueTone,
         title: l10n.profileFollowing,
         count: followingValue,
-        subtitle:
-            _joinSubtitleParts([l10n.restrictPublic, l10n.restrictPrivate]) ??
-            l10n.profileFollowing,
         section: _MeSection.following,
       ),
       (
         icon: AppIcons.watchlist,
-        tone: blueTone,
         title: l10n.watchlistTitle,
         count: watchlistValue,
-        subtitle:
-            _joinSubtitleParts([l10n.watchlistManga, l10n.watchlistNovel]) ??
-            l10n.watchlistTitle,
         section: _MeSection.watchlist,
       ),
       (
         icon: AppIcons.watchLater,
-        tone: orangeTone,
         title: l10n.watchLaterTitle,
         count: watchLaterValue,
-        subtitle: _watchLaterSummary(context, watchLaterCount),
         section: _MeSection.watchLater,
       ),
     ];
 
-    Widget buildTile(int index) {
+    Widget buildChip(int index) {
       final item = items[index];
-      return _MeCollectionTile(
+      return _MeMetricTile(
         icon: item.icon,
-        tone: item.tone,
         title: item.title,
         count: item.count,
-        subtitle: item.subtitle,
         onTap: () => onSelectSection(item.section),
       );
     }
@@ -2019,15 +2197,17 @@ class _MeCollectionGrid extends StatelessWidget {
           ),
           LayoutBuilder(
             builder: (context, constraints) {
-              if (constraints.maxWidth < 420) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    for (var i = 0; i < items.length; i++) ...[
-                      if (i > 0) const SizedBox(height: FuncSpacing.sm),
-                      buildTile(i),
+              if (constraints.maxWidth >= 560) {
+                return IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      for (var i = 0; i < items.length; i++) ...[
+                        if (i > 0) const SizedBox(width: FuncSpacing.sm),
+                        Expanded(child: buildChip(i)),
+                      ],
                     ],
-                  ],
+                  ),
                 );
               }
               return Column(
@@ -2037,9 +2217,9 @@ class _MeCollectionGrid extends StatelessWidget {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Expanded(child: buildTile(0)),
+                        Expanded(child: buildChip(0)),
                         const SizedBox(width: FuncSpacing.sm),
-                        Expanded(child: buildTile(1)),
+                        Expanded(child: buildChip(1)),
                       ],
                     ),
                   ),
@@ -2048,9 +2228,9 @@ class _MeCollectionGrid extends StatelessWidget {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Expanded(child: buildTile(2)),
+                        Expanded(child: buildChip(2)),
                         const SizedBox(width: FuncSpacing.sm),
-                        Expanded(child: buildTile(3)),
+                        Expanded(child: buildChip(3)),
                       ],
                     ),
                   ),
@@ -2064,82 +2244,201 @@ class _MeCollectionGrid extends StatelessWidget {
   }
 }
 
-class _MeCollectionTile extends StatelessWidget {
-  const _MeCollectionTile({
+class _MeMetricTile extends StatelessWidget {
+  const _MeMetricTile({
     required this.icon,
-    required this.tone,
     required this.title,
     required this.count,
-    required this.subtitle,
     required this.onTap,
   });
 
   final IconData icon;
-  final CategoryTone tone;
   final String title;
   final String? count;
-  final String subtitle;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final tokens = FuncSemanticTokens.of(context);
     return SettingsCard(
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(FuncSpacing.lg),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          padding: const EdgeInsets.symmetric(
+            horizontal: FuncSpacing.lg,
+            vertical: FuncSpacing.md,
+          ),
+          child: Row(
             children: [
-              Row(
-                children: [
-                  SizedBox.square(
-                    dimension: SettingsTile.iconDiameter,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: tone.fill,
-                        shape: BoxShape.circle,
+              Icon(icon, size: 18, color: scheme.onSurfaceVariant),
+              const SizedBox(width: FuncSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (count case final countText?) ...[
+                      Text(
+                        countText,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w700)
+                            .tabular,
                       ),
-                      child: Icon(icon, color: tone.ink),
-                    ),
-                  ),
-                  const Spacer(),
-                  if (count case final countText?) ...[
+                    ],
                     Text(
-                      countText,
-                      style: tokens.display
-                          .copyWith(fontWeight: FontWeight.w700)
-                          .tabular,
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: count == null
+                          ? theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            )
+                          : theme.textTheme.labelMedium?.copyWith(
+                              color: scheme.onSurfaceVariant,
+                            ),
                     ),
-                    const SizedBox(width: FuncSpacing.xs),
                   ],
-                  Icon(
-                    Icons.chevron_right,
-                    size: 18,
-                    color: scheme.onSurfaceVariant,
-                  ),
-                ],
-              ),
-              const SizedBox(height: FuncSpacing.md),
-              Text(
-                title,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
                 ),
               ),
-              const SizedBox(height: FuncSpacing.xxs),
-              Text(
-                subtitle,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: scheme.onSurfaceVariant,
-                ),
+              Icon(
+                Icons.chevron_right,
+                size: 16,
+                color: scheme.onSurfaceVariant,
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Live artwork preview grid of the signed-in user's recent public bookmark
+/// illustrations shown on the wide desktop Me studio overview.
+class _MeRecentBookmarksSection extends ConsumerStatefulWidget {
+  const _MeRecentBookmarksSection({
+    required this.userId,
+    required this.onViewAll,
+  });
+
+  final int userId;
+  final VoidCallback onViewAll;
+
+  @override
+  ConsumerState<_MeRecentBookmarksSection> createState() =>
+      _MeRecentBookmarksSectionState();
+}
+
+class _MeRecentBookmarksSectionState
+    extends ConsumerState<_MeRecentBookmarksSection> {
+  final _pager = IllustPagerSource();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final theme = Theme.of(context);
+    final feedKey = ProfileFeedKey(
+      userId: widget.userId,
+      kind: ProfileFeedKind.bookmarks,
+      workType: UserWorkType.illust,
+      restrict: UserRestrict.public,
+    );
+    final feed = ref.watch(profileIllustFeedProvider(feedKey)).value;
+    if (feed == null ||
+        feed.showInitialError ||
+        feed.showInitialSpinner ||
+        feed.ids.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    final store = ref.watch(illustStoreProvider);
+    final items = store.getAll(feed.ids).take(8).toList(growable: false);
+    if (items.isEmpty) return const SizedBox.shrink();
+    _pager.update([for (final item in items) item.id]);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: FuncSpacing.xl),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              FuncSpacing.lg + FuncSpacing.lg,
+              0,
+              FuncSpacing.lg,
+              FuncSpacing.xs,
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Semantics(
+                    header: true,
+                    child: Text(
+                      l10n.profileBookmarked,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+                TextButton(
+                  style: TextButton.styleFrom(
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  onPressed: widget.onViewAll,
+                  child: Text(l10n.detailViewAll),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: FuncSpacing.lg),
+            child: IllustPagerScope(
+              source: _pager,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final cols = constraints.maxWidth >= 680
+                      ? 4
+                      : constraints.maxWidth >= 460
+                      ? 3
+                      : 2;
+                  final rowCount = (items.length + cols - 1) ~/ cols;
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      for (var r = 0; r < rowCount; r++) ...[
+                        if (r > 0) const SizedBox(height: FuncSpacing.md),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            for (var c = 0; c < cols; c++) ...[
+                              if (c > 0) const SizedBox(width: FuncSpacing.md),
+                              Expanded(
+                                child: r * cols + c < items.length
+                                    ? IllustPagerAnchor(
+                                        illustId: items[r * cols + c].id,
+                                        child: IllustCard(
+                                          entity: items[r * cols + c],
+                                          heroScope: 'me-overview-bookmarks',
+                                        ),
+                                      )
+                                    : const SizedBox.shrink(),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ],
+                    ],
+                  );
+                },
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

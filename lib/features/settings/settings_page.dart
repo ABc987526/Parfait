@@ -9,7 +9,6 @@ import 'package:flutter/rendering.dart'
 import '../../app/layout/content_widths.dart';
 import '../../app/layout/deferred_cache_scroll_view.dart';
 import '../../app/motion/motion_tokens.dart';
-import '../../app/theme/category_colors.dart';
 import '../../app/widgets/app_top_bar.dart';
 import '../../app/widgets/feed/feed_states.dart';
 import '../../app/widgets/master_detail_workspace.dart';
@@ -667,9 +666,7 @@ class _SettingsIndexList extends ConsumerWidget {
 }
 
 /// The settings pages grouped by intent, as the index lists them, each
-/// row with its summary. A group's circles share one category hue, a
-/// different one per neighbouring group; account and about are neutral.
-/// Destructive/transfer actions (backup) sit in their own "data" group.
+/// row with its monochrome icon and live summary.
 List<Widget> _indexGroups(
   BuildContext context,
   WidgetRef ref,
@@ -680,47 +677,32 @@ List<Widget> _indexGroups(
   ValueChanged<String>? onSelectLocation,
 }) {
   final l10n = context.l10n;
-  final scheme = Theme.of(context).colorScheme;
-  final neutral = neutralCategoryTone(scheme);
-  CategoryTone hue(double hue) => categoryTone(scheme, hue);
-  final groups =
-      <({String title, CategoryTone tone, List<SettingsPageRef> pages})>[
-        (
-          title: l10n.accountSettings,
-          tone: neutral,
-          pages: const [SettingsPageRef.account],
-        ),
-        (
-          title: l10n.settingsGroupAppearance,
-          tone: hue(CategoryHue.purple),
-          pages: const [
-            SettingsPageRef.theme,
-            SettingsPageRef.language,
-            SettingsPageRef.translate,
-            SettingsPageRef.motion,
-          ],
-        ),
-        (
-          title: l10n.settingsGroupBrowse,
-          tone: hue(CategoryHue.blue),
-          pages: const [
-            SettingsPageRef.browse,
-            SettingsPageRef.navigation,
-            SettingsPageRef.muted,
-          ],
-        ),
-        (
-          title: l10n.settingsGroupNetwork,
-          tone: hue(CategoryHue.green),
-          pages: const [SettingsPageRef.network, SettingsPageRef.download],
-        ),
-        (
-          title: l10n.settingsGroupData,
-          tone: hue(CategoryHue.orange),
-          pages: const [SettingsPageRef.backup],
-        ),
-        (title: 'Parfait', tone: neutral, pages: const [SettingsPageRef.about]),
-      ];
+  final groups = <({String title, List<SettingsPageRef> pages})>[
+    (title: l10n.accountSettings, pages: const [SettingsPageRef.account]),
+    (
+      title: l10n.settingsGroupAppearance,
+      pages: const [
+        SettingsPageRef.theme,
+        SettingsPageRef.language,
+        SettingsPageRef.translate,
+        SettingsPageRef.motion,
+      ],
+    ),
+    (
+      title: l10n.settingsGroupBrowse,
+      pages: const [
+        SettingsPageRef.browse,
+        SettingsPageRef.navigation,
+        SettingsPageRef.muted,
+      ],
+    ),
+    (
+      title: l10n.settingsGroupNetwork,
+      pages: const [SettingsPageRef.network, SettingsPageRef.download],
+    ),
+    (title: l10n.settingsGroupData, pages: const [SettingsPageRef.backup]),
+    (title: 'Parfait', pages: const [SettingsPageRef.about]),
+  ];
   return [
     for (final group in groups)
       SettingsGroup(
@@ -732,8 +714,10 @@ List<Widget> _indexGroups(
               child: SettingsTile.topLevel(
                 setting: page,
                 icon: settingsPageIcons[page],
+                selectedIcon: page == SettingsPageRef.about
+                    ? AppIcons.infoFilled
+                    : null,
                 subtitle: _pageSummary(context, ref, settings, page),
-                tone: group.tone,
                 selected: selectedPage == page,
                 showChevron: showChevron,
                 onTap: () {
@@ -839,7 +823,6 @@ class _DeveloperSettingsGroup extends ConsumerWidget {
           child: SettingsTile.topLevel(
             setting: probe,
             icon: settingsPageIcons[probe],
-            tone: neutralCategoryTone(Theme.of(context).colorScheme),
             selected: selected,
             showChevron: showChevron,
             onTap: () {

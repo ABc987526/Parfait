@@ -45,6 +45,14 @@ const _appFilledStates = <String, Set<String>>{
   'lib/app/widgets/tag_chips.dart': {'banFilled'},
   // Viewer info panel open toggle state.
   'lib/features/illust/viewer/image_viewer_page.dart': {'infoFilled'},
+  // Me dashboard wide master-detail selection states.
+  'lib/features/settings/me_dashboard_page.dart': {
+    'heartFilled',
+    'userFilled',
+    'watchLaterFilled',
+  },
+  // Settings index wide master-detail About selection state.
+  'lib/features/settings/settings_page.dart': {'infoFilled'},
   // Novel bookmark / marker active states.
   'lib/features/novel/novel_markers_page.dart': {'watchLaterFilled'},
   'lib/features/novel/novel_reader_stage_widgets.dart': {'watchLaterFilled'},
