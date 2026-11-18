@@ -90,6 +90,14 @@ class FuncPage<T> extends Page<T> {
   static bool isBoundedOverlayRoute(Route<dynamic>? route) =>
       route is _FuncPageRoute && route._boundedOverlayActive;
 
+  /// Whether [route] has an active iOS shared-element canvas drag/shrink
+  /// displacement, meaning the underlying page and its bars are already
+  /// exposed behind the translucent backdrop.
+  static bool hasCanvasDragOffset(Route<dynamic>? route) =>
+      route is _FuncPageRoute &&
+      (route._canvasDrag.value.progress > 0 ||
+          route._canvasBackdropFactor.value < 1.0);
+
   @override
   Route<T> createRoute(BuildContext context) => _FuncPageRoute<T>(this);
 }
@@ -377,7 +385,7 @@ class _FuncPageRoute<T> extends PageRoute<T> {
     Animation<double> animation,
     Animation<double> secondaryAnimation,
   ) {
-    final page = RouteAnimationScope(
+    Widget page = RouteAnimationScope(
       // The controller: [animation] reads complete while a Hero measures
       // the opening page (see RouteAnimationScope).
       animation: controller!,
@@ -387,6 +395,38 @@ class _FuncPageRoute<T> extends PageRoute<T> {
         child: FrozenWhileHidden(child: _page.child),
       ),
     );
+    if (_supportsCanvasDismiss(context)) {
+      final reduceMotion = !MotionTokens.enabled(context);
+      // Keep the interactive drag translation/scale inside [subtreeContext]
+      // so HeroController measures the shrunken canvas rect on commit pop
+      // instead of snapping back to the untransformed 1.0x origin.
+      page = ValueListenableBuilder<_CanvasDragState>(
+        valueListenable: _canvasDrag,
+        child: page,
+        builder: (context, drag, inner) {
+          final hasMotionDrag = !reduceMotion && drag.progress > 0;
+          return Transform.translate(
+            offset: reduceMotion ? Offset.zero : drag.offset,
+            child: Transform.scale(
+              scale: reduceMotion ? 1.0 : drag.scale,
+              alignment: Alignment.center,
+              child: ClipRRect(
+                key: const ValueKey('func-shared-canvas-clip'),
+                clipBehavior: hasMotionDrag ? Clip.antiAlias : Clip.none,
+                borderRadius: hasMotionDrag
+                    ? BorderRadius.lerp(
+                        BorderRadius.zero,
+                        FuncShape.dialog,
+                        drag.progress.clamp(0.0, 1.0),
+                      )!
+                    : BorderRadius.zero,
+                child: inner,
+              ),
+            ),
+          );
+        },
+      );
+    }
     return page;
   }
 
@@ -578,35 +618,6 @@ class _FuncPageRoute<T> extends PageRoute<T> {
       child: HeroLiftHole(animation: controller!, child: child),
     );
     if (!_backdrop || boundedOverlay) return content;
-    final reduceMotion = !MotionTokens.enabled(context);
-    final foreground = supportsCanvasDismiss
-        ? ValueListenableBuilder<_CanvasDragState>(
-            valueListenable: _canvasDrag,
-            child: content,
-            builder: (context, drag, inner) {
-              final hasMotionDrag = !reduceMotion && drag.progress > 0;
-              return Transform.translate(
-                offset: reduceMotion ? Offset.zero : drag.offset,
-                child: Transform.scale(
-                  scale: reduceMotion ? 1.0 : drag.scale,
-                  alignment: Alignment.center,
-                  child: ClipRRect(
-                    key: const ValueKey('func-shared-canvas-clip'),
-                    clipBehavior: hasMotionDrag ? Clip.antiAlias : Clip.none,
-                    borderRadius: hasMotionDrag
-                        ? BorderRadius.lerp(
-                            BorderRadius.zero,
-                            FuncShape.dialog,
-                            drag.progress.clamp(0.0, 1.0),
-                          )!
-                        : BorderRadius.zero,
-                    child: inner,
-                  ),
-                ),
-              );
-            },
-          )
-        : content;
     return Stack(
       fit: StackFit.passthrough,
       children: [
@@ -624,7 +635,7 @@ class _FuncPageRoute<T> extends PageRoute<T> {
             color: Theme.of(context).scaffoldBackgroundColor,
           ),
         ),
-        foreground,
+        content,
       ],
     );
   }

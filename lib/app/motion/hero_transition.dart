@@ -454,9 +454,12 @@ Widget illustHeroFlightShuttleBuilder(
             HomeShellChrome.contentSizeOf(cardContext),
           ));
   // A card's flight to and from a full-screen page lifts the card page's bars
-  // over the image ([_LiftedBars]); a wide bounded modal overlay keeps the
-  // underlying feed and its top bar in place behind the scrim.
-  final liftBars = cardFrame == null || size.isEmpty || toBoundedOverlay
+  // over the image ([_LiftedBars]); a wide bounded modal overlay or an iOS
+  // shared-element canvas drag dismiss already exposed the underlying feed and
+  // its bars in place behind a partial backdrop.
+  final fromDraggedCanvas = FuncPage.hasCanvasDragOffset(otherRoute);
+  final liftBars =
+      cardFrame == null || size.isEmpty || toBoundedOverlay || fromDraggedCanvas
       ? null
       : () => _LiftedBars.capture(
           card: cardContext,
