@@ -5,9 +5,9 @@ import 'package:material_ui/material_ui.dart';
 import '../motion/motion_tokens.dart';
 import '../theme/func_semantic_tokens.dart';
 
-/// Upper bound on a menu's width (the M3 menu maximum). Long translations
-/// truncate inside it instead of widening the menu.
-const double kAppMenuMaxWidth = 280;
+/// Upper bound on a menu's width. Long translations truncate inside it
+/// instead of widening the menu past the viewport.
+const double kAppMenuMaxWidth = 360;
 
 /// Which edge of its anchor a menu lines up with. The menu opens below the
 /// anchor either way.

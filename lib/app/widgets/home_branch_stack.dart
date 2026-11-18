@@ -176,6 +176,7 @@ class _HomeBranchStackState extends ConsumerState<HomeBranchStack>
 
   /// The rail's width, for prompts to centre beside it.
   final ValueNotifier<double> _railExtent = ValueNotifier(0);
+  final HomeShellModalScrim _modalScrim = HomeShellModalScrim();
 
   /// The rail's open progress: 0 collapsed, 1 expanded. The width it takes
   /// from the branches and the panel it shows follow it every frame.
@@ -224,6 +225,7 @@ class _HomeBranchStackState extends ConsumerState<HomeBranchStack>
   void initState() {
     super.initState();
     _current = widget.shell.currentIndex;
+    _modalScrim.setActiveBranch(_current);
     _mounted.add(_current);
     scheduleStillWork();
     _navVisibility = AnimationController(vsync: this, value: 1);
@@ -328,6 +330,7 @@ class _HomeBranchStackState extends ConsumerState<HomeBranchStack>
     _mounted.add(index);
     _outgoing = _current;
     _current = index;
+    _modalScrim.setActiveBranch(_current);
     final generation = ++_switchGeneration;
     final rail = FormFactor.of(
       context,
@@ -369,6 +372,7 @@ class _HomeBranchStackState extends ConsumerState<HomeBranchStack>
     _navBarVisibleExtent.dispose();
     _railOpen.dispose();
     _railExtent.dispose();
+    _modalScrim.dispose();
     super.dispose();
   }
 
@@ -462,6 +466,7 @@ class _HomeBranchStackState extends ConsumerState<HomeBranchStack>
     setState(() {
       _swipePeer = null;
       _current = target;
+      _modalScrim.setActiveBranch(_current);
     });
     if (target == widget.shell.currentIndex) return;
     // The bar shows where the swipe went.
@@ -642,7 +647,10 @@ class _HomeBranchStackState extends ConsumerState<HomeBranchStack>
                             ? _switchSnapshot
                             : _idleSnapshot,
                         child: _mounted.contains(i)
-                            ? widget.children[i]
+                            ? HomeShellBranchScope(
+                                branchIndex: i,
+                                child: widget.children[i],
+                              )
                             : const SizedBox.shrink(),
                       ),
                     ),
@@ -673,12 +681,11 @@ class _HomeBranchStackState extends ConsumerState<HomeBranchStack>
     final railChoice = ref.watch(railExpandedProvider);
     final settingsSelected = _lastSettingsSubPathActive =
         _computeSettingsSubPathActive(_watchedRouter);
-    // Keep desktop `Me` and `Settings` locked visually to the compact `74dp`
+    // Keep wide `Me` and `Settings` locked visually to the compact `74dp`
     // rail (without mutating persisted `railExpandedProvider`) so switching
     // between them never triggers a `130dp` full-width jump around the 280dp
     // workspace index rail.
     final collapseForWorkspace =
-        desktopOwned &&
         (_current == HomeDestination.me.branchIndex || settingsSelected) &&
         width >= AppBreakpoints.expanded;
     final expanded = collapseForWorkspace
@@ -766,6 +773,7 @@ class _HomeBranchStackState extends ConsumerState<HomeBranchStack>
           bottomBarVisibleExtent: _navBarVisibleExtent,
           bottomBarVisibility: _navVisibility,
           onBranchRootScroll: _onBranchRootScroll,
+          modalScrim: _modalScrim,
           child: _HomeBranchScope(
             channel: _reTap,
             // The rail lies over the branches' edge so its shadow falls on
@@ -799,6 +807,11 @@ class _HomeBranchStackState extends ConsumerState<HomeBranchStack>
                             ),
                           ),
                         ),
+                      if (railShown)
+                        _RailModalScrim(
+                          scrim: _modalScrim,
+                          railWidth: railWidth,
+                        ),
                     ],
                   )
                 : strip,
@@ -819,4 +832,65 @@ class _HomeBranchScope extends InheritedWidget {
   @override
   bool updateShouldNotify(_HomeBranchScope oldWidget) =>
       channel != oldWidget.channel;
+}
+
+class _RailModalScrim extends StatelessWidget {
+  const _RailModalScrim({required this.scrim, required this.railWidth});
+
+  final HomeShellModalScrim scrim;
+  final double railWidth;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: scrim,
+      builder: (context, _) {
+        final entries = scrim.activeEntries;
+        if (entries.isEmpty) return const SizedBox.shrink();
+        final listenable =
+            entries.length == 1 && entries.first.secondaryAnimation == null
+            ? entries.first.animation
+            : Listenable.merge([
+                for (final entry in entries) ...[
+                  entry.animation,
+                  ?entry.secondaryAnimation,
+                ],
+              ]);
+        return AnimatedBuilder(
+          animation: listenable,
+          builder: (context, _) {
+            var opacity = 0.0;
+            HomeShellModalScrimEntry? topVisible;
+            for (final entry in entries) {
+              final entryOpacity = entry.opacity;
+              if (entryOpacity > 0) {
+                topVisible = entry;
+                if (entryOpacity > opacity) opacity = entryOpacity;
+              }
+            }
+            if (opacity <= 0 || topVisible == null) {
+              return const SizedBox.shrink();
+            }
+            final color = Color.lerp(
+              const Color(0x000C0B0E),
+              const Color(0x990C0B0E),
+              opacity,
+            )!;
+            return PositionedDirectional(
+              start: 0,
+              top: 0,
+              bottom: 0,
+              width: railWidth,
+              child: GestureDetector(
+                key: const ValueKey('home-rail-modal-scrim'),
+                behavior: HitTestBehavior.opaque,
+                onTap: topVisible.onDismiss,
+                child: ColoredBox(color: color),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
 }

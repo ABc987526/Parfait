@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui' as ui show DisplayFeatureState, DisplayFeatureType;
 
 import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/gestures.dart' show HitTestResult, PointerUpEvent;
@@ -99,6 +100,35 @@ bool _resolveUseRootNavigator(BuildContext context, bool? useRootNavigator) =>
     useRootNavigator ??
     FormFactor.of(context).hasRail(MediaQuery.sizeOf(context).width);
 
+/// On foldable book postures with a vertical full-height hinge and a side
+/// `ShellRail`, anchors dialogs in the sub-screen opposite the rail so the
+/// dialog never overlaps the start-side navigation rail.
+Offset? _railClearDialogAnchorPoint(BuildContext context) {
+  final size = MediaQuery.sizeOf(context);
+  if (!FormFactor.of(context).hasRail(size.width)) return null;
+  final features = MediaQuery.displayFeaturesOf(context);
+  if (features.isEmpty) return null;
+  final rtl = Directionality.maybeOf(context) == TextDirection.rtl;
+  for (final feature in features) {
+    final isHinge =
+        feature.type == ui.DisplayFeatureType.hinge ||
+        feature.type == ui.DisplayFeatureType.fold;
+    if (!isHinge) continue;
+    final obstructs =
+        feature.bounds.shortestSide > 0 ||
+        feature.state == ui.DisplayFeatureState.postureHalfOpened;
+    if (!obstructs) continue;
+    final bounds = feature.bounds;
+    final fullHeight = bounds.top <= 1 && bounds.bottom >= size.height - 1;
+    if (!fullHeight || bounds.left <= 0 || bounds.right >= size.width) {
+      continue;
+    }
+    final centerX = rtl ? bounds.left / 2 : (bounds.right + size.width) / 2;
+    return Offset(centerX, size.height / 2);
+  }
+  return null;
+}
+
 double _desktopCommandBarTopClearance(
   BuildContext context,
   NavigatorState navigator,
@@ -149,6 +179,7 @@ Future<T?> showAppAdaptiveDialog<T>({
   bool barrierDismissible = true,
   String? barrierLabel,
   bool? useRootNavigator,
+  Offset? anchorPoint,
 }) {
   final resolvedUseRootNavigator = _resolveUseRootNavigator(
     context,
@@ -170,6 +201,8 @@ Future<T?> showAppAdaptiveDialog<T>({
     rootNavigator: resolvedUseRootNavigator,
   );
   final topClearance = _desktopCommandBarTopClearance(context, navigator);
+  final resolvedAnchorPoint =
+      anchorPoint ?? _railClearDialogAnchorPoint(context);
   final theme = Theme.of(context);
   final surfaceColor =
       backgroundColor ??
@@ -179,6 +212,7 @@ Future<T?> showAppAdaptiveDialog<T>({
     _AppDialogRoute<T>(
       context: context,
       topClearance: topClearance,
+      anchorPoint: resolvedAnchorPoint,
       builder: (routeContext) {
         final window = MediaQuery.sizeOf(routeContext);
         final keyboardInset = MediaQuery.viewInsetsOf(routeContext).bottom;
@@ -463,7 +497,8 @@ Future<T?> showAppContextMenu<T>({
   context: context,
   position: position,
   items: items,
-  constraints: constraints,
+  constraints:
+      constraints ?? const BoxConstraints(minWidth: 200, maxWidth: 360),
 );
 
 /// Alert/confirm dialog counterpart of [showAppBottomSheet]: one entry so
@@ -476,14 +511,18 @@ Future<T?> showAppDialog<T>({
   bool barrierDismissible = true,
   String? barrierLabel,
   bool useRootNavigator = true,
+  Offset? anchorPoint,
 }) {
   // Mirrors showDialog's own route construction (the experimental
   // multi-window path aside).
   final navigator = Navigator.of(context, rootNavigator: useRootNavigator);
+  final resolvedAnchorPoint =
+      anchorPoint ?? _railClearDialogAnchorPoint(context);
   return navigator.push(
     _AppDialogRoute<T>(
       context: context,
       builder: builder,
+      anchorPoint: resolvedAnchorPoint,
       themes: InheritedTheme.capture(from: context, to: navigator.context),
       barrierColor:
           DialogTheme.of(context).barrierColor ??
@@ -616,6 +655,7 @@ class _AppDialogRoute<T> extends DialogRoute<T> {
     required super.context,
     required super.builder,
     this.topClearance = 0,
+    super.anchorPoint,
     super.themes,
     super.barrierColor,
     super.barrierDismissible,

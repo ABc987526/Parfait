@@ -91,6 +91,7 @@ Future<void> showCardActionSheet(BuildContext context, IllustEntity entity) {
               // Scrolls only when it overflows; otherwise a drag on the
               // actions moves the sheet (see showAppBottomSheet).
               primary: false,
+              physics: const ClampingScrollPhysics(),
               children: [
                 _SheetHeader(
                   entity,

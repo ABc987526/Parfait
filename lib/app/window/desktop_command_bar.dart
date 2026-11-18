@@ -689,7 +689,7 @@ class _DesktopCommandBarState extends ConsumerState<DesktopCommandBar> {
         90.0;
     final estimatedRight =
         (contextAction != null ? 44.0 : 0.0) +
-        66.0 +
+        68.0 +
         (showCustomButtons ? 146.0 : FuncSpacing.md);
     final freeMiddle = math.max(
       0.0,
@@ -934,7 +934,7 @@ class _DesktopCommandBarState extends ConsumerState<DesktopCommandBar> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: FuncSpacing.xxs),
+                    const SizedBox(width: FuncSpacing.xs),
                     TapRegion(
                       groupId: _accountMenuGroup,
                       child: KeyedSubtree(
@@ -1054,75 +1054,88 @@ class _SearchCommandPill extends StatelessWidget {
     final shortcutLabel = defaultTargetPlatform == TargetPlatform.macOS
         ? '⌘K'
         : 'Ctrl K';
-    return Semantics(
-      button: true,
-      label: hasKeyword ? keyword : hint,
-      child: Material(
-        key: const Key('desktop-command-search-pill'),
-        color: colors.surfaceContainer,
-        shape: RoundedRectangleBorder(
-          borderRadius: FuncShape.pill,
-          side: BorderSide(color: tokens.brandHairline),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTapPill,
-          child: SizedBox(
-            height: 32,
-            child: Row(
-              children: [
-                const SizedBox(width: FuncSpacing.md),
-                Icon(Icons.search, size: 15, color: colors.onSurfaceVariant),
-                const SizedBox(width: FuncSpacing.sm),
-                Expanded(
-                  child: Text(
-                    hasKeyword ? keyword : hint,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: hasKeyword
-                          ? colors.onSurface
-                          : colors.onSurfaceVariant,
-                    ),
-                  ),
-                ),
-                if (showShortcutBadge && !hasKeyword)
-                  DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: colors.surfaceContainerHigh,
-                      borderRadius: FuncShape.badge,
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: FuncSpacing.xs,
-                        vertical: FuncSpacing.xxs,
-                      ),
-                      child: Text(
-                        shortcutLabel,
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          fontWeight: FontWeight.w500,
-                          color: tokens.contentSecondary,
+    return Material(
+      key: const Key('desktop-command-search-pill'),
+      color: colors.surfaceContainer,
+      shape: RoundedRectangleBorder(
+        borderRadius: FuncShape.pill,
+        side: BorderSide(color: tokens.brandHairline),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: SizedBox(
+        height: 32,
+        child: Row(
+          children: [
+            Expanded(
+              child: Semantics(
+                container: true,
+                button: true,
+                label: hasKeyword ? keyword : hint,
+                excludeSemantics: true,
+                child: InkWell(
+                  onTap: onTapPill,
+                  child: SizedBox.expand(
+                    child: Row(
+                      children: [
+                        const SizedBox(width: FuncSpacing.md),
+                        Icon(
+                          Icons.search,
+                          size: 15,
+                          color: colors.onSurfaceVariant,
                         ),
-                      ),
+                        const SizedBox(width: FuncSpacing.sm),
+                        Expanded(
+                          child: Text(
+                            hasKeyword ? keyword : hint,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: hasKeyword
+                                  ? colors.onSurface
+                                  : colors.onSurfaceVariant,
+                            ),
+                          ),
+                        ),
+                        if (showShortcutBadge && !hasKeyword) ...[
+                          const SizedBox(width: FuncSpacing.xs),
+                          DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: colors.surfaceContainerHigh,
+                              borderRadius: FuncShape.badge,
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: FuncSpacing.xs,
+                                vertical: FuncSpacing.xxs,
+                              ),
+                              child: Text(
+                                shortcutLabel,
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  fontWeight: FontWeight.w500,
+                                  color: tokens.contentSecondary,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
-                _commandIconButton(
-                  context,
-                  key: const Key('desktop-command-reverse-search'),
-                  constraints: const BoxConstraints(
-                    minWidth: 30,
-                    minHeight: 30,
-                  ),
-                  padding: const EdgeInsets.all(FuncSpacing.xs),
-                  iconSize: 16,
-                  tooltip: reverseTooltip,
-                  onPressed: onTapReverse,
-                  icon: const Icon(Icons.photo_camera_outlined),
                 ),
-                const SizedBox(width: FuncSpacing.xxs),
-              ],
+              ),
             ),
-          ),
+            _commandIconButton(
+              context,
+              key: const Key('desktop-command-reverse-search'),
+              constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+              padding: const EdgeInsets.all(FuncSpacing.xs),
+              iconSize: 16,
+              tooltip: reverseTooltip,
+              onPressed: onTapReverse,
+              icon: const Icon(Icons.photo_camera_outlined),
+            ),
+            const SizedBox(width: FuncSpacing.xxs),
+          ],
         ),
       ),
     );
@@ -1304,16 +1317,18 @@ Widget _commandIconButton(
   required Widget icon,
 }) {
   final hasOverlay = Overlay.maybeOf(context) != null;
-  final button = IconButton(
+  return IconButton(
     key: key,
     constraints: constraints,
     padding: padding,
     iconSize: iconSize,
+    style: IconButton.styleFrom(
+      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    ),
     tooltip: hasOverlay ? tooltip : null,
     onPressed: onPressed,
-    icon: icon,
+    icon: hasOverlay ? icon : Semantics(tooltip: tooltip, child: icon),
   );
-  return hasOverlay ? button : Semantics(tooltip: tooltip, child: button);
 }
 
 Widget _maybeWrapTooltip(
@@ -1324,5 +1339,5 @@ Widget _maybeWrapTooltip(
   if (Overlay.maybeOf(context) != null) {
     return Tooltip(message: message, child: child);
   }
-  return child;
+  return Semantics(tooltip: message, child: child);
 }

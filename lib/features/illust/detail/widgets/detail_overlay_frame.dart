@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../app/layout/app_breakpoints.dart';
+import '../../../../app/motion/page_transitions.dart' show TurnCurve;
 import '../../../../app/navigation/home_shell_metrics.dart';
 import '../../../../app/theme/func_semantic_tokens.dart';
 
@@ -30,9 +31,88 @@ class _DetailOverlayScope extends InheritedWidget {
 }
 
 class _DetailOverlayFrameState extends State<DetailOverlayFrame> {
+  static final _scrimCurves = Expando<Animation<double>>();
+
   final _childKey = GlobalKey();
   int? _scrimPointer;
   bool _popping = false;
+  HomeShellModalScrim? _modalScrim;
+  int? _branchIndex;
+  bool _registered = false;
+
+  static Animation<double> _curvedScrimAnimation(Animation<double> raw) =>
+      _scrimCurves[raw] ??= TurnCurve.drive(
+        raw,
+        curve: Curves.easeOutCubic,
+        reverseCurve: Curves.easeInCubic,
+      );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _syncModalScrim();
+  }
+
+  @override
+  void didUpdateWidget(DetailOverlayFrame oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _syncModalScrim();
+  }
+
+  @override
+  void deactivate() {
+    _unregisterModalScrim();
+    super.deactivate();
+  }
+
+  @override
+  void dispose() {
+    _unregisterModalScrim();
+    super.dispose();
+  }
+
+  void _handleScrimDismiss() => unawaited(_dismissOverlay());
+
+  void _unregisterModalScrim() {
+    if (!_registered) return;
+    _modalScrim?.unregister(this, branchIndex: _branchIndex);
+    _registered = false;
+  }
+
+  void _syncModalScrim() {
+    if (!mounted) return;
+    final scrim = HomeShellChrome.maybeOf(context)?.modalScrim;
+    final branchIndex = HomeShellBranchScope.maybeOf(context);
+    final route = ModalRoute.of(context);
+    final routeAnimation = route?.animation;
+    final outerSize = HomeShellChrome.contentSizeOf(context);
+    final canPop = Navigator.maybeOf(context)?.canPop() ?? false;
+    final bounded =
+        canPop &&
+        routeAnimation != null &&
+        AppBreakpoints.useBoundedDetailOverlayOf(context, outerSize);
+
+    if (!bounded || scrim == null) {
+      _unregisterModalScrim();
+      _modalScrim = scrim;
+      _branchIndex = branchIndex;
+      return;
+    }
+
+    if (!identical(_modalScrim, scrim) || _branchIndex != branchIndex) {
+      _unregisterModalScrim();
+    }
+    _modalScrim = scrim;
+    _branchIndex = branchIndex;
+    _registered = true;
+    scrim.register(
+      owner: this,
+      branchIndex: branchIndex,
+      animation: _curvedScrimAnimation(routeAnimation),
+      secondaryAnimation: route?.secondaryAnimation,
+      onDismiss: _handleScrimDismiss,
+    );
+  }
 
   Future<void> _dismissOverlay() async {
     if (_popping || !mounted) return;
@@ -55,6 +135,9 @@ class _DetailOverlayFrameState extends State<DetailOverlayFrame> {
     final canPop = Navigator.maybeOf(context)?.canPop() ?? false;
     final bounded =
         canPop && AppBreakpoints.useBoundedDetailOverlayOf(context, outerSize);
+    if (_modalScrim != null && bounded != _registered) {
+      _syncModalScrim();
+    }
     if (!bounded) return content;
 
     final tokens = FuncSemanticTokens.of(context);

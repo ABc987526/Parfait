@@ -1,6 +1,164 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+/// Identifies which shell branch owns a branch subtree so descendant modal
+/// overlays can register their rail scrim on that branch alone.
+class HomeShellBranchScope extends InheritedWidget {
+  const HomeShellBranchScope({
+    super.key,
+    required this.branchIndex,
+    required super.child,
+  });
+
+  final int branchIndex;
+
+  static int? maybeOf(BuildContext context) => context
+      .dependOnInheritedWidgetOfExactType<HomeShellBranchScope>()
+      ?.branchIndex;
+
+  @override
+  bool updateShouldNotify(HomeShellBranchScope oldWidget) =>
+      branchIndex != oldWidget.branchIndex;
+}
+
+/// A branch-scoped bounded modal registration driving the shell rail's dimmed
+/// scrim.
+@immutable
+class HomeShellModalScrimEntry {
+  const HomeShellModalScrimEntry({
+    required this.owner,
+    required this.branchIndex,
+    required this.animation,
+    this.secondaryAnimation,
+    required this.onDismiss,
+  });
+
+  final Object owner;
+  final int? branchIndex;
+  final Animation<double> animation;
+  final Animation<double>? secondaryAnimation;
+  final VoidCallback onDismiss;
+
+  /// Effective scrim progress (`0..1`), fading out if another branch route
+  /// covers this modal.
+  double get opacity {
+    final covered = secondaryAnimation?.value ?? 0.0;
+    return (animation.value * (1.0 - covered)).clamp(0.0, 1.0);
+  }
+}
+
+/// Coordinates the shell rail's modal scrim with the foreground branch's
+/// active bounded modal overlay (`DetailOverlayFrame`).
+class HomeShellModalScrim extends ChangeNotifier {
+  final Map<int?, List<HomeShellModalScrimEntry>> _entriesByBranch = {};
+  int? _activeBranch;
+  bool _disposed = false;
+  bool _notifyScheduled = false;
+
+  int? get activeBranch => _activeBranch;
+
+  /// Registrations currently belonging to [activeBranch], oldest to newest.
+  List<HomeShellModalScrimEntry> get activeEntries =>
+      List.unmodifiable(_entriesByBranch[_activeBranch] ?? const []);
+
+  void setActiveBranch(int? branchIndex) {
+    if (_disposed || _activeBranch == branchIndex) return;
+    _activeBranch = branchIndex;
+    _scheduleNotify();
+  }
+
+  void register({
+    required Object owner,
+    required int? branchIndex,
+    required Animation<double> animation,
+    Animation<double>? secondaryAnimation,
+    required VoidCallback onDismiss,
+  }) {
+    if (_disposed) return;
+    var changed = false;
+    for (final entry in _entriesByBranch.entries.toList()) {
+      if (entry.key == branchIndex) continue;
+      final before = entry.value.length;
+      entry.value.removeWhere((item) => identical(item.owner, owner));
+      if (entry.value.length != before) {
+        changed = true;
+        if (entry.value.isEmpty) _entriesByBranch.remove(entry.key);
+      }
+    }
+    final list = _entriesByBranch.putIfAbsent(branchIndex, () => []);
+    final index = list.indexWhere((item) => identical(item.owner, owner));
+    final next = HomeShellModalScrimEntry(
+      owner: owner,
+      branchIndex: branchIndex,
+      animation: animation,
+      secondaryAnimation: secondaryAnimation,
+      onDismiss: onDismiss,
+    );
+    if (index >= 0) {
+      final existing = list[index];
+      if (identical(existing.animation, animation) &&
+          identical(existing.secondaryAnimation, secondaryAnimation) &&
+          existing.onDismiss == onDismiss) {
+        if (changed) _scheduleNotify();
+        return;
+      }
+      list[index] = next;
+    } else {
+      list.add(next);
+    }
+    _scheduleNotify();
+  }
+
+  void unregister(Object owner, {int? branchIndex}) {
+    if (_disposed) return;
+    var changed = false;
+    if (branchIndex != null) {
+      final list = _entriesByBranch[branchIndex];
+      if (list != null) {
+        final before = list.length;
+        list.removeWhere((item) => identical(item.owner, owner));
+        if (list.length != before) changed = true;
+        if (list.isEmpty) _entriesByBranch.remove(branchIndex);
+      }
+    } else {
+      for (final key in _entriesByBranch.keys.toList()) {
+        final list = _entriesByBranch[key]!;
+        final before = list.length;
+        list.removeWhere((item) => identical(item.owner, owner));
+        if (list.length != before) changed = true;
+        if (list.isEmpty) _entriesByBranch.remove(key);
+      }
+    }
+    if (changed) _scheduleNotify();
+  }
+
+  void _scheduleNotify() {
+    if (_disposed) return;
+    final phase = SchedulerBinding.instance.schedulerPhase;
+    if (phase == SchedulerPhase.idle ||
+        phase == SchedulerPhase.postFrameCallbacks) {
+      notifyListeners();
+      return;
+    }
+    if (_notifyScheduled) return;
+    _notifyScheduled = true;
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      _notifyScheduled = false;
+      if (_disposed) return;
+      notifyListeners();
+    });
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    _notifyScheduled = false;
+    _entriesByBranch.clear();
+    super.dispose();
+  }
+}
 
 /// The shell's bottom-bar extent, published as an inherited value by
 /// [HomeBranchStack] — the shell computes it synchronously from
@@ -22,6 +180,7 @@ class HomeShellChrome extends InheritedWidget {
     required this.bottomBarVisibleExtent,
     required this.bottomBarVisibility,
     required this.onBranchRootScroll,
+    this.modalScrim,
     required super.child,
   });
 
@@ -68,6 +227,10 @@ class HomeShellChrome extends InheritedWidget {
   /// scrolling there, and nowhere else, hides and shows the bar.
   final NotificationListenerCallback<ScrollNotification> onBranchRootScroll;
 
+  /// Coordinates a dimmed scrim over `ShellRail` while a bounded modal
+  /// (`DetailOverlayFrame`) is open on the active branch.
+  final HomeShellModalScrim? modalScrim;
+
   /// The same chrome over [child].
   HomeShellChrome over(Widget child) => HomeShellChrome(
     bottomBarExtent: bottomBarExtent,
@@ -75,6 +238,7 @@ class HomeShellChrome extends InheritedWidget {
     bottomBarVisibleExtent: bottomBarVisibleExtent,
     bottomBarVisibility: bottomBarVisibility,
     onBranchRootScroll: onBranchRootScroll,
+    modalScrim: modalScrim,
     child: child,
   );
 
@@ -91,7 +255,8 @@ class HomeShellChrome extends InheritedWidget {
   bool updateShouldNotify(HomeShellChrome oldWidget) =>
       bottomBarExtent != oldWidget.bottomBarExtent ||
       railExtent != oldWidget.railExtent ||
-      bottomBarVisibility != oldWidget.bottomBarVisibility;
+      bottomBarVisibility != oldWidget.bottomBarVisibility ||
+      modalScrim != oldWidget.modalScrim;
 }
 
 /// Branches whose root route is covered: a route sits on it inside the

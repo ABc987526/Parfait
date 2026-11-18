@@ -310,6 +310,7 @@ class _IosCardContextMenuOverlay extends ConsumerWidget {
                                 type: MaterialType.transparency,
                                 child: SingleChildScrollView(
                                   primary: false,
+                                  physics: const ClampingScrollPhysics(),
                                   child: Column(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [

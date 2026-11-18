@@ -187,6 +187,7 @@ class _HeroChromeState extends State<HeroChrome>
 
   /// Whether the chrome overlaps [rect], in global coordinates.
   bool _over(Rect rect) {
+    if (!mounted) return false;
     final box = context.findRenderObject();
     if (box is! RenderBox || !box.attached || !box.hasSize) return false;
     return MatrixUtils.transformRect(
@@ -619,7 +620,14 @@ class _LiftedEndpointsState extends State<_LiftedEndpoints> {
   _LiftedBars? _bars;
 
   void _lift() {
+    if (!mounted ||
+        !widget.card.mounted ||
+        !widget.from.mounted ||
+        !widget.to.mounted) {
+      return;
+    }
     final page = identical(widget.card, widget.from) ? widget.to : widget.from;
+    if (!page.mounted) return;
     _cardAncestors = {};
     widget.card.visitAncestorElements((element) {
       _cardAncestors[element] = _cardAncestors.length;
@@ -655,6 +663,14 @@ class _LiftedEndpointsState extends State<_LiftedEndpoints> {
   /// new page without rebuilding it: that page's chrome is found here,
   /// where the old page had the image.
   void _holdPages() {
+    if (!mounted ||
+        !widget.card.mounted ||
+        !widget.from.mounted ||
+        !widget.to.mounted) {
+      return;
+    }
+    final page = identical(widget.card, widget.from) ? widget.to : widget.from;
+    if (!page.mounted) return;
     for (final cover in HeroPageCover._over(_cardAncestors)) {
       _holdOver(cover.page, _pageRect);
     }
@@ -663,9 +679,10 @@ class _LiftedEndpointsState extends State<_LiftedEndpoints> {
   double? _cover() => HeroPageCover._of(_cardAncestors);
 
   void _holdOver(Route<dynamic>? route, Rect? rect) {
-    if (route == null || rect == null) return;
+    if (!mounted || route == null || rect == null) return;
     for (final chrome in HeroChrome._on(route)) {
-      if (_held.contains(chrome) ||
+      if (!chrome.mounted ||
+          _held.contains(chrome) ||
           !(chrome.widget.holdable?.call() ?? true) ||
           !chrome._over(rect)) {
         continue;
@@ -697,7 +714,8 @@ class _LiftedEndpointsState extends State<_LiftedEndpoints> {
   void didUpdateWidget(_LiftedEndpoints oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (!identical(oldWidget.from, widget.from) ||
-        !identical(oldWidget.to, widget.to)) {
+        !identical(oldWidget.to, widget.to) ||
+        !identical(oldWidget.card, widget.card)) {
       _release();
       _lift();
     }
@@ -759,6 +777,7 @@ class HeroLiftHole extends SingleChildRenderObjectWidget {
   /// returned callback runs. Null when the endpoint is in no such page or
   /// contains its image.
   static VoidCallback? lift(BuildContext heroContext) {
+    if (!heroContext.mounted) return null;
     final page = heroContext
         .findAncestorRenderObjectOfType<_RenderHeroLiftHole>();
     final box = heroContext.findRenderObject();
@@ -1223,6 +1242,7 @@ double _routeProgress(double value, HeroFlightDirection direction) {
 /// card is scaled down), as the Hero measures its flight rect; null
 /// before layout.
 Rect? _heroScreenRect(BuildContext context) {
+  if (!context.mounted) return null;
   final box = context.findRenderObject();
   if (box is! RenderBox || !box.attached || !box.hasSize) return null;
   return MatrixUtils.transformRect(

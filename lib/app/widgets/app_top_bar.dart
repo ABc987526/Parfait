@@ -430,6 +430,16 @@ class _AppTopBarState extends State<AppTopBar> {
                       ),
                     ),
               ),
+              iconButtonTheme: IconButtonThemeData(
+                style: (theme.iconButtonTheme.style ?? const ButtonStyle())
+                    .merge(
+                      IconButton.styleFrom(
+                        foregroundColor: tokens.brandedHeaderForeground,
+                        disabledForegroundColor: tokens.brandedHeaderForeground
+                            .withValues(alpha: 0.42),
+                      ),
+                    ),
+              ),
             ),
             child: sizedToolbar,
           );
