@@ -1785,10 +1785,10 @@ class AppLocalizationsRu extends AppLocalizations {
   String get novelRankingCategories => 'Категории рейтинга новелл';
 
   @override
-  String get bottomBarItems => 'Пункты нижней панели';
+  String get bottomBarItems => 'Пункты навигации';
 
   @override
-  String get navigationBottomBar => 'Нижняя панель';
+  String get navigationBottomBar => 'Панель навигации';
 
   @override
   String get navigationRanking => 'Категории рейтинга';
@@ -1824,7 +1824,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get railDownloads => 'Загрузки';
 
   @override
-  String get homeStartFirstVisible => 'Первый пункт панели';
+  String get homeStartFirstVisible => 'Первый пункт навигации';
 
   @override
   String get homeStartLastUsed => 'Последняя открытая';

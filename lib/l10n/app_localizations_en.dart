@@ -1798,10 +1798,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get novelRankingCategories => 'Novel ranking categories';
 
   @override
-  String get bottomBarItems => 'Bottom bar items';
+  String get bottomBarItems => 'Navigation items';
 
   @override
-  String get navigationBottomBar => 'Bottom bar';
+  String get navigationBottomBar => 'Navigation bar';
 
   @override
   String get navigationRanking => 'Ranking categories';
@@ -1837,7 +1837,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get railDownloads => 'Downloads';
 
   @override
-  String get homeStartFirstVisible => 'First bar item';
+  String get homeStartFirstVisible => 'First navigation item';
 
   @override
   String get homeStartLastUsed => 'Last used page';

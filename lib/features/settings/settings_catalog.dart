@@ -20,6 +20,7 @@ enum SettingsPageRef implements SettingsEntry {
     '/settings/navigation/bottom-bar',
     'bottomBarItems',
     parent: SettingsPageRef.navigation,
+    searchAliases: ['底栏', 'bottom bar', 'ボトムバー', 'нижняя панель'],
   ),
   muted('/settings/muted', 'mutedItemsSettings'),
   network('/settings/network', 'networkSettings'),
@@ -51,6 +52,7 @@ enum SettingsPageRef implements SettingsEntry {
     this.titleKey, {
     this.parent,
     this.indexed = true,
+    this.searchAliases = const [],
   });
 
   final String path;
@@ -59,6 +61,7 @@ enum SettingsPageRef implements SettingsEntry {
   /// The page its row is on; null for the settings index.
   final SettingsPageRef? parent;
   final bool indexed;
+  final List<String> searchAliases;
 
   @override
   String get id => 'page.$name';
@@ -363,7 +366,9 @@ List<SettingsSearchResult> searchSettings(AppLocalizations l10n, String query) {
   for (final page in SettingsPageRef.values) {
     if (!page.indexed) continue;
     final title = page.title(l10n);
-    final rank = titleRank(title);
+    final rank =
+        titleRank(title) ??
+        page.searchAliases.map(titleRank).nonNulls.firstOrNull;
     if (rank == null) continue;
     ranked.add((
       rank,

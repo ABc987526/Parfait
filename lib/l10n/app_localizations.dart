@@ -3356,13 +3356,13 @@ abstract class AppLocalizations {
   /// No description provided for @bottomBarItems.
   ///
   /// In zh, this message translates to:
-  /// **'底栏项目'**
+  /// **'导航栏项目'**
   String get bottomBarItems;
 
   /// No description provided for @navigationBottomBar.
   ///
   /// In zh, this message translates to:
-  /// **'底栏'**
+  /// **'导航栏'**
   String get navigationBottomBar;
 
   /// No description provided for @navigationRanking.
@@ -3434,7 +3434,7 @@ abstract class AppLocalizations {
   /// Start page choice: open the first item of the bottom bar
   ///
   /// In zh, this message translates to:
-  /// **'底栏第一项'**
+  /// **'导航栏第一项'**
   String get homeStartFirstVisible;
 
   /// Start page choice: open the bottom bar destination used last

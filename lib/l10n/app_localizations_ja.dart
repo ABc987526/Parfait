@@ -1748,10 +1748,10 @@ class AppLocalizationsJa extends AppLocalizations {
   String get novelRankingCategories => '小説ランキングのカテゴリー';
 
   @override
-  String get bottomBarItems => 'ボトムバーの項目';
+  String get bottomBarItems => 'ナビゲーション項目';
 
   @override
-  String get navigationBottomBar => 'ボトムバー';
+  String get navigationBottomBar => 'ナビゲーションバー';
 
   @override
   String get navigationRanking => 'ランキングのカテゴリー';
@@ -1787,7 +1787,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get railDownloads => 'ダウンロード';
 
   @override
-  String get homeStartFirstVisible => 'バーの最初の項目';
+  String get homeStartFirstVisible => 'ナビゲーションの最初の項目';
 
   @override
   String get homeStartLastUsed => '前回開いていたページ';

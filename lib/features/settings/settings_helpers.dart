@@ -6,8 +6,10 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/layout/content_widths.dart';
 import '../../app/motion/app_overlays.dart';
+import '../../app/theme/func_semantic_tokens.dart';
 import '../../app/widgets/app_top_bar.dart';
 import '../../app/widgets/feed/feed_states.dart';
+import '../../app/widgets/scroll_edge_fade.dart';
 import '../../app/widgets/settings_load_error.dart';
 import '../../core/download/download_destination.dart';
 import '../../core/download/naming_rule.dart';
@@ -32,7 +34,7 @@ class _SettingsNarrowBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final embedded = SettingsDetailScope.maybeOf(context) != null;
-    return Align(
+    Widget body = Align(
       alignment: embedded ? AlignmentDirectional.topStart : Alignment.topCenter,
       child: ConstrainedBox(
         constraints: BoxConstraints(
@@ -41,6 +43,14 @@ class _SettingsNarrowBody extends StatelessWidget {
         child: child,
       ),
     );
+    if (embedded) {
+      body = ScrollEdgeFade(
+        axis: Axis.vertical,
+        fadeExtent: FuncSpacing.lg,
+        child: body,
+      );
+    }
+    return body;
   }
 }
 

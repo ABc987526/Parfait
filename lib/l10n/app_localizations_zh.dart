@@ -1724,10 +1724,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get novelRankingCategories => '小说排行分类';
 
   @override
-  String get bottomBarItems => '底栏项目';
+  String get bottomBarItems => '导航栏项目';
 
   @override
-  String get navigationBottomBar => '底栏';
+  String get navigationBottomBar => '导航栏';
 
   @override
   String get navigationRanking => '排行分类';
@@ -1763,7 +1763,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get railDownloads => '下载';
 
   @override
-  String get homeStartFirstVisible => '底栏第一项';
+  String get homeStartFirstVisible => '导航栏第一项';
 
   @override
   String get homeStartLastUsed => '上次停留的页';
