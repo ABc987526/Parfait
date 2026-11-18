@@ -162,9 +162,13 @@ class ProfileSkeleton extends StatelessWidget {
                                             CrossAxisAlignment.start,
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          const SizedBox(height: FuncSpacing.xs),
+                                          const SizedBox(
+                                            height: FuncSpacing.xs,
+                                          ),
                                           _statBones(textTheme),
-                                          const SizedBox(height: FuncSpacing.xs),
+                                          const SizedBox(
+                                            height: FuncSpacing.xs,
+                                          ),
                                           SkeletonBone.text(
                                             width: 340,
                                             style: textTheme.bodyMedium,

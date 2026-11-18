@@ -16,7 +16,6 @@ import 'package:parfait/core/user/user_repository.dart';
 import 'package:parfait/core/search/search_models.dart';
 import 'package:parfait/features/novel/novel_page.dart';
 import 'package:parfait/features/bookmark/bookmark_tags_page.dart';
-import 'package:parfait/features/history/history_page.dart';
 import 'package:parfait/features/home/recommended/recommended_home_page.dart';
 import 'package:parfait/features/new/new_page.dart';
 import 'package:parfait/features/ranking/ranking_page.dart';

@@ -64,7 +64,9 @@ void main() {
         find.byKey(const ValueKey('profile-stat-following-header')),
       );
       final statFigure = tester.getRect(find.text('50'));
-      final bio = tester.getRect(find.byKey(const ValueKey('profile-wide-bio')));
+      final bio = tester.getRect(
+        find.byKey(const ValueKey('profile-wide-bio')),
+      );
       expect(avatar.left, 16);
       expect(follow.left, greaterThanOrEqualTo(name.right));
       expect(follow.left, lessThan(share.left));

@@ -712,8 +712,10 @@ class _CompactAccountHeader extends StatelessWidget {
                     IconButton(
                       tooltip: l10n.accountManagement,
                       icon: const Icon(AppIcons.accountManage),
-                      onPressed: () =>
-                          openSettingsPage(context, SettingsPageRef.account.path),
+                      onPressed: () => openSettingsPage(
+                        context,
+                        SettingsPageRef.account.path,
+                      ),
                     ),
                 ],
               ),
