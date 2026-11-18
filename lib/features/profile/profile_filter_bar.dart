@@ -9,6 +9,7 @@ import '../../core/bookmark/bookmark_models.dart';
 import '../../core/bookmark/bookmark_tags_controller.dart';
 import '../../core/user/user_repository.dart';
 import '../../l10n/context.dart';
+import '../../app/icons/app_icons.dart';
 
 /// The filters above a bookmarks or follows list, visible (D3 list filter)
 /// rather than checked items in the overflow menu: on bookmarks the kind
@@ -71,12 +72,12 @@ class ProfileFilterBar extends StatelessWidget {
                   AppMenuEntry(
                     value: BookmarkEntityType.illust,
                     label: l10n.profileIllust,
-                    icon: Icons.image_outlined,
+                    icon: AppIcons.illust,
                   ),
                   AppMenuEntry(
                     value: BookmarkEntityType.novel,
                     label: l10n.profileNovel,
-                    icon: Icons.menu_book_outlined,
+                    icon: AppIcons.novel,
                   ),
                 ],
                 onChanged: onKindChanged,
@@ -92,12 +93,12 @@ class ProfileFilterBar extends StatelessWidget {
                   AppMenuEntry(
                     value: UserRestrict.public,
                     label: l10n.restrictPublic,
-                    icon: Icons.public,
+                    icon: AppIcons.globe,
                   ),
                   AppMenuEntry(
                     value: UserRestrict.private,
                     label: l10n.restrictPrivate,
-                    icon: Icons.lock_outline,
+                    icon: AppIcons.lock,
                   ),
                 ],
                 onChanged: onRestrictChanged,

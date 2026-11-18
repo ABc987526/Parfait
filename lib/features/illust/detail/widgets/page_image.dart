@@ -26,6 +26,7 @@ import '../../../../core/settings/settings_controller.dart';
 import '../../../../l10n/context.dart';
 import '../../../../app/navigation/routes.dart';
 import '../../../../app/theme/func_semantic_tokens.dart';
+import '../../../../app/icons/app_icons.dart';
 
 class DetailPageImage extends ConsumerStatefulWidget {
   const DetailPageImage({
@@ -906,7 +907,7 @@ class _DetailImageFallback extends StatelessWidget {
       color: colors.surfaceContainer,
       child: Center(
         child: Icon(
-          Icons.image_outlined,
+          AppIcons.illust,
           size: 36,
           color: colors.onSurfaceVariant.withValues(alpha: 0.55),
         ),
@@ -957,7 +958,7 @@ class _HoverQuickActionsBadge extends StatelessWidget {
                 Icons.error_outline,
                 color: colors.error,
               ),
-              IllustPageSaveState.none => const Icon(Icons.download_outlined),
+              IllustPageSaveState.none => const Icon(AppIcons.download),
             },
           ),
           IconButton(

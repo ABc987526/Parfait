@@ -16,6 +16,7 @@ import '../feed/muted_cover.dart';
 import 'card_action.dart';
 import 'illust_card_actions.dart';
 import 'ios_card_context_menu.dart';
+import '../../icons/app_icons.dart';
 
 /// The card's secondary click on a pointer: the registered [CardAction]s as a
 /// context menu beside the pointer (R11). On touch or stylus the same call
@@ -170,9 +171,7 @@ class _SheetHeader extends ConsumerWidget {
                   ? ColoredBox(
                       color: colors.surfaceContainerHighest,
                       child: Icon(
-                        muted
-                            ? Icons.visibility_off_outlined
-                            : Icons.image_outlined,
+                        muted ? AppIcons.eyeOff : AppIcons.illust,
                         color: colors.onSurfaceVariant,
                       ),
                     )

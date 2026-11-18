@@ -33,6 +33,7 @@ import '../../l10n/lookup.dart';
 import 'settings_helpers.dart';
 import 'settings_catalog.dart';
 import '../../app/layout/content_widths.dart';
+import '../../app/icons/app_icons.dart';
 
 String _networkText(BuildContext context, String key) {
   return l10nLookup(context.l10n, key);
@@ -124,7 +125,7 @@ class NetworkSettingsPage extends ConsumerWidget {
             SettingsGroup(
               children: [
                 SettingsTile(
-                  icon: Icons.network_check,
+                  icon: AppIcons.network,
                   setting: SettingsPageRef.networkProbe,
                   onTap: () =>
                       openSettingsPage(context, '/settings/network/probe'),
@@ -136,7 +137,7 @@ class NetworkSettingsPage extends ConsumerWidget {
             SettingsGroup(
               children: [
                 SettingsTile(
-                  icon: Icons.tune_outlined,
+                  icon: AppIcons.filter,
                   setting: SettingsPageRef.networkAdvanced,
                   onTap: () =>
                       openSettingsPage(context, '/settings/network/advanced'),
@@ -351,7 +352,7 @@ class _ImageSourceSectionState extends ConsumerState<_ImageSourceSection> {
                                   strokeWidth: 2,
                                 ),
                               )
-                            : const Icon(Icons.network_check, size: 18),
+                            : const Icon(AppIcons.network, size: 18),
                         label: Text(context.l10n.imageSourceApplyAndTest),
                       ),
                     ],

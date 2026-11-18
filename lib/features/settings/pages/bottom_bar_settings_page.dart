@@ -17,6 +17,7 @@ import '../../../core/settings/settings_controller.dart';
 import '../../../l10n/context.dart';
 import '../settings_helpers.dart';
 import '../../../app/layout/content_widths.dart';
+import '../../../app/icons/app_icons.dart';
 
 /// Which destinations sit on the bottom bar, in what order. Those on the
 /// bar come first and move by their handle (screen readers get move
@@ -290,7 +291,7 @@ class _DestinationSwitch extends StatelessWidget {
             if (states.contains(WidgetState.disabled) &&
                 states.contains(WidgetState.selected)) {
               return Icon(
-                destination.hideable ? Icons.check : Icons.lock_outline,
+                destination.hideable ? Icons.check : AppIcons.lock,
                 color: iconColor,
               );
             }

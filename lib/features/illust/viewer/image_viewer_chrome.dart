@@ -341,12 +341,12 @@ class _ViewerInfoPanel extends StatelessWidget {
                       ),
                       const Divider(height: 1),
                       ListTile(
-                        leading: const Icon(Icons.download_outlined),
+                        leading: const Icon(AppIcons.download),
                         title: Text(l10n.downloadAll),
                         onTap: onSaveAll,
                       ),
                       ListTile(
-                        leading: const Icon(Icons.open_in_new),
+                        leading: const Icon(AppIcons.externalLink),
                         title: Text(l10n.viewerOpenDetail),
                         onTap: onOpenDetail,
                       ),

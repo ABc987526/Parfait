@@ -28,6 +28,7 @@ import '../../core/settings/settings_controller.dart';
 import '../../l10n/context.dart';
 import '../../l10n/lookup.dart';
 import 'ranking_date.dart';
+import '../../app/icons/app_icons.dart';
 
 /// Records the page's mode and ranking day (null is the latest) in the
 /// route.
@@ -474,13 +475,13 @@ class _RankingTabsState<M extends RankingCategory>
       AppMenuEntry(
         value: _TabAction.hide,
         label: l10n.rankingHideCategory,
-        icon: Icons.visibility_off_outlined,
+        icon: AppIcons.eyeOff,
         enabled: canHide,
       ),
       AppMenuEntry(
         value: _TabAction.edit,
         label: l10n.rankingEditCategories,
-        icon: Icons.edit_outlined,
+        icon: AppIcons.edit,
       ),
     ];
     return AppMenuButton<_TabAction>(
@@ -533,7 +534,7 @@ class _RankingTabsState<M extends RankingCategory>
           IconButton(
             tooltip: context.l10n.rankingAllCategories,
             onPressed: _openSheet,
-            icon: const Icon(Icons.grid_view_outlined),
+            icon: const Icon(AppIcons.categoryGrid),
           ),
           const HeaderRefresh(),
           const HeaderSearch(),
@@ -629,12 +630,12 @@ Widget rankingEmpty(
     );
   }
   return FeedEmpty(
-    icon: Icons.visibility_off_outlined,
+    icon: AppIcons.eyeOff,
     title: l10n.rankingR18gHint,
     retryLabel: l10n.refresh,
     onRefresh: onRefresh,
     actionLabel: l10n.rankingR18gOpenSettings,
-    actionIcon: Icons.open_in_new,
+    actionIcon: AppIcons.externalLink,
     // Fire-and-forget like the other outbound links: the browser owns the
     // failure surface.
     onAction: () => unawaited(

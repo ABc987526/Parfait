@@ -48,6 +48,7 @@ import 'pages/translate_settings_page.dart';
 import 'pages/translation_credentials_page.dart';
 import 'settings_catalog.dart';
 import 'settings_helpers.dart';
+import '../../app/icons/app_icons.dart';
 
 export 'pages/about_settings_page.dart';
 export 'pages/account_settings_page.dart';
@@ -405,7 +406,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           maxHeight: compact ? 40 : double.infinity,
         ),
         hintText: context.l10n.settingsSearchHint,
-        leading: Icon(Icons.search, size: compact ? 19 : null),
+        leading: Icon(AppIcons.search, size: compact ? 19 : null),
         trailing: [
           if (query.isNotEmpty)
             IconButton(
@@ -534,19 +535,19 @@ class _DetailStackObserver extends NavigatorObserver {
 /// The row icon of each settings page, on the index and in the settings
 /// fold of the "me" page.
 const settingsPageIcons = <SettingsPageRef, IconData>{
-  SettingsPageRef.account: Icons.manage_accounts_outlined,
-  SettingsPageRef.theme: Icons.palette_outlined,
-  SettingsPageRef.language: Icons.language,
-  SettingsPageRef.translate: Icons.translate,
-  SettingsPageRef.motion: Icons.animation,
-  SettingsPageRef.browse: Icons.image_outlined,
-  SettingsPageRef.navigation: Icons.dashboard_customize_outlined,
-  SettingsPageRef.muted: Icons.block_outlined,
-  SettingsPageRef.network: Icons.network_check,
-  SettingsPageRef.download: Icons.download_outlined,
-  SettingsPageRef.backup: Icons.backup_outlined,
-  SettingsPageRef.about: Icons.info_outline,
-  SettingsPageRef.frameProbe: Icons.monitor_heart_outlined,
+  SettingsPageRef.account: AppIcons.accountManage,
+  SettingsPageRef.theme: AppIcons.palette,
+  SettingsPageRef.language: AppIcons.globe,
+  SettingsPageRef.translate: AppIcons.translate,
+  SettingsPageRef.motion: AppIcons.motion,
+  SettingsPageRef.browse: AppIcons.illust,
+  SettingsPageRef.navigation: AppIcons.layoutNav,
+  SettingsPageRef.muted: AppIcons.ban,
+  SettingsPageRef.network: AppIcons.network,
+  SettingsPageRef.download: AppIcons.download,
+  SettingsPageRef.backup: AppIcons.backup,
+  SettingsPageRef.about: AppIcons.info,
+  SettingsPageRef.frameProbe: AppIcons.gauge,
 };
 
 List<Widget> _searchResultGroups(
@@ -625,7 +626,7 @@ class _SettingsIndexList extends ConsumerWidget {
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: FuncSpacing.xxl),
                 child: FeedEmpty(
-                  icon: Icons.search_off,
+                  icon: AppIcons.searchOff,
                   title: context.l10n.settingsSearchEmpty,
                 ),
               ),

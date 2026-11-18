@@ -22,6 +22,7 @@ import 'helpers/recording_haptics.dart';
 import 'helpers/localized_app.dart';
 import 'helpers/prompt_host.dart';
 import 'helpers/waits.dart';
+import 'package:parfait/app/icons/app_icons.dart';
 
 Widget _app(Widget child) => localizedApp(locale: null, home: child);
 
@@ -243,12 +244,9 @@ void main() {
     await tester.pumpAndSettle();
     // A row-anchored menu with the one action, not a bottom sheet.
     expect(find.byType(BottomSheet), findsNothing);
-    expect(
-      find.widgetWithIcon(MenuItemButton, Icons.delete_outline),
-      findsOneWidget,
-    );
+    expect(find.widgetWithIcon(MenuItemButton, AppIcons.trash), findsOneWidget);
 
-    await tester.tap(find.byIcon(Icons.delete_outline));
+    await tester.tap(find.byIcon(AppIcons.trash));
     await tester.pumpAndSettle();
     // The menu closed and the shared confirm dialog (showAppDialog →
     // AlertDialog) is up — its opening fired the explicit vibration;
@@ -268,7 +266,7 @@ void main() {
 
     await tester.tap(find.byIcon(Icons.more_vert));
     await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(Icons.delete_outline));
+    await tester.tap(find.byIcon(AppIcons.trash));
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
     // The row's exit plays before the delete is issued.

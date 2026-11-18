@@ -28,6 +28,7 @@ import 'helpers/prompt_host.dart';
 import 'helpers/image_headers.dart';
 import 'helpers/reverse_image_world.dart' show FakeReverseImagePlatform;
 import 'helpers/view_size.dart';
+import 'package:parfait/app/icons/app_icons.dart';
 
 ProfileEditSession _session(
   ProfileEditRepository repository, {
@@ -439,7 +440,7 @@ void main() {
       // No separate button any more; each image wears an edit badge.
       expect(find.text('Choose image'), findsNothing);
       expect(find.byType(OutlinedButton), findsNothing);
-      expect(find.byIcon(Icons.edit_outlined), findsNWidgets(2));
+      expect(find.byIcon(AppIcons.edit), findsNWidgets(2));
 
       await tester.tap(avatar);
       await tester.pumpAndSettle();

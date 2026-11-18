@@ -5,6 +5,7 @@ import 'package:parfait/features/novel/novel_illustration.dart';
 import 'package:parfait/features/novel/novel_reader.dart';
 
 import 'review_support.dart';
+import 'package:parfait/app/icons/app_icons.dart';
 
 /// Novel reader, comments, novel ranking, new novels and local novels.
 void main() {
@@ -19,7 +20,7 @@ void main() {
   Future<void> translatePage(WidgetTester tester) async {
     await tester.tapAt(tester.getCenter(find.byType(NovelReader)));
     await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(Icons.translate));
+    await tester.tap(find.byIcon(AppIcons.translate));
   }
 
   testShot(
@@ -67,7 +68,7 @@ void main() {
     before: (tester, router) async {
       await tester.tapAt(tester.getCenter(find.byType(NovelReader)));
       await tester.pumpAndSettle();
-      await tester.tap(find.byIcon(Icons.info_outline));
+      await tester.tap(find.byIcon(AppIcons.info));
     },
   );
 
@@ -89,7 +90,7 @@ void main() {
   Future<void> openReaderSettings(WidgetTester tester) async {
     await tester.tapAt(readerTextSpot(tester));
     await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(Icons.tune_outlined));
+    await tester.tap(find.byIcon(AppIcons.filter));
   }
 
   testShot(
@@ -120,7 +121,7 @@ void main() {
     location: '/settings/novel-markers',
     variants: {ShotVariant.dark, ...overflowVariants},
     before: (tester, router) async {
-      await tester.tap(find.byIcon(Icons.bookmark).at(1));
+      await tester.tap(find.byIcon(AppIcons.watchLaterFilled).at(1));
     },
   );
   // A novel series: facts, actions, numbered rows, a restricted one.

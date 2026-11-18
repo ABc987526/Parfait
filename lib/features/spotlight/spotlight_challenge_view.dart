@@ -15,6 +15,7 @@ import '../../core/spotlight/spotlight_article_controller.dart';
 import '../../core/spotlight/spotlight_models.dart';
 import '../../core/spotlight/spotlight_repository.dart';
 import '../../l10n/context.dart';
+import '../../app/icons/app_icons.dart';
 
 enum _ChallengePhase { verifying, interactive, failed }
 
@@ -278,7 +279,7 @@ class _SpotlightChallengeViewState
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              Icons.public_off,
+              AppIcons.globeOff,
               size: 48,
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
@@ -287,7 +288,7 @@ class _SpotlightChallengeViewState
             const SizedBox(height: FuncSpacing.md),
             StateActionButton(label: l10n.retry, onPressed: _retry),
             TextButton.icon(
-              icon: const Icon(Icons.open_in_new),
+              icon: const Icon(AppIcons.externalLink),
               label: Text(l10n.openInBrowser),
               onPressed: _openInBrowser,
             ),

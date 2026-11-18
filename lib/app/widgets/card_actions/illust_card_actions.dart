@@ -21,6 +21,7 @@ import '../errors/error_details.dart';
 import '../undo_snack_bar.dart';
 import '../unmute_undo.dart';
 import 'card_action.dart';
+import '../../icons/app_icons.dart';
 
 /// Ordered card long-press actions. Each domain contributes a thin adapter;
 /// the mute-system child appends its block entries here without touching
@@ -56,7 +57,7 @@ class _DownloadAction extends CardAction {
 
   @override
   IconData iconFor(CardActionState state, IllustEntity entity) =>
-      Icons.download_outlined;
+      AppIcons.download;
 
   @override
   String labelFor(
@@ -99,8 +100,7 @@ class _CopyImageAction extends CardAction {
   String get id => 'copy-image';
 
   @override
-  IconData iconFor(CardActionState state, IllustEntity entity) =>
-      Icons.copy_outlined;
+  IconData iconFor(CardActionState state, IllustEntity entity) => AppIcons.copy;
 
   @override
   String labelFor(
@@ -126,7 +126,7 @@ class _WatchLaterAction extends CardAction {
   @override
   IconData iconFor(CardActionState state, IllustEntity entity) {
     final saved = _saved(state, entity);
-    return saved ? Icons.bookmark : Icons.bookmark_border;
+    return saved ? AppIcons.watchLaterFilled : AppIcons.watchLater;
   }
 
   @override
@@ -197,9 +197,7 @@ class _MuteWorkAction extends CardAction {
 
   @override
   IconData iconFor(CardActionState state, IllustEntity entity) =>
-      _muted(state, entity)
-      ? Icons.visibility_off
-      : Icons.visibility_off_outlined;
+      _muted(state, entity) ? AppIcons.eyeOffFilled : AppIcons.eyeOff;
 
   @override
   String labelFor(
@@ -258,7 +256,7 @@ class _MuteUserAction extends CardAction {
 
   @override
   IconData iconFor(CardActionState state, IllustEntity entity) =>
-      _muted(state, entity) ? Icons.person_off : Icons.person_off_outlined;
+      _muted(state, entity) ? AppIcons.userOffFilled : AppIcons.userOff;
 
   @override
   String labelFor(
@@ -291,7 +289,7 @@ class _ShareAction extends CardAction {
 
   @override
   IconData iconFor(CardActionState state, IllustEntity entity) =>
-      Icons.share_outlined;
+      AppIcons.share;
 
   @override
   String labelFor(

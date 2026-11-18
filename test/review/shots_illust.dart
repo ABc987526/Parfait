@@ -6,6 +6,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:parfait/app/widgets/tag_chips.dart';
 
 import 'review_support.dart';
+import 'package:parfait/app/icons/app_icons.dart';
 
 /// Illust detail, viewer, comments and replies — the deep pages off feeds.
 void main() {
@@ -80,7 +81,7 @@ void main() {
     'illust/detail-translate',
     location: detail,
     before: (tester, router) async {
-      final translate = find.byIcon(Icons.translate);
+      final translate = find.byIcon(AppIcons.translate);
       await revealForReview(tester, translate);
       await tester.tap(translate.first);
     },
@@ -93,7 +94,7 @@ void main() {
       await revealForReview(tester, find.byType(TagChip));
       await tester.longPress(find.byType(TagChip).first);
       await tester.pump(const Duration(seconds: 1));
-      await tester.tap(find.byIcon(Icons.translate).last);
+      await tester.tap(find.byIcon(AppIcons.translate).last);
     },
   );
   // The ⋮ menu: the bar's own actions, then the card sheet's.
@@ -164,7 +165,7 @@ void main() {
     'illust/comments-emoji',
     location: comments,
     before: (tester, router) async {
-      await tester.tap(find.byIcon(Icons.emoji_emotions_outlined));
+      await tester.tap(find.byIcon(AppIcons.stamp));
     },
   );
   testShot(

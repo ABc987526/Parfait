@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:parfait/app/pixiv_image.dart';
 
 import 'review_support.dart';
+import 'package:parfait/app/icons/app_icons.dart';
 
 /// The layers above a page at rest, for their lift (THEME-20): a dialog, a
 /// modal sheet, end-edge menus and a prompt. films_overlay.dart has them
@@ -12,7 +13,7 @@ void main() {
     'overlay/dialog',
     location: '/settings/account',
     before: (tester, router) async {
-      await tester.tap(find.byIcon(Icons.delete_outline));
+      await tester.tap(find.byIcon(AppIcons.trash));
     },
   );
   testShot(
@@ -41,7 +42,7 @@ void main() {
     'overlay/prompt',
     location: '/recommended/illust/1000',
     before: (tester, router) async {
-      await tester.tap(find.byIcon(Icons.download_outlined));
+      await tester.tap(find.byIcon(AppIcons.download));
     },
   );
 }

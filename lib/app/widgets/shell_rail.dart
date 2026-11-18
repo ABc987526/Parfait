@@ -4,6 +4,7 @@ import 'package:flutter/rendering.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../l10n/context.dart';
+import '../icons/app_icons.dart';
 import '../layout/form_factor.dart';
 import '../motion/motion_tokens.dart';
 import '../theme/func_semantic_tokens.dart';
@@ -302,7 +303,7 @@ class ShellRail extends StatelessWidget {
                   ? IconButton(
                       onPressed: onToggle,
                       tooltip: l10n.railExpand,
-                      icon: const Icon(Icons.menu),
+                      icon: const Icon(AppIcons.sidebarExpand),
                     )
                   : const _AppIcon(size: FuncSpacing.xxl),
             ),
@@ -311,7 +312,9 @@ class ShellRail extends StatelessWidget {
         ],
         _destinations(
           (i, selected) => item(
-            icon: destinations[i].icon,
+            icon: selected
+                ? (destinations[i].selectedIcon ?? destinations[i].icon)
+                : destinations[i].icon,
             label: destinations[i].label,
             selected: selected,
             onTap: () => onSelected(i),
@@ -330,7 +333,7 @@ class ShellRail extends StatelessWidget {
           ),
           if (onBookmarks != null)
             item(
-              icon: Icons.favorite_border,
+              icon: AppIcons.heart,
               label: l10n.railBookmarks,
               selected: false,
               onTap: onBookmarks!,
@@ -338,7 +341,7 @@ class ShellRail extends StatelessWidget {
           if (onDownloads != null) ...[
             const SizedBox(height: FuncSpacing.sm),
             item(
-              icon: Icons.downloading_outlined,
+              icon: AppIcons.downloading,
               label: l10n.railDownloads,
               selected: false,
               onTap: onDownloads!,
@@ -371,9 +374,7 @@ class ShellRail extends StatelessWidget {
                   tooltip: themeLabel,
                   onPressed: onToggleTheme,
                   icon: Icon(
-                    isDark
-                        ? Icons.dark_mode_outlined
-                        : Icons.light_mode_outlined,
+                    isDark ? AppIcons.moon : AppIcons.sun,
                     size: _iconSize,
                   ),
                 ),
@@ -392,7 +393,9 @@ class ShellRail extends StatelessWidget {
                       : null,
                   onPressed: onSettings,
                   icon: Icon(
-                    Icons.settings_outlined,
+                    settingsSelected
+                        ? AppIcons.settingsFilled
+                        : AppIcons.settings,
                     size: _iconSize,
                     color: settingsSelected
                         ? _iconColor(context, selected: true)
@@ -491,7 +494,7 @@ class ShellRail extends StatelessWidget {
                 IconButton(
                   onPressed: onToggle,
                   tooltip: l10n.railCollapse,
-                  icon: const Icon(Icons.menu_open),
+                  icon: const Icon(AppIcons.sidebarCollapse),
                 ),
                 const SizedBox(width: FuncSpacing.xs),
                 const _AppIcon(size: FuncSpacing.xl + FuncSpacing.xs),
@@ -513,7 +516,9 @@ class ShellRail extends StatelessWidget {
         ],
         _destinations(
           (i, selected) => row(
-            icon: destinations[i].icon,
+            icon: selected
+                ? (destinations[i].selectedIcon ?? destinations[i].icon)
+                : destinations[i].icon,
             label: destinations[i].label,
             selected: selected,
             onTap: () => onSelected(i),
@@ -530,7 +535,7 @@ class ShellRail extends StatelessWidget {
           ),
           if (onBookmarks != null)
             row(
-              icon: Icons.favorite_border,
+              icon: AppIcons.heart,
               label: l10n.railBookmarks,
               selected: false,
               onTap: onBookmarks!,
@@ -538,7 +543,7 @@ class ShellRail extends StatelessWidget {
           if (onDownloads != null) ...[
             const SizedBox(height: FuncSpacing.xs),
             row(
-              icon: Icons.downloading_outlined,
+              icon: AppIcons.downloading,
               label: l10n.railDownloads,
               selected: false,
               onTap: onDownloads!,
@@ -573,9 +578,7 @@ class ShellRail extends StatelessWidget {
               if (onToggleTheme != null)
                 row(
                   key: const Key('rail-theme-toggle'),
-                  icon: isDark
-                      ? Icons.dark_mode_outlined
-                      : Icons.light_mode_outlined,
+                  icon: isDark ? AppIcons.moon : AppIcons.sun,
                   label: themeLabel,
                   selected: false,
                   onTap: onToggleTheme!,
@@ -585,7 +588,9 @@ class ShellRail extends StatelessWidget {
                   const SizedBox(height: FuncSpacing.xxs),
                 row(
                   key: const Key('rail-settings'),
-                  icon: Icons.settings_outlined,
+                  icon: settingsSelected
+                      ? AppIcons.settingsFilled
+                      : AppIcons.settings,
                   label: l10n.settingsTitle,
                   selected: settingsSelected,
                   selectedSemantics: settingsSelected,

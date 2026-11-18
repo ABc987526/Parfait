@@ -29,6 +29,7 @@ import '../../../l10n/context.dart';
 import '../settings_helpers.dart';
 import '../settings_catalog.dart';
 import '../../../app/layout/content_widths.dart';
+import '../../../app/icons/app_icons.dart';
 
 String _accountSubtitle(BuildContext context, Account account) =>
     context.l10n.labelValue(context.l10n.accountId, account.id);
@@ -184,7 +185,7 @@ class _AccountSettingsPageState extends ConsumerState<AccountSettingsPage> {
                                       color: Theme.of(
                                         context,
                                       ).colorScheme.error,
-                                      icon: const Icon(Icons.delete_outline),
+                                      icon: const Icon(AppIcons.trash),
                                       onPressed: _switchingTo == null
                                           ? () => _confirmRemove(account)
                                           : null,
@@ -204,7 +205,7 @@ class _AccountSettingsPageState extends ConsumerState<AccountSettingsPage> {
                           // gates the actual copy.
                           if (state.current != null)
                             SettingsTile(
-                              icon: Icons.send_to_mobile,
+                              icon: AppIcons.send,
                               setting: Setting.accountTransferExport,
                               onTap: _confirmCopyAccount,
                             ),

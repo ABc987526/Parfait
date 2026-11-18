@@ -25,6 +25,7 @@ import '../../core/localnovel/local_novel_store.dart';
 import '../../core/platform/saf_tree.dart';
 import '../../l10n/context.dart';
 import '../../app/theme/func_semantic_tokens.dart';
+import '../../app/icons/app_icons.dart';
 
 /// The imported-TXT library: list rows (title/size/import time), an import
 /// action, and delete — reading itself is wired by the local reader route.
@@ -55,7 +56,7 @@ class _LocalNovelsPageState extends ConsumerState<LocalNovelsPage> {
           IconButton(
             tooltip: context.l10n.localNovelsImport,
             onPressed: () => _import(context, ref),
-            icon: const Icon(Icons.file_open_outlined),
+            icon: const Icon(AppIcons.folderOpen),
           ),
         ],
       ),
@@ -75,10 +76,10 @@ class _LocalNovelsPageState extends ConsumerState<LocalNovelsPage> {
             data: (novels) {
               if (novels.isEmpty) {
                 return FeedEmpty(
-                  icon: Icons.auto_stories_outlined,
+                  icon: AppIcons.localNovel,
                   title: context.l10n.localNovelsEmpty,
                   actionLabel: context.l10n.localNovelsImport,
-                  actionIcon: Icons.file_open_outlined,
+                  actionIcon: AppIcons.folderOpen,
                   onAction: () => unawaited(_import(context, ref)),
                 );
               }
@@ -179,7 +180,7 @@ class _LocalNovelTile extends ConsumerWidget {
           color: Theme.of(context).colorScheme.surfaceContainer,
           borderRadius: FuncShape.control,
         ),
-        child: const Icon(Icons.auto_stories_outlined),
+        child: const Icon(AppIcons.localNovel),
       ),
       title: novel.title,
       meta: meta,
@@ -193,7 +194,7 @@ class _LocalNovelTile extends ConsumerWidget {
         entries: [
           AppMenuEntry(
             value: _LocalNovelAction.delete,
-            icon: Icons.delete_outline,
+            icon: AppIcons.trash,
             label: context.l10n.localNovelsDelete,
           ),
         ],

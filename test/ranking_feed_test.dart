@@ -510,7 +510,7 @@ void main() {
     await tester.tap(
       find.descendant(
         of: find.byType(FuncShellBottomNav),
-        matching: find.byIcon(AppIcons.ranking),
+        matching: find.byIcon(AppIcons.rankingFilled),
       ),
     );
     await tester.pump();

@@ -61,6 +61,7 @@ import 'pages/download_tasks_page.dart';
 import 'settings_catalog.dart';
 import 'settings_helpers.dart';
 import 'settings_page.dart' show settingsPageIcons;
+import '../../app/icons/app_icons.dart';
 
 enum _MeSection {
   overview,
@@ -177,7 +178,7 @@ class _MeDashboardPageState extends ConsumerState<MeDashboardPage> {
                       actions: [
                         IconButton(
                           tooltip: context.l10n.settingsTitle,
-                          icon: const Icon(Icons.settings_outlined),
+                          icon: const Icon(AppIcons.settings),
                           onPressed: () =>
                               openSettingsPage(context, settingsIndexPath),
                         ),
@@ -342,7 +343,7 @@ class _AccountHeader extends StatelessWidget {
             ? null
             : IconButton(
                 tooltip: l10n.accountManagement,
-                icon: const Icon(Icons.manage_accounts_outlined),
+                icon: const Icon(AppIcons.accountManage),
                 onPressed: () =>
                     openSettingsPage(context, SettingsPageRef.account.path),
               ),
@@ -474,7 +475,7 @@ class _CompactAccountHeader extends StatelessWidget {
                 if (value != null)
                   IconButton(
                     tooltip: l10n.accountManagement,
-                    icon: const Icon(Icons.manage_accounts_outlined),
+                    icon: const Icon(AppIcons.accountManage),
                     onPressed: () =>
                         openSettingsPage(context, SettingsPageRef.account.path),
                   ),
@@ -782,7 +783,7 @@ class _RecentHistoryState extends ConsumerState<_RecentHistory>
               child: Row(
                 children: [
                   Icon(
-                    Icons.history,
+                    AppIcons.history,
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
                   const SizedBox(width: FuncSpacing.md),
@@ -1299,13 +1300,12 @@ class _RecentCover extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          image ??
-              Icon(novel ? Icons.menu_book_outlined : Icons.image_outlined),
+          image ?? Icon(novel ? AppIcons.novel : AppIcons.illust),
           if (novel)
             const Positioned(
               left: 7,
               top: 7,
-              child: EntityBadge(icon: Icons.menu_book_outlined),
+              child: EntityBadge(icon: AppIcons.novel),
             ),
         ],
       ),
@@ -1448,7 +1448,7 @@ class _MeNarrowGroups extends ConsumerWidget {
           title: Text(l10n.settingsGroupLibrary),
           children: [
             SettingsTile.topLevel(
-              icon: Icons.favorite_border,
+              icon: AppIcons.heart,
               title: l10n.profileBookmarked,
               subtitle: bookmarksSubtitle == null
                   ? null
@@ -1457,7 +1457,7 @@ class _MeNarrowGroups extends ConsumerWidget {
               onTap: () => unawaited(openMe(context, tab: MeTab.bookmarks)),
             ),
             SettingsTile.topLevel(
-              icon: Icons.people_outline,
+              icon: AppIcons.users,
               title: l10n.profileFollowing,
               subtitle: followingSubtitle == null
                   ? null
@@ -1466,7 +1466,7 @@ class _MeNarrowGroups extends ConsumerWidget {
               onTap: () => unawaited(openMe(context, tab: MeTab.following)),
             ),
             SettingsTile.topLevel(
-              icon: Icons.library_books_outlined,
+              icon: AppIcons.watchlist,
               title: l10n.watchlistTitle,
               subtitle: watchlistSubtitle == null
                   ? null
@@ -1477,7 +1477,7 @@ class _MeNarrowGroups extends ConsumerWidget {
             // Pixiv keeps novel markers with the signed-in account.
             if (signedIn)
               SettingsTile.topLevel(
-                icon: Icons.bookmarks_outlined,
+                icon: AppIcons.novelMarkers,
                 title: l10n.novelMarkers,
                 subtitle: novelMarkersSubtitle == null
                     ? null
@@ -1499,21 +1499,21 @@ class _MeNarrowGroups extends ConsumerWidget {
           title: Text(l10n.settingsGroupData),
           children: [
             SettingsTile.topLevel(
-              icon: Icons.bookmark_border,
+              icon: AppIcons.watchLater,
               title: l10n.watchLaterTitle,
               subtitle: Text(_watchLaterSummary(context, watchLaterCount)),
               tone: orangeTone,
               onTap: () => unawaited(openWatchLater(context)),
             ),
             SettingsTile.topLevel(
-              icon: Icons.auto_stories_outlined,
+              icon: AppIcons.localNovel,
               title: l10n.localNovelsTitle,
               subtitle: Text(_localNovelsSummary(context, localNovelsCount)),
               tone: orangeTone,
               onTap: () => unawaited(openLocalNovels(context)),
             ),
             SettingsTile.topLevel(
-              icon: Icons.downloading_outlined,
+              icon: AppIcons.downloading,
               title: l10n.downloaderSettings,
               subtitle: Text(_downloadSummary(context, downloadStats)),
               tone: greenTone,
@@ -1529,7 +1529,7 @@ class _MeNarrowGroups extends ConsumerWidget {
           title: const Text('Parfait'),
           children: [
             SettingsTile.topLevel(
-              icon: Icons.settings_outlined,
+              icon: AppIcons.settings,
               title: l10n.settingsTitle,
               subtitle: Text(settingsSubtitle),
               tone: neutralTone,
@@ -1588,7 +1588,7 @@ class _MeWideRailGroups extends ConsumerWidget {
           title: Text(l10n.settingsGroupLibrary),
           children: [
             SettingsTile.topLevel(
-              icon: Icons.person_outline,
+              icon: AppIcons.user,
               title: l10n.accountProfile,
               tone: blueTone,
               selected: selected == _MeSection.overview,
@@ -1596,7 +1596,7 @@ class _MeWideRailGroups extends ConsumerWidget {
               onTap: () => onSelectSection(_MeSection.overview),
             ),
             SettingsTile.topLevel(
-              icon: Icons.favorite_border,
+              icon: AppIcons.heart,
               title: l10n.profileBookmarked,
               tone: blueTone,
               selected: selected == _MeSection.bookmarks,
@@ -1604,7 +1604,7 @@ class _MeWideRailGroups extends ConsumerWidget {
               onTap: () => onSelectSection(_MeSection.bookmarks),
             ),
             SettingsTile.topLevel(
-              icon: Icons.people_outline,
+              icon: AppIcons.users,
               title: l10n.profileFollowing,
               tone: blueTone,
               selected: selected == _MeSection.following,
@@ -1612,7 +1612,7 @@ class _MeWideRailGroups extends ConsumerWidget {
               onTap: () => onSelectSection(_MeSection.following),
             ),
             SettingsTile.topLevel(
-              icon: Icons.library_books_outlined,
+              icon: AppIcons.watchlist,
               title: l10n.watchlistTitle,
               tone: blueTone,
               selected: selected == _MeSection.watchlist,
@@ -1621,7 +1621,7 @@ class _MeWideRailGroups extends ConsumerWidget {
             ),
             if (signedIn)
               SettingsTile.topLevel(
-                icon: Icons.bookmarks_outlined,
+                icon: AppIcons.novelMarkers,
                 title: l10n.novelMarkers,
                 tone: blueTone,
                 selected: selected == _MeSection.novelMarkers,
@@ -1643,7 +1643,7 @@ class _MeWideRailGroups extends ConsumerWidget {
           title: Text(l10n.settingsGroupData),
           children: [
             SettingsTile.topLevel(
-              icon: Icons.bookmark_border,
+              icon: AppIcons.watchLater,
               title: l10n.watchLaterTitle,
               tone: orangeTone,
               selected: selected == _MeSection.watchLater,
@@ -1651,7 +1651,7 @@ class _MeWideRailGroups extends ConsumerWidget {
               onTap: () => onSelectSection(_MeSection.watchLater),
             ),
             SettingsTile.topLevel(
-              icon: Icons.auto_stories_outlined,
+              icon: AppIcons.localNovel,
               title: l10n.localNovelsTitle,
               tone: orangeTone,
               selected: selected == _MeSection.localNovels,
@@ -1659,7 +1659,7 @@ class _MeWideRailGroups extends ConsumerWidget {
               onTap: () => onSelectSection(_MeSection.localNovels),
             ),
             SettingsTile.topLevel(
-              icon: Icons.downloading_outlined,
+              icon: AppIcons.downloading,
               title: l10n.downloaderSettings,
               tone: greenTone,
               selected: selected == _MeSection.downloads,
@@ -1677,7 +1677,7 @@ class _MeWideRailGroups extends ConsumerWidget {
             title: const Text('Parfait'),
             children: [
               SettingsTile.topLevel(
-                icon: Icons.settings_outlined,
+                icon: AppIcons.settings,
                 title: l10n.settingsTitle,
                 tone: neutralTone,
                 showChevron: false,
@@ -1730,7 +1730,7 @@ class _MeOverviewPane extends ConsumerWidget {
             onPressed: account == null
                 ? () => openLogin(context)
                 : () => openMe(context),
-            icon: const Icon(Icons.open_in_new, size: 18),
+            icon: const Icon(AppIcons.externalLink, size: 18),
             label: Text(account == null ? l10n.login : l10n.meOpenProfile),
           ),
         ],
@@ -1854,7 +1854,7 @@ class _MeProfileOverview extends StatelessWidget {
                   final action = value == null
                       ? FilledButton.icon(
                           onPressed: () => openLogin(context),
-                          icon: const Icon(Icons.login_outlined, size: 18),
+                          icon: const Icon(AppIcons.login, size: 18),
                           label: Text(l10n.login),
                         )
                       : OutlinedButton.icon(
@@ -1862,10 +1862,7 @@ class _MeProfileOverview extends StatelessWidget {
                             context,
                             SettingsPageRef.account.path,
                           ),
-                          icon: const Icon(
-                            Icons.manage_accounts_outlined,
-                            size: 18,
-                          ),
+                          icon: const Icon(AppIcons.accountManage, size: 18),
                           label: Text(l10n.accountManagement),
                         );
                   if (compact) {
@@ -1941,7 +1938,7 @@ class _MeCollectionGrid extends StatelessWidget {
 
     final items = [
       (
-        icon: Icons.favorite_border,
+        icon: AppIcons.heart,
         tone: blueTone,
         title: l10n.profileBookmarked,
         count: bookmarksValue,
@@ -1951,7 +1948,7 @@ class _MeCollectionGrid extends StatelessWidget {
         section: _MeSection.bookmarks,
       ),
       (
-        icon: Icons.people_outline,
+        icon: AppIcons.users,
         tone: blueTone,
         title: l10n.profileFollowing,
         count: followingValue,
@@ -1961,7 +1958,7 @@ class _MeCollectionGrid extends StatelessWidget {
         section: _MeSection.following,
       ),
       (
-        icon: Icons.library_books_outlined,
+        icon: AppIcons.watchlist,
         tone: blueTone,
         title: l10n.watchlistTitle,
         count: watchlistValue,
@@ -1971,7 +1968,7 @@ class _MeCollectionGrid extends StatelessWidget {
         section: _MeSection.watchlist,
       ),
       (
-        icon: Icons.bookmark_border,
+        icon: AppIcons.watchLater,
         tone: orangeTone,
         title: l10n.watchLaterTitle,
         count: watchLaterValue,
@@ -2174,7 +2171,7 @@ class _MeBookmarksPaneState extends ConsumerState<_MeBookmarksPane> {
       return Scaffold(
         appBar: AppTopBar(title: Text(l10n.profileBookmarked)),
         body: FeedEmpty(
-          icon: Icons.favorite_border,
+          icon: AppIcons.heart,
           title: l10n.signedOut,
           actionLabel: l10n.login,
           onAction: () => openLogin(context),
@@ -2256,7 +2253,7 @@ class _MeFollowingPaneState extends ConsumerState<_MeFollowingPane> {
       return Scaffold(
         appBar: AppTopBar(title: Text(l10n.profileFollowing)),
         body: FeedEmpty(
-          icon: Icons.people_outline,
+          icon: AppIcons.users,
           title: l10n.signedOut,
           actionLabel: l10n.login,
           onAction: () => openLogin(context),

@@ -75,6 +75,7 @@ import '../../../app/layout/deferred_cache_scroll_view.dart';
 import '../../../app/layout/two_pane.dart';
 import '../../../app/widgets/smooth_wheel_scroll.dart';
 import '../../../app/widgets/comment_composer.dart';
+import '../../../app/icons/app_icons.dart';
 part 'illust_detail_content.dart';
 
 /// Coordinates system back / Esc inside an embedded [IllustDetailPage] so an
@@ -805,11 +806,11 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
                 // surfaces (the loading branch above reads the store directly).
                 return switch (state) {
                   IllustDetailRestricted(:final entity) => FeedEmpty(
-                    icon: Icons.visibility_off_outlined,
+                    icon: AppIcons.eyeOff,
                     title: context.l10n.illustDetailRestricted(entity.id),
                   ),
                   IllustDetailNotFound() => FeedEmpty(
-                    icon: Icons.search_off,
+                    icon: AppIcons.searchOff,
                     title: context.l10n.illustDetailNotFound,
                   ),
                   IllustDetailReady(:final entity) => _buildContent(
@@ -858,7 +859,7 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
           onPressed: selected.isEmpty
               ? null
               : () => unawaited(_submitSelection(entity)),
-          icon: const Icon(Icons.download_outlined),
+          icon: const Icon(AppIcons.download),
         ),
       ],
     );
@@ -966,7 +967,7 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
           IconButton(
             key: const ValueKey('desktop-inspector-expand'),
             tooltip: l10n.viewerOpenDetail,
-            icon: const Icon(Icons.open_in_full, size: 18),
+            icon: const Icon(AppIcons.expand, size: 18),
             onPressed: () => widget.onOpenFullStage!(entity),
           ),
         if (entity != null)

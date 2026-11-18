@@ -28,6 +28,7 @@ import '../../l10n/context.dart';
 import '../../app/theme/func_semantic_tokens.dart';
 import '../../app/layout/content_widths.dart';
 import '../../app/widgets/feed/load_more_listener.dart';
+import '../../app/icons/app_icons.dart';
 
 class CommentsPage extends ConsumerStatefulWidget {
   const CommentsPage({
@@ -413,7 +414,7 @@ class _ClosedCommentsPage extends StatelessWidget {
     body: ContentWidthCap(
       maxWidth: ContentWidths.management,
       child: FeedEmpty(
-        icon: Icons.comments_disabled_outlined,
+        icon: AppIcons.commentOff,
         title: context.l10n.commentsClosed,
       ),
     ),
@@ -476,7 +477,7 @@ class _CommentFeedView extends ConsumerWidget {
               retryLabel: context.l10n.refresh,
               onRefresh: () =>
                   ref.read(commentFeedProvider(query).notifier).refresh(),
-              icon: Icons.comment_outlined,
+              icon: AppIcons.comment,
             ),
           );
         }

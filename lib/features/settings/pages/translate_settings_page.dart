@@ -18,6 +18,7 @@ import '../../../l10n/context.dart';
 import '../settings_helpers.dart';
 import '../settings_catalog.dart';
 import '../../../app/layout/content_widths.dart';
+import '../../../app/icons/app_icons.dart';
 
 class TranslateSettingsPage extends ConsumerStatefulWidget {
   const TranslateSettingsPage({super.key});
@@ -59,13 +60,13 @@ class _TranslateSettingsPageState extends ConsumerState<TranslateSettingsPage> {
   /// The account or credential row of [provider], if it has one.
   Widget? _providerRow(TranslationProvider provider) => switch (provider) {
     TranslationProvider.baidu => SettingsTile(
-      icon: Icons.key_outlined,
+      icon: AppIcons.key,
       title: context.l10n.translateBaiduCredential,
       subtitle: _credentialStatus(_baiduConfigured),
       onTap: () => _openTranslationCredentials(true),
     ),
     TranslationProvider.translationLlm => SettingsTile(
-      icon: Icons.key_outlined,
+      icon: AppIcons.key,
       title: context.l10n.translateLlmCredential,
       subtitle: _credentialStatus(_llmConfigured),
       onTap: () => _openTranslationCredentials(false),

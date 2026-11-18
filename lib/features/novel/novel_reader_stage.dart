@@ -38,6 +38,7 @@ import 'novel_reader.dart';
 import '../../app/theme/func_semantic_tokens.dart';
 import '../../app/widgets/app_choice_chip.dart';
 import '../../app/widgets/app_slider.dart';
+import '../../app/icons/app_icons.dart';
 part 'novel_reader_stage_widgets.dart';
 
 /// How far the reader's faint text (the bottom progress hint, an image's
@@ -950,7 +951,7 @@ class _NovelReaderStageState extends ConsumerState<NovelReaderStage>
                             : context.l10n.novelTranslatePage,
                         isSelected: bilingual,
                         onPressed: toggleBilingual,
-                        icon: const Icon(Icons.translate),
+                        icon: const Icon(AppIcons.translate),
                         selectedIcon: translatingPage
                             ? SizedBox.square(
                                 dimension: 20,
@@ -960,14 +961,14 @@ class _NovelReaderStageState extends ConsumerState<NovelReaderStage>
                                 ),
                               )
                             : Icon(
-                                Icons.translate,
+                                AppIcons.translate,
                                 color: Theme.of(context).colorScheme.primary,
                               ),
                       ),
                       IconButton(
                         tooltip: widget.spec.infoTooltip,
                         onPressed: () => _showInfoSheet(context),
-                        icon: const Icon(Icons.info_outline),
+                        icon: const Icon(AppIcons.info),
                       ),
                     ],
                   ),
@@ -1033,7 +1034,7 @@ class _NovelReaderStageState extends ConsumerState<NovelReaderStage>
                         onPressed: () => _applySettings(
                           _settings.copyWith(fontSize: _settings.fontSize - 1),
                         ),
-                        icon: const Icon(Icons.text_decrease_outlined),
+                        icon: const Icon(AppIcons.textDecrease),
                       ),
                       // A pill with an expand glyph: it opens the progress
                       // sheet. The readout keeps its a11y label so screen
@@ -1070,14 +1071,14 @@ class _NovelReaderStageState extends ConsumerState<NovelReaderStage>
                                 fontSize: _settings.fontSize + 1,
                               ),
                             ),
-                            icon: const Icon(Icons.text_increase_outlined),
+                            icon: const Icon(AppIcons.textIncrease),
                           ),
                           Builder(
                             builder: (anchorContext) => IconButton(
                               tooltip: l10n.novelReaderSettings,
                               onPressed: () =>
                                   _showReaderSettings(anchorContext),
-                              icon: const Icon(Icons.tune_outlined),
+                              icon: const Icon(AppIcons.filter),
                             ),
                           ),
                         ],

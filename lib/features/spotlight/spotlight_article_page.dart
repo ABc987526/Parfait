@@ -29,6 +29,7 @@ import '../../core/spotlight/spotlight_store.dart';
 import '../../l10n/context.dart';
 import 'spotlight_challenge_view.dart';
 import '../../app/theme/func_semantic_tokens.dart';
+import '../../app/icons/app_icons.dart';
 
 /// In-app pixivision article reader: renders the parsed [SpotlightBlock]s —
 /// headings, link-aware paragraphs, images and `.am__work` artwork cards —
@@ -121,12 +122,12 @@ class _SpotlightArticlePageState extends ConsumerState<SpotlightArticlePage> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.share_outlined),
+            icon: const Icon(AppIcons.share),
             tooltip: context.l10n.share,
             onPressed: () => unawaited(_share(context)),
           ),
           IconButton(
-            icon: const Icon(Icons.open_in_new),
+            icon: const Icon(AppIcons.externalLink),
             tooltip: context.l10n.openInBrowser,
             onPressed: () => unawaited(
               launchUrl(Uri.parse(_url), mode: LaunchMode.externalApplication),
@@ -390,8 +391,7 @@ class _ArticleImage extends ConsumerWidget {
               fit: BoxFit.contain,
               imageBuilder: (_, child) => AspectFitBox(child: child),
               placeholderBuilder: (_) => placeholder,
-              errorBuilder: (_, _, _) =>
-                  const Icon(Icons.broken_image_outlined),
+              errorBuilder: (_, _, _) => const Icon(AppIcons.illustBroken),
               fadeInDuration: Duration.zero,
               fadeOutDuration: Duration.zero,
             ),

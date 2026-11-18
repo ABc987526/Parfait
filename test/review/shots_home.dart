@@ -9,6 +9,7 @@ import 'package:parfait/core/settings/app_settings.dart';
 import 'package:parfait/core/settings/settings_controller.dart';
 
 import 'review_support.dart';
+import 'package:parfait/app/icons/app_icons.dart';
 
 /// The five home destinations, their in-page tabs and feed states.
 void main() {
@@ -99,7 +100,7 @@ void main() {
   testShot('home/ranking-male', location: '/ranking?mode=dayMale');
   // The category sheet, browsing and editing.
   Future<void> openCategories(WidgetTester tester, _) async {
-    await tester.tap(find.byIcon(Icons.grid_view_outlined));
+    await tester.tap(find.byIcon(AppIcons.categoryGrid));
     await tester.pumpAndSettle();
   }
 
@@ -115,7 +116,7 @@ void main() {
     variants: {ShotVariant.dark, ...overflowVariants, ShotVariant.largeText},
     before: (tester, router) async {
       await openCategories(tester, router);
-      await tester.tap(find.byIcon(Icons.edit_outlined).last);
+      await tester.tap(find.byIcon(AppIcons.edit).last);
       await tester.pumpAndSettle();
     },
   );

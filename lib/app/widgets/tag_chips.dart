@@ -6,6 +6,7 @@ import '../motion/press_scale.dart';
 import '../theme/func_semantic_tokens.dart';
 import '../theme/func_tokens.dart';
 import 'feed/feed_text_warmup.dart';
+import '../icons/app_icons.dart';
 
 /// Visible height of a tag pill; text scaling may grow it.
 const _pillHeight = 32.0;
@@ -182,7 +183,7 @@ class _TagChipState extends State<TagChip> {
               right: 0,
               child: IgnorePointer(
                 child: Icon(
-                  Icons.block,
+                  AppIcons.banFilled,
                   size: 15,
                   color: widget.blocked
                       ? Theme.of(context).colorScheme.primary

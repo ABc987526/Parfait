@@ -18,6 +18,7 @@ import 'helpers/download_world.dart';
 import 'helpers/fake_account.dart';
 import 'helpers/localized_app.dart';
 import 'helpers/waits.dart';
+import 'package:parfait/app/icons/app_icons.dart';
 
 void main() {
   VisibilityDetectorController.instance.updateInterval = Duration.zero;
@@ -49,7 +50,7 @@ void main() {
       await tester.pump();
 
       expect(find.byType(UgoiraViewer), findsOneWidget);
-      expect(find.byIcon(Icons.play_circle_outline_outlined), findsOneWidget);
+      expect(find.byIcon(AppIcons.playCircle), findsOneWidget);
       // The export entry stays rendered (a disabled IconButton while the
       // asset has not loaded yet).
       expect(

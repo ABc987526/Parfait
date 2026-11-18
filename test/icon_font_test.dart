@@ -22,6 +22,19 @@ void main() {
           isTrue,
           reason: 'pubspec.yaml must declare assets/icon.ttf under fonts',
         );
+        final dartIcons = File(
+          'lib/app/icons/app_icons.dart',
+        ).readAsStringSync();
+        final svgCount = Directory('tool/icons/svg')
+            .listSync()
+            .whereType<File>()
+            .where((f) => f.path.endsWith('.svg'))
+            .length;
+        expect(
+          RegExp(r'0xe9[0-9a-f]{2}').allMatches(dartIcons).length,
+          svgCount,
+          reason: 'AppIcons codepoints must stay in sync with tool/icons/svg/',
+        );
       },
     );
   });

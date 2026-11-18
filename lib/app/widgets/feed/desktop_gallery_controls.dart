@@ -13,6 +13,7 @@ import '../../window/desktop_command_bar.dart';
 import '../app_menu_button.dart';
 import '../settings/persist_settings.dart';
 import 'desktop_inspector_scope.dart';
+import '../../icons/app_icons.dart';
 
 /// Shared desktop gallery header controls (**NAV-17**): compact `"current ▾"`
 /// menu buttons for desktop detail presentation (`DesktopDetailMode`) and
@@ -46,8 +47,8 @@ class DesktopGalleryControls extends ConsumerWidget {
     };
 
     IconData detailModeIcon(DesktopDetailMode mode) => switch (mode) {
-      DesktopDetailMode.modal => Icons.open_in_new,
-      DesktopDetailMode.inspector => Icons.view_sidebar_outlined,
+      DesktopDetailMode.modal => AppIcons.externalLink,
+      DesktopDetailMode.inspector => AppIcons.inspectorSidebar,
     };
 
     String densityLabel(FeedDensity value) => switch (value) {
@@ -57,9 +58,9 @@ class DesktopGalleryControls extends ConsumerWidget {
     };
 
     IconData densityIcon(FeedDensity value) => switch (value) {
-      FeedDensity.comfortable => Icons.view_agenda_outlined,
-      FeedDensity.standard => Icons.view_quilt_outlined,
-      FeedDensity.compact => Icons.view_comfy_outlined,
+      FeedDensity.comfortable => AppIcons.layoutComfortable,
+      FeedDensity.standard => AppIcons.layoutStandard,
+      FeedDensity.compact => AppIcons.layoutCompact,
     };
 
     return Padding(

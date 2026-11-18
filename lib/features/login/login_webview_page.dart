@@ -24,6 +24,7 @@ import 'login_navigation_decision.dart';
 import 'login_session_restart.dart';
 import 'login_webview_error_card.dart';
 import '../../app/theme/func_semantic_tokens.dart';
+import '../../app/icons/app_icons.dart';
 
 /// OAuth login WebView.
 ///
@@ -365,7 +366,7 @@ class _LoginWebViewPageState extends ConsumerState<LoginWebViewPage>
           decoration: InputDecoration(
             hintText: context.l10n.loginCallbackHint,
             suffixIcon: IconButton(
-              icon: const Icon(Icons.content_paste_outlined),
+              icon: const Icon(AppIcons.paste),
               tooltip: context.l10n.loginPasteCallback,
               onPressed: _pasteFromClipboard,
             ),
@@ -413,7 +414,7 @@ class _LoginWebViewPageState extends ConsumerState<LoginWebViewPage>
     child: Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Icon(Icons.public_off, size: 56),
+        const Icon(AppIcons.globeOff, size: 56),
         const SizedBox(height: FuncSpacing.md),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: FuncSpacing.xl),
@@ -424,7 +425,7 @@ class _LoginWebViewPageState extends ConsumerState<LoginWebViewPage>
         ),
         const SizedBox(height: FuncSpacing.md),
         FilledButton.icon(
-          icon: const Icon(Icons.open_in_new),
+          icon: const Icon(AppIcons.externalLink),
           label: Text(context.l10n.loginInstallWebView2),
           onPressed: () => unawaited(
             launchUrl(
@@ -449,7 +450,7 @@ class _LoginWebViewPageState extends ConsumerState<LoginWebViewPage>
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Icon(Icons.open_in_browser_outlined, size: 56),
+              const Icon(AppIcons.externalLink, size: 56),
               const SizedBox(height: FuncSpacing.md),
               Text(
                 l10n.loginExternalTitle,
@@ -461,7 +462,7 @@ class _LoginWebViewPageState extends ConsumerState<LoginWebViewPage>
               const SizedBox(height: FuncSpacing.lg),
               FilledButton.icon(
                 onPressed: _openExternalBrowser,
-                icon: const Icon(Icons.open_in_browser_outlined),
+                icon: const Icon(AppIcons.externalLink),
                 label: Text(l10n.openInBrowser),
               ),
               if (!widget.create) ...[
@@ -472,7 +473,7 @@ class _LoginWebViewPageState extends ConsumerState<LoginWebViewPage>
                     hintText: l10n.loginCallbackHint,
                     border: const OutlineInputBorder(),
                     suffixIcon: IconButton(
-                      icon: const Icon(Icons.content_paste_outlined),
+                      icon: const Icon(AppIcons.paste),
                       tooltip: l10n.loginPasteCallback,
                       onPressed: _pasteFromClipboard,
                     ),
@@ -504,13 +505,13 @@ class _LoginWebViewPageState extends ConsumerState<LoginWebViewPage>
         title: Text(widget.title),
         actions: [
           IconButton(
-            icon: const Icon(Icons.open_in_browser_outlined),
+            icon: const Icon(AppIcons.externalLink),
             tooltip: context.l10n.openInBrowser,
             onPressed: _openExternalBrowser,
           ),
           if (supportsWebView && !widget.create)
             IconButton(
-              icon: const Icon(Icons.content_paste_outlined),
+              icon: const Icon(AppIcons.paste),
               tooltip: context.l10n.loginPasteCallback,
               onPressed: () => unawaited(_showManualCallbackDialog(context)),
             ),

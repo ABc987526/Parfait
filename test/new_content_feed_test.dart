@@ -209,7 +209,7 @@ void main() {
     await tester.tap(
       find.descendant(
         of: find.byType(FuncShellBottomNav),
-        matching: find.byIcon(AppIcons.n),
+        matching: find.byIcon(AppIcons.newWorksFilled),
       ),
     );
     await tester.pump();
@@ -244,7 +244,7 @@ void main() {
     await tester.tap(
       find.descendant(
         of: find.byType(FuncShellBottomNav),
-        matching: find.byIcon(AppIcons.n),
+        matching: find.byIcon(AppIcons.newWorksFilled),
       ),
     );
     // As after a release: the overscroll springs onto the trigger, then

@@ -26,6 +26,7 @@ import '../../app/widgets/errors/error_details.dart';
 import '../../l10n/context.dart';
 import '../../l10n/lookup.dart';
 import '../../app/theme/func_semantic_tokens.dart';
+import '../../app/icons/app_icons.dart';
 
 String _profileEditText(BuildContext context, String key) {
   return l10nLookup(context.l10n, key);
@@ -289,7 +290,7 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
                                       strokeWidth: 2,
                                     ),
                                   )
-                                : const Icon(Icons.save_outlined),
+                                : const Icon(AppIcons.save),
                             label: Text(context.l10n.profileEditSave),
                           ),
                         ),
@@ -410,7 +411,7 @@ class _ProfileEditBodyState extends ConsumerState<_ProfileEditBody> {
         children: [
           if (!capabilities.isAvailable)
             _Notice(
-              icon: Icons.info_outline,
+              icon: AppIcons.info,
               text: capabilities.reason ?? context.l10n.profileEditUnavailable,
             ),
           // What a save brought back comes and goes in place (MOTION-14).
@@ -660,7 +661,7 @@ class _ImageField extends StatelessWidget {
           fit: BoxFit.cover,
           errorBuilder: (_, _, _) => ColoredBox(
             color: Theme.of(context).colorScheme.surfaceContainer,
-            child: const Icon(Icons.image_outlined, size: 42),
+            child: const Icon(AppIcons.illust, size: 42),
           ),
         ),
       ),
@@ -687,7 +688,7 @@ class _ImageField extends StatelessWidget {
 
   Widget _emptyImagePreview(BuildContext context) => ColoredBox(
     color: Theme.of(context).colorScheme.surfaceContainer,
-    child: const Center(child: Icon(Icons.image_outlined, size: 42)),
+    child: const Center(child: Icon(AppIcons.illust, size: 42)),
   );
 
   Widget _details(BuildContext context, String subtitle) => Column(
@@ -717,11 +718,7 @@ class _EditBadge extends StatelessWidget {
         shape: BoxShape.circle,
         color: scheme.primaryContainer,
       ),
-      child: Icon(
-        Icons.edit_outlined,
-        size: 14,
-        color: scheme.onPrimaryContainer,
-      ),
+      child: Icon(AppIcons.edit, size: 14, color: scheme.onPrimaryContainer),
     );
   }
 }
@@ -785,7 +782,7 @@ class _StatusBody extends StatelessWidget {
             if (busy)
               const CircularProgressIndicator()
             else
-              const Icon(Icons.info_outline, size: 52),
+              const Icon(AppIcons.info, size: 52),
             const SizedBox(height: FuncSpacing.lg),
             Text(
               // A spinner next to the failure headline read as "load failed"

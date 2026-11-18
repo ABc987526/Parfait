@@ -17,6 +17,7 @@ import '../motion/state_fade.dart';
 import '../theme/func_semantic_tokens.dart';
 import 'fit_label.dart';
 import 'settings/persist_settings.dart';
+import '../icons/app_icons.dart';
 
 /// What a ranking page puts in its category sheet besides the categories.
 /// Each row closes the sheet before it acts.
@@ -173,7 +174,7 @@ class _RankingCategorySheetState<M extends RankingCategory>
           else if (!_editing)
             TextButton.icon(
               onPressed: () => setState(() => _editing = true),
-              icon: const Icon(Icons.edit_outlined),
+              icon: const Icon(AppIcons.edit),
               label: Text(l10n.rankingEdit),
             ),
           if (showHeaderClose) ...[
@@ -291,7 +292,7 @@ class _RankingCategorySheetState<M extends RankingCategory>
           contentPadding: const EdgeInsets.symmetric(
             horizontal: FuncSpacing.xl,
           ),
-          leading: const Icon(Icons.calendar_month_outlined),
+          leading: const Icon(AppIcons.calendar),
           title: Text(l10n.rankingPickDate),
           subtitle: Text(page.dateLabel),
           trailing: const Icon(Icons.chevron_right),

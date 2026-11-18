@@ -17,6 +17,7 @@ import 'package:parfait/core/bookmark/bookmark_store.dart';
 import 'package:parfait/app/widgets/bookmark_switch_button.dart';
 import 'helpers/prompt_host.dart';
 import 'helpers/localized_app.dart';
+import 'package:parfait/app/icons/app_icons.dart';
 
 Future<(ProviderContainer, BookmarkApi)> _pump(
   WidgetTester tester, {
@@ -51,7 +52,7 @@ void main() {
   ) async {
     final (container, repository) = await _pump(tester);
 
-    expect(find.byIcon(Icons.favorite_outline_sharp), findsOneWidget);
+    expect(find.byIcon(AppIcons.heart), findsOneWidget);
     expect(find.bySemanticsLabel('收藏插画：work 1'), findsOneWidget);
     expect(
       tester.getSemantics(find.bySemanticsLabel('收藏插画：work 1')),
@@ -80,7 +81,7 @@ void main() {
       isTrue,
     );
     await tester.pump();
-    expect(find.byIcon(Icons.favorite_sharp), findsOneWidget);
+    expect(find.byIcon(AppIcons.heartFilled), findsOneWidget);
     expect(
       tester.getSemantics(find.bySemanticsLabel('收藏插画：work 1')),
       isSemantics(
@@ -125,7 +126,7 @@ void main() {
       HapticRole.success,
       HapticRole.error,
     ]);
-    expect(find.byIcon(Icons.favorite_outline_sharp), findsOneWidget);
+    expect(find.byIcon(AppIcons.heart), findsOneWidget);
   });
 
   testWidgets('an unconfirmed add already shows the filled heart', (
@@ -137,7 +138,7 @@ void main() {
     await tester.tap(find.byType(BookmarkSwitchButton));
     await tester.pump();
 
-    expect(find.byIcon(Icons.favorite_sharp), findsOneWidget);
+    expect(find.byIcon(AppIcons.heartFilled), findsOneWidget);
     expect(find.byType(CupertinoActivityIndicator), findsNothing);
     expect(
       tester.getSemantics(find.bySemanticsLabel('收藏插画：work 1')),
@@ -558,7 +559,7 @@ void main() {
           .read(bookmarkStoreProvider.notifier)
           .observeRemote(key, bookmarked: true, snapshotRevision: 0);
       expect(await peakScale(tester), 1);
-      expect(find.byIcon(Icons.favorite_sharp), findsOneWidget);
+      expect(find.byIcon(AppIcons.heartFilled), findsOneWidget);
 
       await tester.tap(find.byType(BookmarkSwitchButton));
       final (low, high) = await scaleRange(tester);

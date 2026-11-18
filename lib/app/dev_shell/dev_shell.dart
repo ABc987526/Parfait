@@ -14,6 +14,7 @@ import '../layout/window_layout_spec.dart';
 import '../theme/func_semantic_tokens.dart';
 import '../widgets/app_menu_button.dart';
 import '../window/desktop_title_bar.dart';
+import '../icons/app_icons.dart';
 
 /// Build-time toggle for the five-platform interactive shell emulator.
 ///
@@ -531,7 +532,7 @@ class DevShellHostState extends State<DevShellHost> {
                 onSelected: (_, v) => _controller.setViewport(v),
                 anchorBuilder: (context, toggle) => TextButton.icon(
                   onPressed: toggle,
-                  icon: const Icon(Icons.aspect_ratio, size: 16),
+                  icon: const Icon(AppIcons.dimensions, size: 16),
                   label: Text(_controller.viewport.label, style: labelStyle),
                 ),
               ),
@@ -564,7 +565,7 @@ class DevShellHostState extends State<DevShellHost> {
                 key: const ValueKey('dev-shell-capture-btn'),
                 tooltip: 'Capture Frame PNG',
                 onPressed: () => unawaited(captureFrameToDisk()),
-                icon: const Icon(Icons.photo_camera_outlined),
+                icon: const Icon(AppIcons.imageSearch),
               ),
               if (captureName != null) ...[
                 const SizedBox(width: FuncSpacing.xs),
@@ -606,7 +607,7 @@ class DevShellHostState extends State<DevShellHost> {
                 tooltip: 'Expand DevShell Controls',
                 onPressed: () => _controller.setCollapsedToPill(false),
                 icon: Icon(
-                  Icons.tune_outlined,
+                  AppIcons.filter,
                   color: colors.onInverseSurface,
                   size: 18,
                 ),

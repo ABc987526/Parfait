@@ -29,6 +29,7 @@ import '../../core/watchlist/watchlist_store.dart';
 import '../../l10n/context.dart';
 import '../../app/theme/func_semantic_tokens.dart';
 import '../../app/widgets/feed/load_more_listener.dart';
+import '../../app/icons/app_icons.dart';
 
 /// 追更列表: manga and novel series segments (`/v1/watchlist/*`).
 /// A tile shows a "new content" badge while its `latest_content_id` is
@@ -88,7 +89,7 @@ class _WatchlistFeedBody extends ConsumerWidget {
           data: (feed) {
             if (feed.entries.isEmpty) {
               return FeedEmpty(
-                icon: Icons.library_books_outlined,
+                icon: AppIcons.watchlist,
                 title: context.l10n.watchlistEmpty,
               );
             }
@@ -231,7 +232,7 @@ class _WatchlistEntryTile extends ConsumerWidget {
                   left: _badgeInset,
                   bottom: _badgeInset,
                   child: EntityBadge(
-                    icon: Icons.collections_bookmark_outlined,
+                    icon: AppIcons.series,
                     label: AppFormat.count(context, count),
                     semanticsLabel: context.l10n.seriesWorksCount(count),
                   ),
@@ -320,7 +321,7 @@ class _WatchlistEntryTile extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
-                leading: const Icon(Icons.collections_bookmark_outlined),
+                leading: const Icon(AppIcons.series),
                 title: Text(sheetContext.l10n.watchlistOpenContents),
                 onTap: () {
                   Navigator.of(sheetContext).pop();
@@ -333,7 +334,7 @@ class _WatchlistEntryTile extends ConsumerWidget {
               ),
               if (recent != null)
                 ListTile(
-                  leading: const Icon(Icons.history),
+                  leading: const Icon(AppIcons.history),
                   title: Text(
                     recent.contentOrder != null
                         ? sheetContext.l10n.seriesContinueEpisode(
@@ -348,7 +349,7 @@ class _WatchlistEntryTile extends ConsumerWidget {
                 ),
               if (lastNovelId != null)
                 ListTile(
-                  leading: const Icon(Icons.history),
+                  leading: const Icon(AppIcons.history),
                   title: Text(sheetContext.l10n.seriesContinue),
                   onTap: () {
                     Navigator.of(sheetContext).pop();

@@ -223,7 +223,7 @@ class _DownloadThumbnail extends StatelessWidget {
         child: ColoredBox(
           color: colorScheme.surfaceContainerHighest,
           child: url == null
-              ? Icon(Icons.image_outlined, color: colorScheme.onSurfaceVariant)
+              ? Icon(AppIcons.illust, color: colorScheme.onSurfaceVariant)
               : PixivImage.feed(url, layoutWidth: size, fit: BoxFit.cover),
         ),
       ),
@@ -613,7 +613,7 @@ class _DownloadGroupHeader extends StatelessWidget {
         if (works.length == 1)
           _DownloadAction(
             label: l10n.downloadViewResult,
-            icon: Icons.open_in_new,
+            icon: AppIcons.externalLink,
             onPressed: () => unawaited(openIllust(context, works.single)),
           ),
         _DownloadAction(

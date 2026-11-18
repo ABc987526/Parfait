@@ -64,6 +64,7 @@ import 'helpers/view_size.dart';
 import 'helpers/pixiv_router.dart';
 import 'helpers/test_preferences.dart';
 import 'helpers/waits.dart';
+import 'package:parfait/app/icons/app_icons.dart';
 
 class _TransferClipboard implements TransferClipboard {
   String? text;
@@ -320,7 +321,7 @@ void main() {
       expect(
         tester
             .widgetList<IconButton>(
-              find.widgetWithIcon(IconButton, Icons.delete_outline),
+              find.widgetWithIcon(IconButton, AppIcons.trash),
             )
             .map((button) => button.onPressed),
         everyElement(isNull),
@@ -459,7 +460,7 @@ void main() {
       expect(find.byType(AppBar), findsOneWidget);
       final barSettings = find.descendant(
         of: find.byType(AppBar),
-        matching: find.byIcon(Icons.settings_outlined),
+        matching: find.byIcon(AppIcons.settings),
       );
       expect(barSettings, findsOneWidget);
       // One node for who is signed in, read with the badge and the ID, and

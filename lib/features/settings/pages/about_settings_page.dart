@@ -33,6 +33,7 @@ import '../settings_helpers.dart';
 import '../../../app/clipboard.dart';
 import '../settings_catalog.dart';
 import '../../../app/layout/content_widths.dart';
+import '../../../app/icons/app_icons.dart';
 
 class AboutSettingsPage extends ConsumerStatefulWidget {
   const AboutSettingsPage({super.key});
@@ -133,21 +134,21 @@ class _AboutSettingsPageState extends ConsumerState<AboutSettingsPage> {
                 FutureBuilder<PackageInfo>(
                   future: _packageInfo,
                   builder: (context, snapshot) => SettingsActionTile(
-                    icon: Icons.info_outline,
+                    icon: AppIcons.info,
                     setting: Setting.aboutVersion,
                     trailing: Text(snapshot.data?.version ?? '—'),
                     onTap: _onVersionTap,
                   ),
                 ),
                 SettingsTile(
-                  icon: Icons.auto_stories_outlined,
+                  icon: AppIcons.localNovel,
                   setting: Setting.aboutLicense,
                   subtitle: Text(context.l10n.aboutLicenseText),
                   onTap: () =>
                       openSettingsPage(context, '/settings/about/licenses'),
                 ),
                 SettingsActionTile(
-                  icon: Icons.code,
+                  icon: AppIcons.code,
                   setting: Setting.aboutSource,
                   subtitle: const _ExternalLinkText(
                     'github.com/$updateRepository',
@@ -159,7 +160,7 @@ class _AboutSettingsPageState extends ConsumerState<AboutSettingsPage> {
                   trailing: EdgeIconButtons(
                     children: [
                       IconButton(
-                        icon: const Icon(Icons.copy_outlined),
+                        icon: const Icon(AppIcons.copy),
                         tooltip: context.l10n.copy,
                         onPressed: _copySourceUrl,
                       ),
@@ -167,7 +168,7 @@ class _AboutSettingsPageState extends ConsumerState<AboutSettingsPage> {
                   ),
                 ),
                 SettingsActionTile(
-                  icon: Icons.bug_report_outlined,
+                  icon: AppIcons.bugReport,
                   setting: Setting.aboutExportLogs,
                   onTap: () => _exportCrashLog(
                     context,
@@ -183,7 +184,7 @@ class _AboutSettingsPageState extends ConsumerState<AboutSettingsPage> {
                   FutureBuilder<DisplayMode?>(
                     future: _activeDisplayMode,
                     builder: (context, snapshot) => SettingsActionTile(
-                      icon: Icons.speed_outlined,
+                      icon: AppIcons.gauge,
                       setting: Setting.aboutDisplayRefreshRate,
                       trailing: Text(
                         snapshot.data != null
@@ -201,7 +202,7 @@ class _AboutSettingsPageState extends ConsumerState<AboutSettingsPage> {
               children: [
                 updateService.when(
                   loading: () => SettingsActionTile(
-                    icon: Icons.system_update_outlined,
+                    icon: AppIcons.update,
                     title: Text(context.l10n.aboutCheckUpdate),
                     subtitle: Text(context.l10n.aboutCheckingUpdate),
                   ),
@@ -295,7 +296,7 @@ class _AboutUpdateSectionState extends State<_AboutUpdateSection> {
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return SettingsActionTile(
-            icon: Icons.system_update_outlined,
+            icon: AppIcons.update,
             title: Text(context.l10n.aboutCheckUpdate),
             subtitle: Text(context.l10n.aboutCheckingUpdate),
           );
@@ -312,7 +313,7 @@ class _AboutUpdateSectionState extends State<_AboutUpdateSection> {
             capability.flavor == UpdateFlavor.fdroid) {
           final android = Theme.of(context).platform == TargetPlatform.android;
           return SettingsActionTile(
-            icon: android ? Icons.store_outlined : Icons.warning_amber_outlined,
+            icon: android ? AppIcons.store : Icons.warning_amber_outlined,
             title: Text(context.l10n.aboutCheckUpdate),
             subtitle: Text(
               android
@@ -366,7 +367,7 @@ class _AboutUpdateSectionState extends State<_AboutUpdateSection> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SettingsActionTile(
-          icon: Icons.system_update_outlined,
+          icon: AppIcons.update,
           title: Text(context.l10n.aboutCheckUpdate),
           subtitle: Text(
             _checking
@@ -400,7 +401,7 @@ class _AboutUpdateSectionState extends State<_AboutUpdateSection> {
                   ? Icons.close
                   : release == null
                   ? Icons.refresh
-                  : Icons.download_outlined,
+                  : AppIcons.download,
             ),
             label: Text(
               _applying
@@ -569,7 +570,7 @@ class _ExternalLinkText extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsetsDirectional.only(start: FuncSpacing.xs),
               child: Icon(
-                Icons.open_in_new,
+                AppIcons.externalLink,
                 size: style.fontSize,
                 color: style.color,
                 applyTextScaling: true,

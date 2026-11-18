@@ -34,6 +34,7 @@ import 'helpers/localized_app.dart';
 import 'helpers/view_size.dart';
 import 'helpers/waits.dart';
 import 'helpers/leak_tracking.dart';
+import 'package:parfait/app/icons/app_icons.dart';
 
 const _articleHtml = '''
 <!DOCTYPE html>
@@ -447,7 +448,7 @@ void main() {
         images: {cdn: http.Response.bytes(onePixelPng, 200)},
       );
       await pumpIoUntil(tester, () => painted(tester));
-      expect(find.byIcon(Icons.broken_image_outlined), findsNothing);
+      expect(find.byIcon(AppIcons.illustBroken), findsNothing);
     });
 
     testWidgets('a landscape window caps the cover, so the first lines show', (

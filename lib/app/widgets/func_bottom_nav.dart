@@ -24,9 +24,18 @@ IconData homeDestinationIcon(HomeDestination destination) =>
     switch (destination) {
       HomeDestination.recommended => AppIcons.home,
       HomeDestination.ranking => AppIcons.ranking,
-      HomeDestination.newWorks => Icons.fiber_new_outlined,
+      HomeDestination.newWorks => AppIcons.newWorks,
       HomeDestination.search => AppIcons.search,
-      HomeDestination.me => Icons.person_outline,
+      HomeDestination.me => AppIcons.user,
+    };
+
+IconData homeDestinationSelectedIcon(HomeDestination destination) =>
+    switch (destination) {
+      HomeDestination.recommended => AppIcons.homeFilled,
+      HomeDestination.ranking => AppIcons.rankingFilled,
+      HomeDestination.newWorks => AppIcons.newWorksFilled,
+      HomeDestination.search => AppIcons.searchFilled,
+      HomeDestination.me => AppIcons.userFilled,
     };
 
 String homeDestinationLabel(
@@ -49,6 +58,7 @@ List<FuncBottomNavDestination> homeDestinations(
   for (final destination in destinations)
     FuncBottomNavDestination(
       icon: homeDestinationIcon(destination),
+      selectedIcon: homeDestinationSelectedIcon(destination),
       label: homeDestinationLabel(context, destination),
     ),
 ];
@@ -199,9 +209,14 @@ class FuncBottomNav extends StatelessWidget {
 }
 
 class FuncBottomNavDestination {
-  const FuncBottomNavDestination({required this.icon, required this.label});
+  const FuncBottomNavDestination({
+    required this.icon,
+    this.selectedIcon,
+    required this.label,
+  });
 
   final IconData icon;
+  final IconData? selectedIcon;
   final String label;
 }
 
@@ -336,8 +351,12 @@ class _FuncBottomNavItemState extends State<_FuncBottomNavItem>
       animation: _selection,
       builder: (context, _) {
         final t = _curve.transform(_selection.value);
+        final activeIcon = widget.destination.selectedIcon;
+        final resolvedIcon = t >= 0.5 && activeIcon != null
+            ? activeIcon
+            : widget.destination.icon;
         final icon = Icon(
-          widget.destination.icon,
+          resolvedIcon,
           size: FuncBottomNav._iconSize,
           color: Color.lerp(idleIcon, selectedIcon, t),
         );

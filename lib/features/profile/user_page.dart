@@ -102,7 +102,7 @@ class MePage extends ConsumerWidget {
     return accounts.when(
       loading: () => const Scaffold(body: FeedLoading()),
       error: (error, _) => _ProfileStatusPage(
-        icon: Icons.cloud_off,
+        icon: AppIcons.cloudOff,
         title: context.l10n.profileLoadFailed,
         error: error,
         onRetry: () => ref.read(accountStoreProvider.notifier).reload(),
@@ -110,7 +110,7 @@ class MePage extends ConsumerWidget {
       data: (state) {
         if (state.status == AccountStatus.failure) {
           return _ProfileStatusPage(
-            icon: Icons.cloud_off,
+            icon: AppIcons.cloudOff,
             title: context.l10n.accountReadFailed,
             error: state.error ?? StateError('account state unavailable'),
             onRetry: () => ref.read(accountStoreProvider.notifier).reload(),
@@ -119,7 +119,7 @@ class MePage extends ConsumerWidget {
         final account = state.usableCurrent;
         if (account == null) {
           return _ProfileStatusPage(
-            icon: Icons.person_off_outlined,
+            icon: AppIcons.userOff,
             title: context.l10n.signedOut,
             detail: context.l10n.noAccounts,
           );
@@ -497,28 +497,28 @@ class _UserPageState extends ConsumerState<UserPage>
     ),
     ProfileStatisticData(
       id: 'illust',
-      icon: Icons.palette_outlined,
+      icon: AppIcons.palette,
       label: context.l10n.profileIllust,
       value: user.totalIllusts,
       onTap: _openTab(_ProfileTab.illust),
     ),
     ProfileStatisticData(
       id: 'manga',
-      icon: Icons.menu_book_outlined,
+      icon: AppIcons.novel,
       label: context.l10n.profileManga,
       value: user.totalManga,
       onTap: _openTab(_ProfileTab.manga),
     ),
     ProfileStatisticData(
       id: 'novel',
-      icon: Icons.auto_stories_outlined,
+      icon: AppIcons.localNovel,
       label: context.l10n.profileNovel,
       value: user.totalNovels,
       onTap: _openTab(_ProfileTab.novel),
     ),
     ProfileStatisticData(
       id: 'series',
-      icon: Icons.collections_bookmark_outlined,
+      icon: AppIcons.series,
       label: context.l10n.profileSeries,
       // The series tab hosts illust series only, so the count mirrors what
       // the destination lists (W3 D4: novel series stays unlisted).
@@ -533,7 +533,7 @@ class _UserPageState extends ConsumerState<UserPage>
     final body = async.when(
       loading: () => const ProfileSkeleton(),
       error: (error, _) => _ProfileStatusPage(
-        icon: Icons.cloud_off,
+        icon: AppIcons.cloudOff,
         title: context.l10n.profileLoadFailed,
         error: error,
         onRetry: () => ref
@@ -553,18 +553,18 @@ class _UserPageState extends ConsumerState<UserPage>
     return switch (state) {
       UserDetailLoading() => const ProfileSkeleton(),
       UserDetailNotFound() => _ProfileStatusPage(
-        icon: Icons.person_off_outlined,
+        icon: AppIcons.userOff,
         title: context.l10n.profileNotFound,
       ),
       UserDetailBlocked() => _ProfileStatusPage(
-        icon: Icons.block_outlined,
+        icon: AppIcons.ban,
         title: context.l10n.profileBlocked,
       ),
       UserDetailReady(:final user) => _buildProfile(user),
       UserDetailError(:final error, :final snapshot) when snapshot != null =>
         _buildProfile(snapshot, staleError: error),
       UserDetailError(:final error) => _ProfileStatusPage(
-        icon: Icons.cloud_off,
+        icon: AppIcons.cloudOff,
         title: context.l10n.profileLoadFailed,
         error: error,
         onRetry: () => ref
@@ -812,7 +812,7 @@ class _UserPageState extends ConsumerState<UserPage>
       builder: (buttonContext) => IconButton(
         tooltip: l10n.profileShare,
         onPressed: () => unawaited(_shareProfile(buttonContext, ref, user)),
-        icon: const Icon(Icons.share_outlined),
+        icon: const Icon(AppIcons.share),
       ),
     );
     final Widget? primaryAction = hasEditAction

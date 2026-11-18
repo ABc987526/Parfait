@@ -37,6 +37,7 @@ import '../../app/theme/func_semantic_tokens.dart';
 import '../../app/widgets/app_choice_chip.dart';
 import '../../app/layout/content_widths.dart';
 import '../../app/window/desktop_command_bar.dart';
+import '../../app/icons/app_icons.dart';
 
 part 'reverse_image_search_widgets.dart';
 
@@ -289,7 +290,7 @@ class _ReverseImageSearchPageState
   Widget _idle(BuildContext context, ReverseImageFlowState state) {
     final pickButton = FilledButton.icon(
       onPressed: _controller.pick,
-      icon: const Icon(Icons.photo_library_outlined),
+      icon: const Icon(AppIcons.multiPage),
       label: Text(context.l10n.searchReversePick),
     );
     return Align(
@@ -299,7 +300,7 @@ class _ReverseImageSearchPageState
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.image_search_outlined, size: 72),
+            const Icon(AppIcons.imageSearch, size: 72),
             const SizedBox(height: FuncSpacing.lg),
             Text(context.l10n.searchReverseIntro, textAlign: TextAlign.center),
             const SizedBox(height: FuncSpacing.lg),
@@ -345,7 +346,7 @@ class _ReverseImageSearchPageState
     return _WithBottomAction(
       action: FilledButton.icon(
         onPressed: supported ? _search : null,
-        icon: const Icon(Icons.search),
+        icon: const Icon(AppIcons.search),
         label: Text(context.l10n.searchReverseUse),
       ),
       child: SingleChildScrollView(
@@ -362,7 +363,7 @@ class _ReverseImageSearchPageState
             Center(
               child: TextButton.icon(
                 onPressed: _controller.pick,
-                icon: const Icon(Icons.photo_library_outlined, size: 18),
+                icon: const Icon(AppIcons.multiPage, size: 18),
                 label: Text(context.l10n.searchReverseRetry),
               ),
             ),
@@ -390,7 +391,7 @@ class _ReverseImageSearchPageState
       primary: challenged
           ? FilledButton.icon(
               onPressed: _controller.searchInBrowser,
-              icon: const Icon(Icons.open_in_browser_outlined),
+              icon: const Icon(AppIcons.externalLink),
               label: Text(context.l10n.searchReverseOpenInBrowser),
             )
           : held
@@ -401,7 +402,7 @@ class _ReverseImageSearchPageState
             )
           : FilledButton.icon(
               onPressed: _controller.pick,
-              icon: const Icon(Icons.photo_library_outlined),
+              icon: const Icon(AppIcons.multiPage),
               label: Text(context.l10n.searchReverseRetry),
             ),
       secondary: [
@@ -424,14 +425,14 @@ class _ReverseImageSearchPageState
   Widget _noMatch(BuildContext context, ReverseImageFlowState state) {
     final next = state.nextEngine;
     return _Outcome(
-      icon: Icons.search_off,
+      icon: AppIcons.searchOff,
       message: next == null
           ? context.l10n.searchReverseAllEnginesTried
           : context.l10n.searchReverseNoResults,
       primary: next == null
           ? FilledButton.icon(
               onPressed: _controller.pick,
-              icon: const Icon(Icons.photo_library_outlined),
+              icon: const Icon(AppIcons.multiPage),
               label: Text(context.l10n.searchReverseRetry),
             )
           : FilledButton(

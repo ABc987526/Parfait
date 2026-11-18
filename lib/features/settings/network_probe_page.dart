@@ -22,6 +22,7 @@ import 'settings_helpers.dart';
 import '../../app/theme/func_semantic_tokens.dart';
 import '../../app/clipboard.dart';
 import '../../app/layout/content_widths.dart';
+import '../../app/icons/app_icons.dart';
 
 String _probeText(BuildContext context, String key) {
   return l10nLookup(context.l10n, key);
@@ -528,7 +529,7 @@ class NetworkProbeHostPanel extends StatelessWidget {
                         body.toCopyableText(),
                         message: context.l10n.networkProbeCopied,
                       ),
-                      icon: const Icon(Icons.copy_outlined, size: 16),
+                      icon: const Icon(AppIcons.copy, size: 16),
                       label: Text(context.l10n.copy),
                     ),
                   ),

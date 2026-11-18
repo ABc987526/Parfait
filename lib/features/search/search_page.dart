@@ -38,6 +38,7 @@ import '../../core/spotlight/spotlight_store.dart';
 import '../../l10n/context.dart';
 import 'search_section_header.dart';
 import 'search_text.dart';
+import '../../app/icons/app_icons.dart';
 
 export 'search_input_engine.dart';
 export 'search_input_page.dart';
@@ -174,7 +175,7 @@ class _SearchHomePageState extends ConsumerState<SearchHomePage>
     final camera = IconButton(
       tooltip: l10n.searchReverseImage,
       onPressed: () => openReverseImageSearch(context),
-      icon: const Icon(Icons.photo_camera_outlined),
+      icon: const Icon(AppIcons.imageSearch),
     );
     // The wide header puts the kind tabs on the title row and the shared
     // search field next to the camera (R7); a phone keeps the field over
@@ -742,7 +743,7 @@ class _TrendingTagTile extends ConsumerWidget {
                     onLongPress: openWork,
                     actions: [
                       DisplayAction(
-                        icon: Icons.open_in_new,
+                        icon: AppIcons.externalLink,
                         label: context.l10n.downloadOpenWork,
                         onSelected: openWork,
                       ),

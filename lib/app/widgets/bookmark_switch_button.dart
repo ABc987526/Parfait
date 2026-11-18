@@ -27,6 +27,7 @@ import '../../l10n/lookup.dart';
 import 'app_choice_chip.dart';
 import 'display_actions.dart';
 import 'settings/settings_control.dart';
+import '../icons/app_icons.dart';
 
 String _bookmarkText(BuildContext context, String key) =>
     l10nLookup(context.l10n, key);
@@ -213,9 +214,7 @@ class _BookmarkSwitchButtonState extends ConsumerState<BookmarkSwitchButton>
           onLongPress: open,
           actions: [
             DisplayAction(
-              icon: bookmarked
-                  ? Icons.edit_outlined
-                  : Icons.bookmark_add_outlined,
+              icon: bookmarked ? AppIcons.edit : AppIcons.watchLaterAdd,
               label: bookmarked
                   ? context.l10n.bookmarkEditTitle
                   : widget.isNovel
@@ -246,11 +245,11 @@ class _BookmarkSwitchButtonState extends ConsumerState<BookmarkSwitchButton>
           scale: _pop,
           child: bookmarked
               ? Icon(
-                  Icons.favorite_sharp,
+                  AppIcons.heartFilled,
                   color: FuncTokens.bookmarked,
                   size: 24,
                 )
-              : const Icon(Icons.favorite_outline_sharp, size: 24),
+              : const Icon(AppIcons.heart, size: 24),
         ),
       ],
     );

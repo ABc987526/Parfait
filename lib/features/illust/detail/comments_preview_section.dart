@@ -21,6 +21,7 @@ import '../../../l10n/context.dart';
 import '../../../app/widgets/comment_composer.dart';
 import 'on_demand_sliver.dart';
 import 'widgets/detail_section_header.dart';
+import '../../../app/icons/app_icons.dart';
 
 /// The comment section under the info block: an entry that opens the
 /// page's composer, then the first few comments, each opening the
@@ -120,7 +121,7 @@ class _ClosedComments extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: FuncSpacing.lg),
           child: Row(
             children: [
-              Icon(Icons.lock_outline, size: 18, color: muted),
+              Icon(AppIcons.lock, size: 18, color: muted),
               const SizedBox(width: FuncSpacing.sm),
               Expanded(
                 child: Text(
@@ -298,7 +299,7 @@ class _CommentEntry extends ConsumerWidget {
           IconButton(
             tooltip: context.l10n.commentStamps,
             onPressed: () => onCompose(CommentComposerInputState.stamp),
-            icon: const Icon(Icons.image_outlined),
+            icon: const Icon(AppIcons.illust),
           ),
         ],
       ),

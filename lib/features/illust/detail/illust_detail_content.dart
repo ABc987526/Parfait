@@ -802,7 +802,7 @@ extension _IllustDetailContent on _IllustDetailPageState {
                 IconButton(
                   key: const ValueKey('desktop-inspector-expand'),
                   tooltip: l10n.viewerOpenDetail,
-                  icon: const Icon(Icons.open_in_full, size: 18),
+                  icon: const Icon(AppIcons.expand, size: 18),
                   onPressed: () => widget.onOpenFullStage!(entity),
                 ),
               if (widget.onCloseInspector != null)
@@ -884,7 +884,7 @@ extension _IllustDetailContent on _IllustDetailPageState {
         Builder(
           builder: (buttonContext) => IconButton(
             tooltip: context.l10n.cardActionShare,
-            icon: const Icon(Icons.share_outlined),
+            icon: const Icon(AppIcons.share),
             onPressed: () => unawaited(_share(buttonContext, ref, entity)),
           ),
         ),
@@ -1005,12 +1005,12 @@ class _DetailMoreMenu extends ConsumerWidget {
     AppMenuEntry<Object> entryOf(Object action) => switch (action) {
       _DetailMenuAction.share => AppMenuEntry(
         value: action,
-        icon: Icons.share_outlined,
+        icon: AppIcons.share,
         label: l10n.cardActionShare,
       ),
       _DetailMenuAction.editBookmark => AppMenuEntry(
         value: action,
-        icon: Icons.favorite_border,
+        icon: AppIcons.heart,
         label: bookmarked ? l10n.bookmarkEditTitle : l10n.bookmarkIllust,
         enabled: !bookmarkUnsettled,
       ),
@@ -1021,7 +1021,7 @@ class _DetailMoreMenu extends ConsumerWidget {
       ),
       _DetailMenuAction.info => AppMenuEntry(
         value: action,
-        icon: Icons.info_outline,
+        icon: AppIcons.info,
         label: l10n.illustInfoJump,
       ),
       final CardAction card => AppMenuEntry(

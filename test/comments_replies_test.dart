@@ -42,6 +42,7 @@ import 'helpers/localized_app.dart';
 import 'helpers/view_size.dart';
 import 'helpers/pixiv_router.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
+import 'package:parfait/app/icons/app_icons.dart';
 
 Future<ProviderContainer> _apiContainer(
   Future<http.Response> Function(http.Request) handler,
@@ -569,7 +570,7 @@ void main() {
 
       final titleTop = tester.getTopLeft(find.text('评论')).dy;
       final commentTop = tester.getTopLeft(find.text('comment 11')).dy;
-      final sendTop = tester.getTopLeft(find.byIcon(Icons.send_outlined)).dy;
+      final sendTop = tester.getTopLeft(find.byIcon(AppIcons.send)).dy;
 
       // Focus the composer field, then the IME reports its height — the
       // composer reserves the keyboard extent in its own bottom slot.
@@ -587,12 +588,9 @@ void main() {
 
       // The input row (and its send affordance) rides up by exactly the
       // keyboard height and lands fully above the IME.
+      expect(tester.getTopLeft(find.byIcon(AppIcons.send)).dy, sendTop - 300);
       expect(
-        tester.getTopLeft(find.byIcon(Icons.send_outlined)).dy,
-        sendTop - 300,
-      );
-      expect(
-        tester.getBottomLeft(find.byIcon(Icons.send_outlined)).dy,
+        tester.getBottomLeft(find.byIcon(AppIcons.send)).dy,
         lessThanOrEqualTo(844 - 300),
       );
     },
@@ -652,7 +650,7 @@ void main() {
           ),
         ),
       );
-      await tester.tap(find.byIcon(Icons.send_outlined));
+      await tester.tap(find.byIcon(AppIcons.send));
       await tester.pump();
       await tester.pumpWidget(app(const SizedBox()));
       gate.complete();
@@ -1216,7 +1214,7 @@ void main() {
 
     await tester.enterText(find.byType(TextField), 'hi there');
     await tester.pump();
-    await tester.tap(find.byIcon(Icons.send_outlined));
+    await tester.tap(find.byIcon(AppIcons.send));
     await tester.pumpAndSettle();
 
     // Success clears both the draft and the pinned reply target.
@@ -1244,7 +1242,7 @@ void main() {
     await tester.pump();
     await tester.enterText(find.byType(TextField), 'hi there');
     await tester.pump();
-    await tester.tap(find.byIcon(Icons.send_outlined));
+    await tester.tap(find.byIcon(AppIcons.send));
     await tester.pump();
 
     // While the first send is in flight the user re-targets comment 12.
@@ -1274,7 +1272,7 @@ void main() {
       // The default target is the root author; a failed send keeps it.
       await tester.enterText(find.byType(TextField), 'keep me');
       await tester.pump();
-      await tester.tap(find.byIcon(Icons.send_outlined));
+      await tester.tap(find.byIcon(AppIcons.send));
       await tester.pump();
       await tester.pump();
 
@@ -1308,7 +1306,7 @@ void main() {
 
       await tester.enterText(find.byType(TextField), 'hi');
       await tester.pump();
-      await tester.tap(find.byIcon(Icons.send_outlined));
+      await tester.tap(find.byIcon(AppIcons.send));
       await tester.pumpAndSettle();
       expect(haptics.roles, roles, reason: 'failed: ${failure != null}');
       await tester.pumpWidget(const SizedBox());

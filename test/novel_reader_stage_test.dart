@@ -27,6 +27,7 @@ import 'helpers/settings_world.dart' show RecordingTranslationEngine;
 import 'helpers/localized_app.dart';
 import 'helpers/test_preferences.dart';
 import 'helpers/view_size.dart';
+import 'package:parfait/app/icons/app_icons.dart';
 
 /// Stage-level test with a recording progress binding: pins the D1 write
 /// gate — only user-committed turns reach `save`.
@@ -46,7 +47,7 @@ void main() {
     // Open and close the info sheet — still no write.
     await tester.tapAt(const Offset(400, 300));
     await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(Icons.info_outline));
+    await tester.tap(find.byIcon(AppIcons.info));
     await tester.pumpAndSettle();
     expect(find.text('info sheet'), findsOneWidget);
     await tester.tapAt(const Offset(200, 100));
@@ -84,7 +85,7 @@ void main() {
 
     await tester.tapAt(const Offset(400, 300));
     await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(Icons.tune_outlined));
+    await tester.tap(find.byIcon(AppIcons.filter));
     await tester.pumpAndSettle();
     await tester.tap(find.text('左右翻页'));
     await tester.pumpAndSettle();
@@ -291,7 +292,7 @@ void main() {
     final line = firstLine();
     await tester.tapAt(const Offset(400, 300));
     await tester.pumpAndSettle();
-    expect(find.byIcon(Icons.info_outline), findsOneWidget);
+    expect(find.byIcon(AppIcons.info), findsOneWidget);
     expect(firstLine(), same(line));
     await tester.tapAt(const Offset(400, 300));
     await tester.pumpAndSettle();
@@ -392,7 +393,7 @@ void main() {
 
     await tester.tapAt(const Offset(400, 300));
     await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(Icons.text_decrease_outlined));
+    await tester.tap(find.byIcon(AppIcons.textDecrease));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
 
@@ -406,7 +407,7 @@ void main() {
     // programmatically so it stops covering the bottom bar.
     PromptHost.of(tester.element(find.byType(Scaffold).first)).hideCurrent();
     await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(Icons.tune_outlined));
+    await tester.tap(find.byIcon(AppIcons.filter));
     await tester.pumpAndSettle();
     expect(find.text('16'), findsOneWidget);
   });
@@ -542,7 +543,7 @@ void main() {
       );
 
       await tester.tap(
-        find.byIcon(Icons.tune_outlined),
+        find.byIcon(AppIcons.filter),
         kind: PointerDeviceKind.mouse,
       );
       await tester.pumpAndSettle();
@@ -566,7 +567,7 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.tap(
-        find.byIcon(Icons.info_outline),
+        find.byIcon(AppIcons.info),
         kind: PointerDeviceKind.mouse,
       );
       await tester.pumpAndSettle();
@@ -583,7 +584,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(tester.getSize(find.byType(NovelReaderStage)).width, 500);
       await tester.tap(
-        find.byIcon(Icons.tune_outlined),
+        find.byIcon(AppIcons.filter),
         kind: PointerDeviceKind.mouse,
       );
       await tester.pumpAndSettle();
@@ -649,12 +650,12 @@ void main() {
 
       final cue = find.byKey(const ValueKey('novel-pointer-cue'));
       expect(cue, findsOneWidget);
-      expect(find.byIcon(Icons.info_outline), findsNothing);
+      expect(find.byIcon(AppIcons.info), findsNothing);
 
       await tester.tap(cue, kind: PointerDeviceKind.mouse);
       await tester.pumpAndSettle();
 
-      expect(find.byIcon(Icons.info_outline), findsOneWidget);
+      expect(find.byIcon(AppIcons.info), findsOneWidget);
       expect(cue, findsNothing);
     },
   );

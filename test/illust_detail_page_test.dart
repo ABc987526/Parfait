@@ -40,6 +40,7 @@ import 'helpers/illust_detail_page_support.dart';
 import 'helpers/localized_app.dart';
 import 'helpers/view_size.dart';
 import 'helpers/waits.dart';
+import 'package:parfait/app/icons/app_icons.dart';
 
 class _RecordingOpener implements OutboundUrlOpener {
   final urls = <String>[];
@@ -328,7 +329,7 @@ void main() {
         // A plain work: no marks, no tools.
         expect(find.text('AI 生成'), findsNothing);
         expect(find.text('R-18G'), findsNothing);
-        expect(find.byIcon(Icons.brush_outlined), findsNothing);
+        expect(find.byIcon(AppIcons.brush), findsNothing);
         await tester.tap(find.byKey(const Key('illust-detail-id')));
         await tester.pump();
         expect(clipboard, ['42']);
@@ -379,7 +380,7 @@ void main() {
         expect(
           tester.getCenter(find.text('AI 生成')).dy,
           moreOrLessEquals(
-            tester.getCenter(find.byIcon(Icons.visibility_outlined)).dy,
+            tester.getCenter(find.byIcon(AppIcons.eye)).dy,
             epsilon: 1,
           ),
         );

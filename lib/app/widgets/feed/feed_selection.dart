@@ -20,6 +20,7 @@ import '../../theme/func_semantic_tokens.dart';
 import '../../window/desktop_command_bar.dart';
 import '../app_snack_bar.dart';
 import '../errors/error_details.dart';
+import '../../icons/app_icons.dart';
 
 bool _isHostOnScreen(BuildContext context) {
   if (!TickerMode.getValuesNotifier(context).value.enabled) return false;
@@ -548,7 +549,7 @@ class FeedBatchActionBar extends ConsumerWidget {
           TextButton.icon(
             onPressed: () =>
                 unawaited(_downloadSelected(context, ref, controller)),
-            icon: const Icon(Icons.download_outlined, size: 18),
+            icon: const Icon(AppIcons.download, size: 18),
             label: Text(l10n.batchDownloadOriginal),
           ),
           TextButton.icon(
@@ -560,7 +561,7 @@ class FeedBatchActionBar extends ConsumerWidget {
                 BookmarkRestrict.public,
               ),
             ),
-            icon: const Icon(Icons.favorite_border, size: 18),
+            icon: const Icon(AppIcons.heart, size: 18),
             label: Text(l10n.batchBookmarkPublic),
           ),
           TextButton.icon(
@@ -572,7 +573,7 @@ class FeedBatchActionBar extends ConsumerWidget {
                 BookmarkRestrict.private,
               ),
             ),
-            icon: const Icon(Icons.lock_outline, size: 18),
+            icon: const Icon(AppIcons.lock, size: 18),
             label: Text(l10n.batchBookmarkPrivate),
           ),
           IconButton(

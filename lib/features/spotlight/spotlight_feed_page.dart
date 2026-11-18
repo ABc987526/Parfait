@@ -21,6 +21,7 @@ import '../../l10n/context.dart';
 import '../../l10n/lookup.dart';
 import '../../app/theme/func_semantic_tokens.dart';
 import '../../app/widgets/feed/load_more_listener.dart';
+import '../../app/icons/app_icons.dart';
 
 /// pixivision spotlight article list: category tabs (all/illust/manga) over
 /// independent paged feeds. Cards open the in-app article page through
@@ -195,7 +196,7 @@ class _SpotlightCategoryFeed extends ConsumerWidget {
                     SliverFillRemaining(
                       hasScrollBody: false,
                       child: FeedEmpty(
-                        icon: Icons.newspaper_outlined,
+                        icon: AppIcons.spotlight,
                         title: context.l10n.spotlightEmpty,
                         retryLabel: context.l10n.refresh,
                         onRefresh: () => ref.read(provider.notifier).refresh(),

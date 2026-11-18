@@ -17,6 +17,7 @@ import 'package:parfait/features/search/search_filter_labels.dart';
 import 'package:parfait/l10n/app_localizations.dart';
 
 import 'review_support.dart';
+import 'package:parfait/app/icons/app_icons.dart';
 
 class _SpreadNovelSettingsStore extends NovelReaderSettingsStore {
   _SpreadNovelSettingsStore(super.preferences);
@@ -158,7 +159,7 @@ void main() {
     location: '/recommended/illust/1000/viewer/0',
     before: (tester, router) async {
       beginImageViewerSession();
-      final info = find.byIcon(Icons.info_outline);
+      final info = find.byIcon(AppIcons.info);
       if (info.evaluate().isNotEmpty) {
         await tester.tap(info.first);
       }

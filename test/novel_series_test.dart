@@ -16,6 +16,7 @@ import 'helpers/illust_fixtures.dart';
 import 'helpers/localized_app.dart';
 import 'helpers/pixiv_router.dart';
 import 'helpers/prompt_host.dart';
+import 'package:parfait/app/icons/app_icons.dart';
 
 const _series = '/v2/novel/series';
 
@@ -165,7 +166,7 @@ void main() {
     // to a page that continues there.
     await tester.tapAt(const Offset(400, 300));
     await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(Icons.info_outline));
+    await tester.tap(find.byIcon(AppIcons.info));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('novel-info-series')));
     await tester.pumpAndSettle();

@@ -24,6 +24,7 @@ import 'helpers/recording_haptics.dart';
 import 'helpers/prompt_host.dart';
 import 'helpers/localized_app.dart';
 import 'helpers/waits.dart';
+import 'package:parfait/app/icons/app_icons.dart';
 
 /// Cancels end when [cancels] completes, as dropping kept bytes on disk
 /// does.
@@ -595,7 +596,7 @@ void main() {
           findsOneWidget,
         );
       }
-      expect(find.byIcon(Icons.open_in_new), findsNothing);
+      expect(find.byIcon(AppIcons.externalLink), findsNothing);
 
       // Batch remove qualifies only the terminal task and asks for no
       // confirmation — Undo brings the record back instead (D5).

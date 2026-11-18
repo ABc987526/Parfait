@@ -47,6 +47,7 @@ import '../../app/widgets/smooth_wheel_scroll.dart';
 import '../../app/theme/func_semantic_tokens.dart';
 import '../../app/widgets/settings/persist_settings.dart';
 import '../../app/widgets/feed/load_more_listener.dart';
+import '../../app/icons/app_icons.dart';
 
 /// The three rows of the history page's overflow menu.
 enum _HistoryMenuAction { recordLocal, recordPixiv, deleteAll }
@@ -256,7 +257,7 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                     onPressed: _selected.isEmpty || accountId == null
                         ? null
                         : () => _deleteSelected(repository, accountId),
-                    icon: const Icon(Icons.delete_outline),
+                    icon: const Icon(AppIcons.trash),
                   ),
                 ],
               )
@@ -476,13 +477,13 @@ class _HistoryBody extends ConsumerWidget {
           final recording =
               ref.watch(settingsProvider).value?.enableHistory ?? true;
           return FeedEmpty(
-            icon: Icons.history,
+            icon: AppIcons.history,
             title: l10n.historyEmpty,
             detail: recording
                 ? null
                 : l10n.historyEmptyRecordingOff(l10n.historyRecordLocal),
             actionLabel: recording ? null : l10n.historyTurnOnRecording,
-            actionIcon: Icons.history,
+            actionIcon: AppIcons.history,
             onAction: recording
                 ? null
                 : () => unawaited(
@@ -775,7 +776,7 @@ class _IllustHistoryEntry extends StatelessWidget {
       child: InkWell(
         onTap: () =>
             openIllust(context, record.contentId, heroScope: _heroScope),
-        child: _SnapshotEntry(record: record, icon: Icons.image_outlined),
+        child: _SnapshotEntry(record: record, icon: AppIcons.illust),
       ),
     );
   }
@@ -822,7 +823,7 @@ class _NovelHistoryEntry extends StatelessWidget {
                             ? ColoredBox(
                                 color: colorScheme.surfaceContainer,
                                 child: const Icon(
-                                  Icons.auto_stories_outlined,
+                                  AppIcons.localNovel,
                                   size: 42,
                                 ),
                               )
@@ -838,7 +839,7 @@ class _NovelHistoryEntry extends StatelessWidget {
                     const Positioned(
                       left: 7,
                       top: 7,
-                      child: EntityBadge(icon: Icons.auto_stories_outlined),
+                      child: EntityBadge(icon: AppIcons.localNovel),
                     ),
                   ],
                 ),

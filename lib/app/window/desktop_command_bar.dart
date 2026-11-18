@@ -12,6 +12,7 @@ import '../../core/platform/desktop_window_channel.dart';
 import '../../core/settings/app_settings.dart';
 import '../../core/settings/settings_controller.dart';
 import '../../l10n/context.dart';
+import '../icons/app_icons.dart';
 import '../layout/form_factor.dart';
 import '../motion/app_overlays.dart';
 import '../navigation/forward_history.dart';
@@ -621,7 +622,7 @@ class _DesktopCommandBarState extends ConsumerState<DesktopCommandBar> {
                 ListTile(
                   key: const Key('desktop-command-account-settings'),
                   dense: true,
-                  leading: const Icon(Icons.manage_accounts_outlined),
+                  leading: const Icon(AppIcons.accountManage),
                   title: Text(l10n.accountSettings),
                   onTap: () {
                     Navigator.of(popoverContext).pop();
@@ -753,7 +754,11 @@ class _DesktopCommandBarState extends ConsumerState<DesktopCommandBar> {
                                 .setRailExpanded(!railExpanded),
                           ),
                         ),
-                        icon: Icon(railExpanded ? Icons.menu_open : Icons.menu),
+                        icon: Icon(
+                          railExpanded
+                              ? AppIcons.sidebarCollapse
+                              : AppIcons.sidebarExpand,
+                        ),
                       ),
                       const SizedBox(width: FuncSpacing.xs),
                     ],
@@ -864,7 +869,7 @@ class _DesktopCommandBarState extends ConsumerState<DesktopCommandBar> {
                                     tooltip: l10n.searchHint,
                                     onPressed: () =>
                                         unawaited(_openSearch(uri)),
-                                    icon: const Icon(Icons.search),
+                                    icon: const Icon(AppIcons.search),
                                   ),
                                 ),
                                 _commandIconButton(
@@ -884,7 +889,7 @@ class _DesktopCommandBarState extends ConsumerState<DesktopCommandBar> {
                                       );
                                     }
                                   },
-                                  icon: const Icon(Icons.photo_camera_outlined),
+                                  icon: const Icon(AppIcons.imageSearch),
                                 ),
                               ],
                             ),
@@ -936,7 +941,7 @@ class _DesktopCommandBarState extends ConsumerState<DesktopCommandBar> {
                           iconSize: 18,
                           tooltip: l10n.commandContentFilter,
                           onPressed: () => unawaited(_openFilterPopover()),
-                          icon: const Icon(Icons.shield_outlined),
+                          icon: const Icon(AppIcons.shield),
                         ),
                       ),
                     ),
@@ -1090,7 +1095,7 @@ class _SearchCommandPill extends StatelessWidget {
                       children: [
                         const SizedBox(width: FuncSpacing.md),
                         Icon(
-                          Icons.search,
+                          AppIcons.search,
                           size: 15,
                           color: colors.onSurfaceVariant,
                         ),
@@ -1143,7 +1148,7 @@ class _SearchCommandPill extends StatelessWidget {
               iconSize: 16,
               tooltip: reverseTooltip,
               onPressed: onTapReverse,
-              icon: const Icon(Icons.photo_camera_outlined),
+              icon: const Icon(AppIcons.imageSearch),
             ),
             const SizedBox(width: FuncSpacing.xxs),
           ],

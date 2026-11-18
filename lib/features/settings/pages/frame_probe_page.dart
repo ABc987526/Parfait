@@ -16,6 +16,7 @@ import '../settings_helpers.dart';
 import '../../../app/theme/func_semantic_tokens.dart';
 import '../../../app/clipboard.dart';
 import '../../../app/layout/content_widths.dart';
+import '../../../app/icons/app_icons.dart';
 
 /// Dev-only frame probe page: record timings while scrolling a feed, then
 /// copy the build/raster percentile report for offline analysis. Only
@@ -225,7 +226,7 @@ class _FrameProbePageState extends ConsumerState<FrameProbePage> {
                     report,
                     message: context.l10n.networkProbeCopied,
                   ),
-                  icon: const Icon(Icons.copy_outlined, size: 16),
+                  icon: const Icon(AppIcons.copy, size: 16),
                   label: Text(context.l10n.copy),
                 ),
               ),
@@ -267,7 +268,7 @@ class _FrameProbePageState extends ConsumerState<FrameProbePage> {
                 text,
                 message: context.l10n.networkProbeCopied,
               ),
-              icon: const Icon(Icons.copy_outlined, size: 16),
+              icon: const Icon(AppIcons.copy, size: 16),
               label: Text(context.l10n.copy),
             ),
           ],

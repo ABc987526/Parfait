@@ -31,6 +31,7 @@ import '../../core/settings/app_settings.dart';
 import '../../core/settings/settings_controller.dart';
 import '../../l10n/lookup.dart';
 import '../../l10n/context.dart';
+import '../../app/icons/app_icons.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({
@@ -431,7 +432,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           onPressed: () => setState(() => _help = !_help),
           tooltip: text('networkCompatibility'),
           icon: Icon(
-            Icons.info_outline,
+            AppIcons.info,
             color: Theme.of(context).colorScheme.primary,
           ),
           iconSize: 20,

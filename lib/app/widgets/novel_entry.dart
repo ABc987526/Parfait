@@ -12,6 +12,7 @@ import '../theme/func_semantic_tokens.dart';
 import 'entity_row.dart';
 import 'feed/feed_text_warmup.dart';
 import 'feed/muted_cover.dart';
+import '../icons/app_icons.dart';
 
 /// The single novel list-entry contract — replaces the parallel
 /// `NovelCard`/`NovelRow` pair (roadmap §5.2, R1). Density follows the
@@ -275,7 +276,7 @@ class NovelEntry extends ConsumerWidget {
             if (entity.coverImageUrl == null)
               ColoredBox(
                 color: colorScheme.surfaceContainer,
-                child: const Icon(Icons.menu_book_outlined),
+                child: const Icon(AppIcons.novel),
               )
             else
               PixivImage.feed(
@@ -287,7 +288,10 @@ class NovelEntry extends ConsumerWidget {
               Positioned(
                 left: _badgeInset,
                 bottom: _badgeInset,
-                child: EntityBadge(icon: Icons.favorite, label: bookmarks),
+                child: EntityBadge(
+                  icon: AppIcons.heartFilled,
+                  label: bookmarks,
+                ),
               ),
           ],
         ),

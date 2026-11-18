@@ -335,7 +335,7 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.descendant(of: bar, matching: find.byIcon(AppIcons.search)),
+      find.descendant(of: bar, matching: find.byTooltip('搜索')),
       findsNothing,
     );
 
@@ -781,11 +781,19 @@ void main() {
       expect(onBar(AppIcons.search), findsNothing);
       final xs = [
         for (final d in shown)
-          tester.getCenter(onBar(homeDestinationIcon(d))).dx,
+          tester
+              .getCenter(
+                onBar(
+                  d == HomeDestination.newWorks
+                      ? homeDestinationSelectedIcon(d)
+                      : homeDestinationIcon(d),
+                ),
+              )
+              .dx,
       ];
       expect(xs, orderedEquals([...xs]..sort()));
 
-      await tester.tap(onBar(Icons.person_outline));
+      await tester.tap(onBar(AppIcons.user));
       await settle(tester);
       final recommended = find.descendant(
         of: find.byType(MeDashboardPage),

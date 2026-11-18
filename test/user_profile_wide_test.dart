@@ -15,6 +15,7 @@ import 'helpers/localized_app.dart';
 import 'helpers/profile_world.dart';
 import 'helpers/prompt_host.dart';
 import 'helpers/view_size.dart';
+import 'package:parfait/app/icons/app_icons.dart';
 
 /// The profile header on a wide window, away from the phone-sized cases in
 /// user_profile_test.dart (which also keeps that file under the size limit).
@@ -47,7 +48,7 @@ void main() {
     final name = tester.getRect(
       find.byKey(const ValueKey('profile-expanded-name')),
     );
-    final share = tester.getRect(find.byIcon(Icons.share_outlined).first);
+    final share = tester.getRect(find.byIcon(AppIcons.share).first);
     final follow = tester.getRect(find.byType(FollowSwitchButton));
     expect(follow.left, name.left);
     expect(follow.left, lessThan(share.left));

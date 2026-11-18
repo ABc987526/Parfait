@@ -949,7 +949,7 @@ void main() {
     await tester.tap(
       find.descendant(
         of: find.byType(FuncShellBottomNav),
-        matching: find.byIcon(AppIcons.search),
+        matching: find.byIcon(AppIcons.searchFilled),
       ),
     );
     await tester.pump();

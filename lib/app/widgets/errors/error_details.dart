@@ -7,6 +7,7 @@ import '../../../l10n/app_localizations.dart';
 import '../../../l10n/context.dart';
 import '../app_snack_bar.dart';
 import '../../clipboard.dart';
+import '../../icons/app_icons.dart';
 
 /// Maps an [ErrorCategory] to its localized sentence — the single owner of
 /// the category→copy mapping (C8/D1). Every error surface uses this instead
@@ -118,7 +119,7 @@ class CopyDiagnosticsButton extends StatelessWidget {
         diagnosticText(error),
         message: l10n.diagnosticsCopied,
       ),
-      icon: const Icon(Icons.copy_outlined, size: 18),
+      icon: const Icon(AppIcons.copy, size: 18),
       label: Text(l10n.copyDiagnostics),
     );
   }

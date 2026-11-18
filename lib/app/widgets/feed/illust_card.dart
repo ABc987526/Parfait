@@ -33,6 +33,7 @@ import 'feed_text_warmup.dart';
 import 'illust_card_layout.dart';
 import 'muted_cover.dart';
 import '../../haptics/app_haptics.dart';
+import '../../icons/app_icons.dart';
 
 /// Illust preview card replicating beta56 IllustPreviewer semantics:
 /// R-18 top-left, ugoira gif bottom-left, page count top-right, AI
@@ -545,7 +546,7 @@ class _IllustCardBody extends ConsumerWidget {
           left: 7,
           bottom: 7,
           child: EntityBadge(
-            icon: Icons.gif_box_outlined,
+            icon: AppIcons.ugoira,
             semanticsLabel: l10n.badgeUgoira,
           ),
         ),
@@ -554,7 +555,7 @@ class _IllustCardBody extends ConsumerWidget {
           right: 7,
           top: 7,
           child: EntityBadge(
-            icon: Icons.photo_library_outlined,
+            icon: AppIcons.multiPage,
             label: AppFormat.count(context, entity.pageCount),
             semanticsLabel: l10n.illustPagesTotal(entity.pageCount),
           ),

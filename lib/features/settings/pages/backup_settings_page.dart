@@ -16,6 +16,7 @@ import '../../../l10n/context.dart';
 import '../settings_helpers.dart';
 import '../settings_catalog.dart';
 import '../../../app/layout/content_widths.dart';
+import '../../../app/icons/app_icons.dart';
 
 /// Platform file open for backup import. Behind a provider so widget tests
 /// can inject bytes without a platform file picker.
@@ -220,13 +221,13 @@ class _BackupSettingsPageState extends ConsumerState<BackupSettingsPage> {
             SettingsGroup(
               children: [
                 SettingsActionTile(
-                  icon: Icons.file_upload_outlined,
+                  icon: AppIcons.fileImport,
                   setting: Setting.backupExport,
                   enabled: !_busy,
                   onTap: _export,
                 ),
                 SettingsActionTile(
-                  icon: Icons.file_open_outlined,
+                  icon: AppIcons.folderOpen,
                   setting: Setting.backupImport,
                   enabled: !_busy,
                   onTap: _import,

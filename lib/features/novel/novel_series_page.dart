@@ -34,6 +34,7 @@ import '../../core/watchlist/watchlist_models.dart';
 import '../../core/watchlist/watchlist_store.dart';
 import '../../app/window/desktop_command_bar.dart';
 import '../../l10n/context.dart';
+import '../../app/icons/app_icons.dart';
 
 /// One novel series (`/v2/novel/series`): a header with the series' facts
 /// and reading actions, then its novels in series order, each under its
@@ -195,7 +196,7 @@ class _NovelSeriesFeedPageState extends ConsumerState<NovelSeriesFeedPage> {
                             SliverFillRemaining(
                               hasScrollBody: false,
                               child: FeedEmpty(
-                                icon: Icons.library_books_outlined,
+                                icon: AppIcons.watchlist,
                                 title: l10n.seriesEmpty,
                               ),
                             )
@@ -282,7 +283,7 @@ class _RestrictedRow extends StatelessWidget {
           height: 88,
           child: ColoredBox(
             color: Theme.of(context).colorScheme.surfaceContainer,
-            child: const Icon(Icons.lock_outline),
+            child: const Icon(AppIcons.lock),
           ),
         ),
       ),

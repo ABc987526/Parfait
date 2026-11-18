@@ -9,6 +9,7 @@ import 'package:parfait/core/download/download_task.dart';
 import 'package:parfait/features/settings/pages/download_task_presentation.dart';
 import 'package:parfait/l10n/app_localizations.dart';
 import 'support/contrast.dart';
+import 'package:parfait/app/icons/app_icons.dart';
 
 DownloadTaskSnapshot _task({
   int illustId = 7,
@@ -199,7 +200,7 @@ void main() {
       expect(downloadVisualIcon(DownloadVisualState.queued), Icons.schedule);
       expect(
         downloadVisualIcon(DownloadVisualState.running),
-        Icons.downloading,
+        AppIcons.downloading,
       );
       expect(
         downloadVisualIcon(DownloadVisualState.processing),
@@ -222,7 +223,10 @@ void main() {
         Icons.error_outline,
       );
       expect(downloadVisualIcon(DownloadVisualState.failed), Icons.error);
-      expect(downloadVisualIcon(DownloadVisualState.canceled), Icons.block);
+      expect(
+        downloadVisualIcon(DownloadVisualState.canceled),
+        AppIcons.banFilled,
+      );
 
       expect(iconColor(DownloadVisualState.running), scheme.primary);
       expect(iconColor(DownloadVisualState.succeeded), tokens.success);

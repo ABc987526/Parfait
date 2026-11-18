@@ -13,6 +13,7 @@ import '../../l10n/context.dart';
 import '../../app/theme/func_semantic_tokens.dart';
 import '../../app/widgets/app_choice_chip.dart';
 import '../../app/widgets/fit_label.dart';
+import '../../app/icons/app_icons.dart';
 
 /// What the filter sheet applies: the edited set plus whether the user also
 /// asked to persist it as that type's default ("设为默认").
@@ -898,7 +899,7 @@ class _DateFilterTile extends StatelessWidget {
             ),
       onTap: onTap,
       trailing: onClear == null
-          ? const Icon(Icons.calendar_today_outlined)
+          ? const Icon(AppIcons.calendar)
           : IconButton(
               tooltip: context.l10n.searchClear,
               onPressed: onClear,

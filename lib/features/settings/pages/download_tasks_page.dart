@@ -31,6 +31,7 @@ import '../../../core/download/download_task.dart';
 import '../../../core/errors/error_category.dart';
 import '../../../l10n/context.dart';
 import 'download_task_presentation.dart';
+import '../../../app/icons/app_icons.dart';
 
 part 'download_task_rows.dart';
 
@@ -440,7 +441,7 @@ class _DownloadTasksPageState extends ConsumerState<DownloadTasksPage> {
                         AppMenuEntry(
                           value: () =>
                               unawaited(_removeTasks(_completedTaskIds)),
-                          icon: Icons.cleaning_services_outlined,
+                          icon: AppIcons.clearDone,
                           label: context.l10n.downloadClearCompleted,
                           enabled: tasks.any(
                             (task) => task.status == DownloadStatus.succeeded,

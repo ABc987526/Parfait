@@ -130,7 +130,7 @@ class _TaskHeader extends StatelessWidget {
                 width: 44,
                 height: 44,
                 child: input == null
-                    ? Icon(Icons.image_outlined, color: scheme.onSurfaceVariant)
+                    ? Icon(AppIcons.illust, color: scheme.onSurfaceVariant)
                     : Image.file(
                         File(input.path),
                         fit: BoxFit.cover,
@@ -139,7 +139,7 @@ class _TaskHeader extends StatelessWidget {
                         // after a terminal success releases it.
                         cacheWidth: 128,
                         errorBuilder: (context, error, stackTrace) => Icon(
-                          Icons.broken_image_outlined,
+                          AppIcons.illustBroken,
                           color: scheme.onSurfaceVariant,
                         ),
                       ),
@@ -199,7 +199,7 @@ class _AdaptiveImagePreview extends StatelessWidget {
           fit: BoxFit.contain,
           cacheWidth: 1024,
           errorBuilder: (context, error, stackTrace) =>
-              const Center(child: Icon(Icons.broken_image_outlined, size: 56)),
+              const Center(child: Icon(AppIcons.illustBroken, size: 56)),
         ),
       ),
     );
@@ -397,7 +397,7 @@ class _UploadInAppWebViewState extends State<_UploadInAppWebView> {
           child: !_showUploadHint
               ? null
               : MaterialBanner(
-                  leading: const Icon(Icons.upload_file_outlined),
+                  leading: const Icon(AppIcons.fileImport),
                   content: Text(
                     widget.upload.armedUri == null
                         ? context.l10n.searchReverseUploadPickHint
@@ -475,13 +475,13 @@ class _ExternalWebFallback extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.open_in_browser_outlined, size: 56),
+            const Icon(AppIcons.externalLink, size: 56),
             const SizedBox(height: FuncSpacing.md),
             Text(message, textAlign: TextAlign.center),
             const SizedBox(height: FuncSpacing.lg),
             FilledButton.icon(
               onPressed: onOpen,
-              icon: const Icon(Icons.open_in_browser_outlined),
+              icon: const Icon(AppIcons.externalLink),
               label: Text(buttonLabel),
             ),
           ],

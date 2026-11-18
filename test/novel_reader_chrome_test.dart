@@ -32,6 +32,7 @@ import 'helpers/prompt_host.dart';
 import 'helpers/test_preferences.dart';
 import 'helpers/localized_app.dart';
 import 'helpers/waits.dart';
+import 'package:parfait/app/icons/app_icons.dart';
 
 Future<ProviderContainer> _apiContainer({
   SharedPreferencesAsyncPlatform? platform,
@@ -249,9 +250,9 @@ void main() {
     expect(barTitle(), findsOneWidget);
     expect(_progressHint(), findsNothing);
     expect(find.byIcon(Icons.arrow_back), findsOneWidget);
-    expect(find.byIcon(Icons.info_outline), findsOneWidget);
-    expect(find.byIcon(Icons.share_outlined), findsOneWidget);
-    expect(find.byIcon(Icons.text_decrease_outlined), findsOneWidget);
+    expect(find.byIcon(AppIcons.info), findsOneWidget);
+    expect(find.byIcon(AppIcons.share), findsOneWidget);
+    expect(find.byIcon(AppIcons.textDecrease), findsOneWidget);
     // Adjacent navigation from the webview payload rides the bottom bar.
     expect(find.byIcon(Icons.chevron_left), findsOneWidget);
     expect(find.byIcon(Icons.chevron_right), findsOneWidget);
@@ -287,8 +288,7 @@ void main() {
     await _mountReader(tester, container);
 
     bool hintShown() => _progressHint().evaluate().isNotEmpty;
-    bool barShown() =>
-        find.byIcon(Icons.text_decrease_outlined).evaluate().isNotEmpty;
+    bool barShown() => find.byIcon(AppIcons.textDecrease).evaluate().isNotEmpty;
     void expectNotBoth(String direction, int frame) {
       expect(
         hintShown() && barShown(),
@@ -456,7 +456,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(requests.length, 2, reason: 'retry must issue exactly one fetch');
     expect(find.text('series five'), findsOneWidget);
-    expect(find.byIcon(Icons.library_add_outlined), findsOneWidget);
+    expect(find.byIcon(AppIcons.watchlistAdd), findsOneWidget);
   });
 
   testWidgets('a series missing the current entry dead-ends navigation', (
@@ -907,7 +907,7 @@ void main() {
       await _openReader(tester, container);
       await tester.tapAt(const Offset(400, 300));
       await tester.pumpAndSettle();
-      await tester.tap(find.byIcon(Icons.info_outline));
+      await tester.tap(find.byIcon(AppIcons.info));
       await tester.pumpAndSettle();
 
       expect(find.text('4000 字'), findsOneWidget);

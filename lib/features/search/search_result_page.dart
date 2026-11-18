@@ -44,6 +44,7 @@ import '../../app/widgets/smooth_wheel_scroll.dart';
 import '../../app/theme/func_semantic_tokens.dart';
 import '../../app/layout/card_columns.dart';
 import '../../app/widgets/feed/load_more_listener.dart';
+import '../../app/icons/app_icons.dart';
 
 /// Grid padding shared by the result sliver and its first-load skeleton.
 const _illustGridPadding = EdgeInsets.all(FuncSpacing.sm);
@@ -549,14 +550,12 @@ class _EmptySearchResult extends StatelessWidget {
       _ => null,
     };
     return FeedEmpty(
-      icon: Icons.search,
+      icon: AppIcons.search,
       title: l10n.searchNoResults,
       actionLabel: reset == null
           ? l10n.searchModifyQuery
           : l10n.searchResetFilters,
-      actionIcon: reset == null
-          ? Icons.edit_outlined
-          : Icons.filter_alt_off_outlined,
+      actionIcon: reset == null ? AppIcons.edit : AppIcons.filterOff,
       onAction: reset == null
           ? () => swapToSearchInput(
               context,
@@ -836,7 +835,7 @@ class _FilterSummaryBar extends StatelessWidget {
                 const SizedBox(width: FuncSpacing.sm),
               ],
               ActionChip(
-                avatar: const Icon(Icons.filter_alt_off_outlined, size: 16),
+                avatar: const Icon(AppIcons.filterOff, size: 16),
                 label: Text(context.l10n.searchReset),
                 onPressed: onClear,
               ),

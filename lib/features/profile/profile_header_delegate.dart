@@ -26,6 +26,7 @@ import '../../core/log.dart';
 import '../../l10n/context.dart';
 import 'banner_sample.dart';
 import 'profile_statistics.dart';
+import '../../app/icons/app_icons.dart';
 
 /// Pure geometry snapshot used by [ReplicaProfileHeaderDelegate] and tests.
 @immutable
@@ -180,14 +181,14 @@ class ReplicaProfileHeaderDelegate extends SliverPersistentHeaderDelegate {
     _ProfileHeaderAction(
       value: 'share',
       label: context.l10n.profileShare,
-      icon: Icons.share_outlined,
+      icon: AppIcons.share,
       primary: true,
       onSelected: onShare,
       buildInline: (context) => Builder(
         builder: (buttonContext) => IconButton(
           tooltip: context.l10n.profileShare,
           onPressed: () => onShare(buttonContext),
-          icon: const Icon(Icons.share_outlined),
+          icon: const Icon(AppIcons.share),
         ),
       ),
     ),
@@ -195,7 +196,7 @@ class ReplicaProfileHeaderDelegate extends SliverPersistentHeaderDelegate {
       _ProfileHeaderAction(
         value: 'editProfile',
         label: context.l10n.profileEditTitle,
-        icon: Icons.edit_outlined,
+        icon: AppIcons.edit,
         primary: true,
         onSelected: (_) => onEditProfile!(),
         // Text sits on the page surface now, so the neutral tonal style is
@@ -220,7 +221,7 @@ class ReplicaProfileHeaderDelegate extends SliverPersistentHeaderDelegate {
       _ProfileHeaderAction(
         value: 'toggleFollow',
         label: isFollowed ? context.l10n.unfollow : context.l10n.follow,
-        icon: Icons.person_add_alt_1_outlined,
+        icon: AppIcons.follow,
         primary: true,
         onSelected: (_) => onToggleFollow!(),
         buildInline: (_) => FollowSwitchButton(
@@ -255,28 +256,28 @@ class ReplicaProfileHeaderDelegate extends SliverPersistentHeaderDelegate {
       _ProfileHeaderAction(
         value: 'followPrivately',
         label: context.l10n.followPrivately,
-        icon: Icons.lock_outline,
+        icon: AppIcons.lock,
         onSelected: (_) => onFollowPrivately(),
       ),
     if (onDownloadAll != null)
       _ProfileHeaderAction(
         value: 'downloadAll',
         label: context.l10n.downloadAuthorWorks,
-        icon: Icons.download_outlined,
+        icon: AppIcons.download,
         onSelected: (_) => onDownloadAll(),
       ),
     if (onCopyLink != null)
       _ProfileHeaderAction(
         value: 'copyLink',
         label: context.l10n.copyLink,
-        icon: Icons.copy_outlined,
+        icon: AppIcons.copy,
         onSelected: (_) => onCopyLink(),
       ),
     if (!isMe && onToggleMute != null)
       _ProfileHeaderAction(
         value: 'toggleMute',
         label: isMuted ? context.l10n.unmuteAuthor : context.l10n.muteAuthor,
-        icon: isMuted ? Icons.person_off : Icons.person_off_outlined,
+        icon: isMuted ? AppIcons.userOffFilled : AppIcons.userOff,
         onSelected: (_) => onToggleMute(),
       ),
   ];

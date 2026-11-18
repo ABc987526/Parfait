@@ -375,7 +375,7 @@ void main() {
     await tester.tap(
       find.descendant(
         of: find.byType(FuncShellBottomNav),
-        matching: find.byIcon(AppIcons.home),
+        matching: find.byIcon(AppIcons.homeFilled),
       ),
     );
     await tester.pump();

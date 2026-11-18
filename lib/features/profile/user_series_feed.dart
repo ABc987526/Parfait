@@ -16,6 +16,7 @@ import '../../core/series/series_store.dart';
 import '../../l10n/context.dart';
 import '../../app/theme/func_semantic_tokens.dart';
 import '../../app/widgets/feed/load_more_listener.dart';
+import '../../app/icons/app_icons.dart';
 
 /// Profile work-tab section: the user's public illust series as a card
 /// grid (`/v1/user/illust-series`). Mounted inside the profile
@@ -89,7 +90,7 @@ class UserSeriesFeed extends ConsumerWidget {
                   SliverFillRemaining(
                     hasScrollBody: false,
                     child: FeedEmpty(
-                      icon: Icons.collections_bookmark_outlined,
+                      icon: AppIcons.series,
                       title: context.l10n.profileItemsEmpty,
                     ),
                   )

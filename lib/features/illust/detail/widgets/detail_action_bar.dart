@@ -13,6 +13,7 @@ import '../../../../core/download/download_providers.dart';
 import '../../../../core/entity/illust_entity.dart';
 import '../../../../core/illust/illust_download_controller.dart';
 import '../../../../l10n/context.dart';
+import '../../../../app/icons/app_icons.dart';
 
 /// The detail page's compact floating actions in thumb reach, centered at the
 /// bottom edge: download and bookmark on an opaque lifted capsule
@@ -229,14 +230,14 @@ class _DetailDownloadButtonState extends ConsumerState<DetailDownloadButton> {
             ),
           ),
           IllustPageSaveState.exist => Icon(
-            Icons.download_done,
+            AppIcons.downloadDone,
             color: colors.primary,
           ),
           IllustPageSaveState.error => Icon(
             Icons.error_outline,
             color: colors.error,
           ),
-          IllustPageSaveState.none => const Icon(Icons.download_outlined),
+          IllustPageSaveState.none => const Icon(AppIcons.download),
         },
       ),
     );

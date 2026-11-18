@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../theme/func_semantic_tokens.dart';
+import '../../icons/app_icons.dart';
 
 /// Session-local set of muted works the user has revealed by tapping the
 /// blurred card. Revealing is presentation-only: it never touches the
@@ -56,7 +57,7 @@ class MutedCover extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
-                    Icons.visibility_off_outlined,
+                    AppIcons.eyeOff,
                     color: scheme.onSurfaceVariant,
                     size: 30,
                   ),

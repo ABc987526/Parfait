@@ -35,6 +35,7 @@ import 'helpers/profile_world.dart';
 import 'helpers/prompt_host.dart';
 import 'helpers/localized_app.dart';
 import 'helpers/view_size.dart';
+import 'package:parfait/app/icons/app_icons.dart';
 
 class _FakeOutboundUrlOpener implements OutboundUrlOpener {
   final requests = <String>[];
@@ -1465,7 +1466,7 @@ void main() {
       // chrome survives loading/error/empty).
       expect(repository.requests, contains('works:42:illust:first'));
       expect(_tabLabels(tester).take(4), ['插画', '漫画', '小说', '系列']);
-      expect(find.byIcon(Icons.share_outlined), findsOneWidget);
+      expect(find.byIcon(AppIcons.share), findsOneWidget);
       expect(
         find.byKey(const ValueKey('profile-expanded-name')),
         findsOneWidget,

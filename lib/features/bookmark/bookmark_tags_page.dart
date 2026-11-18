@@ -15,6 +15,7 @@ import '../../app/widgets/feed/load_more_listener.dart';
 import '../../app/widgets/page_header.dart';
 import '../../app/widgets/smooth_wheel_scroll.dart';
 import '../../app/widgets/tab_swipe_switcher.dart';
+import '../../app/icons/app_icons.dart';
 
 /// The signed-in user's bookmark tag collection (`/v1/user/bookmark-tags/`)
 /// of one [kind] in two tabs, public and private. Tapping a tag opens the
@@ -199,10 +200,7 @@ class _TagList extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     if (state.tags.isEmpty) {
-      return FeedEmpty(
-        icon: Icons.label_outline,
-        title: l10n.bookmarkTagsEmpty,
-      );
+      return FeedEmpty(icon: AppIcons.tag, title: l10n.bookmarkTagsEmpty);
     }
     return LoadMoreListener(
       itemCount: state.tags.length,
@@ -254,7 +252,7 @@ class _TagList extends ConsumerWidget {
             }
             final tag = state.tags[index];
             return ListTile(
-              leading: const Icon(Icons.label_outline),
+              leading: const Icon(AppIcons.tag),
               title: Text(tag.name),
               trailing: Text('${tag.count}'),
               onTap: () => openBookmarkTagFeed(

@@ -8,6 +8,7 @@ import '../../pixiv_image.dart';
 import '../../theme/func_semantic_tokens.dart';
 import '../../theme/func_tokens.dart';
 import 'illust_card.dart';
+import '../../icons/app_icons.dart';
 
 /// One pixivision article, shaped like a work card: a 16:9 image clipped
 /// to the card radius, the title (two lines at most) and the publish date
@@ -61,7 +62,7 @@ class SpotlightArticleCard extends StatelessWidget {
                       ? ColoredBox(
                           color: theme.colorScheme.surfaceContainerHighest,
                           child: Icon(
-                            Icons.newspaper_outlined,
+                            AppIcons.spotlight,
                             color: theme.colorScheme.onSurfaceVariant,
                           ),
                         )

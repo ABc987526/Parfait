@@ -33,6 +33,7 @@ import '../../app/theme/func_semantic_tokens.dart';
 import '../../app/layout/card_columns.dart';
 import '../../app/widgets/feed/load_more_listener.dart';
 import '../../app/widgets/edge_icon_buttons.dart';
+import '../../app/icons/app_icons.dart';
 
 /// Beta56 New page for one content [type]: scope tabs over that type's
 /// feeds, the same shape as the ranking pages. The illust page is the
@@ -226,7 +227,7 @@ class _NewPageState extends State<NewPage> with SingleTickerProviderStateMixin {
             IconButton(
               tooltip: context.l10n.newNovels,
               onPressed: () => openNewNovels(context),
-              icon: const Icon(Icons.menu_book_outlined),
+              icon: const Icon(AppIcons.novel),
             ),
           const HeaderRefresh(),
           HeaderSearch(

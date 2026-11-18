@@ -4,6 +4,7 @@ import '../../app/format/app_format.dart';
 import '../../core/search/search_models.dart';
 import '../../l10n/context.dart';
 import 'search_text.dart';
+import '../../app/icons/app_icons.dart';
 
 /// One label per filter field that differs from its type's default, in
 /// sheet order. The result page shows them as chips; their count is the
@@ -131,7 +132,7 @@ class SearchFilterButton extends StatelessWidget {
         isLabelVisible: count > 0,
         // The tooltip already reads the count.
         label: ExcludeSemantics(child: Text('$count')),
-        child: const Icon(Icons.tune_outlined),
+        child: const Icon(AppIcons.filter),
       ),
     );
     return hasOverlay ? button : Semantics(tooltip: tooltip, child: button);

@@ -5,6 +5,7 @@ import '../../l10n/lookup.dart';
 import '../../l10n/context.dart';
 import 'errors/error_details.dart';
 import '../theme/func_semantic_tokens.dart';
+import '../icons/app_icons.dart';
 
 /// Shared "settings could not be read" body with a working retry.
 ///
@@ -37,7 +38,7 @@ class SettingsLoadError extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.settings_outlined, size: 48),
+            const Icon(AppIcons.settings, size: 48),
             const SizedBox(height: FuncSpacing.md),
             Text(text(messageKey), key: const Key('settings-load-error')),
             const SizedBox(height: FuncSpacing.sm),

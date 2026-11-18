@@ -76,6 +76,7 @@ import 'helpers/pixiv_router.dart';
 import 'helpers/prompt_host.dart';
 import 'helpers/view_size.dart';
 import 'helpers/waits.dart';
+import 'package:parfait/app/icons/app_icons.dart';
 
 void _collectMenuItems(
   List<PlatformMenuItem> items,
@@ -255,7 +256,7 @@ void main() {
         expect(
           find.descendant(
             of: find.byType(ShellRail),
-            matching: find.byIcon(Icons.menu),
+            matching: find.byIcon(AppIcons.sidebarExpand),
           ),
           findsNothing,
         );
@@ -313,7 +314,7 @@ void main() {
         expect(
           find.descendant(
             of: find.byType(ShellRail),
-            matching: find.byIcon(Icons.menu),
+            matching: find.byIcon(AppIcons.sidebarExpand),
           ),
           findsOneWidget,
         );
@@ -738,7 +739,7 @@ void main() {
         expect(stageScale(), closeTo(1.0, 0.001));
 
         // Open docked 320dp info panel and pop-before-navigate via author link.
-        await tester.tap(find.byIcon(Icons.info_outline));
+        await tester.tap(find.byIcon(AppIcons.info));
         await tester.pumpAndSettle();
         final panel = find.byKey(const Key('viewer-info-panel'));
         expect(panel, findsOneWidget);

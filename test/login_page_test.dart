@@ -18,6 +18,7 @@ import 'helpers/prompt_host.dart';
 import 'helpers/fake_settings.dart';
 import 'helpers/localized_app.dart';
 import 'helpers/view_size.dart';
+import 'package:parfait/app/icons/app_icons.dart';
 
 /// Clipboard import stub whose result future the test controls, so the
 /// busy state can be observed deterministically.
@@ -80,7 +81,7 @@ void main() {
   group('action layering', () {
     final zh = lookupAppLocalizations(const Locale('zh'));
     Future<void> expandHelp(WidgetTester tester) async {
-      await tester.tap(find.byIcon(Icons.info_outline));
+      await tester.tap(find.byIcon(AppIcons.info));
       await tester.pumpAndSettle();
     }
 

@@ -153,96 +153,98 @@ abstract final class AppIcons {
   static const palette = IconData(0xe93f, fontFamily: _fontFamily);
   // paste
   static const paste = IconData(0xe940, fontFamily: _fontFamily);
+  // play_circle
+  static const playCircle = IconData(0xe941, fontFamily: _fontFamily);
   // ranking
-  static const ranking = IconData(0xe941, fontFamily: _fontFamily);
+  static const ranking = IconData(0xe942, fontFamily: _fontFamily);
   // ranking_filled
-  static const rankingFilled = IconData(0xe942, fontFamily: _fontFamily);
+  static const rankingFilled = IconData(0xe943, fontFamily: _fontFamily);
   // save
-  static const save = IconData(0xe943, fontFamily: _fontFamily);
+  static const save = IconData(0xe944, fontFamily: _fontFamily);
   // search
-  static const search = IconData(0xe944, fontFamily: _fontFamily);
+  static const search = IconData(0xe945, fontFamily: _fontFamily);
   // search_filled
-  static const searchFilled = IconData(0xe945, fontFamily: _fontFamily);
+  static const searchFilled = IconData(0xe946, fontFamily: _fontFamily);
   // search_off
-  static const searchOff = IconData(0xe946, fontFamily: _fontFamily);
+  static const searchOff = IconData(0xe947, fontFamily: _fontFamily);
   // send
   static const send = IconData(
-    0xe947,
+    0xe948,
     fontFamily: _fontFamily,
     matchTextDirection: true,
   );
   // series
-  static const series = IconData(0xe948, fontFamily: _fontFamily);
+  static const series = IconData(0xe949, fontFamily: _fontFamily);
   // settings
-  static const settings = IconData(0xe949, fontFamily: _fontFamily);
+  static const settings = IconData(0xe94a, fontFamily: _fontFamily);
   // settings_filled
-  static const settingsFilled = IconData(0xe94a, fontFamily: _fontFamily);
+  static const settingsFilled = IconData(0xe94b, fontFamily: _fontFamily);
   // share
-  static const share = IconData(0xe94b, fontFamily: _fontFamily);
+  static const share = IconData(0xe94c, fontFamily: _fontFamily);
   // shield
-  static const shield = IconData(0xe94c, fontFamily: _fontFamily);
+  static const shield = IconData(0xe94d, fontFamily: _fontFamily);
   // sidebar_collapse
   static const sidebarCollapse = IconData(
-    0xe94d,
+    0xe94e,
     fontFamily: _fontFamily,
     matchTextDirection: true,
   );
   // sidebar_expand
   static const sidebarExpand = IconData(
-    0xe94e,
+    0xe94f,
     fontFamily: _fontFamily,
     matchTextDirection: true,
   );
   // spotlight
-  static const spotlight = IconData(0xe94f, fontFamily: _fontFamily);
+  static const spotlight = IconData(0xe950, fontFamily: _fontFamily);
   // stamp
-  static const stamp = IconData(0xe950, fontFamily: _fontFamily);
+  static const stamp = IconData(0xe951, fontFamily: _fontFamily);
   // store
-  static const store = IconData(0xe951, fontFamily: _fontFamily);
+  static const store = IconData(0xe952, fontFamily: _fontFamily);
   // sun
-  static const sun = IconData(0xe952, fontFamily: _fontFamily);
+  static const sun = IconData(0xe953, fontFamily: _fontFamily);
   // tag
-  static const tag = IconData(0xe953, fontFamily: _fontFamily);
+  static const tag = IconData(0xe954, fontFamily: _fontFamily);
   // text_decrease
-  static const textDecrease = IconData(0xe954, fontFamily: _fontFamily);
+  static const textDecrease = IconData(0xe955, fontFamily: _fontFamily);
   // text_increase
-  static const textIncrease = IconData(0xe955, fontFamily: _fontFamily);
+  static const textIncrease = IconData(0xe956, fontFamily: _fontFamily);
   // toc
-  static const toc = IconData(0xe956, fontFamily: _fontFamily);
+  static const toc = IconData(0xe957, fontFamily: _fontFamily);
   // translate
-  static const translate = IconData(0xe957, fontFamily: _fontFamily);
+  static const translate = IconData(0xe958, fontFamily: _fontFamily);
   // trash
-  static const trash = IconData(0xe958, fontFamily: _fontFamily);
+  static const trash = IconData(0xe959, fontFamily: _fontFamily);
   // ugoira
-  static const ugoira = IconData(0xe959, fontFamily: _fontFamily);
+  static const ugoira = IconData(0xe95a, fontFamily: _fontFamily);
   // update
-  static const update = IconData(0xe95a, fontFamily: _fontFamily);
+  static const update = IconData(0xe95b, fontFamily: _fontFamily);
   // user
-  static const user = IconData(0xe95b, fontFamily: _fontFamily);
+  static const user = IconData(0xe95c, fontFamily: _fontFamily);
   // user_filled
-  static const userFilled = IconData(0xe95c, fontFamily: _fontFamily);
+  static const userFilled = IconData(0xe95d, fontFamily: _fontFamily);
   // user_off
-  static const userOff = IconData(0xe95d, fontFamily: _fontFamily);
+  static const userOff = IconData(0xe95e, fontFamily: _fontFamily);
   // user_off_filled
-  static const userOffFilled = IconData(0xe95e, fontFamily: _fontFamily);
+  static const userOffFilled = IconData(0xe95f, fontFamily: _fontFamily);
   // users
-  static const users = IconData(0xe95f, fontFamily: _fontFamily);
+  static const users = IconData(0xe960, fontFamily: _fontFamily);
   // watch_later
-  static const watchLater = IconData(0xe960, fontFamily: _fontFamily);
+  static const watchLater = IconData(0xe961, fontFamily: _fontFamily);
   // watch_later_add
-  static const watchLaterAdd = IconData(0xe961, fontFamily: _fontFamily);
+  static const watchLaterAdd = IconData(0xe962, fontFamily: _fontFamily);
   // watch_later_filled
-  static const watchLaterFilled = IconData(0xe962, fontFamily: _fontFamily);
+  static const watchLaterFilled = IconData(0xe963, fontFamily: _fontFamily);
   // watch_later_remove
-  static const watchLaterRemove = IconData(0xe963, fontFamily: _fontFamily);
+  static const watchLaterRemove = IconData(0xe964, fontFamily: _fontFamily);
   // watchlist
-  static const watchlist = IconData(0xe964, fontFamily: _fontFamily);
+  static const watchlist = IconData(0xe965, fontFamily: _fontFamily);
   // watchlist_add
-  static const watchlistAdd = IconData(0xe965, fontFamily: _fontFamily);
+  static const watchlistAdd = IconData(0xe966, fontFamily: _fontFamily);
   // watchlist_added
-  static const watchlistAdded = IconData(0xe966, fontFamily: _fontFamily);
+  static const watchlistAdded = IconData(0xe967, fontFamily: _fontFamily);
   // zoom_in
-  static const zoomIn = IconData(0xe967, fontFamily: _fontFamily);
+  static const zoomIn = IconData(0xe968, fontFamily: _fontFamily);
 
   /// Legacy alias for [newWorks].
   static const IconData n = newWorks;

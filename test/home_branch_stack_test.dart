@@ -372,12 +372,12 @@ void main() {
       await _pumpHome(tester);
       final events = _recordReTaps(tester, find.byType(RecommendedHomePage));
 
-      await tester.tap(_barIcon(AppIcons.home));
+      await tester.tap(_barIcon(AppIcons.homeFilled));
       await tester.pump();
       expect(events, [0]);
 
       // A repeat fires again — the event is an edge, not a state.
-      await tester.tap(_barIcon(AppIcons.home));
+      await tester.tap(_barIcon(AppIcons.homeFilled));
       await tester.pump();
       expect(events, [0, 0]);
     });
@@ -591,7 +591,7 @@ void main() {
     // Its destinations read as the bottom bar's do.
     expect(
       tester.getSemantics(
-        find.descendant(of: rail, matching: find.byIcon(AppIcons.home)),
+        find.descendant(of: rail, matching: find.byIcon(AppIcons.homeFilled)),
       ),
       isSemantics(
         role: SemanticsRole.tab,
@@ -738,10 +738,7 @@ void main() {
     String location() => router.state.uri.toString();
 
     await tester.tap(
-      find.descendant(
-        of: rail,
-        matching: find.byIcon(Icons.downloading_outlined),
-      ),
+      find.descendant(of: rail, matching: find.byIcon(AppIcons.downloading)),
     );
     await tester.pumpAndSettle();
     expect(find.byType(DownloadTasksPage), findsOneWidget);
@@ -749,7 +746,7 @@ void main() {
     expect(rail.hitTestable(), findsOneWidget);
 
     await tester.tap(
-      find.descendant(of: rail, matching: find.byIcon(Icons.favorite_border)),
+      find.descendant(of: rail, matching: find.byIcon(AppIcons.heart)),
     );
     await tester.pumpAndSettle();
     expect(location(), '/recommended/me?tab=bookmarks');
@@ -792,7 +789,7 @@ void main() {
       await tester.tap(
         find.descendant(
           of: find.byType(ShellRail),
-          matching: find.byIcon(AppIcons.home),
+          matching: find.byIcon(AppIcons.homeFilled),
         ),
       );
       await tester.pump();

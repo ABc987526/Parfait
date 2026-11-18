@@ -49,6 +49,7 @@ import '../../../app/window/desktop_title_bar.dart';
 import '../../../l10n/context.dart';
 import '../../../app/theme/func_semantic_tokens.dart';
 import '../detail/widgets/detail_page_counter.dart' show PageCountPill;
+import '../../../app/icons/app_icons.dart';
 
 export '../../../app/window/desktop_command_bar.dart'
     show DesktopCommandBarScope;
@@ -774,7 +775,7 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
                   ),
                   const Divider(height: 1),
                   ListTile(
-                    leading: const Icon(Icons.download_outlined),
+                    leading: const Icon(AppIcons.download),
                     title: Text(l10n.downloadAll),
                     onTap: () {
                       Navigator.of(sheetContext).pop();
@@ -782,7 +783,7 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
                     },
                   ),
                   ListTile(
-                    leading: const Icon(Icons.open_in_new),
+                    leading: const Icon(AppIcons.externalLink),
                     title: Text(l10n.viewerOpenDetail),
                     onTap: () {
                       Navigator.of(sheetContext).pop();
@@ -813,7 +814,7 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
         actions: [
           if (entity != null)
             DisplayAction(
-              icon: Icons.download_outlined,
+              icon: AppIcons.download,
               label: l10n.viewerSavePage,
               enabled:
                   saveState != IllustPageSaveState.downloading &&
@@ -822,14 +823,14 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
             ),
           if (entity != null && _pageCount > 1)
             DisplayAction(
-              icon: Icons.download_for_offline_outlined,
+              icon: AppIcons.downloading,
               label: l10n.downloadAll,
               onSelected: () => unawaited(_downloadAll(entity)),
             ),
           if (entity != null) ...[
             if (isDesktopImageClipboardSupported)
               DisplayAction(
-                icon: Icons.copy_outlined,
+                icon: AppIcons.copy,
                 label: l10n.copyOriginalImage,
                 onSelected: () => unawaited(
                   copyIllustOriginalImageToClipboard(
@@ -841,12 +842,12 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
                 ),
               ),
             DisplayAction(
-              icon: Icons.share_outlined,
+              icon: AppIcons.share,
               label: l10n.share,
               onSelected: () => unawaited(_share(entity)),
             ),
             DisplayAction(
-              icon: Icons.link_outlined,
+              icon: AppIcons.link,
               label: l10n.copyLink,
               onSelected: () => unawaited(
                 copyToClipboard(
@@ -858,7 +859,7 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
             ),
           ],
           DisplayAction(
-            icon: zoomed ? Icons.fit_screen : Icons.zoom_in,
+            icon: zoomed ? AppIcons.fitScreen : AppIcons.zoomIn,
             label: zoomed ? l10n.viewerFitScreen : '100%',
             onSelected: () {
               if (zoomed) {
@@ -1425,7 +1426,7 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
                   IconButton(
                     tooltip: l10n.viewerFitScreen,
                     onPressed: hasPages ? _resetZoom : null,
-                    icon: const Icon(Icons.fit_screen),
+                    icon: const Icon(AppIcons.fitScreen),
                   ),
                   if (entity != null) ...[
                     IconButton(
@@ -1449,7 +1450,7 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
                         IllustPageSaveState.error => const Icon(
                           Icons.error_outline,
                         ),
-                        _ => const Icon(Icons.download_outlined),
+                        _ => const Icon(AppIcons.download),
                       },
                     ),
                     IconButton(
@@ -1457,15 +1458,15 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
                       onPressed: hasPages
                           ? () => unawaited(_share(entity))
                           : null,
-                      icon: const Icon(Icons.share_outlined),
+                      icon: const Icon(AppIcons.share),
                     ),
                     IconButton(
                       tooltip: l10n.viewerInfo,
                       onPressed: hasPages ? () => _showInfo(entity) : null,
                       icon: Icon(
                         _wideInfoPanelOpen(context)
-                            ? Icons.info
-                            : Icons.info_outline,
+                            ? AppIcons.infoFilled
+                            : AppIcons.info,
                       ),
                     ),
                   ],

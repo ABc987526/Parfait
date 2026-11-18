@@ -4,6 +4,7 @@ import '../../../app/theme/func_semantic_tokens.dart';
 import '../../../core/download/download_task.dart';
 import '../../../core/format/byte_size.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../../app/icons/app_icons.dart';
 
 /// How a download row or group header reads at a glance (design §4.1).
 /// The persisted lifecycle folds into these states: `finalizing` reads as
@@ -76,14 +77,14 @@ String downloadVisualText(AppLocalizations l10n, DownloadVisualState state) =>
 /// Status icon; color alone never carries meaning (the text stays).
 IconData downloadVisualIcon(DownloadVisualState state) => switch (state) {
   DownloadVisualState.queued => Icons.schedule,
-  DownloadVisualState.running => Icons.downloading,
+  DownloadVisualState.running => AppIcons.downloading,
   DownloadVisualState.processing ||
   DownloadVisualState.canceling => Icons.hourglass_top,
   DownloadVisualState.succeeded => Icons.check_circle,
   DownloadVisualState.paused => Icons.pause_circle,
   DownloadVisualState.retryable => Icons.error_outline,
   DownloadVisualState.failed => Icons.error,
-  DownloadVisualState.canceled => Icons.block,
+  DownloadVisualState.canceled => AppIcons.banFilled,
 };
 
 /// Only the icon picks up the status color (R3). Tinted status *text* fell

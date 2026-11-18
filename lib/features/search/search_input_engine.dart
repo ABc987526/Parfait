@@ -30,6 +30,7 @@ import 'search_filter_labels.dart';
 import 'search_filter_sheet.dart';
 import 'search_section_header.dart';
 import 'search_text.dart';
+import '../../app/icons/app_icons.dart';
 
 /// Search input with the three beta56 result tabs and cancellable
 /// suggestions, shared by the full input page and the docked panel (R10).
@@ -314,7 +315,7 @@ class SearchInputEngineState extends ConsumerState<SearchInputEngine>
         ),
         backgroundColor: const WidgetStatePropertyAll(FuncTokens.transparent),
         hintText: context.l10n.searchBarHint,
-        leading: Icon(Icons.search, color: iconColor),
+        leading: Icon(AppIcons.search, color: iconColor),
         trailing: [_clearSearchAction()],
         onSubmitted: (_) => _submit(),
         textInputAction: TextInputAction.search,
@@ -433,7 +434,7 @@ class _SearchInputBody extends ConsumerWidget {
         padding: const EdgeInsets.symmetric(vertical: FuncSpacing.sm),
         children: [
           ListTile(
-            leading: const Icon(Icons.open_in_new),
+            leading: const Icon(AppIcons.externalLink),
             title: Text(_shortcutLabel(context, shortcut)),
             onTap: () {
               if (onShortcut case final open?) {
@@ -485,7 +486,7 @@ class _SearchInputBody extends ConsumerWidget {
         return Semantics(
           onLongPressHint: context.l10n.searchSuggestionFill,
           child: ListTile(
-            leading: const Icon(Icons.search),
+            leading: const Icon(AppIcons.search),
             title: Text(suggestion.displayName),
             subtitle: suggestion.translatedName == null
                 ? null
@@ -705,7 +706,7 @@ class _HistoryChip extends StatelessWidget {
         ),
       ),
       child: InputChip(
-        avatar: const Icon(Icons.history),
+        avatar: const Icon(AppIcons.history),
         label: Text(keyword),
         onPressed: onTap,
         onDeleted: onDeleted,

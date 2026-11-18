@@ -16,6 +16,7 @@ import '../../../l10n/context.dart';
 import '../settings_helpers.dart';
 import '../../../app/theme/func_semantic_tokens.dart';
 import '../../../app/layout/content_widths.dart';
+import '../../../app/icons/app_icons.dart';
 
 class TranslationCredentialsPage extends ConsumerStatefulWidget {
   const TranslationCredentialsPage({super.key, required this.baidu});
@@ -324,7 +325,7 @@ class _TranslationCredentialsPageState
                             ),
                             icon: _busy && !_clearing
                                 ? const _BusyIndicator()
-                                : const Icon(Icons.save_outlined),
+                                : const Icon(AppIcons.save),
                             label: Text(
                               context.l10n.translateCredentialsSave,
                               textAlign: TextAlign.center,
@@ -340,7 +341,7 @@ class _TranslationCredentialsPageState
               SettingsGroup(
                 children: [
                   SettingsActionTile(
-                    icon: Icons.delete_outline,
+                    icon: AppIcons.trash,
                     title: Text(context.l10n.translateCredentialsClear),
                     trailing: _busy && _clearing
                         ? const _BusyIndicator()

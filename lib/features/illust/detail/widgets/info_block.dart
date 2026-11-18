@@ -25,6 +25,7 @@ import '../../../../app/widgets/inline_translation.dart';
 import '../../../../app/widgets/tag_actions_sheet.dart';
 import '../../../../core/entity/illust_caption.dart';
 import 'detail_section_header.dart';
+import '../../../../app/icons/app_icons.dart';
 
 /// The page margin of the info area, the app's (LAYOUT-14).
 const _margin = EdgeInsets.symmetric(horizontal: FuncSpacing.lg);
@@ -500,16 +501,8 @@ class DetailMarksAndStats extends StatelessWidget {
                   spacing: FuncSpacing.xs,
                   children: marks,
                 ),
-              MetaFact(
-                icon: Icons.visibility_outlined,
-                text: views,
-                style: style,
-              ),
-              MetaFact(
-                icon: Icons.favorite_outline,
-                text: bookmarks,
-                style: style,
-              ),
+              MetaFact(icon: AppIcons.eye, text: views, style: style),
+              MetaFact(icon: AppIcons.heart, text: bookmarks, style: style),
               if (date != null) Text(date, style: style),
             ],
           ),
@@ -549,7 +542,7 @@ class _FactsRow extends StatelessWidget {
       children: [
         boxed(
           MetaFact(
-            icon: Icons.aspect_ratio,
+            icon: AppIcons.dimensions,
             text: '${entity.width}×${entity.height}',
             style: style,
           ),
@@ -557,7 +550,7 @@ class _FactsRow extends StatelessWidget {
         if (entity.pageCount > 1)
           boxed(
             MetaFact(
-              icon: Icons.collections_outlined,
+              icon: AppIcons.series,
               text: context.l10n.detailPageCount(entity.pageCount),
               style: style,
             ),
@@ -567,7 +560,7 @@ class _FactsRow extends StatelessWidget {
             label: context.l10n.detailTools,
             child: boxed(
               MetaFact(
-                icon: Icons.brush_outlined,
+                icon: AppIcons.brush,
                 text: entity.tools.join(' / '),
                 style: style,
               ),
@@ -603,15 +596,11 @@ class _CopyableId extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.tag, size: MetaFact.glyph, color: style.color),
+              Icon(AppIcons.tag, size: MetaFact.glyph, color: style.color),
               const SizedBox(width: FuncSpacing.xxs),
               Text('$id', style: style),
               const SizedBox(width: FuncSpacing.xs),
-              Icon(
-                Icons.content_copy,
-                size: MetaFact.glyph,
-                color: style.color,
-              ),
+              Icon(AppIcons.copy, size: MetaFact.glyph, color: style.color),
             ],
           ),
         ),

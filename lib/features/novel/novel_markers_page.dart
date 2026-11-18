@@ -21,6 +21,7 @@ import '../../core/novel/novel_entity.dart';
 import '../../core/novel/novel_feed_controller.dart';
 import '../../core/novel/novel_store.dart';
 import '../../l10n/context.dart';
+import '../../app/icons/app_icons.dart';
 
 /// The account's bookmarked novels (Pixiv's markers): each row says where
 /// its bookmark is, opens there, and removes or puts back the bookmark.
@@ -76,7 +77,7 @@ class NovelMarkersPage extends ConsumerWidget {
                       SliverFillRemaining(
                         hasScrollBody: false,
                         child: FeedEmpty(
-                          icon: Icons.bookmarks_outlined,
+                          icon: AppIcons.novelMarkers,
                           title: l10n.novelMarkersEmpty,
                         ),
                       )
@@ -161,8 +162,8 @@ class _MarkedNovelRow extends ConsumerWidget {
                 ? l10n.novelMarkerRestore
                 : l10n.novelMarkerDelete,
             isSelected: current != null,
-            icon: const Icon(Icons.bookmark_border),
-            selectedIcon: const Icon(Icons.bookmark),
+            icon: const Icon(AppIcons.watchLater),
+            selectedIcon: const Icon(AppIcons.watchLaterFilled),
             onPressed: page == null
                 ? null
                 : () => unawaited(write(current == null ? page : null)),

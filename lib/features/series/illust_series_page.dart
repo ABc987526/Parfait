@@ -36,6 +36,7 @@ import '../../app/layout/card_columns.dart';
 import '../../app/layout/content_widths.dart';
 import '../../app/widgets/feed/load_more_listener.dart';
 import '../../app/window/desktop_command_bar.dart';
+import '../../app/icons/app_icons.dart';
 
 /// One illust series: a header (cover/title/author/work count/caption) plus
 /// the paginated episode list (`/v1/illust/series`, newest first). Episodes
@@ -184,7 +185,7 @@ class _IllustSeriesPageState extends ConsumerState<IllustSeriesPage> {
                               SliverFillRemaining(
                                 hasScrollBody: false,
                                 child: FeedEmpty(
-                                  icon: Icons.collections_bookmark_outlined,
+                                  icon: AppIcons.series,
                                   title: context.l10n.seriesEmpty,
                                 ),
                               )
@@ -292,7 +293,7 @@ class _EpisodeRow extends StatelessWidget {
                   left: _badgeInset,
                   bottom: _badgeInset,
                   child: EntityBadge(
-                    icon: Icons.photo_library_outlined,
+                    icon: AppIcons.multiPage,
                     label: AppFormat.count(context, entity.pageCount),
                   ),
                 ),

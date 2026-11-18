@@ -818,7 +818,7 @@ class _NovelMarkerSection extends ConsumerWidget {
           ListTile(
             enabled: !pending,
             contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.bookmark_add_outlined),
+            leading: const Icon(AppIcons.watchLaterAdd),
             title: Text(l10n.novelMarkerAdd),
             trailing: pending ? progress : null,
             onTap: () => unawaited(write(current)),
@@ -827,7 +827,7 @@ class _NovelMarkerSection extends ConsumerWidget {
           ListTile(
             enabled: !pending,
             contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.bookmark),
+            leading: const Icon(AppIcons.watchLaterFilled),
             title: Text(l10n.novelMarker),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
@@ -851,7 +851,7 @@ class _NovelMarkerSection extends ConsumerWidget {
                   IconButton(
                     tooltip: l10n.novelMarkerDelete,
                     onPressed: () => unawaited(write(null)),
-                    icon: const Icon(Icons.bookmark_remove_outlined),
+                    icon: const Icon(AppIcons.watchLaterRemove),
                   ),
               ],
             ),

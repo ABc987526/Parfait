@@ -14,6 +14,7 @@ import '../../motion/state_fade.dart';
 import '../app_top_bar.dart';
 import '../errors/error_details.dart';
 import '../../theme/func_semantic_tokens.dart';
+import '../../icons/app_icons.dart';
 
 /// Shared feed-tail widget: load-more spinner, load-more error + retry,
 /// "continue" once automatic paging paused, and the exhausted marker.
@@ -155,7 +156,7 @@ class FeedEmpty extends StatelessWidget {
     this.retryLabel,
     this.actionLabel,
     this.onAction,
-    this.actionIcon = Icons.edit_outlined,
+    this.actionIcon = AppIcons.edit,
   }) : assert(
          onRefresh == null || retryLabel != null,
          'retryLabel is required when onRefresh is provided',
@@ -288,7 +289,7 @@ class FeedAllHidden extends StatelessWidget {
     }
     final error = feed.showLoadMoreError ? feed.loadMoreError : null;
     final content = FeedEmpty(
-      icon: Icons.visibility_off_outlined,
+      icon: AppIcons.eyeOff,
       title: l10n.feedAllHidden,
       error: error,
       actionLabel: l10n.feedContinueLoading,
@@ -331,7 +332,7 @@ class FeedError extends StatelessWidget {
     final column = Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const _StatusIcon(Icons.cloud_off),
+        const _StatusIcon(AppIcons.cloudOff),
         const SizedBox(height: FuncSpacing.lg),
         _StatusTitle(title),
         if (error != null) ...[

@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:parfait/app/pixiv_image.dart';
 
 import 'review_support.dart';
+import 'package:parfait/app/icons/app_icons.dart';
 
 /// Dialogs, sheets, menus and prompts opening and closing.
 void main() {
@@ -13,7 +14,7 @@ void main() {
         'The remove-account confirmation opening over the account page and '
         'closing on Cancel: the scrim fades with the dialog, focus returns.',
     script: (film, router) async {
-      await film.tap(find.byIcon(Icons.delete_outline));
+      await film.tap(find.byIcon(AppIcons.trash));
       await film.tap(find.text('取消').last);
     },
   );
@@ -25,7 +26,7 @@ void main() {
         'The search filter sheet rising and being dragged down to close; '
         'its top edge and the status bar area on every frame.',
     script: (film, router) async {
-      await film.tap(find.byIcon(Icons.tune_outlined));
+      await film.tap(find.byIcon(AppIcons.filter));
       await film.swipe(find.text('筛选').last, const Offset(0, 900), count: 12);
     },
   );

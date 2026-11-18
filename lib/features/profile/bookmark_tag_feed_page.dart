@@ -12,6 +12,7 @@ import '../../l10n/context.dart';
 import 'profile_illust_feed.dart';
 import 'profile_novel_feed.dart';
 import '../../app/theme/func_semantic_tokens.dart';
+import '../../app/icons/app_icons.dart';
 
 /// The signed-in user's bookmarks of one [kind] filtered to one tag — the
 /// profile's own list (`ProfileIllustFeed` or `ProfileNovelFeed`) with
@@ -94,7 +95,7 @@ class _BookmarkTagFeedPageState extends ConsumerState<BookmarkTagFeedPage> {
               constraints: const BoxConstraints(minHeight: 48),
               hintText: l10n.bookmarkTagFilterHint,
               leading: Icon(
-                Icons.search,
+                AppIcons.search,
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
               onChanged: (value) => setState(() => _filter = value),
@@ -106,10 +107,7 @@ class _BookmarkTagFeedPageState extends ConsumerState<BookmarkTagFeedPage> {
       body: DesktopInspectableGallery(
         active: widget.kind == BookmarkEntityType.illust,
         child: userId == null
-            ? FeedEmpty(
-                icon: Icons.label_outline,
-                title: l10n.bookmarkTagsEmpty,
-              )
+            ? FeedEmpty(icon: AppIcons.tag, title: l10n.bookmarkTagsEmpty)
             : _feed(userId),
       ),
     );
