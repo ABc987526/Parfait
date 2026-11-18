@@ -1,7 +1,7 @@
 {
   "@@locale": "ja",
   "networkDohEndpointsInvalid": "DoHエンドポイントリストが無効です",
-  "welcome1": "Parfaitをご利用ありがとうございます",
+  "welcome1": "Parfaitをご利用\nありがとうございます",
   "welcome2": "初期設定を開始します",
   "start": "開始",
   "selectLanguage": "言語の選択",
@@ -213,7 +213,7 @@
   "browseSettings": "ブラウズ設定",
   "navigationSettings": "ナビゲーションとレイアウト",
   "settingsBrowseHint": "ローカル非表示・画質",
-  "settingsNavigationHint": "ランキングのカテゴリー",
+  "settingsNavigationHint": "ランキングカテゴリ",
   "downloadSettings": "ダウンロード設定",
   "historySettings": "履歴",
   "historyRecordLocal": "ローカルに閲覧履歴を記録",

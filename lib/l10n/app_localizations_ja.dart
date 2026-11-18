@@ -12,7 +12,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get networkDohEndpointsInvalid => 'DoHエンドポイントリストが無効です';
 
   @override
-  String get welcome1 => 'Parfaitをご利用ありがとうございます';
+  String get welcome1 => 'Parfaitをご利用\nありがとうございます';
 
   @override
   String get welcome2 => '初期設定を開始します';
@@ -569,7 +569,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settingsBrowseHint => 'ローカル非表示・画質';
 
   @override
-  String get settingsNavigationHint => 'ランキングのカテゴリー';
+  String get settingsNavigationHint => 'ランキングカテゴリ';
 
   @override
   String get downloadSettings => 'ダウンロード設定';
