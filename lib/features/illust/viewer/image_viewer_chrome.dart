@@ -222,6 +222,8 @@ class _ViewerInfoPanel extends StatelessWidget {
         builder: (context) {
           final colorScheme = Theme.of(context).colorScheme;
           final textTheme = Theme.of(context).textTheme;
+          final showCaptionDivider =
+              DesktopChromeMetrics.maybeOf(context)?.showCustomButtons ?? false;
           return SizedBox(
             key: const Key('viewer-info-panel'),
             width: width,
@@ -238,6 +240,13 @@ class _ViewerInfoPanel extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      if (showCaptionDivider)
+                        Divider(
+                          height: 1,
+                          color: colorScheme.outlineVariant.withValues(
+                            alpha: 0.5,
+                          ),
+                        ),
                       Padding(
                         padding: const EdgeInsetsDirectional.fromSTEB(
                           FuncSpacing.md,
@@ -258,7 +267,7 @@ class _ViewerInfoPanel extends StatelessWidget {
                                 context,
                               ).closeButtonTooltip,
                               onPressed: onClose,
-                              icon: const Icon(Icons.close),
+                              icon: const Icon(Icons.chevron_right),
                             ),
                           ],
                         ),

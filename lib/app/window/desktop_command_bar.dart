@@ -39,6 +39,15 @@ bool _isPreHomePath(String path) {
   return false;
 }
 
+const _rootOverlayWithoutRailPrefixes = ['/downloads', '/me', '/reverse-image'];
+
+bool _isRootOverlayWithoutRail(String path) {
+  for (final prefix in _rootOverlayWithoutRailPrefixes) {
+    if (path == prefix || path.startsWith('$prefix/')) return true;
+  }
+  return false;
+}
+
 /// Coordinates temporary immersive hiding of [DesktopCommandBar] (e.g. while
 /// a dark fullscreen media viewer occupies the root navigator) without tearing
 /// down [DesktopCommandBarScope] for the shell routes underneath.
@@ -662,10 +671,9 @@ class _DesktopCommandBarState extends ConsumerState<DesktopCommandBar> {
         : DesktopCommandActionsAnchor.activeAction();
     final currentAccount = ref.watch(accountStoreProvider).value?.current;
     final form = FormFactor.of(context);
-    final canToggleRail = form.canToggleRail(
-      windowSize.width,
-      height: windowSize.height,
-    );
+    final canToggleRail =
+        !_isRootOverlayWithoutRail(uri.path) &&
+        form.canToggleRail(windowSize.width, height: windowSize.height);
     final railChoice =
         ref.watch(railExpandedProvider) ?? widget.settings.railExpanded;
     final railExpanded = form.railExpanded(
@@ -937,18 +945,21 @@ class _DesktopCommandBarState extends ConsumerState<DesktopCommandBar> {
                       groupId: _accountMenuGroup,
                       child: KeyedSubtree(
                         key: _accountButtonKey,
-                        child: _maybeWrapTooltip(
-                          context,
-                          message: l10n.commandSwitchAccount,
-                          child: InkWell(
-                            key: const Key('desktop-command-account'),
-                            customBorder: const CircleBorder(),
-                            onTap: () => unawaited(_openAccountPopover()),
-                            child: Padding(
-                              padding: const EdgeInsets.all(FuncSpacing.xxs),
-                              child: Semantics(
-                                button: true,
-                                label: l10n.commandSwitchAccount,
+                        child: Semantics(
+                          container: true,
+                          button: true,
+                          label: l10n.commandSwitchAccount,
+                          excludeSemantics: true,
+                          child: _maybeWrapTooltip(
+                            context,
+                            message: l10n.commandSwitchAccount,
+                            excludeFromSemantics: true,
+                            child: InkWell(
+                              key: const Key('desktop-command-account'),
+                              customBorder: const CircleBorder(),
+                              onTap: () => unawaited(_openAccountPopover()),
+                              child: Padding(
+                                padding: const EdgeInsets.all(FuncSpacing.xxs),
                                 child: DecoratedBox(
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
@@ -1015,11 +1026,13 @@ class _DragSpacer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onPanStart: actions == null ? null : (_) => actions!.onStartDragging(),
-      onDoubleTap: actions?.onTitleBarDoubleClick,
-      child: const SizedBox(height: kDesktopCommandBarHeight),
+    return ExcludeSemantics(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onPanStart: actions == null ? null : (_) => actions!.onStartDragging(),
+        onDoubleTap: actions?.onTitleBarDoubleClick,
+        child: const SizedBox(height: kDesktopCommandBarHeight),
+      ),
     );
   }
 }
@@ -1332,10 +1345,16 @@ Widget _commandIconButton(
 Widget _maybeWrapTooltip(
   BuildContext context, {
   required String message,
+  bool excludeFromSemantics = false,
   required Widget child,
 }) {
   if (Overlay.maybeOf(context) != null) {
-    return Tooltip(message: message, child: child);
+    return Tooltip(
+      message: message,
+      excludeFromSemantics: excludeFromSemantics,
+      child: child,
+    );
   }
+  if (excludeFromSemantics) return child;
   return Semantics(tooltip: message, child: child);
 }

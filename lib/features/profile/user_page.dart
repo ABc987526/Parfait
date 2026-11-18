@@ -23,7 +23,6 @@ import '../../app/widgets/app_tab_bar.dart';
 import '../../app/widgets/app_top_bar.dart';
 import '../../app/widgets/feed/desktop_gallery_controls.dart';
 import '../../app/widgets/feed/feed_states.dart';
-import '../../app/widgets/fit_label.dart';
 import '../../app/widgets/replica_scaffold.dart';
 import '../../app/widgets/follow_switch_button.dart';
 import '../../app/window/desktop_command_bar.dart';
@@ -807,38 +806,8 @@ class _UserPageState extends ConsumerState<UserPage>
       onToggleMute: onToggleMute,
     );
     const sidebarWidth = 332.0;
-    const sidebarInnerWidth = sidebarWidth - 4 * FuncSpacing.lg;
-    const minInlineNameWidth = 96.0;
     final hasEditAction = widget.isMe && widget.onEditProfile != null;
     final hasFollowAction = !widget.isMe;
-    final actionLabel = hasEditAction
-        ? l10n.profileEditTitle
-        : (hasFollowAction ? (followed ? l10n.followed : l10n.follow) : null);
-    final labelStyle = LabelFit.paintedStyle(
-      context,
-      (theme.textTheme.labelLarge ?? const TextStyle()).copyWith(
-        fontWeight: FontWeight.w600,
-      ),
-    );
-    final actionLabelWidth = actionLabel == null
-        ? 0.0
-        : LabelFit.measureLabel(
-            actionLabel,
-            labelStyle,
-            MediaQuery.textScalerOf(context),
-            Directionality.of(context),
-            locale: Localizations.maybeLocaleOf(context),
-          );
-    final primaryActionWidth = hasEditAction
-        ? actionLabelWidth + 2 * FuncSpacing.md
-        : (hasFollowAction
-              ? math.max(116.0, actionLabelWidth + 2 * FuncSpacing.md)
-              : 0.0);
-    final inlineActionsWidth =
-        kMinInteractiveDimension +
-        (primaryActionWidth > 0 ? FuncSpacing.xs + primaryActionWidth : 0.0);
-    final stackHeaderActions =
-        sidebarInnerWidth - inlineActionsWidth < minInlineNameWidth;
     final shareButton = Builder(
       builder: (buttonContext) => IconButton(
         tooltip: l10n.profileShare,
@@ -947,44 +916,17 @@ class _UserPageState extends ConsumerState<UserPage>
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  if (stackHeaderActions)
-                                    Text(
-                                      key: const ValueKey(
-                                        'profile-expanded-name',
-                                      ),
-                                      user.name,
-                                      style: theme.textTheme.titleLarge
-                                          ?.copyWith(
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                    )
-                                  else
-                                    Row(
-                                      children: [
-                                        Flexible(
-                                          fit: FlexFit.loose,
-                                          child: Text(
-                                            key: const ValueKey(
-                                              'profile-expanded-name',
-                                            ),
-                                            user.name,
-                                            style: theme.textTheme.titleLarge
-                                                ?.copyWith(
-                                                  fontWeight: FontWeight.w700,
-                                                ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                        shareButton,
-                                        if (primaryAction != null) ...[
-                                          const SizedBox(width: FuncSpacing.xs),
-                                          primaryAction,
-                                        ],
-                                      ],
+                                  Text(
+                                    key: const ValueKey(
+                                      'profile-expanded-name',
                                     ),
+                                    user.name,
+                                    style: theme.textTheme.titleLarge?.copyWith(
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                   if (user.account.isNotEmpty) ...[
                                     const SizedBox(height: FuncSpacing.xxs),
                                     Text(
@@ -999,18 +941,16 @@ class _UserPageState extends ConsumerState<UserPage>
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                   ],
-                                  if (stackHeaderActions) ...[
-                                    const SizedBox(height: FuncSpacing.sm),
-                                    Row(
-                                      children: [
-                                        shareButton,
-                                        if (primaryAction != null) ...[
-                                          const SizedBox(width: FuncSpacing.xs),
-                                          Flexible(child: primaryAction),
-                                        ],
+                                  const SizedBox(height: FuncSpacing.sm),
+                                  Row(
+                                    children: [
+                                      if (primaryAction != null) ...[
+                                        Flexible(child: primaryAction),
+                                        const SizedBox(width: FuncSpacing.xs),
                                       ],
-                                    ),
-                                  ],
+                                      shareButton,
+                                    ],
+                                  ),
                                   if (stats.isNotEmpty) ...[
                                     const SizedBox(height: FuncSpacing.sm),
                                     ProfileStatRow(stats: stats),

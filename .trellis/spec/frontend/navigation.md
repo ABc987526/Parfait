@@ -458,10 +458,13 @@ reviewed: 2026-11-18
 
 ### NAV-26 Desktop command bar, macOS menu bar and per-branch forward history
 - **Rule:** On desktop platforms (Windows, macOS, Linux), `AppChrome` mounts
-  the 48dp `DesktopCommandBar` (rail toggle, back/forward, refresh, search field
+  the 48dp `DesktopCommandBar` (rail toggle omitted on root-overlay routes without
+  a visible `ShellRail`, back/forward, refresh, search field
   with `'⌘K'` on macOS / `'Ctrl K'` elsewhere and keyword pills, reverse search,
   anchored scrim-less `showAppPanel` popovers for `Icons.shield_outlined` R-18/AI
   filters and account switching anchored cleanly below the control bar
+  (`FuncSpacing.xs` offset) and merged into a single non-duplicated `Semantics`
+  button with drag spacers marked `ExcludeSemantics`, and window drag/caption regions with `2px`
   (`FuncSpacing.xs` offset), and window drag/caption regions with `2px`
   unmaximized top/right resize borders so Win11 Snap Layouts stay reachable),
   progressively hiding shortcut badge (`< 680dp`), wordmark (`< 600dp`), and

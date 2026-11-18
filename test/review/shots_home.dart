@@ -18,16 +18,24 @@ void main() {
     variants: {...ShotVariant.values},
   );
   // The PC shell: the rail collapsed under its menu button, then opened
-  // into the labelled panel. A phone keeps its bottom bar. The review
-  // device is Android, where the interface form ignores the setting, so
-  // these scenes replace both the framework platform and the platform
-  // caps with Windows before the app builds.
+  // into the labelled panel. A phone keeps its bottom bar. When the review
+  // device is mobile (Android/iOS), these scenes replace both the framework
+  // platform and the platform caps with Windows before the app builds; desktop
+  // presets keep their native chrome.
+  final isDesktopDevice = switch (reviewDevice.targetPlatform) {
+    TargetPlatform.windows ||
+    TargetPlatform.macOS ||
+    TargetPlatform.linux => true,
+    _ => false,
+  };
   for (final open in [false, true]) {
     testShot(
       'home/recommended-pc${open ? '-open' : ''}',
       location: '/recommended',
-      platform: TargetPlatform.windows,
-      setup: const ReviewSetup(platformCaps: PlatformCaps(isWindows: true)),
+      platform: isDesktopDevice ? null : TargetPlatform.windows,
+      setup: isDesktopDevice
+          ? const ReviewSetup()
+          : const ReviewSetup(platformCaps: PlatformCaps(isWindows: true)),
       variants: {ShotVariant.dark, ...overflowVariants, ShotVariant.largeText},
       before: (tester, router) async {
         final container = ProviderScope.containerOf(

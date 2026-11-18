@@ -141,7 +141,8 @@ reviewed: 2026-11-18
   `brandHairline`-separated nested detail `Navigator` (`SettingsDetailScope`,
   `EmbeddedHeaderScope` flat aligned `52dp` headers,
   `MotionTokens.stateFadeCurve` with leaving `IgnorePointer`, and
-  `settingsNarrowBody` left-aligned up to 780dp); secondary leaf paths
+  `settingsNarrowBody` left-aligned up to 780dp wrapped in vertical
+  `ScrollEdgeFade(axis: Axis.vertical, fadeExtent: FuncSpacing.lg)`); secondary leaf paths
   (`/settings/about/licenses`, `/settings/network/advanced`,
   `/settings/navigation/bottom-bar`, `/settings/translate/credentials`) map to
   their parent category and scroll the active rail entry into view.
@@ -173,17 +174,20 @@ reviewed: 2026-11-18
   `HistoryVisibility` settled-route gating plus root-to-leaf `Navigator`
   secondary-animation checks so, while covered, it holds its order and slides
   on `MotionTokens.spatial` once uncovered (painting hovered covers in the top
-  layer with unclipped `FuncSpacing.xs` lift headroom and asymmetric enter/exit
-  curves). When
+  layer with unclipped `FuncSpacing.xs` lift headroom and symmetric
+  `Curves.easeInOutCubic` curves so promoted/displaced slots leave no gap, plus
+  horizontal `ScrollEdgeFade(axis: Axis.horizontal, fadeExtent: FuncSpacing.lg)`). When
   `MasterDetailWorkspace.canDisplay` holds (`>= 840x480` content), the Me tab
   mounts `MasterDetailWorkspace` (`masterBody` scrolled with vertical
   `ScrollEdgeFade`) wrapping its nested detail `Navigator` in
-  `SettingsDetailScope` (`780dp` left-aligned `settingsNarrowBody` and aligned
+  `SettingsDetailScope` (`780dp` left-aligned `settingsNarrowBody` with vertical
+  `ScrollEdgeFade` and aligned
   `AppTopBar`): a `280dp` left rail (`40dp` `_CompactAccountHeader` card,
   grouped `showChevron: false` index items, plus settings/about on touch tablets
   without `DesktopCommandBarScope`) and a default `_MeOverviewPane` showing a
   profile summary card, `_RecentHistory` (`86dp` covers or an empty-history
-  card), and a 2-column collection grid (`收藏`, `关注`, `追更`, `稍后再看`)
+  card), and a 2-column collection grid (`收藏`, `关注`, `追更`, `稍后再看`,
+  omitting placeholder dashes when counts are unavailable)
   jumping directly to sub-sections instead of duplicating vertical data rows.
 - **Why:** User decision: settings filled two thirds of the page in a
   style of their own, and nothing showed what the user saw last; then

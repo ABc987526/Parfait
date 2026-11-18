@@ -345,12 +345,14 @@ reviewed: 2026-11-18
 - **Rule:** Lists of novel, user and series-episode cards lay out through
   `SliverCardList` (or `CardRow` in a `ListView`): a column per 400dp of
   the list's own width, at most three. In a several-column list each
-  card's row uses its whole cell: the title takes the cell's width and
+  card's row uses its whole cell: the title takes the cell's width,
   the author, meta and tags spread across it (author from the inner left
-  edge, the tag line ending on the inner right edge) instead of stacking
-  in the narrow leading text column; `CardCellScope` tells the row how
+  edge, the tag line ending on the inner right edge), and `EntityRow`
+  wraps each cell as a flat `surfaceContainerLow` tonal card (`FuncShape.card`,
+  with outer cell inset and capped inner padding) instead of an unbounded
+  transparent strip; `CardCellScope` tells the row how
   many columns its cell is in, and a single-column list keeps the stacked
-  row. Text lists (comments and their
+  full-bleed row. Text lists (comments and their
   composer, search suggestions, bookmark tags, a profile's About tab) sit
   in `ContentWidthCap` at `ContentWidths.management`; the search field
   stops at the same width; the reverse image search flow at

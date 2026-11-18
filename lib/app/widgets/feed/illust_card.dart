@@ -370,6 +370,11 @@ class _IllustCardBody extends ConsumerWidget {
               if (rank case final rank?) context.l10n.rankLabel(rank),
               entity.title,
               entity.user.name,
+              if (entity.isR18) 'R-18',
+              if (entity.isUgoira) context.l10n.badgeUgoira,
+              if (entity.pageCount > 1)
+                context.l10n.illustPagesTotal(entity.pageCount),
+              if (entity.isAi) context.l10n.badgeAi,
             ].join(', '),
       onTap: primaryTap,
       onLongPress: longPress,
@@ -410,10 +415,12 @@ class _IllustCardBody extends ConsumerWidget {
                         _StandInPrefetch(url: url, child: image)
                       else
                         image,
-                      HeroChrome(
-                        child: Stack(
-                          fit: StackFit.expand,
-                          children: _buildBadges(context),
+                      ExcludeSemantics(
+                        child: HeroChrome(
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: _buildBadges(context),
+                          ),
                         ),
                       ),
                       if (inspector != null)
