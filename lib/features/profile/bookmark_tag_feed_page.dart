@@ -53,23 +53,31 @@ class _BookmarkTagFeedPageState extends ConsumerState<BookmarkTagFeedPage> {
     );
     return Scaffold(
       appBar: AppTopBar(
-        title: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(widget.tag, maxLines: 1, overflow: TextOverflow.ellipsis),
-            Text(
-              // The kind is named for novels only: illustrations are what
-              // this page always showed.
-              [
-                if (widget.kind == BookmarkEntityType.novel) l10n.profileNovel,
-                widget.restrict == BookmarkRestrict.private
-                    ? l10n.restrictPrivate
-                    : l10n.restrictPublic,
-              ].join(' · '),
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
+        title: Builder(
+          builder: (titleContext) {
+            final titleColor = DefaultTextStyle.of(titleContext).style.color;
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(widget.tag, maxLines: 1, overflow: TextOverflow.ellipsis),
+                Text(
+                  // The kind is named for novels only: illustrations are what
+                  // this page always showed.
+                  [
+                    if (widget.kind == BookmarkEntityType.novel)
+                      l10n.profileNovel,
+                    widget.restrict == BookmarkRestrict.private
+                        ? l10n.restrictPrivate
+                        : l10n.restrictPublic,
+                  ].join(' · '),
+                  style: Theme.of(titleContext).textTheme.bodySmall?.copyWith(
+                    color: titleColor?.withValues(alpha: 0.82),
+                  ),
+                ),
+              ],
+            );
+          },
         ),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(64),
@@ -85,7 +93,10 @@ class _BookmarkTagFeedPageState extends ConsumerState<BookmarkTagFeedPage> {
               controller: _filterController,
               constraints: const BoxConstraints(minHeight: 48),
               hintText: l10n.bookmarkTagFilterHint,
-              leading: const Icon(Icons.search),
+              leading: Icon(
+                Icons.search,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
               onChanged: (value) => setState(() => _filter = value),
               textInputAction: TextInputAction.search,
             ),

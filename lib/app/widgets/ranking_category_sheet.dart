@@ -15,6 +15,7 @@ import '../motion/app_overlays.dart';
 import '../motion/spring_size.dart';
 import '../motion/state_fade.dart';
 import '../theme/func_semantic_tokens.dart';
+import 'fit_label.dart';
 import 'settings/persist_settings.dart';
 
 /// What a ranking page puts in its category sheet besides the categories.
@@ -87,7 +88,7 @@ class _RankingCategorySheet<M extends RankingCategory>
 
 class _RankingCategorySheetState<M extends RankingCategory>
     extends ConsumerState<_RankingCategorySheet<M>> {
-  static const _maxHeightFactor = 0.9;
+  static const _maxHeightFactor = 0.92;
 
   late bool _editing = widget.editing;
 
@@ -135,9 +136,15 @@ class _RankingCategorySheetState<M extends RankingCategory>
         isRankingCategoryBlocked(mode, blockR18: block.r18, blockAI: block.ai);
     final l10n = context.l10n;
     final theme = Theme.of(context);
+    final tokens = FuncSemanticTokens.of(context);
     final page = _page;
     final wide = useWideOverlay(context);
     final pointer = usePointerOverlay(context);
+    final footerColor =
+        theme.bottomSheetTheme.backgroundColor ??
+        (wide
+            ? theme.colorScheme.surfaceContainerHigh
+            : theme.colorScheme.surfaceContainerLow);
     final showHeaderClose = wide && (pointer || !_editing || page != null);
     final header = Padding(
       // The end meets the grid's edge: a tonal button's edge is its
@@ -181,8 +188,15 @@ class _RankingCategorySheetState<M extends RankingCategory>
       ),
     );
     final body = _editing
-        ? _editor(context, blocked, pointer: pointer)
+        ? _editor(context, blocked)
         : _browser(context, page!);
+    final restoreButton = TextButton.icon(
+      onPressed: _draft == widget.catalog.defaults
+          ? null
+          : () => _save(widget.catalog.defaults),
+      icon: const Icon(Icons.restart_alt),
+      label: Text(l10n.restoreDefault),
+    );
     return ConstrainedBox(
       constraints: BoxConstraints(
         maxHeight: MediaQuery.heightOf(context) * _maxHeightFactor,
@@ -198,18 +212,60 @@ class _RankingCategorySheetState<M extends RankingCategory>
           children: [
             StateFade(kind: _editing, child: header),
             Flexible(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.only(bottom: FuncSpacing.lg),
-                child: SafeArea(
-                  top: false,
-                  // Switching between browsing and editing fades the new
-                  // view in while the sheet springs to its height.
-                  child: SpringSize(
-                    child: StateFade(kind: _editing, child: body),
+              child: _SheetBottomScrollFade(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.only(bottom: FuncSpacing.lg),
+                  child: SafeArea(
+                    top: false,
+                    bottom: !_editing,
+                    // Switching between browsing and editing fades the new
+                    // view in while the sheet springs to its height.
+                    child: SpringSize(
+                      child: StateFade(kind: _editing, child: body),
+                    ),
                   ),
                 ),
               ),
             ),
+            if (_editing) ...[
+              Divider(height: 1, thickness: 1, color: tokens.brandHairline),
+              ColoredBox(
+                color: footerColor,
+                child: SafeArea(
+                  top: false,
+                  child: pointer
+                      ? Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: FuncSpacing.xl,
+                            vertical: FuncSpacing.sm,
+                          ),
+                          child: OverflowBar(
+                            alignment: MainAxisAlignment.end,
+                            spacing: FuncSpacing.sm,
+                            overflowSpacing: FuncSpacing.sm,
+                            overflowAlignment: OverflowBarAlignment.end,
+                            children: [
+                              restoreButton,
+                              FilledButton(
+                                onPressed: _finishEditing,
+                                child: Text(l10n.rankingEditDone),
+                              ),
+                            ],
+                          ),
+                        )
+                      : Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: FuncSpacing.md,
+                            vertical: FuncSpacing.xs,
+                          ),
+                          child: Align(
+                            alignment: AlignmentDirectional.centerStart,
+                            child: restoreButton,
+                          ),
+                        ),
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -255,22 +311,11 @@ class _RankingCategorySheetState<M extends RankingCategory>
     );
   }
 
-  Widget _editor(
-    BuildContext context,
-    bool Function(M) blocked, {
-    required bool pointer,
-  }) {
+  Widget _editor(BuildContext context, bool Function(M) blocked) {
     final l10n = context.l10n;
     final theme = Theme.of(context);
     final draft = _draft;
     final all = [...draft.shown, ...draft.hidden];
-    final restoreButton = TextButton.icon(
-      onPressed: draft == widget.catalog.defaults
-          ? null
-          : () => _save(widget.catalog.defaults),
-      icon: const Icon(Icons.restart_alt),
-      label: Text(l10n.restoreDefault),
-    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -291,6 +336,7 @@ class _RankingCategorySheetState<M extends RankingCategory>
         _CategoryGrid<M>(
           modes: draft.shown,
           labelsToFit: all,
+          hasLeadingIcon: true,
           tileBuilder: (mode, size) => _ShownTile<M>(
             mode: mode,
             size: size,
@@ -321,6 +367,7 @@ class _RankingCategorySheetState<M extends RankingCategory>
           _CategoryGrid<M>(
             modes: draft.hidden,
             labelsToFit: all,
+            hasLeadingIcon: true,
             tileBuilder: (mode, _) => _CategoryTile(
               label: _label(context, mode),
               blocked: blocked(mode),
@@ -329,42 +376,62 @@ class _RankingCategorySheetState<M extends RankingCategory>
               onTap: () => _save(draft.show(mode)),
             ),
           ),
-        if (pointer)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              FuncSpacing.xl,
-              FuncSpacing.md,
-              FuncSpacing.xl,
-              0,
-            ),
-            child: OverflowBar(
-              alignment: MainAxisAlignment.end,
-              spacing: FuncSpacing.sm,
-              overflowSpacing: FuncSpacing.sm,
-              overflowAlignment: OverflowBarAlignment.end,
-              children: [
-                restoreButton,
-                FilledButton(
-                  onPressed: _finishEditing,
-                  child: Text(l10n.rankingEditDone),
-                ),
-              ],
-            ),
-          )
-        else
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              FuncSpacing.md,
-              FuncSpacing.md,
-              FuncSpacing.md,
-              0,
-            ),
-            child: Align(
-              alignment: AlignmentDirectional.centerStart,
-              child: restoreButton,
-            ),
-          ),
       ],
+    );
+  }
+}
+
+/// Fades the bottom edge of the category scroll view while more rows remain
+/// below the fold, keeping the tree stable so active drags never reparent.
+class _SheetBottomScrollFade extends StatefulWidget {
+  const _SheetBottomScrollFade({required this.child});
+
+  final Widget child;
+
+  static const _fadeHeight = FuncSpacing.lg;
+  static const _edgeSlop = 0.5;
+
+  @override
+  State<_SheetBottomScrollFade> createState() => _SheetBottomScrollFadeState();
+}
+
+class _SheetBottomScrollFadeState extends State<_SheetBottomScrollFade> {
+  var _hasMoreBelow = false;
+
+  bool _onMetrics(ScrollMetrics metrics) {
+    if (metrics.axis != Axis.vertical) return false;
+    final more = metrics.extentAfter > _SheetBottomScrollFade._edgeSlop;
+    if (more != _hasMoreBelow && mounted) {
+      setState(() => _hasMoreBelow = more);
+    }
+    return false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return NotificationListener<ScrollMetricsNotification>(
+      onNotification: (notification) => _onMetrics(notification.metrics),
+      child: NotificationListener<ScrollUpdateNotification>(
+        onNotification: (notification) => _onMetrics(notification.metrics),
+        child: ShaderMask(
+          blendMode: BlendMode.dstIn,
+          shaderCallback: (bounds) {
+            final stop = bounds.height <= 0
+                ? 0.0
+                : (1.0 - _SheetBottomScrollFade._fadeHeight / bounds.height)
+                      .clamp(0.5, 1.0);
+            const shown = Color(0xFF000000);
+            const hidden = Color(0x00000000);
+            return LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [shown, shown, _hasMoreBelow ? hidden : shown],
+              stops: [0.0, stop, 1.0],
+            ).createShader(bounds);
+          },
+          child: widget.child,
+        ),
+      ),
     );
   }
 }
@@ -406,6 +473,7 @@ class _CategoryGrid<M extends RankingCategory> extends StatelessWidget {
     required this.modes,
     required this.labelsToFit,
     required this.tileBuilder,
+    this.hasLeadingIcon = false,
   });
 
   static const _minTileWidth = 96.0;
@@ -414,6 +482,7 @@ class _CategoryGrid<M extends RankingCategory> extends StatelessWidget {
   final List<M> modes;
   final List<M> labelsToFit;
   final Widget Function(M mode, Size size) tileBuilder;
+  final bool hasLeadingIcon;
 
   @override
   Widget build(BuildContext context) {
@@ -429,7 +498,11 @@ class _CategoryGrid<M extends RankingCategory> extends StatelessWidget {
           // least, wrapping only what two cannot hold.
           final tileFloor = math.max(
             _minTileWidth,
-            _CategoryTile.oneLineWidth(context, labels),
+            _CategoryTile.oneLineWidth(
+              context,
+              labels,
+              hasLeadingIcon: hasLeadingIcon,
+            ),
           );
           final columns = math.max(
             2,
@@ -438,7 +511,12 @@ class _CategoryGrid<M extends RankingCategory> extends StatelessWidget {
           final tileWidth = (width - _spacing * (columns - 1)) / columns;
           final size = Size(
             tileWidth,
-            _CategoryTile.heightFor(context, tileWidth, labels),
+            _CategoryTile.heightFor(
+              context,
+              tileWidth,
+              labels,
+              hasLeadingIcon: hasLeadingIcon,
+            ),
           );
           return Wrap(
             spacing: _spacing,
@@ -486,48 +564,85 @@ class _CategoryTile extends StatelessWidget {
       Theme.of(context).textTheme.labelLarge;
 
   /// The tile width that holds the longest of [labels] on one line, beside
-  /// the icon.
-  static double oneLineWidth(BuildContext context, List<String> labels) {
+  /// the icon when [hasLeadingIcon] holds.
+  static double oneLineWidth(
+    BuildContext context,
+    List<String> labels, {
+    required bool hasLeadingIcon,
+  }) {
+    final style = LabelFit.paintedStyle(
+      context,
+      _style(context) ?? const TextStyle(),
+    );
     final painter = TextPainter(
       textDirection: Directionality.of(context),
       textScaler: MediaQuery.textScalerOf(context),
+      locale: Localizations.maybeLocaleOf(context),
       maxLines: 1,
     );
     var widest = 0.0;
     for (final label in labels) {
-      painter.text = TextSpan(text: label, style: _style(context));
+      painter.text = TextSpan(text: label, style: style);
       painter.layout();
       widest = math.max(widest, painter.width);
     }
     painter.dispose();
     return widest.ceilToDouble() +
         _padding.horizontal +
-        _iconSize +
-        FuncSpacing.xs;
+        (hasLeadingIcon ? _iconSize + FuncSpacing.xs : 0);
   }
 
-  /// The height every tile takes: the tallest label wrapped at the width
-  /// left beside the icon, at the painted style and text scale.
+  /// The height every tile takes: the tallest label wrapped at [tileWidth]
+  /// with the same inline icon placeholder and painted text style as [build],
+  /// so two-line Japanese/Russian or 1.3x labels never clip at the bottom.
   static double heightFor(
     BuildContext context,
     double tileWidth,
-    List<String> labels,
-  ) {
+    List<String> labels, {
+    required bool hasLeadingIcon,
+  }) {
+    final style = LabelFit.paintedStyle(
+      context,
+      _style(context) ?? const TextStyle(),
+    );
     final painter = TextPainter(
       textDirection: Directionality.of(context),
       textScaler: MediaQuery.textScalerOf(context),
       textAlign: TextAlign.center,
+      locale: Localizations.maybeLocaleOf(context),
     );
-    final textWidth =
-        tileWidth - _padding.horizontal - _iconSize - FuncSpacing.xs;
+    final maxWidth = math.max(0.0, tileWidth - _padding.horizontal);
+    const iconPlaceholder = PlaceholderDimensions(
+      size: Size(_iconSize + FuncSpacing.xs, _iconSize),
+      alignment: PlaceholderAlignment.middle,
+    );
     var tallest = 0.0;
     for (final label in labels) {
-      painter.text = TextSpan(text: label, style: _style(context));
-      painter.layout(maxWidth: math.max(0, textWidth));
+      painter.text = TextSpan(
+        style: style,
+        children: [
+          if (hasLeadingIcon)
+            const WidgetSpan(
+              alignment: PlaceholderAlignment.middle,
+              child: SizedBox(
+                width: _iconSize + FuncSpacing.xs,
+                height: _iconSize,
+              ),
+            ),
+          TextSpan(text: label),
+        ],
+      );
+      if (hasLeadingIcon) {
+        painter.setPlaceholderDimensions(const [iconPlaceholder]);
+      }
+      painter.layout(maxWidth: maxWidth);
       tallest = math.max(tallest, painter.height);
     }
     painter.dispose();
-    return math.max(_minHeight, tallest + _padding.vertical);
+    return math.max(
+      _minHeight,
+      tallest.ceilToDouble() + _padding.vertical + FuncSpacing.xxs,
+    );
   }
 
   @override

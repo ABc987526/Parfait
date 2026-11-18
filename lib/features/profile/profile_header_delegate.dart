@@ -201,8 +201,19 @@ class ReplicaProfileHeaderDelegate extends SliverPersistentHeaderDelegate {
         // Text sits on the page surface now, so the neutral tonal style is
         // enough — no filled pink or on-artwork white variant.
         buildInline: (context) => FilledButton.tonal(
+          style: FilledButton.styleFrom(
+            padding: const EdgeInsets.symmetric(
+              horizontal: FuncSpacing.md,
+              vertical: FuncSpacing.xs,
+            ),
+            minimumSize: const Size(0, 42),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
           onPressed: onEditProfile,
-          child: Text(context.l10n.profileEditTitle),
+          child: Text(
+            context.l10n.profileEditTitle,
+            textAlign: TextAlign.center,
+          ),
         ),
       ),
     if (!isMe && onToggleFollow != null)
@@ -702,7 +713,7 @@ class _ExpandedIdentity extends StatelessWidget {
   /// The main action never takes more than this share of the name row; a
   /// long name ellipsizes first, and the button's own label fitting
   /// handles anything wider.
-  static const mainActionMaxShare = 0.45;
+  static const mainActionMaxShare = 0.50;
 
   final UserEntity user;
   final double bannerHeight;

@@ -35,7 +35,6 @@ import '../../l10n/context.dart';
 import '../../app/motion/reveal.dart';
 import '../../app/theme/func_semantic_tokens.dart';
 import '../../app/widgets/app_choice_chip.dart';
-import '../../app/layout/app_breakpoints.dart';
 import '../../app/layout/content_widths.dart';
 import '../../app/window/desktop_command_bar.dart';
 
@@ -197,7 +196,6 @@ class _ReverseImageSearchPageState
         !EmbeddedHeaderScope.isActiveOf(context);
     return Scaffold(
       appBar: AppTopBar(
-        contentWidth: ContentWidths.form,
         title: Text(context.l10n.searchReverseImage),
         automaticallyImplyLeading: false,
         leading: suppressBack
@@ -294,42 +292,20 @@ class _ReverseImageSearchPageState
       icon: const Icon(Icons.photo_library_outlined),
       label: Text(context.l10n.searchReversePick),
     );
-    final wide = MediaQuery.widthOf(context) >= AppBreakpoints.medium;
-    if (wide) {
-      return Align(
-        alignment: const Alignment(0, -0.15),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(FuncSpacing.xl),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.image_search_outlined, size: 72),
-              const SizedBox(height: FuncSpacing.lg),
-              Text(
-                context.l10n.searchReverseIntro,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: FuncSpacing.lg),
-              _engineChips(context, state),
-              const SizedBox(height: FuncSpacing.xl),
-              pickButton,
-            ],
-          ),
-        ),
-      );
-    }
-    return _WithBottomAction(
-      action: pickButton,
+    return Align(
+      alignment: const Alignment(0, -0.15),
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(FuncSpacing.xl),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            const SizedBox(height: FuncSpacing.xxl),
             const Icon(Icons.image_search_outlined, size: 72),
             const SizedBox(height: FuncSpacing.lg),
             Text(context.l10n.searchReverseIntro, textAlign: TextAlign.center),
             const SizedBox(height: FuncSpacing.lg),
             _engineChips(context, state),
+            const SizedBox(height: FuncSpacing.xl),
+            pickButton,
           ],
         ),
       ),

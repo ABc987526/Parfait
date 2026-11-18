@@ -46,7 +46,11 @@ import 'profile_header_delegate.dart';
 import 'profile_statistics.dart';
 import 'user_series_feed.dart';
 import '../../core/bookmark/bookmark_models.dart';
+import '../../core/novel/novel_feed_controller.dart';
+import '../../core/novel/novel_store.dart';
 import '../../core/profile/profile_models.dart';
+import '../../core/series/series_feed_controller.dart';
+import '../../core/series/series_store.dart';
 import '../../core/share/share_service.dart';
 import '../../core/user/user_detail_controller.dart';
 import '../../l10n/context.dart';
@@ -426,8 +430,8 @@ class _UserPageState extends ConsumerState<UserPage>
     };
   }
 
-  /// A work tab's total, above its list. A preview snapshot has no
-  /// counters, so it shows none rather than zero.
+  /// A work tab's total, above its list while loaded items are present. A
+  /// preview snapshot has no counters, so it shows none rather than zero.
   Widget? _worksTotalFor(_ProfileTab tab, UserEntity user) {
     if (!user.hasDetail) return null;
     final count = switch (tab) {
@@ -437,7 +441,9 @@ class _UserPageState extends ConsumerState<UserPage>
       _ProfileTab.series => user.totalIllustSeries,
       _ => null,
     };
-    return count == null || count <= 0 ? null : _WorksTotal(count: count);
+    return count == null || count <= 0
+        ? null
+        : _LiveWorksTotal(userId: widget.userId, tab: tab, count: count);
   }
 
   /// Opens [tab] — or, when it is already open, scrolls it to the top. Null
@@ -824,7 +830,7 @@ class _UserPageState extends ConsumerState<UserPage>
             locale: Localizations.maybeLocaleOf(context),
           );
     final primaryActionWidth = hasEditAction
-        ? actionLabelWidth + 2 * FuncSpacing.xl
+        ? actionLabelWidth + 2 * FuncSpacing.md
         : (hasFollowAction
               ? math.max(116.0, actionLabelWidth + 2 * FuncSpacing.md)
               : 0.0);
@@ -842,12 +848,16 @@ class _UserPageState extends ConsumerState<UserPage>
     );
     final Widget? primaryAction = hasEditAction
         ? FilledButton.tonal(
-            onPressed: widget.onEditProfile,
-            child: Text(
-              l10n.profileEditTitle,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+            style: FilledButton.styleFrom(
+              padding: const EdgeInsets.symmetric(
+                horizontal: FuncSpacing.md,
+                vertical: FuncSpacing.xs,
+              ),
+              minimumSize: const Size(0, 42),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
+            onPressed: widget.onEditProfile,
+            child: Text(l10n.profileEditTitle, textAlign: TextAlign.center),
           )
         : (hasFollowAction
               ? FollowSwitchButton(
@@ -1083,6 +1093,55 @@ class _UserPageState extends ConsumerState<UserPage>
         ],
       ),
     );
+  }
+}
+
+class _LiveWorksTotal extends ConsumerWidget {
+  const _LiveWorksTotal({
+    required this.userId,
+    required this.tab,
+    required this.count,
+  });
+
+  final int userId;
+  final _ProfileTab tab;
+  final int count;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final hasVisibleItems = switch (tab) {
+      _ProfileTab.illust || _ProfileTab.manga => hasVisibleProfileIllusts(
+        ref,
+        ProfileFeedKey(
+          userId: userId,
+          kind: ProfileFeedKind.work,
+          workType: tab.section!.wireWorkType,
+        ),
+      ),
+      _ProfileTab.novel => () {
+        final feed = ref.watch(userNovelFeedProvider(userId)).value;
+        if (feed == null || feed.showInitialError || feed.ids.isEmpty) {
+          return false;
+        }
+        return ref.watch(
+          novelStoreProvider.select((store) => feed.ids.any(store.containsKey)),
+        );
+      }(),
+      _ProfileTab.series => () {
+        final feed = ref.watch(userSeriesFeedProvider(userId)).value;
+        if (feed == null || feed.showInitialError || feed.ids.isEmpty) {
+          return false;
+        }
+        return ref.watch(
+          illustSeriesStoreProvider.select(
+            (store) => feed.ids.any(store.containsKey),
+          ),
+        );
+      }(),
+      _ => false,
+    };
+    if (!hasVisibleItems) return const SizedBox.shrink();
+    return _WorksTotal(count: count);
   }
 }
 

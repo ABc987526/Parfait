@@ -41,6 +41,10 @@ class AppTabBar extends StatelessWidget implements PreferredSizeWidget {
   final Widget Function(int index, Widget label)? labelWrapper;
 
   static const _labelPadding = EdgeInsets.symmetric(horizontal: FuncSpacing.md);
+  static const _compactScrollableLabelPadding = EdgeInsets.symmetric(
+    horizontal: FuncSpacing.sm,
+  );
+  static const double _compactScrollableBreakpoint = 420;
 
   /// Widest equal slot on a medium or wider row: past it the labels drift
   /// apart. A longer label widens every slot to its own width, never cut.
@@ -99,13 +103,17 @@ class AppTabBar extends StatelessWidget implements PreferredSizeWidget {
         final fits =
             widest + _labelPadding.horizontal <=
             constraints.maxWidth / labels.length;
+        final labelPadding =
+            !fits && constraints.maxWidth < _compactScrollableBreakpoint
+            ? _compactScrollableLabelPadding
+            : _labelPadding;
         final bar = TabBar(
           controller: controller,
           isScrollable: !fits,
           tabAlignment: fits ? TabAlignment.fill : TabAlignment.start,
           indicatorSize: TabBarIndicatorSize.label,
           indicatorPadding: const EdgeInsets.only(bottom: FuncSpacing.xs),
-          labelPadding: _labelPadding,
+          labelPadding: labelPadding,
           onTap: onTap,
           tabs: [
             for (final (index, label) in labels.indexed)

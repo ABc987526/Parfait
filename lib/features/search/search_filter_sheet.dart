@@ -191,7 +191,11 @@ class _SearchFilterSheetState extends ConsumerState<_SearchFilterSheet> {
     final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
     final availableHeight = MediaQuery.heightOf(context) - keyboardInset;
     final wide = useWideOverlay(context);
+    final theme = Theme.of(context);
     final tokens = FuncSemanticTokens.of(context);
+    final footerColor =
+        theme.bottomSheetTheme.backgroundColor ??
+        theme.colorScheme.surfaceContainerLow;
     return Padding(
       padding: EdgeInsets.only(bottom: keyboardInset),
       child: ConstrainedBox(
@@ -216,7 +220,7 @@ class _SearchFilterSheetState extends ConsumerState<_SearchFilterSheet> {
                   Expanded(
                     child: Text(
                       context.l10n.searchFilters,
-                      style: Theme.of(context).textTheme.titleLarge,
+                      style: theme.textTheme.titleLarge,
                     ),
                   ),
                   TextButton(
@@ -259,12 +263,11 @@ class _SearchFilterSheetState extends ConsumerState<_SearchFilterSheet> {
                 ),
               ),
             ),
-            // Fixed under the scrolling groups with a crisp 1dp top border:
-            // applying never needs a scroll to the end.
-            DecoratedBox(
-              decoration: BoxDecoration(
-                border: Border(top: BorderSide(color: tokens.divider)),
-              ),
+            // Fixed under the scrolling groups with an opaque backing and a
+            // crisp 1dp hairline so scrolled rows never bleed behind actions.
+            Divider(height: 1, thickness: 1, color: tokens.brandHairline),
+            ColoredBox(
+              color: footerColor,
               child: SafeArea(
                 top: false,
                 child: Padding(
@@ -521,8 +524,9 @@ class _SearchFilterSheetState extends ConsumerState<_SearchFilterSheet> {
 }
 
 /// Tallest the sheet grows, as a share of the height above the keyboard:
-/// the scrim above it keeps the page underneath in sight.
-const _maxHeightFactor = 0.9;
+/// the scrim above it keeps the page underneath in sight while giving 1.3x
+/// text room to show the initial filter groups without mid-chip clipping.
+const _maxHeightFactor = 0.94;
 
 /// Apply, with "设为默认" beside it when offered. Side by side in equal
 /// halves while the longer label fits a half on one line; stacked, apply
@@ -597,7 +601,7 @@ class _BottomScrollFade extends StatefulWidget {
 
   final Widget child;
 
-  static const _fadeHeight = FuncSpacing.xl;
+  static const _fadeHeight = FuncSpacing.lg;
   static const _edgeSlop = 0.5;
 
   @override

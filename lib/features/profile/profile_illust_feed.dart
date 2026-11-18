@@ -20,6 +20,18 @@ import '../../app/widgets/feed/load_more_listener.dart';
 /// Grid padding shared by this feed and `ProfileSkeleton`'s grid block.
 const gridPadding = EdgeInsets.all(FuncSpacing.sm);
 
+/// Whether [feedKey] currently holds at least one loaded work to show
+/// (including while refreshing or paging over existing items), excluding
+/// initial loading, initial errors and empty feeds.
+bool hasVisibleProfileIllusts(WidgetRef ref, ProfileFeedKey feedKey) {
+  final feed = ref.watch(profileIllustFeedProvider(feedKey)).value;
+  if (feed == null || feed.showInitialError || feed.ids.isEmpty) {
+    return false;
+  }
+  final store = ref.watch(illustStoreProvider);
+  return store.getAll(feed.ids).isNotEmpty;
+}
+
 class ProfileIllustFeed extends ConsumerWidget {
   const ProfileIllustFeed({super.key, required this.feedKey, this.localFilter});
 
