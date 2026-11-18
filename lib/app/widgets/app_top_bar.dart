@@ -421,24 +421,18 @@ class _AppTopBarState extends State<AppTopBar> {
                     : tokens.brandedHeaderForeground,
               ),
               textButtonTheme: TextButtonThemeData(
-                style: (theme.textButtonTheme.style ?? const ButtonStyle())
-                    .merge(
-                      TextButton.styleFrom(
-                        foregroundColor: tokens.brandedHeaderForeground,
-                        disabledForegroundColor: tokens.brandedHeaderForeground
-                            .withValues(alpha: 0.38),
-                      ),
-                    ),
+                style: TextButton.styleFrom(
+                  foregroundColor: tokens.brandedHeaderForeground,
+                  disabledForegroundColor: tokens.brandedHeaderForeground
+                      .withValues(alpha: 0.50),
+                ).merge(theme.textButtonTheme.style),
               ),
               iconButtonTheme: IconButtonThemeData(
-                style: (theme.iconButtonTheme.style ?? const ButtonStyle())
-                    .merge(
-                      IconButton.styleFrom(
-                        foregroundColor: tokens.brandedHeaderForeground,
-                        disabledForegroundColor: tokens.brandedHeaderForeground
-                            .withValues(alpha: 0.42),
-                      ),
-                    ),
+                style: IconButton.styleFrom(
+                  foregroundColor: tokens.brandedHeaderForeground,
+                  disabledForegroundColor: tokens.brandedHeaderForeground
+                      .withValues(alpha: 0.48),
+                ).merge(theme.iconButtonTheme.style),
               ),
             ),
             child: sizedToolbar,

@@ -120,7 +120,7 @@ class AppTabBar extends StatelessWidget implements PreferredSizeWidget {
               Tab(child: _label(index, label)),
           ],
         );
-        if (!fits) return ScrollEdgeFade(child: bar);
+        if (!fits) return ScrollEdgeFade(initialAfter: true, child: bar);
         // Rounded up: a slot of exactly the measured width can fall a
         // fraction short of the laid-out label and fade its last glyph.
         final slot = math.max(

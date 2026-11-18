@@ -5,6 +5,7 @@ import '../navigation/home_shell_metrics.dart';
 import '../theme/func_semantic_tokens.dart';
 import '../window/desktop_command_bar.dart' show DesktopCommandBarScope;
 import 'app_top_bar.dart' show EmbeddedHeaderScope;
+import 'scroll_edge_fade.dart';
 
 /// Shared wide-screen master-detail workspace skeleton (`280dp` left index on
 /// `surfaceContainerLow`, a `1dp brandHairline` split, and flush `52dp` top
@@ -114,7 +115,13 @@ class MasterDetailWorkspace extends StatelessWidget {
                       verticalDirection: VerticalDirection.up,
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Expanded(child: masterBody),
+                        Expanded(
+                          child: ScrollEdgeFade(
+                            axis: Axis.vertical,
+                            fadeExtent: FuncSpacing.lg,
+                            child: masterBody,
+                          ),
+                        ),
                         ?masterTop,
                       ],
                     ),
