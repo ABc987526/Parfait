@@ -32,6 +32,7 @@ import '../../app/widgets/feed/feed_states.dart';
 import '../../app/widgets/func_bottom_nav.dart';
 import '../../app/widgets/master_detail_workspace.dart';
 import '../../app/widgets/person_card.dart';
+import '../../app/widgets/scroll_edge_fade.dart';
 import '../../app/widgets/settings/settings_group.dart';
 import '../../app/widgets/settings/settings_tile.dart';
 import '../../app/widgets/settings_load_error.dart';
@@ -850,35 +851,48 @@ class _RecentHistoryState extends ConsumerState<_RecentHistory>
               source: _pager,
               // Eight covers at most: built all at once, keyed by work, so
               // each keeps its state as the order changes.
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: FuncSpacing.lg,
-                  vertical: FuncSpacing.xs,
-                ),
-                child: _HistoryCoverRow(
-                  coverSize: _RecentHistory._cover,
-                  gap: _RecentHistory._gap,
-                  textDirection: Directionality.of(context),
-                  children: [
-                    for (final (index, record) in shown.indexed)
-                      _HistoryCoverSlot(
-                        key: ValueKey(_keyOf(record)),
-                        paintPriority: _paintPriority(
-                          index: index,
-                          total: shown.length,
-                          from: _from[_keyOf(record)],
-                          entering: _joined.contains(_keyOf(record)),
-                        ),
-                        child: _RowSlot(
-                          order: _order,
-                          from: _from[_keyOf(record)],
-                          entering: _joined.contains(_keyOf(record)),
-                          child: _rowCover(store, record),
-                        ),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final rowWidth =
+                      shown.length * _RecentHistory._cover +
+                      math.max(0, shown.length - 1) * _RecentHistory._gap +
+                      2 * FuncSpacing.lg;
+                  return ScrollEdgeFade(
+                    axis: Axis.horizontal,
+                    fadeExtent: FuncSpacing.lg,
+                    initialAfter: rowWidth > constraints.maxWidth + 0.5,
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: FuncSpacing.lg,
+                        vertical: FuncSpacing.xs,
                       ),
-                  ],
-                ),
+                      child: _HistoryCoverRow(
+                        coverSize: _RecentHistory._cover,
+                        gap: _RecentHistory._gap,
+                        textDirection: Directionality.of(context),
+                        children: [
+                          for (final (index, record) in shown.indexed)
+                            _HistoryCoverSlot(
+                              key: ValueKey(_keyOf(record)),
+                              paintPriority: _paintPriority(
+                                index: index,
+                                total: shown.length,
+                                from: _from[_keyOf(record)],
+                                entering: _joined.contains(_keyOf(record)),
+                              ),
+                              child: _RowSlot(
+                                order: _order,
+                                from: _from[_keyOf(record)],
+                                entering: _joined.contains(_keyOf(record)),
+                                child: _rowCover(store, record),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
           ),
@@ -1141,7 +1155,6 @@ class _RowSlotState extends State<_RowSlot>
   /// The slide's start, in logical pixels from the cover's place.
   double _start = 0;
   bool _fading = false;
-  bool _movingForward = true;
   bool _lifting = false;
   bool _started = false;
 
@@ -1151,7 +1164,7 @@ class _RowSlotState extends State<_RowSlot>
     if (_started) return;
     _started = true;
     if (widget.entering) {
-      _slide(from: -1, fade: true, forward: true, lift: false);
+      _slide(from: -1, fade: true, lift: false);
     }
   }
 
@@ -1161,7 +1174,7 @@ class _RowSlotState extends State<_RowSlot>
     if (widget.order == oldWidget.order) return;
     final from = widget.from;
     if (from != null && from != 0) {
-      _slide(from: from, fade: false, forward: from > 0, lift: from > 0);
+      _slide(from: from, fade: false, lift: from > 0);
     }
   }
 
@@ -1181,27 +1194,19 @@ class _RowSlotState extends State<_RowSlot>
     if (_liftScale.value != next) _liftScale.value = next;
   }
 
-  // Promoted cards glide forward swiftly while displaced cards yield gently,
-  // avoiding a symmetric dead-center eclipse between adjacent covers.
-  static const _forwardCurve = Cubic(0.2, 0, 0, 1);
-  static const _backwardCurve = Cubic(0.7, 0, 0.3, 1);
-
-  Curve get _slideCurve => _movingForward ? _forwardCurve : _backwardCurve;
+  // Symmetric ease preserves combined center-of-mass (x_promoted + x_displaced
+  // == 1.0 across every frame) so adjacent slots never open an empty gap, while
+  // [_HistoryCoverRow] paints the lifted promoted cover cleanly on top.
+  static const _slideCurve = Curves.easeInOutCubic;
 
   double get _offset => _start * (1 - _slideCurve.transform(_controller.value));
 
-  void _slide({
-    required int from,
-    required bool fade,
-    required bool forward,
-    required bool lift,
-  }) {
+  void _slide({required int from, required bool fade, required bool lift}) {
     final duration = MotionTokens.resolve(context, MotionTokens.spatial);
     if (duration == Duration.zero) return;
     final leading = Directionality.of(context) == TextDirection.ltr ? 1 : -1;
     _start = _offset + from * _stride * leading;
     _fading = fade;
-    _movingForward = forward;
     _lifting = lift;
     _controller
       ..duration = duration
@@ -1920,18 +1925,18 @@ class _MeCollectionGrid extends StatelessWidget {
         : null;
     final bookmarksValue = account != null && detail != null
         ? AppFormat.count(context, detail.totalIllustBookmarksPublic)
-        : '—';
+        : null;
     final followingValue = account != null && detail != null
         ? AppFormat.count(context, detail.totalFollowUsers)
-        : '—';
+        : null;
     final watchlistValue = watchlistEntries.isNotEmpty
         ? AppFormat.count(
             context,
             watchlistEntries.values.where((e) => e.shown).length,
           )
-        : '—';
+        : null;
     final watchLaterValue = watchLaterCount == null
-        ? '—'
+        ? null
         : AppFormat.count(context, watchLaterCount!);
 
     final items = [
@@ -2075,7 +2080,7 @@ class _MeCollectionTile extends StatelessWidget {
   final IconData icon;
   final CategoryTone tone;
   final String title;
-  final String count;
+  final String? count;
   final String subtitle;
   final VoidCallback onTap;
 
@@ -2105,13 +2110,15 @@ class _MeCollectionTile extends StatelessWidget {
                     ),
                   ),
                   const Spacer(),
-                  Text(
-                    count,
-                    style: tokens.display
-                        .copyWith(fontWeight: FontWeight.w700)
-                        .tabular,
-                  ),
-                  const SizedBox(width: FuncSpacing.xs),
+                  if (count case final countText?) ...[
+                    Text(
+                      countText,
+                      style: tokens.display
+                          .copyWith(fontWeight: FontWeight.w700)
+                          .tabular,
+                    ),
+                    const SizedBox(width: FuncSpacing.xs),
+                  ],
                   Icon(
                     Icons.chevron_right,
                     size: 18,
