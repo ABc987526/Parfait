@@ -32,6 +32,7 @@ import '../../core/novel/novel_store.dart';
 import '../../core/novel/reader_settings.dart';
 import '../../core/watchlist/watchlist_models.dart';
 import '../../core/watchlist/watchlist_store.dart';
+import '../../app/window/desktop_command_bar.dart';
 import '../../l10n/context.dart';
 
 /// One novel series (`/v2/novel/series`): a header with the series' facts
@@ -78,14 +79,16 @@ class _NovelSeriesFeedPageState extends ConsumerState<NovelSeriesFeedPage> {
     final controller = ref.read(novelSeriesFeedProvider(seriesId).notifier);
     final info = ref.watch(novelSeriesInfoProvider(seriesId));
     final header = info.header;
+    final desktopOwned = DesktopCommandBarScope.isActiveOf(context);
     final feedValue = async.asData?.value;
     final hasHeaderTitle =
         header?.title != null &&
         feedValue != null &&
         !feedValue.showInitialError &&
         !feedValue.showInitialSpinner;
+    final rawTitle = (header?.title ?? '').trim();
     final titleText = Text(
-      header?.title ?? l10n.novelSeries,
+      rawTitle.isEmpty ? l10n.novelSeries : rawTitle,
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
     );
@@ -93,7 +96,7 @@ class _NovelSeriesFeedPageState extends ConsumerState<NovelSeriesFeedPage> {
         NovelListSkeleton(label: l10n.contentLoading, overline: true);
     return Scaffold(
       appBar: AppTopBar(
-        title: hasHeaderTitle
+        title: hasHeaderTitle && !desktopOwned
             ? ValueListenableBuilder<double>(
                 valueListenable: _titleReveal,
                 builder: (context, reveal, child) => Opacity(

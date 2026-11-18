@@ -236,7 +236,7 @@ int illustColumnsFor(double crossAxisExtent, FeedDensity density) {
 ({double minCardExtent, int minColumns}) _pcDensityGrid(FeedDensity density) =>
     switch (density) {
       FeedDensity.compact => (minCardExtent: 176, minColumns: 3),
-      FeedDensity.standard => (minCardExtent: 216, minColumns: 2),
+      FeedDensity.standard => (minCardExtent: 204, minColumns: 2),
       FeedDensity.comfortable => (minCardExtent: 268, minColumns: 1),
     };
 

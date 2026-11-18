@@ -895,7 +895,9 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
         rendersContent: rendersContent,
       );
     }
+    final isModalOverlay = DetailOverlayFrame.isActiveOf(context);
     return AppTopBar(
+      automaticallyImplyLeading: !isModalOverlay,
       // Over the artwork the bar shows nothing but controls; the work's
       // title fades in with the surface once the image scrolls away. The
       // opaque layouts keep a generic label: the real title wraps freely
@@ -930,6 +932,12 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
             rendersContent: rendersContent,
             includeShare: true,
             includeInfoJump: !twoPane,
+          ),
+        if (isModalOverlay && (!twoPane || !rendersContent))
+          IconButton(
+            tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
+            icon: const Icon(Icons.close),
+            onPressed: () => unawaited(Navigator.maybePop(context)),
           ),
       ],
     );

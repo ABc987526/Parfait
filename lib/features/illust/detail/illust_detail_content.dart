@@ -54,13 +54,18 @@ class _FirstImageLayout {
         entity.type == IllustType.illust &&
         !entity.isUgoira &&
         panoramaHeight == null;
-    final band = slots
+    final rawBand = slots
         ? math.max(
                 0.0,
                 viewport.height * _shortFirstImageSlotFactor - natural,
               ) /
               2
         : 0.0;
+    // Keep the reading-slot wrapper (`slots`) unchanged so expanding a
+    // multi-page set never remounts page 1, but collapse sub-toolbar bands:
+    // a band smaller than `kToolbarHeight` leaves the top edge inside the
+    // top chrome and horizontally bisects the back/more icons.
+    final band = rawBand >= kToolbarHeight ? rawBand : 0.0;
     return _FirstImageLayout._(
       useTwoPane: useTwoPane,
       statusInset: embeddedInspector || useTwoPane

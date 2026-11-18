@@ -35,6 +35,7 @@ import '../../app/theme/func_semantic_tokens.dart';
 import '../../app/layout/card_columns.dart';
 import '../../app/layout/content_widths.dart';
 import '../../app/widgets/feed/load_more_listener.dart';
+import '../../app/window/desktop_command_bar.dart';
 
 /// One illust series: a header (cover/title/author/work count/caption) plus
 /// the paginated episode list (`/v1/illust/series`, newest first). Episodes
@@ -77,20 +78,22 @@ class _IllustSeriesPageState extends ConsumerState<IllustSeriesPage> {
     final seriesId = widget.seriesId;
     final async = ref.watch(illustSeriesFeedProvider(seriesId));
     final detail = ref.watch(illustSeriesStoreProvider)[seriesId];
+    final desktopOwned = DesktopCommandBarScope.isActiveOf(context);
     final feedValue = async.asData?.value;
     final hasHeaderTitle =
         detail != null &&
         feedValue != null &&
         !feedValue.showInitialError &&
         !feedValue.showInitialSpinner;
+    final rawTitle = (detail?.title ?? '').trim();
     final titleText = Text(
-      detail?.title ?? context.l10n.seriesTitle,
+      rawTitle.isEmpty ? context.l10n.seriesTitle : rawTitle,
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
     );
     return Scaffold(
       appBar: AppTopBar(
-        title: hasHeaderTitle
+        title: hasHeaderTitle && !desktopOwned
             ? ValueListenableBuilder<double>(
                 valueListenable: _titleReveal,
                 builder: (context, reveal, child) => Opacity(
