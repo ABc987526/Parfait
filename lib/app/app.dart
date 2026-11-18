@@ -326,6 +326,7 @@ class AppChrome extends ConsumerStatefulWidget {
 class _AppChromeState extends ConsumerState<AppChrome> {
   final DesktopSystemBarsController _systemBars = DesktopSystemBarsController();
   final DesktopCommandBarController _commandBar = DesktopCommandBarController();
+  final GlobalKey _routerSubtreeKey = GlobalKey();
 
   @override
   void dispose() {
@@ -465,7 +466,11 @@ class _AppChromeState extends ConsumerState<AppChrome> {
                                                               );
                                                         if (innerChrome ==
                                                             null) {
-                                                          return contentChild;
+                                                          return KeyedSubtree(
+                                                            key:
+                                                                _routerSubtreeKey,
+                                                            child: contentChild,
+                                                          );
                                                         }
                                                         final scopedChrome = innerChrome.copyWith(
                                                           titleBarHeight:
@@ -485,12 +490,15 @@ class _AppChromeState extends ConsumerState<AppChrome> {
                                                               : 0,
                                                           child: contentChild,
                                                         );
-                                                        if (!fallbackCustomChrome) {
-                                                          return scopedChrome;
-                                                        }
                                                         return DesktopFallbackWindowChrome(
+                                                          enabled:
+                                                              fallbackCustomChrome,
                                                           chrome: innerChrome,
-                                                          child: scopedChrome,
+                                                          child: KeyedSubtree(
+                                                            key:
+                                                                _routerSubtreeKey,
+                                                            child: scopedChrome,
+                                                          ),
                                                         );
                                                       },
                                                     ),

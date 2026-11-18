@@ -5,6 +5,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../../../app/layout/app_breakpoints.dart';
 import '../../../../app/motion/page_transitions.dart' show TurnCurve;
 import '../../../../app/navigation/home_shell_metrics.dart';
+import '../../../../app/navigation/route_animation.dart';
 import '../../../../app/theme/func_semantic_tokens.dart';
 
 /// Frames wide flat detail routes (`>= 960x600`) inside a scrimmed modal card
@@ -84,11 +85,14 @@ class _DetailOverlayFrameState extends State<DetailOverlayFrame> {
     final scrim = HomeShellChrome.maybeOf(context)?.modalScrim;
     final branchIndex = HomeShellBranchScope.maybeOf(context);
     final route = ModalRoute.of(context);
-    final routeAnimation = route?.animation;
+    // Hero's measurement frame overrides ModalRoute.animation to 1.0, so prefer
+    // RouteAnimationScope's underlying controller to keep frame-0 scrim at 0.0.
+    final routeAnimation = RouteAnimationScope.of(context) ?? route?.animation;
     final outerSize = HomeShellChrome.contentSizeOf(context);
-    final canPop = Navigator.maybeOf(context)?.canPop() ?? false;
+    // Keep the modal frame & scrim active throughout popping until dismissal.
+    final hasRouteBelow = !(route?.isFirst ?? true);
     final bounded =
-        canPop &&
+        hasRouteBelow &&
         routeAnimation != null &&
         AppBreakpoints.useBoundedDetailOverlayOf(context, outerSize);
 
@@ -132,9 +136,10 @@ class _DetailOverlayFrameState extends State<DetailOverlayFrame> {
   Widget build(BuildContext context) {
     final content = KeyedSubtree(key: _childKey, child: widget.child);
     final outerSize = HomeShellChrome.contentSizeOf(context);
-    final canPop = Navigator.maybeOf(context)?.canPop() ?? false;
+    final hasRouteBelow = !(ModalRoute.of(context)?.isFirst ?? true);
     final bounded =
-        canPop && AppBreakpoints.useBoundedDetailOverlayOf(context, outerSize);
+        hasRouteBelow &&
+        AppBreakpoints.useBoundedDetailOverlayOf(context, outerSize);
     if (_modalScrim != null && bounded != _registered) {
       _syncModalScrim();
     }

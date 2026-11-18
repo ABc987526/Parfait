@@ -232,8 +232,8 @@ class _FuncPageRoute<T> extends PageRoute<T> {
         )
       : TurnCurve.drive(
           controller!,
-          curve: MotionTokens.sharedElementFadeIn,
-          reverseCurve: MotionTokens.sharedElementFadeOut,
+          curve: const _Primed(MotionTokens.sharedElementFadeIn),
+          reverseCurve: Curves.easeInOutCubic,
         );
 
   /// Full-cycle fade for a wide bounded detail overlay (`DetailOverlayFrame`),

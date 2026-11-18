@@ -21,7 +21,6 @@ import '../person_avatar.dart';
 import '../pull_to_refresh.dart';
 import '../theme/func_semantic_tokens.dart';
 import '../theme/func_tokens.dart';
-import '../widgets/app_top_bar.dart' show kDesktopPageHeaderHeight;
 import '../widgets/replica_switch_tile.dart';
 import '../widgets/settings/persist_settings.dart';
 import 'desktop_title_bar.dart';
@@ -459,7 +458,6 @@ class _DesktopCommandBarState extends ConsumerState<DesktopCommandBar> {
         minWidth: 240,
         maxWidth: 288,
         maxHeight: 240,
-        minTop: kDesktopPageHeaderHeight + FuncSpacing.xs,
         builder: (popoverContext) => Consumer(
           builder: (popoverContext, popRef, _) {
             final l10n = popoverContext.l10n;

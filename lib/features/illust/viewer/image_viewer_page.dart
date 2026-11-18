@@ -49,6 +49,10 @@ import '../../../app/window/desktop_title_bar.dart';
 import '../../../l10n/context.dart';
 import '../../../app/theme/func_semantic_tokens.dart';
 import '../detail/widgets/detail_page_counter.dart' show PageCountPill;
+
+export '../../../app/window/desktop_command_bar.dart'
+    show DesktopCommandBarScope;
+
 part 'image_viewer_chrome.dart';
 
 /// Whether the viewer chrome (top bar + bottom bar) is visible. This is
@@ -201,6 +205,7 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
   Timer? _chromeHideTimer;
   DesktopCommandBarController? _commandBarController;
   ModalRoute<dynamic>? _observedRoute;
+  Animation<double>? _observedAnimation;
 
   int get _pageCount => _pagesOf(widget);
 
@@ -245,10 +250,13 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
       _commandBarController = nextController;
     }
     final nextRoute = ModalRoute.of(context);
-    if (!identical(_observedRoute, nextRoute)) {
-      _observedRoute?.animation?.removeStatusListener(_onRouteAnimationStatus);
-      _observedRoute = nextRoute;
-      _observedRoute?.animation?.addStatusListener(_onRouteAnimationStatus);
+    final nextAnimation =
+        RouteAnimationScope.of(context) ?? nextRoute?.animation;
+    _observedRoute = nextRoute;
+    if (!identical(_observedAnimation, nextAnimation)) {
+      _observedAnimation?.removeStatusListener(_onRouteAnimationStatus);
+      _observedAnimation = nextAnimation;
+      _observedAnimation?.addStatusListener(_onRouteAnimationStatus);
     }
     _syncCommandBarHidden();
   }
@@ -260,14 +268,16 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
   void _syncCommandBarHidden() {
     final controller = _commandBarController;
     if (controller == null) return;
+    final anim = _observedAnimation;
     final route = _observedRoute;
-    final animStatus = route?.animation?.status;
+    // Keep the command bar hidden throughout reverse playback until the
+    // transition fully dismisses (Route.isActive flips false as soon as pop
+    // starts, which would push the fading dark stage down by 48px).
     final active =
         mounted &&
-        (route == null ||
-            (route.isActive &&
-                animStatus != AnimationStatus.reverse &&
-                animStatus != AnimationStatus.dismissed));
+        (anim != null
+            ? anim.status != AnimationStatus.dismissed
+            : (route == null || route.isActive));
     controller.setHidden(this, active);
   }
 
@@ -311,7 +321,8 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
 
   @override
   void dispose() {
-    _observedRoute?.animation?.removeStatusListener(_onRouteAnimationStatus);
+    _observedAnimation?.removeStatusListener(_onRouteAnimationStatus);
+    _observedAnimation = null;
     _observedRoute = null;
     _commandBarController?.setHidden(this, false);
     _commandBarController = null;
@@ -1331,33 +1342,39 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
       color: FuncTokens.transparent,
       child: SafeArea(
         bottom: false,
-        child: Row(
-          children: [
-            if (leadingInset > 0) SizedBox(width: leadingInset),
-            // Imperative pop: explicit exits never route through the
-            // system-back intercept chain (W1 split).
-            BackButton(onPressed: _imperativePop),
-            const Spacer(),
-            // Empty state honesty: no misleading "1 / 0" counter.
-            if (_pageCount > 0)
-              TextButton(
-                key: const Key('viewer-page-counter'),
-                style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: FuncSpacing.sm,
+        child: Padding(
+          padding: EdgeInsetsDirectional.only(
+            start: leadingInset > 0 ? 0 : FuncSpacing.sm,
+            end: FuncSpacing.sm,
+          ),
+          child: Row(
+            children: [
+              if (leadingInset > 0) SizedBox(width: leadingInset),
+              // Imperative pop: explicit exits never route through the
+              // system-back intercept chain (W1 split).
+              BackButton(onPressed: _imperativePop),
+              const Spacer(),
+              // Empty state honesty: no misleading "1 / 0" counter.
+              if (_pageCount > 0)
+                TextButton(
+                  key: const Key('viewer-page-counter'),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: FuncSpacing.sm,
+                    ),
+                    minimumSize: const Size.square(kMinInteractiveDimension),
                   ),
-                  minimumSize: const Size.square(kMinInteractiveDimension),
+                  onPressed: _openPageSheet,
+                  // Inside the button, so its one node carries both the
+                  // count and what tapping it does. The detail page's pill,
+                  // so the position reads the same on both sides of the Hero.
+                  child: Tooltip(
+                    message: context.l10n.viewerJumpToPage,
+                    child: PageCountPill(page: _activePage, count: _pageCount),
+                  ),
                 ),
-                onPressed: _openPageSheet,
-                // Inside the button, so its one node carries both the
-                // count and what tapping it does. The detail page's pill,
-                // so the position reads the same on both sides of the Hero.
-                child: Tooltip(
-                  message: context.l10n.viewerJumpToPage,
-                  child: PageCountPill(page: _activePage, count: _pageCount),
-                ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -1400,53 +1417,60 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
                   thumbnailUrl: (page) => widget.entity?.squareUrlAt(page),
                 ),
               ),
-            Row(
-              children: [
-                const Spacer(),
-                IconButton(
-                  tooltip: l10n.viewerFitScreen,
-                  onPressed: hasPages ? _resetZoom : null,
-                  icon: const Icon(Icons.fit_screen),
-                ),
-                if (entity != null) ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: FuncSpacing.sm),
+              child: Row(
+                children: [
+                  const Spacer(),
                   IconButton(
-                    tooltip: l10n.viewerSavePage,
-                    onPressed: !hasPages
-                        ? null
-                        : switch (saveState) {
-                            IllustPageSaveState.downloading ||
-                            IllustPageSaveState.exist => null,
-                            _ => () => unawaited(_saveActivePage(entity)),
-                          },
-                    icon: switch (saveState) {
-                      IllustPageSaveState.downloading => const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                      IllustPageSaveState.exist => const Icon(
-                        Icons.check_circle,
-                      ),
-                      IllustPageSaveState.error => const Icon(
-                        Icons.error_outline,
-                      ),
-                      _ => const Icon(Icons.download_outlined),
-                    },
+                    tooltip: l10n.viewerFitScreen,
+                    onPressed: hasPages ? _resetZoom : null,
+                    icon: const Icon(Icons.fit_screen),
                   ),
-                  IconButton(
-                    tooltip: l10n.cardActionShare,
-                    onPressed: hasPages
-                        ? () => unawaited(_share(entity))
-                        : null,
-                    icon: const Icon(Icons.share_outlined),
-                  ),
-                  IconButton(
-                    tooltip: l10n.viewerInfo,
-                    onPressed: hasPages ? () => _showInfo(entity) : null,
-                    icon: const Icon(Icons.info_outline),
-                  ),
+                  if (entity != null) ...[
+                    IconButton(
+                      tooltip: l10n.viewerSavePage,
+                      onPressed: !hasPages
+                          ? null
+                          : switch (saveState) {
+                              IllustPageSaveState.downloading ||
+                              IllustPageSaveState.exist => null,
+                              _ => () => unawaited(_saveActivePage(entity)),
+                            },
+                      icon: switch (saveState) {
+                        IllustPageSaveState.downloading => const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                        IllustPageSaveState.exist => const Icon(
+                          Icons.check_circle,
+                        ),
+                        IllustPageSaveState.error => const Icon(
+                          Icons.error_outline,
+                        ),
+                        _ => const Icon(Icons.download_outlined),
+                      },
+                    ),
+                    IconButton(
+                      tooltip: l10n.cardActionShare,
+                      onPressed: hasPages
+                          ? () => unawaited(_share(entity))
+                          : null,
+                      icon: const Icon(Icons.share_outlined),
+                    ),
+                    IconButton(
+                      tooltip: l10n.viewerInfo,
+                      onPressed: hasPages ? () => _showInfo(entity) : null,
+                      icon: Icon(
+                        _wideInfoPanelOpen(context)
+                            ? Icons.info
+                            : Icons.info_outline,
+                      ),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ],
         ),

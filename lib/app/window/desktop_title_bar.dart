@@ -956,10 +956,12 @@ class SimulatedMacTrafficLights extends StatelessWidget {
 class DesktopFallbackWindowChrome extends StatefulWidget {
   const DesktopFallbackWindowChrome({
     super.key,
+    this.enabled = true,
     required this.chrome,
     required this.child,
   });
 
+  final bool enabled;
   final DesktopChromeMetrics chrome;
   final Widget child;
 
@@ -978,6 +980,36 @@ class _DesktopFallbackWindowChromeState
   String? _lastRegionSignature;
   DesktopChromeMetrics? _lastChrome;
 
+  bool get _isActive => widget.enabled && widget.chrome.hasCustomChrome;
+
+  void _clearPublishedRegions() {
+    if (_lastRegionSignature == null) return;
+    _lastRegionSignature = null;
+    final actions = _lastChrome?.actions;
+    if (actions == null) return;
+    final publishWithHeight = actions.onRegionsWithHeightChanged;
+    if (publishWithHeight != null) {
+      publishWithHeight(const [], 0);
+    } else {
+      actions.onRegionsChanged(const []);
+    }
+  }
+
+  @override
+  void didUpdateWidget(DesktopFallbackWindowChrome oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _lastChrome = widget.chrome;
+    if (!_isActive) {
+      _clearPublishedRegions();
+    }
+  }
+
+  @override
+  void dispose() {
+    _clearPublishedRegions();
+    super.dispose();
+  }
+
   void _scheduleRegionPublish(DesktopChromeMetrics chrome) {
     _lastChrome = chrome;
     final actions = chrome.actions;
@@ -985,7 +1017,7 @@ class _DesktopFallbackWindowChromeState
     _regionMeasurePending = true;
     SchedulerBinding.instance.addPostFrameCallback((_) {
       _regionMeasurePending = false;
-      if (!mounted) return;
+      if (!mounted || !_isActive) return;
       final currentChrome = _lastChrome;
       final currentActions = currentChrome?.actions;
       if (currentActions == null || currentChrome == null) return;
@@ -1039,10 +1071,12 @@ class _DesktopFallbackWindowChromeState
   @override
   Widget build(BuildContext context) {
     final chrome = widget.chrome;
-    _scheduleRegionPublish(chrome);
-    if (!chrome.hasCustomChrome) {
-      return widget.child;
+    _lastChrome = chrome;
+    if (!widget.enabled || !chrome.hasCustomChrome) {
+      _clearPublishedRegions();
+      return Stack(fit: StackFit.expand, children: [widget.child]);
     }
+    _scheduleRegionPublish(chrome);
     final platform = Theme.of(context).platform;
     final actions = chrome.actions;
     final showMacLights =

@@ -326,6 +326,35 @@ Future<void> openReverseImageSearch(
   await _push(context, '/reverse-image', extra: initialReference);
 }
 
+/// Pre-hides `DesktopCommandBar` synchronously before pushing a viewer route so
+/// Frame 0 / Hero measurement sees the full dark-stage viewport, releasing the
+/// transitional token after the route mounts or if the push exits early.
+Future<void> _pushWithHiddenCommandBar(
+  BuildContext context,
+  Future<void> Function() push,
+) async {
+  final controller = DesktopCommandBarScope.controllerOf(context);
+  if (controller == null) {
+    await push();
+    return;
+  }
+  final token = Object();
+  var released = false;
+  void release() {
+    if (released) return;
+    released = true;
+    controller.setHidden(token, false);
+  }
+
+  controller.setHidden(token, true);
+  WidgetsBinding.instance.addPostFrameCallback((_) => release());
+  try {
+    await push();
+  } finally {
+    release();
+  }
+}
+
 Future<void> openImageViewer(
   BuildContext context, {
   required IllustEntity entity,
@@ -354,15 +383,18 @@ Future<void> openImageViewer(
       // makes the deferred precache throw — best-effort, so swallow.
     ).then((_) {}, onError: (_, _) {}),
   );
-  await _push(
+  await _pushWithHiddenCommandBar(
     context,
-    '${_currentStackRoot(context)}/illust/${entity.id}/viewer/$page'
-    '?quality=${quality.code}',
-    extra: ImageViewerRouteExtra(
-      urls: entity.viewerUrls(quality),
-      entity: entity,
-      heroScope: heroScope,
-      entryPage: page,
+    () => _push(
+      context,
+      '${_currentStackRoot(context)}/illust/${entity.id}/viewer/$page'
+      '?quality=${quality.code}',
+      extra: ImageViewerRouteExtra(
+        urls: entity.viewerUrls(quality),
+        entity: entity,
+        heroScope: heroScope,
+        entryPage: page,
+      ),
     ),
   );
 }
@@ -376,10 +408,13 @@ Future<void> openIllustViewer(
   required ViewQuality quality,
 }) async {
   beginImageViewerSession();
-  await _push(
+  await _pushWithHiddenCommandBar(
     context,
-    '${_currentStackRoot(context)}/illust/$illustId/viewer/$page'
-    '?quality=${quality.code}',
+    () => _push(
+      context,
+      '${_currentStackRoot(context)}/illust/$illustId/viewer/$page'
+      '?quality=${quality.code}',
+    ),
   );
 }
 
@@ -389,9 +424,12 @@ Future<void> openNovelImage(
   String imageId,
 ) async {
   beginImageViewerSession();
-  await _push(
+  await _pushWithHiddenCommandBar(
     context,
-    '${_currentStackRoot(context)}/novel/$novelId/image/$imageId',
+    () => _push(
+      context,
+      '${_currentStackRoot(context)}/novel/$novelId/image/$imageId',
+    ),
   );
 }
 
