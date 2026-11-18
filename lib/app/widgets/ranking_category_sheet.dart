@@ -496,9 +496,9 @@ class _CategoryGrid<M extends RankingCategory> extends StatelessWidget {
           final labels = [
             for (final mode in labelsToFit) _label(context, mode),
           ];
-          // As many columns as keep the longest name on one line (allowing a
-          // gentle single-line fit when a wide modal barely misses 3 columns);
-          // two at least, wrapping only what two cannot hold.
+          // As many columns (capped at 3) as keep the longest name on one line
+          // (allowing a gentle single-line fit when a wide modal barely misses
+          // 3 columns); two at least, wrapping only what two cannot hold.
           final tileFloor = math.max(
             _minTileWidth,
             _CategoryTile.oneLineWidth(
@@ -507,9 +507,9 @@ class _CategoryGrid<M extends RankingCategory> extends StatelessWidget {
               hasLeadingIcon: hasLeadingIcon,
             ),
           );
-          var columns = math.max(
-            2,
-            ((width + _spacing) / (tileFloor + _spacing)).floor(),
+          var columns = math.min(
+            3,
+            math.max(2, ((width + _spacing) / (tileFloor + _spacing)).floor()),
           );
           if (columns == 2) {
             final threeColWidth = (width - _spacing * 2) / 3;

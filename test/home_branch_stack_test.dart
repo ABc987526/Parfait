@@ -23,6 +23,7 @@ import 'package:parfait/core/settings/app_settings.dart';
 import 'package:parfait/core/settings/settings_controller.dart';
 import 'package:parfait/features/history/history_page.dart';
 import 'package:parfait/features/home/recommended/recommended_home_page.dart';
+import 'package:parfait/features/illust/detail/widgets/detail_overlay_frame.dart';
 import 'package:parfait/features/ranking/ranking_page.dart';
 import 'package:parfait/features/search/search_page.dart';
 import 'package:parfait/features/settings/settings_page.dart';
@@ -903,6 +904,85 @@ void main() {
       await tester.tap(find.byKey(railScrimKey));
       await tester.pumpAndSettle();
       expect(router.state.uri.path, '/recommended');
+      expect(find.byKey(railScrimKey), findsNothing);
+    },
+    variant: TargetPlatformVariant.only(TargetPlatform.windows),
+  );
+
+  testWidgets(
+    'wide HomePage modal scrim starts at 0.0 on frame 0 and decays monotonically on pop or interrupt',
+    (tester) async {
+      final router = await _pumpHome(tester, width: 1280, height: 800);
+      const railScrimKey = ValueKey('home-rail-modal-scrim');
+
+      double? entryOpacity() {
+        final frames = find.byType(DetailOverlayFrame).evaluate();
+        if (frames.isEmpty) return null;
+        final entries = HomeShellChrome.maybeOf(
+          frames.first,
+        )?.modalScrim?.activeEntries;
+        if (entries == null || entries.isEmpty) return null;
+        return entries.last.opacity;
+      }
+
+      double renderedScrimProgress() {
+        final boxes = tester.widgetList<ColoredBox>(
+          find.descendant(
+            of: find.byKey(railScrimKey),
+            matching: find.byType(ColoredBox),
+          ),
+        );
+        if (boxes.isEmpty) return 0.0;
+        return boxes.single.color.a / const Color(0x990C0B0E).a;
+      }
+
+      // Frame 0 of push: scrim starts at 0.0 (never flashes 1.0).
+      unawaited(router.push<void>('/recommended/illust/42'));
+      await tester.pump();
+      expect(renderedScrimProgress(), 0.0);
+      expect(entryOpacity() ?? 0.0, 0.0);
+
+      // Mid-entrance: strictly inside (0, 1).
+      await tester.pump(const Duration(milliseconds: 120));
+      final midEntry = entryOpacity()!;
+      expect(midEntry, greaterThan(0.0));
+      expect(midEntry, lessThan(1.0));
+      expect(renderedScrimProgress(), greaterThan(0.0));
+      expect(renderedScrimProgress(), lessThan(1.0));
+
+      // Interrupt mid-push: frame 1 stays > 0 and decays monotonically.
+      router.pop();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 16));
+      final interrupt1 = entryOpacity()!;
+      expect(interrupt1, greaterThan(0.0));
+      expect(interrupt1, lessThan(midEntry));
+      expect(renderedScrimProgress(), greaterThan(0.0));
+      await tester.pump(const Duration(milliseconds: 16));
+      final interrupt2 = entryOpacity()!;
+      expect(interrupt2, greaterThan(0.0));
+      expect(interrupt2, lessThan(interrupt1));
+      await tester.pumpAndSettle();
+      expect(find.byKey(railScrimKey), findsNothing);
+
+      // Full push -> settled 1.0 -> normal pop decays monotonically from > 0.
+      unawaited(router.push<void>('/recommended/illust/42'));
+      await tester.pumpAndSettle();
+      expect(entryOpacity(), 1.0);
+      expect(renderedScrimProgress(), closeTo(1.0, 0.01));
+
+      router.pop();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 16));
+      final pop1 = entryOpacity()!;
+      expect(pop1, greaterThan(0.0));
+      expect(pop1, lessThan(1.0));
+      expect(renderedScrimProgress(), greaterThan(0.0));
+      await tester.pump(const Duration(milliseconds: 16));
+      final pop2 = entryOpacity()!;
+      expect(pop2, greaterThan(0.0));
+      expect(pop2, lessThan(pop1));
+      await tester.pumpAndSettle();
       expect(find.byKey(railScrimKey), findsNothing);
     },
     variant: TargetPlatformVariant.only(TargetPlatform.windows),

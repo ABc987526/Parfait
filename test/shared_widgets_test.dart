@@ -8,6 +8,8 @@ import 'package:parfait/app/theme/replica_theme.dart';
 import 'package:parfait/app/widgets/app_tab_bar.dart';
 import 'package:parfait/app/widgets/app_top_bar.dart';
 import 'package:parfait/app/widgets/feed/feed_states.dart';
+import 'package:parfait/app/widgets/master_detail_workspace.dart';
+import 'package:parfait/app/widgets/scroll_edge_fade.dart';
 import 'package:parfait/app/widgets/skeleton/func_skeleton.dart';
 import 'package:parfait/core/network/api_error.dart';
 import 'package:parfait/core/network/network_restore_signal.dart';
@@ -343,4 +345,76 @@ void main() {
     await drag.up();
     await tester.pumpAndSettle();
   });
+
+  testWidgets(
+    'branded AppTopBar keeps disabled IconButton and TextButton foreground alpha >= 0.45',
+    (tester) async {
+      setViewSize(tester, const Size(390, 800));
+      for (final brightness in Brightness.values) {
+        await tester.pumpWidget(
+          localizedApp(
+            theme: replicaTheme(brightness),
+            home: Scaffold(
+              appBar: AppTopBar(
+                title: const Text('History'),
+                actions: [
+                  TextButton(onPressed: null, child: const Text('Manage')),
+                  IconButton(
+                    tooltip: 'Clear',
+                    onPressed: null,
+                    icon: const Icon(Icons.delete_outline),
+                  ),
+                ],
+              ),
+              body: const SizedBox.shrink(),
+            ),
+          ),
+        );
+        await tester.pump();
+
+        final textColor = DefaultTextStyle.of(
+          tester.element(find.text('Manage')),
+        ).style.color!;
+        final iconColor = IconTheme.of(
+          tester.element(find.byIcon(Icons.delete_outline)),
+        ).color!;
+        expect(textColor.a, greaterThanOrEqualTo(0.45), reason: '$brightness');
+        expect(iconColor.a, greaterThanOrEqualTo(0.45), reason: '$brightness');
+      }
+    },
+  );
+
+  testWidgets(
+    'MasterDetailWorkspace wraps scrollable masterBody in vertical ScrollEdgeFade',
+    (tester) async {
+      setViewSize(tester, const Size(1280, 800));
+      await tester.pumpWidget(
+        localizedApp(
+          theme: replicaTheme(Brightness.light),
+          home: MasterDetailWorkspace(
+            title: const Text('Settings'),
+            masterBody: ListView.builder(
+              itemCount: 30,
+              itemBuilder: (_, index) =>
+                  SizedBox(height: 56, child: Text('Section $index')),
+            ),
+            detail: const SizedBox.expand(),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+
+      final fadeFinder = find.descendant(
+        of: find.byType(MasterDetailWorkspace),
+        matching: find.byType(ScrollEdgeFade),
+      );
+      expect(fadeFinder, findsOneWidget);
+      expect(tester.widget<ScrollEdgeFade>(fadeFinder).axis, Axis.vertical);
+      expect(tester.state<ScrollEdgeFadeState>(fadeFinder).fades, (
+        false,
+        true,
+      ));
+    },
+  );
 }

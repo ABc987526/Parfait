@@ -39,12 +39,17 @@ reviewed: 2026-11-18
   edge, never over the title). A longer list is a `SettingsGroup` of
   `SettingsChoiceTile`s, which mark the chosen row with a check and
   `ListTile.selected`, not a radio. A two-way property is a
-  `SettingsControl` switch.
+  `SettingsControl` switch; on `BottomBarSettingsPage`, locked-on
+  destinations (`shown && onChanged == null`) override local `SwitchTheme`
+  with a muted `0.40` primary-blended track, `onPrimary` thumb, and
+  `lock_outline`/`check` `thumbIcon` while keeping `onChanged: null`
+  (THEME-07), and omit `bottomBarMeLocked` under `DesktopCommandBarScope`.
 - **Why:** `RadioListTile` is deprecated in the pinned Flutter, and
   `selected` is what screen readers announce; segmented buttons were
-  removed (NAV-17).
+  removed (NAV-17), while locked-on bar destinations needed clear active
+  visual state without looking toggleable.
 - **Check:** `test/selection_controls_haptics_test.dart`
-- **Code:** `lib/app/widgets/settings/settings_menu_tile.dart`, `lib/app/widgets/settings/settings_choice_tile.dart`
+- **Code:** `lib/app/widgets/settings/settings_menu_tile.dart`, `lib/app/widgets/settings/settings_choice_tile.dart`, `lib/features/settings/pages/bottom_bar_settings_page.dart`
 
 ### SET-08 Page entries carry a circle in their group's color
 - **Rule:** A row that opens a settings page from the index (`SettingsTile.topLevel`)
@@ -130,7 +135,9 @@ reviewed: 2026-11-18
   `>= 840x480` and `viewport.width >= viewport.height * 0.75`), `/settings/all`
   and leaf settings routes wrapped in `SettingsAdaptiveHost` stay inside
   `MasterDetailWorkspace`: a 280dp `surfaceContainerLow` index pane (`52dp` top
-  header with `1dp` `brandHairline`, `showChevron: false` rows) and a `1dp`
+  header with `1dp` `brandHairline`, `showChevron: false` rows, and vertical
+  `ScrollEdgeFade(axis: Axis.vertical, fadeExtent: FuncSpacing.lg)` over
+  `masterBody`) and a `1dp`
   `brandHairline`-separated nested detail `Navigator` (`SettingsDetailScope`,
   `EmbeddedHeaderScope` flat aligned `52dp` headers,
   `MotionTokens.stateFadeCurve` with leaving `IgnorePointer`, and
@@ -142,7 +149,7 @@ reviewed: 2026-11-18
   dead haptic sliders while Taptic iPhones expose them; and unified `280dp`
   master-detail hosting keeps deep-linked settings pages coherent beside the
   collapsed shell rail without double headers or orphaned single-column sheets.
-- **Check:** `test/settings_search_test.dart` "every catalog entry is on its page"; `test/settings_master_detail_test.dart` "wide desktop uses master-detail with nested navigation; below 840dp stays single column"
+- **Check:** `test/settings_search_test.dart` "every catalog entry is on its page"; `test/settings_master_detail_test.dart` "wide desktop uses master-detail with nested navigation; below 840dp stays single column"; `test/shared_widgets_test.dart` "MasterDetailWorkspace wraps scrollable masterBody in vertical ScrollEdgeFade"
 - **Code:** `lib/app/widgets/master_detail_workspace.dart`, `lib/app/navigation/route_branches.dart`, `lib/features/settings/settings_catalog.dart`, `lib/features/settings/settings_page.dart`, `lib/features/settings/settings_helpers.dart`, `lib/features/settings/pages/motion_settings_page.dart`
 
 ## Me tab
@@ -155,17 +162,22 @@ reviewed: 2026-11-18
   (`_AccountHeader`: 52dp avatar, name with neutral "Premium" pill, user ID,
   opening the profile; trailing manage icon button; or one sign-in button when
   signed out). Next comes the last eight history records as a row of square
-  covers with "see all" (hidden when empty), followed by four grouped
+  covers (or an empty-history `暂无浏览历史` entry card without a `"see all"`
+  button when empty), followed by four grouped
   `SettingsGroup` / `SettingsTile.topLevel` sections (`showChevron: true`,
   `40dp` `CategoryColors` icon discs, `SET-08`, and live double-line count
   subtitles for downloads, watch later and local novels) ordering library,
   collections, recent tools and settings/about. An illustration cover opens the
   detail pager over the row's illustrations; covers in `IllustStore` fly via
-  Hero (`'me-history'`, TRANS-07) while unseen ones do not; covered by any
-  route (read from route secondary animations, never `TickerMode`), the row
-  holds its order and slides on `MotionTokens.spatial` once uncovered. When
+  Hero (`'me-history'`, TRANS-07) while unseen ones do not. The row uses
+  `HistoryVisibility` settled-route gating plus root-to-leaf `Navigator`
+  secondary-animation checks so, while covered, it holds its order and slides
+  on `MotionTokens.spatial` once uncovered (painting hovered covers in the top
+  layer with unclipped `FuncSpacing.xs` lift headroom and asymmetric enter/exit
+  curves). When
   `MasterDetailWorkspace.canDisplay` holds (`>= 840x480` content), the Me tab
-  mounts `MasterDetailWorkspace` wrapping its nested detail `Navigator` in
+  mounts `MasterDetailWorkspace` (`masterBody` scrolled with vertical
+  `ScrollEdgeFade`) wrapping its nested detail `Navigator` in
   `SettingsDetailScope` (`780dp` left-aligned `settingsNarrowBody` and aligned
   `AppTopBar`): a `280dp` left rail (`40dp` `_CompactAccountHeader` card,
   grouped `showChevron: false` index items, plus settings/about on touch tablets
@@ -181,4 +193,4 @@ reviewed: 2026-11-18
   history row holds its order while covered so Hero landing flights target the
   right cover before sliding to match recent history.
 - **Check:** `test/settings_test.dart` "the Me header, manage button and end rows open their pages" "signed out, the Me header is one button to the login" "the dashboard badge counts downloads as they start and end" "the recent row follows the history and pages in its own order" "a recent cover flies to its work and back, an unseen one not" "a page over the row holds its order until it has left"; `test/settings_master_detail_test.dart` "wide Me dashboard wraps SettingsDetailScope and shows overview grid"
-- **Code:** `lib/app/widgets/master_detail_workspace.dart`, `lib/app/widgets/settings/settings_group.dart`, `lib/app/widgets/settings/settings_tile.dart`, `lib/features/settings/me_dashboard_page.dart`
+- **Code:** `lib/app/widgets/master_detail_workspace.dart`, `lib/app/widgets/scroll_edge_fade.dart`, `lib/app/widgets/settings/settings_group.dart`, `lib/app/widgets/settings/settings_tile.dart`, `lib/core/history/history_visibility.dart`, `lib/features/settings/me_dashboard_page.dart`

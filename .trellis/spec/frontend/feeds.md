@@ -9,7 +9,7 @@ applies_to:
   - lib/app/format/content_locale.dart
   - lib/features/**/*_page.dart
   - lib/core/bookmark/bookmark_actions.dart
-reviewed: 2026-11-17
+reviewed: 2026-11-18
 ---
 
 # Feeds: states, grid, pull to refresh, skeletons
@@ -361,12 +361,14 @@ reviewed: 2026-11-17
 ### FEED-15 One skeleton root paints, animates and speaks
 - **Rule:** The outermost `FuncSkeleton` owns the one shimmer controller,
   the one gradient (each `SkeletonBone` paints its slice) and the one
-  semantics node with a localized loading label. A nested `FuncSkeleton`
-  renders its child as-is. No `ShaderMask`; under reduced motion the
-  bones are static.
+  semantics node with a localized loading label, using calibrated base and
+  shimmer contrast tokens distinct between page canvas and elevated card
+  surfaces (`UserListSkeleton` separates title and `@handle` bones cleanly). A
+  nested `FuncSkeleton` renders its child as-is. No `ShaderMask`; under reduced
+  motion the bones are static.
 - **Why:** A full-page `ShaderMask` cost an offscreen layer every frame.
 - **Check:** `test/motion_test.dart`
-- **Code:** `lib/app/widgets/skeleton/func_skeleton.dart`
+- **Code:** `lib/app/widgets/skeleton/func_skeleton.dart`, `lib/app/widgets/skeleton/list_skeletons.dart`
 
 ### FEED-16 Skeleton geometry matches the real layout
 - **Rule:** `IllustGridSkeleton` takes its columns from

@@ -106,11 +106,14 @@ reviewed: 2026-11-18
 ### PAGE-04 Search result types keep their own filters
 - **Rule:** A result type switch replaces the route with the new type's
   query. The page holds one filter draft per work type for the search,
-  seeded from the saved defaults; a user query carries no filters.
+  seeded from the saved defaults; a user query carries no filters and hides
+  the filter button while reserving the compact slot so search field width
+  stays constant across tabs.
 - **Why:** Switching illustration → user → illustration lost the
-  illustration filters.
-- **Check:** `test/search_result_page_test.dart` "each type switches to its own session filter set" "a user result route ignores stray filter params"
-- **Code:** `lib/features/search/search_result_page.dart`
+  illustration filters, and exposing an inapplicable filter button on the
+  user tab misled users or shifted the search pill.
+- **Check:** `test/search_result_page_test.dart` "each type switches to its own session filter set" "a user result route ignores stray filter params" "the user tab hides the filter button while keeping search field width constant"
+- **Code:** `lib/features/search/search_result_page.dart`, `lib/features/search/search_input_page.dart`, `lib/features/search/search_filter_sheet.dart`
 
 ### PAGE-21 Search input completes the keyword at the caret
 - **Rule:** Half- and full-width spaces split a query into keywords.
@@ -155,7 +158,9 @@ reviewed: 2026-11-18
   the local R-18 (with R-18G) and AI blocks, through one `RankingTabs`. A
   route to a hidden category shows it first for that visit without saving
   it; an edit keeps the category on screen or lands on its neighbour, and
-  the category sheet lists the page's live tabs. A page off screen writes
+  the `640dp` `showRankingCategorySheet` lists the page's live tabs in a
+  2–3 column `_CategoryGrid` (`columns` capped at 3 across locales while
+  keeping scrollable content clipped above the footer divider). A page off screen writes
   the new category into its route only once it shows again. The last
   category viewed is saved when the app is hidden or the page closes,
   never on each switch.
@@ -164,8 +169,8 @@ reviewed: 2026-11-18
   the background page replace the route and pulled the user back to the
   ranking. Every settings write rebuilds the app root and its theme, so a
   write per tab switch costs a frame on every switch.
-- **Check:** `test/ranking_categories_test.dart` "a hidden route category goes first; a blocked one does not" `test/ranking_feed_test.dart` "an edit updates the tabs, keeps the category and saves" "an edit made from another branch waits to write the route" "a ranking opened without a mode lands on the last one" `test/tab_swipe_switcher_test.dart` "a new tab list drops the spring-back of the old one"
-- **Code:** `lib/features/ranking/ranking_tabs.dart`, `lib/core/ranking`
+- **Check:** `test/ranking_categories_test.dart` "a hidden route category goes first; a blocked one does not" "showRankingCategorySheet keeps 3 columns and stays above the footer divider across locales at 1280x800" `test/ranking_feed_test.dart` "an edit updates the tabs, keeps the category and saves" "an edit made from another branch waits to write the route" "a ranking opened without a mode lands on the last one" `test/tab_swipe_switcher_test.dart` "a new tab list drops the spring-back of the old one"
+- **Code:** `lib/features/ranking/ranking_tabs.dart`, `lib/app/widgets/ranking_category_sheet.dart`, `lib/core/ranking`
 
 ## Shared page pieces
 

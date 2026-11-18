@@ -1466,7 +1466,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String settingsMutedSummary(int count) {
-    return '$count muted items';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count muted items',
+      one: '1 muted item',
+    );
+    return '$_temp0';
   }
 
   @override

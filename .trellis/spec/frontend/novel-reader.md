@@ -115,8 +115,9 @@ reviewed: 2026-11-18
   chrome on click without changing `PopScope` or center-tap semantics.
   `_ReaderRailSuppression` hides `ShellRail` from the very first loading/error
   frame (`NovelStatusScaffold` uses `AppTopBar` respecting
-  `DesktopCommandBarScope`), and wide modal `SideSheet`s hide the background
-  floating reader bars while open.
+  `DesktopCommandBarScope` and leaves no top-bar hairline over the stage),
+  and wide modal `SideSheet`s hide the background floating reader bars while
+  open.
 - **Why:** The hint painted under the exiting bottom bar, text showing
   through see-through bars smeared behind controls, mouse users needed a
   visible chrome affordance, loading-state rail transitions jumped by 200dp,
@@ -309,7 +310,8 @@ reviewed: 2026-11-18
   bar title and the watchlist novel entry's contents item. It reads
   `/v2/novel/series`, paged by `last_order`; a malformed entry is a
   parse error, and a restricted entry (`visible: false`) needs only its
-  id, title and order, and stays closed whatever the novel store kept. The header holds the title, the author, the
+  id, title and order, and stays closed whatever the novel store kept (as in
+  `IllustSeriesPage`, manga series share this clean series scaffold). The header holds the title, the author, the
   works count with the completed and original labels, the actions and
   the caption collapsed to three lines; opening it marks the watchlist
   cursor at the latest novel. Rows are novel cards under their
@@ -330,4 +332,4 @@ reviewed: 2026-11-18
   series had no contents; no other client continues a novel series, and
   novels are read over days (user request, 11-02).
 - **Check:** `test/novel_series_test.dart` "a series page: its facts, numbered novels past the first "; `test/watchlist_page_test.dart` "watchlist page lists entries under both type tabs; a novel "
-- **Code:** `lib/features/novel/novel_series_page.dart`, `lib/core/novel/novel_feed_controller.dart`, `lib/core/novel/novel_repository.dart`, `lib/core/novel/reader_settings.dart`, `lib/features/novel/novel_page.dart`, `lib/features/novel/novel_reader_stage.dart`, `lib/features/novel/novel_reader_stage_widgets.dart`, `lib/features/watchlist/watchlist_page.dart`, `lib/app/navigation/routes.dart`
+- **Code:** `lib/features/novel/novel_series_page.dart`, `lib/features/series/illust_series_page.dart`, `lib/core/novel/novel_feed_controller.dart`, `lib/core/novel/novel_repository.dart`, `lib/core/novel/reader_settings.dart`, `lib/features/novel/novel_page.dart`, `lib/features/novel/novel_reader_stage.dart`, `lib/features/novel/novel_reader_stage_widgets.dart`, `lib/features/watchlist/watchlist_page.dart`, `lib/app/navigation/routes.dart`

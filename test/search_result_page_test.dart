@@ -96,9 +96,8 @@ void main() {
     expect(params.containsKey('sort'), isFalse);
     expect(params.containsKey('bmin'), isFalse);
     expect(find.text('收藏数 100 以上'), findsNothing);
-    // The user tab keeps the muted filter slot so the search field does not
-    // move; tapping it explains that this result kind has no filters.
-    expect(find.byTooltip('筛选'), findsOneWidget);
+    // User search has no filters, so the artwork filter button is hidden.
+    expect(find.byTooltip('筛选'), findsNothing);
     // The route was replaced in place: same page state, no new page.
     expect(tester.state(find.byType(SearchResultPage)), same(state));
 
@@ -144,7 +143,7 @@ void main() {
     // User searches are filter-free: a shared URL's leftover params never
     // reach the query or the artwork tabs.
     expect(page.query.filtersOrNull, isNull);
-    expect(find.byTooltip('筛选'), findsOneWidget);
+    expect(find.byTooltip('筛选'), findsNothing);
 
     await tester.tap(_tab('小说'));
     await tester.pumpAndSettle();
@@ -235,27 +234,28 @@ void main() {
     expect(find.byType(IllustCard), findsOneWidget);
   });
 
-  testWidgets('the user filter slot stays in place and explains its scope', (
-    tester,
-  ) async {
-    final router = await _pumpRouter(
-      tester,
-      initialLocation: '/search/results?q=cat&type=illust',
-    );
-    final initialField = tester.getRect(find.byType(SearchFieldButton));
+  testWidgets(
+    'the user tab hides the filter button while keeping search field width constant',
+    (tester) async {
+      for (final view in const [Size(1400, 800), Size(390, 800)]) {
+        final router = await _pumpRouter(
+          tester,
+          initialLocation: '/search/results?q=cat&type=illust',
+          view: view,
+        );
+        final initialField = tester.getRect(find.byType(SearchFieldButton));
 
-    await tester.tap(_tab('用户'));
-    await tester.pumpAndSettle();
-    final userField = tester.getRect(find.byType(SearchFieldButton));
-    expect(userField.width, closeTo(initialField.width, 0.01));
-    expect(find.byTooltip('筛选'), findsOneWidget);
-
-    await tester.tap(find.byTooltip('筛选'));
-    await tester.pumpAndSettle();
-    expect(find.text('用户搜索没有筛选'), findsOneWidget);
-    // Keep the router alive until the prompt has been painted.
-    expect(router.state.uri.path, '/search/results');
-  });
+        await tester.tap(_tab('用户'));
+        await tester.pumpAndSettle();
+        final userField = tester.getRect(find.byType(SearchFieldButton));
+        expect(userField.width, closeTo(initialField.width, 0.01));
+        expect(find.byTooltip('筛选'), findsNothing);
+        // Keep the router alive until the frame settles.
+        expect(router.state.uri.path, '/search/results');
+        await tester.pumpWidget(const SizedBox());
+      }
+    },
+  );
 
   testWidgets('wide result bar splits kinds, query, filters', (tester) async {
     // The 88dp rail leaves 1312 and 712 of content: the query field takes

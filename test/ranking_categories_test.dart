@@ -1,10 +1,22 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:parfait/app/theme/replica_theme.dart';
+import 'package:parfait/app/widgets/ranking_category_sheet.dart';
 import 'package:parfait/core/illust/ranking_repository.dart';
 import 'package:parfait/core/novel/novel_repository.dart';
+import 'package:parfait/core/ranking/ranking_catalog.dart';
 import 'package:parfait/core/ranking/ranking_category.dart';
+import 'package:parfait/core/settings/app_settings.dart';
 import 'package:parfait/core/settings/arrangement.dart';
 import 'package:parfait/l10n/app_localizations.dart';
 import 'package:parfait/l10n/lookup.dart';
+
+import 'helpers/fake_settings.dart';
+import 'helpers/layout_fonts.dart';
+import 'helpers/localized_app.dart';
+import 'helpers/view_size.dart';
 
 enum _Item { a, b, c, d }
 
@@ -203,4 +215,101 @@ void main() {
       },
     );
   });
+
+  testWidgets(
+    'showRankingCategorySheet keeps 3 columns and stays above the footer divider across locales at 1280x800',
+    (tester) async {
+      await loadLayoutFonts();
+      setViewSize(tester, const Size(1280, 800));
+      await seedSettings(AppSettings.defaults());
+
+      for (final locale in AppLocalizations.supportedLocales) {
+        await tester.pumpWidget(
+          localizedApp(
+            overrides: const [],
+            locale: locale,
+            theme: replicaTheme(
+              Brightness.light,
+              fontFamilyFallback: layoutFontFallback,
+            ),
+            body: Builder(
+              builder: (context) => ElevatedButton(
+                onPressed: () => unawaited(
+                  showRankingCategorySheet(
+                    context,
+                    catalog: illustRankingCatalog,
+                  ),
+                ),
+                child: const Text('open'),
+              ),
+            ),
+          ),
+        );
+        await tester.tap(find.text('open'));
+        await tester.pumpAndSettle();
+
+        final sheet = find.byWidgetPredicate(
+          (w) => '${w.runtimeType}'.startsWith('_RankingCategorySheet'),
+        );
+        expect(sheet, findsOneWidget, reason: '$locale');
+        final sheetSurface = find
+            .ancestor(of: sheet, matching: find.byType(Material))
+            .first;
+        final wraps = find.descendant(of: sheet, matching: find.byType(Wrap));
+        expect(wraps, findsWidgets, reason: '$locale');
+        for (final wrapElement in wraps.evaluate()) {
+          final tiles = find.descendant(
+            of: find.byElementPredicate((e) => identical(e, wrapElement)),
+            matching: find.byWidgetPredicate((w) => w.key is ValueKey<Object?>),
+          );
+          final rects = [
+            for (final element in tiles.evaluate())
+              tester.getRect(
+                find.byElementPredicate((e) => identical(e, element)),
+              ),
+          ];
+          if (rects.length < 4) continue;
+          final firstRow = rects
+              .where((r) => (r.top - rects.first.top).abs() < 1.0)
+              .toList();
+          expect(firstRow, hasLength(3), reason: '$locale 3-column grid');
+          expect(
+            rects[3].top,
+            greaterThan(firstRow.first.bottom),
+            reason: '$locale row wrap after 3 tiles',
+          );
+        }
+
+        final scrollView = find.descendant(
+          of: sheet,
+          matching: find.byType(SingleChildScrollView),
+        );
+        final divider = find.descendant(
+          of: sheet,
+          matching: find.byType(Divider),
+        );
+        final scrollRect = tester.getRect(scrollView);
+        final dividerRect = tester.getRect(divider);
+        expect(
+          scrollRect.bottom,
+          lessThanOrEqualTo(dividerRect.top + 0.01),
+          reason: '$locale scroll area stops above action bar divider',
+        );
+        expect(
+          tester.getRect(sheetSurface).bottom,
+          lessThanOrEqualTo(800),
+          reason: '$locale dialog stays inside 800dp viewport',
+        );
+        // Also ensure after scrolling to the bottom the content stays clipped above the divider.
+        await tester.drag(scrollView, const Offset(0, -400));
+        await tester.pumpAndSettle();
+        expect(
+          tester.getRect(scrollView).bottom,
+          lessThanOrEqualTo(tester.getRect(divider).top + 0.01),
+          reason: '$locale scrolled body stays above divider',
+        );
+        await tester.pumpWidget(const SizedBox());
+      }
+    },
+  );
 }

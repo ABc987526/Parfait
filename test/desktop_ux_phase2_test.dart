@@ -15,10 +15,13 @@ import 'package:parfait/app/app.dart' show AppChrome;
 import 'package:parfait/app/clipboard.dart';
 import 'package:parfait/app/layout/form_factor.dart';
 import 'package:parfait/app/layout/input_modality.dart';
+import 'package:parfait/app/layout/window_layout_spec.dart'
+    show WindowEnvironmentOverride;
 import 'package:parfait/app/motion/motion_tokens.dart';
 import 'package:parfait/app/motion/press_scale.dart';
 import 'package:parfait/app/navigation/forward_history.dart';
 import 'package:parfait/app/navigation/keyboard_back.dart';
+import 'package:parfait/app/navigation/routes.dart' show IllustRouteExtra;
 import 'package:parfait/app/person_avatar.dart';
 import 'package:parfait/app/touch_exploration_scope.dart';
 import 'package:parfait/app/widgets/bookmark_switch_button.dart';
@@ -40,6 +43,7 @@ import 'package:parfait/core/actionqueue/action_store.dart';
 import 'package:parfait/core/auth/account.dart';
 import 'package:parfait/core/auth/credential.dart';
 import 'package:parfait/core/entity/illust_entity.dart';
+import 'package:parfait/core/entity/illust_store.dart';
 import 'package:parfait/core/image/image_worker_providers.dart';
 import 'package:parfait/core/navigation/home_destination.dart';
 import 'package:parfait/core/platform/accessibility.dart';
@@ -48,14 +52,19 @@ import 'package:parfait/core/platform/image_clipboard.dart';
 import 'package:parfait/core/search/search_models.dart';
 import 'package:parfait/core/settings/app_settings.dart';
 import 'package:parfait/features/comments/comments_page.dart';
+import 'package:parfait/features/home/home_page.dart';
+import 'package:parfait/features/illust/detail/widgets/page_image.dart'
+    show DetailPageImage;
 import 'package:parfait/features/illust/viewer/image_viewer_page.dart';
 import 'package:parfait/features/ranking/ranking_page.dart';
 import 'package:parfait/l10n/app_localizations.dart';
+import 'package:visibility_detector/visibility_detector.dart';
 
 import 'helpers/api_responses.dart';
 import 'helpers/bookmark_world.dart';
 import 'helpers/card_world.dart';
 import 'helpers/comment_world.dart';
+import 'helpers/connectivity_channels.dart';
 import 'helpers/detail_world.dart';
 import 'helpers/fake_account.dart';
 import 'helpers/fake_settings.dart';
@@ -1355,6 +1364,101 @@ void main() {
       } finally {
         semantics.dispose();
         debugDefaultTargetPlatformOverride = null;
+      }
+    },
+  );
+
+  testWidgets(
+    'wide AppChrome keeps HomePage element and state mounted across ImageViewerPage push and pop',
+    (tester) async {
+      answerConnectivityChannels();
+      for (final platform in const [
+        TargetPlatform.windows,
+        TargetPlatform.macOS,
+      ]) {
+        debugDefaultTargetPlatformOverride = platform;
+        try {
+          setViewSize(tester, const Size(1280, 800));
+          VisibilityDetectorController.instance.updateInterval = Duration.zero;
+          await seedSettings(AppSettings.defaults());
+          final (container, _, _) = await makeWorld();
+          final entity = parseIllust(illustJson(42));
+          container.read(illustStoreProvider).mergeAll([entity]);
+          final router = pixivRouter('/recommended');
+          final metrics = platform == TargetPlatform.macOS
+              ? const DesktopWindowPlatformMetrics(
+                  usesSystemTitleBar: false,
+                  trafficLightWidth: 78,
+                  trafficLightHeight: 16,
+                )
+              : const DesktopWindowPlatformMetrics(usesSystemTitleBar: false);
+
+          await tester.pumpWidget(
+            localizedRouterApp(
+              router,
+              container: container,
+              builder: (context, child) => WindowEnvironmentOverride(
+                displaySize: const Size(1280, 800),
+                targetPlatform: platform,
+                desktopMetrics: metrics,
+                desktopActions: DesktopWindowActions.noop,
+                showSimulatedTrafficLights: platform == TargetPlatform.macOS,
+                child: AppChrome(
+                  settings: AppSettings.defaults(),
+                  router: router,
+                  child: child!,
+                ),
+              ),
+            ),
+          );
+          await tester.pumpAndSettle();
+
+          final homeElement = tester.element(find.byType(HomePage));
+          final homeState = tester.state(find.byType(HomePage));
+          expect(find.byKey(const Key('desktop-command-bar')), findsOneWidget);
+
+          unawaited(
+            router.push<void>(
+              '/recommended/illust/42',
+              extra: IllustRouteExtra(entity: entity, heroScope: 'feed'),
+            ),
+          );
+          await tester.pumpAndSettle();
+
+          await tester.tap(find.byType(DetailPageImage).first);
+          await tester.pumpAndSettle();
+          expect(find.byType(ImageViewerPage), findsOneWidget);
+          expect(find.byKey(const Key('desktop-command-bar')), findsNothing);
+          expect(
+            tester.element(find.byType(HomePage, skipOffstage: false)),
+            same(homeElement),
+            reason: '$platform HomePage element identity while viewer open',
+          );
+          expect(
+            tester.state(find.byType(HomePage, skipOffstage: false)),
+            same(homeState),
+            reason: '$platform HomePage state identity while viewer open',
+          );
+
+          await tester.tap(find.byType(BackButton).last);
+          await tester.pumpAndSettle();
+          expect(find.byType(ImageViewerPage), findsNothing);
+          expect(find.byKey(const Key('desktop-command-bar')), findsOneWidget);
+          expect(
+            tester.element(find.byType(HomePage)),
+            same(homeElement),
+            reason: '$platform HomePage element identity after viewer close',
+          );
+          expect(
+            tester.state(find.byType(HomePage)),
+            same(homeState),
+            reason: '$platform HomePage state identity after viewer close',
+          );
+          await tester.pumpWidget(const SizedBox());
+          await tester.pump();
+        } finally {
+          debugDefaultTargetPlatformOverride = null;
+        }
       }
     },
   );

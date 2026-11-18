@@ -647,7 +647,7 @@
   "aboutAttributionText": "Copyright and maintained by Lopution.",
   "settingsReadFailed": "Failed to read settings",
   "settingsWriteFailed": "Failed to save settings",
-  "settingsMutedSummary": "{count} muted items",
+  "settingsMutedSummary": "{count, plural, =1{1 muted item} other{{count} muted items}}",
   "@settingsMutedSummary": {
     "placeholders": {
       "count": {

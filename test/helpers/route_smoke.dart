@@ -364,8 +364,13 @@ final smokePages = <SmokeGroup, Map<String, SmokePage>>{
     '/new': SmokePage.feed('/v2/illust/follow', 'illusts'),
     // No trending tags leave the search page as it is: nothing to say.
     '/search': const SmokePage(reads: '/v1/trending-tags/illust'),
-    '/settings': const SmokePage(
-      setup: ReviewSetup(watchlater: 3, localNovels: 3, downloadSingles: 2),
+    '/settings': SmokePage(
+      setup: ReviewSetup(
+        history: reviewHistory(),
+        watchlater: 3,
+        localNovels: 3,
+        downloadSingles: 2,
+      ),
     ),
     '/me': const SmokePage(reads: '/v1/user/detail'),
     '/downloads': const SmokePage(

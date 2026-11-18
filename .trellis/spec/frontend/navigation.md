@@ -264,9 +264,10 @@ reviewed: 2026-11-18
   row 600dp or wider caps each share at 120dp, or the widest label plus
   its padding when that is wider, and keeps to the start edge; a narrower
   one is always split in full. Otherwise the row scrolls from the start
-  edge with a 48dp `ScrollEdgeFade` (using compact `FuncSpacing.sm`
-  `labelPadding` under 420dp so wide localized tabs such as Russian fit
-  whole). On a wide window a page's tabs may
+  edge with a 48dp `ScrollEdgeFade(initialAfter: true)` (using compact
+  `FuncSpacing.sm` `labelPadding` under 420dp so wide localized tabs such as
+  Russian fit whole) so trailing `ShaderMask` fade activates on initial layout
+  without requiring manual scrolling. On a wide window a page's tabs may
   share the title's row (`AppTopBar.tabsBesideTitle`, NAV-24); the shares
   still cap at the widest label and keep to the start edge, however
   narrow the row. Labels are measured in the style
@@ -279,7 +280,7 @@ reviewed: 2026-11-18
   label 2dp narrower than painted. Capped on a phone, two tabs filled 360
   of 411dp; a 24dp fade was spent on the sliver of a cut label and read
   as a hard cut.
-- **Check:** `test/app_tab_bar_test.dart` "a wide row keeps its tabs together at the start"
+- **Check:** `test/app_tab_bar_test.dart` "a wide row keeps its tabs together at the start" "labels that do not fit scroll from the start at 14sp"
 - **Code:** `lib/app/widgets/app_tab_bar.dart`
 
 ### NAV-15 A tab tap never calls animateTo again
@@ -460,20 +461,23 @@ reviewed: 2026-11-18
   the 48dp `DesktopCommandBar` (rail toggle, back/forward, refresh, search field
   with `'⌘K'` on macOS / `'Ctrl K'` elsewhere and keyword pills, reverse search,
   anchored scrim-less `showAppPanel` popovers for `Icons.shield_outlined` R-18/AI
-  filters and account switching, and window drag/caption regions with `2px`
+  filters and account switching anchored cleanly below the control bar
+  (`FuncSpacing.xs` offset), and window drag/caption regions with `2px`
   unmaximized top/right resize borders so Win11 Snap Layouts stay reachable),
   progressively hiding shortcut badge (`< 680dp`), wordmark (`< 600dp`), and
   full search input (`< 500dp` or tight width) while wrapping the routed child
   in `Semantics(container: true, explicitChildNodes: true)` inside `Expanded`
   so route `ModalBarrier` `BlockSemantics` never hides `DesktopCommandBar`
-  from accessibility; `AppChrome` publishes `DesktopCommandBarScope`,
-  `DesktopCommandBarController` hides the bar while `ImageViewerPage` is active
-  (preserving macOS traffic light insets), and macOS mounts `DesktopMenuBar`.
-  `ForwardHistoryStack` keeps per-branch forward stacks while `KeyboardBack`
-  dedupes back/forward within 120 ms.
+  from accessibility; `AppChrome` publishes `DesktopCommandBarScope`, keeps a
+  persistent `_routerSubtreeKey` so hiding `DesktopCommandBar` on
+  `ImageViewerPage` never remounts `Router` / `HomePage` state (preserving
+  macOS traffic light insets), `_DesktopFallbackChromeStack` omits
+  `dragZone` when disabled and probes/yields to child interactive controls,
+  and macOS mounts `DesktopMenuBar`. `ForwardHistoryStack` keeps per-branch
+  forward stacks while `KeyboardBack` dedupes back/forward within 120 ms.
 - **Why:** Desktop shells require unified titlebar commands, narrow-window
   overflow protection, accessible toolbar nodes, native macOS menus, unclipped
   dark-stage viewing, and isolated browser-like forward history without double
   headers or blocked window caption edges.
-- **Check:** `test/desktop_ux_phase2_test.dart` "DesktopCommandBar chrome, drag regions, header deduplication, and popovers" "DesktopMenuBar restricts to macOS and wires View, Navigation, Bookmarks, Downloads, and Search" "ForwardHistoryStack replays per-branch forward entries and debounces mouse back/forward" "AppChrome isolates Router BlockSemantics so DesktopCommandBar remains reachable in semantics"
+- **Check:** `test/desktop_ux_phase2_test.dart` "DesktopCommandBar chrome, drag regions, header deduplication, and popovers" "DesktopMenuBar restricts to macOS and wires View, Navigation, Bookmarks, Downloads, and Search" "ForwardHistoryStack replays per-branch forward entries and debounces mouse back/forward" "AppChrome isolates Router BlockSemantics so DesktopCommandBar remains reachable in semantics" "wide AppChrome keeps HomePage element and state mounted across ImageViewerPage push and pop" `test/desktop_window_test.dart` "DesktopFallbackWindowChrome omits dragZone when disabled and yields to child buttons on macOS"
 - **Code:** `lib/app/app.dart`, `lib/app/window/desktop_command_bar.dart`, `lib/app/window/desktop_menu_bar.dart`, `lib/app/window/desktop_title_bar.dart`, `lib/app/navigation/forward_history.dart`, `lib/app/navigation/keyboard_back.dart`, `windows/runner/flutter_window.cpp`

@@ -230,6 +230,15 @@ class _AppTopBarState extends State<AppTopBar> {
     final Color? brandedForeground = useBrandedHeader
         ? tokens.brandedHeaderForeground
         : null;
+    final brandedIconButtonTheme = !useBrandedHeader
+        ? null
+        : IconButtonThemeData(
+            style: IconButton.styleFrom(
+              foregroundColor: tokens.brandedHeaderForeground,
+              disabledForegroundColor: tokens.brandedHeaderForeground
+                  .withValues(alpha: 0.48),
+            ).merge(theme.iconButtonTheme.style),
+          );
     final surface = widget.backgroundColor != null
         ? widget.backgroundColor!
         : flatWorkspace
@@ -299,6 +308,20 @@ class _AppTopBarState extends State<AppTopBar> {
         }
       } else {
         actionsPadding = EdgeInsetsDirectional.only(end: endInset);
+      }
+    }
+    // AppBar wraps leading and actions in its own IconButtonTheme derived from
+    // iconTheme/actionsIconTheme (dropping disabledForegroundColor), so apply
+    // brandedIconButtonTheme inside those slots as well as on the outer Theme.
+    if (brandedIconButtonTheme != null) {
+      if (leading != null) {
+        leading = IconButtonTheme(data: brandedIconButtonTheme, child: leading);
+      }
+      if (actions != null) {
+        actions = [
+          for (final action in actions)
+            IconButtonTheme(data: brandedIconButtonTheme, child: action),
+        ];
       }
     }
     // A tab row standing in the title is the bar's leading content, not a
@@ -427,13 +450,7 @@ class _AppTopBarState extends State<AppTopBar> {
                       .withValues(alpha: 0.50),
                 ).merge(theme.textButtonTheme.style),
               ),
-              iconButtonTheme: IconButtonThemeData(
-                style: IconButton.styleFrom(
-                  foregroundColor: tokens.brandedHeaderForeground,
-                  disabledForegroundColor: tokens.brandedHeaderForeground
-                      .withValues(alpha: 0.48),
-                ).merge(theme.iconButtonTheme.style),
-              ),
+              iconButtonTheme: brandedIconButtonTheme,
             ),
             child: sizedToolbar,
           );

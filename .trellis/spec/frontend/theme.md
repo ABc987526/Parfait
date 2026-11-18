@@ -4,7 +4,7 @@ applies_to:
   - lib/app/theme/**
   - lib/app/widgets/**
   - lib/app/app.dart
-reviewed: 2026-11-17
+reviewed: 2026-11-18
 ---
 
 # Theme, color and type
@@ -155,14 +155,18 @@ reviewed: 2026-11-17
   `brandedHeaderSurface` (#9E3661 default light, luminance-clamped under
   dynamic colors), `brandedHeaderForeground` and `brandedHeaderTabUnselected`
   so titles, selected tabs and unselected tabs all keep at least 4.5:1 AA
-  contrast; rail shells (`>= 600dp`) keep the page-surface top bar. A system
+  contrast, while overriding `TextButtonThemeData` (`0.50` disabled alpha) and
+  `IconButtonThemeData` (`0.48` disabled alpha, also wrapped directly around
+  `leading` and `actions` so `AppBar` cannot overwrite it) ahead of
+  `.merge(theme.*ButtonTheme.style)` so disabled controls keep foreground alpha
+  `>= 0.45`; rail shells (`>= 600dp`) keep the page-surface top bar. A system
   palette supplies its own accent roles while clamping light header luminance.
 - **Why:** The brand pink measured about 2.9:1 as text on the light page.
   User decision: fills keep the brand pink with white text (2.85:1, accepted),
   cherry-blossom text/selection tokens avoid M3's purple drift, and Shaft-style
   branded headers are restricted to compact phones and deepened for AA contrast
   so tablet/foldable rails never clash or hide white status-bar clocks.
-- **Check:** `test/replica_theme_test.dart` "fills are the brand pink under white; selection stays tonal" "compact branded header keeps >= 4.5:1 for title, selected tab, and unselected tab"
+- **Check:** `test/replica_theme_test.dart` "fills are the brand pink under white; selection stays tonal" "compact branded header keeps >= 4.5:1 for title, selected tab, and unselected tab"; `test/shared_widgets_test.dart` "branded AppTopBar keeps disabled IconButton and TextButton foreground alpha >= 0.45"
 - **Code:** `lib/app/theme/replica_theme.dart`, `lib/app/theme/func_tokens.dart`, `lib/app/theme/func_semantic_tokens.dart`, `lib/app/widgets/app_top_bar.dart`
 
 ### THEME-08 Status color goes on the icon, not the text

@@ -9,7 +9,7 @@ applies_to:
   - lib/app/widgets/feed/illust_card*.dart
   - lib/features/illust/**
   - android/app/src/main/AndroidManifest.xml
-reviewed: 2026-11-17
+reviewed: 2026-11-18
 ---
 
 # Page transitions, back gesture and Hero flights
@@ -153,7 +153,7 @@ reviewed: 2026-11-17
   from the opening's second frame until then; leaving, the content fades out over
   `sharedElementContentOut`, then the background over
   `sharedElementBackdropOut`. The viewer has no background: its stage
-  fades whole (`sharedElementFadeIn`/`Out`). A leave that cuts an opening
+  fades whole (`_Primed` on `sharedElementFadeIn` with `reverseCurve: Curves.easeInOutCubic`). A leave that cuts an opening
   short takes each layer down from the opacity it reached (`TurnCurve`).
   The Hero flies on `illustHeroCurve`, `MotionTokens.spatialCurve`
   turning with its route, set as `curve` and `reverseCurve` on the ends
@@ -237,8 +237,10 @@ reviewed: 2026-11-17
   the card's navigator (the viewer on the root navigator over a branch's
   detail page; `HeroPageCover`, the more opaque of a leaving page and its
   reopened successor; `boundedOverlayOnWide` routes skip `_LiftedBars.capture`
-  so underlying feed bars stay put while their scrim fades smoothly over the
-  full route progress), by flight
+  so underlying feed bars stay put while `DetailOverlayFrame` drives
+  `HomeShellModalScrim` from `RouteAnimationScope.of(context)` and
+  `!(route?.isFirst ?? true)` for continuous 0.0-start and monotonic-decay
+  scrim progress), by flight
   progress where no page registered one. Flight progress (radius, the
   cropped part's reveal) is read off the shuttle's size between the two
   ends, not the route animation. Ignore horizontal route transforms, and
@@ -280,7 +282,7 @@ reviewed: 2026-11-17
   half-drawn bar vanished over an empty band where the image stayed cut,
   and the viewer's end was cut by a status strip it does not have: the
   ends' insets came from the pages' own MediaQuery.
-- **Check:** `test/hero_lifted_bars_test.dart` "a card flight lifts the card page's bars over the image" (with their shadows) "a card flight shows the feed under the bars it lifts, and ", `test/hero_transition_test.dart` "Hero pop flight is occluded by the chrome" "Hero push from a nested feed stays intact" "chrome over a flight steps aside until the landing" "detail and viewer: the clip runs between the work page's top "
+- **Check:** `test/hero_lifted_bars_test.dart` "a card flight lifts the card page's bars over the image" (with their shadows) "a card flight shows the feed under the bars it lifts, and ", `test/hero_transition_test.dart` "Hero pop flight is occluded by the chrome" "Hero push from a nested feed stays intact" "chrome over a flight steps aside until the landing" "detail and viewer: the clip runs between the work page's top ", `test/home_branch_stack_test.dart` "wide HomePage modal scrim starts at 0.0 on frame 0 and decays monotonically on pop or interrupt"
 - **Code:** `lib/app/motion/hero_rect_clip.dart`, `lib/app/motion/hero_transition.dart`, `lib/app/motion/hero_lifted_bars.dart`, `lib/app/navigation/func_page.dart`, `lib/app/widgets/func_bottom_nav.dart`, `lib/app/widgets/app_top_bar.dart`, `lib/features/profile/profile_header_delegate.dart`
 
 ### TRANS-11 Card rounding lives inside the Hero child

@@ -37,7 +37,9 @@ reviewed: 2026-11-18
   (`artworkUnderBar = true`) so the image starts under `statusInset` instead
   of bisecting toolbar icons mid-bar. Its slot is the band above it plus its
   ratio box; nothing below, so the expand button and the title follow right
-  under the image. An expanded set drops the band. The Hero, placeholder and
+  under the image. An expanded set drops the band (and `_expandPagesFromSlot`
+  adjusts scroll offset by the collapsed band so page 1 remains flush under
+  `statusInset` with full `ArtworkControls` contrast). The Hero, placeholder and
   error states stay inside the ratio box, not the slot. Page 1 always goes
   through the slot box so expanding a set never remounts it. Outside selection
   the band carries the work's ambient light (THEME-19), rising from the image
@@ -117,7 +119,8 @@ reviewed: 2026-11-18
   tonal accent labels and the stats (views, bookmarks, the full posting
   time), read as one node, the stats as one sentence; the author on a
   `PersonCard` (PAGE-07), name over @account, with the follow button;
-  the caption; the tags; then, as the block's last line, the facts
+  the caption; the tags (`TagChip` enforces `softWrap: false`, `maxLines: 1`,
+  and `TextOverflow.ellipsis`); then, as the block's last line, the facts
   (size, the page count for two or more pages, the tools when pixiv
   lists any, and "# n" with a copy glyph). Each fact sits behind its
   glyph in a box 4dp past its text sideways and 8dp up and down, the
@@ -311,12 +314,15 @@ reviewed: 2026-11-18
 - **Code:** `lib/app/widgets/prompt_anchor.dart`
 
 ### DETAIL-19 Pointer viewer wheel zoom, multi-page hover scrubber, wide info panel and selectable detail text
-- **Rule:** `ImageViewerPage` zooms around the pointer on mouse wheel ticks and
+- **Rule:** `ImageViewerPage` coordinates `_buildTopBar` `leadingInset` with
+  `FuncSpacing.sm`, pads `_buildBottomBar` symmetrically with `FuncSpacing.sm`,
+  zooms around the pointer on mouse wheel ticks and
   snaps scales within 0.94 to 1.06 cleanly back to `1.0x` (zoomed images absorb
   wheel ticks rather than turning pages; Shift plus wheel turns pages), shows
   the bottom hover thumbnail scrubber (`_PageScrubber`) only when `pages >= 2`,
   and on viewports at least 840dp wide docks artwork metadata into a 320dp
-  trailing `_ViewerInfoPanel` (animated on `MotionTokens.chrome` with leaving
+  trailing `_ViewerInfoPanel` (toggling the wide info button to filled
+  `Icons.info`, animated on `MotionTokens.chrome` with leaving
   `IgnorePointer`; `Esc`/back closes an open panel before exiting the viewer)
   whose author/tag links pop the viewer before navigating. Standalone detail
   pages wrap selectable metadata in `SelectionArea`
