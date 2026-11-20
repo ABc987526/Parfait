@@ -200,9 +200,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Pick this shard's test files
         run: |
-          python3 tool/test_shards.py --shards ${{ strategy.job-total }} --check
           python3 tool/test_shards.py --shards ${{ strategy.job-total }} \
-            --index ${{ matrix.shard }} > "$RUNNER_TEMP/shard-files.txt"
+            --exclude-tag matrix --check
+          python3 tool/test_shards.py --shards ${{ strategy.job-total }} \
+            --exclude-tag matrix --index ${{ matrix.shard }} \
+            > "$RUNNER_TEMP/shard-files.txt"
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           flutter-version: "3.47.9"
@@ -214,7 +216,7 @@ jobs:
           mapfile -t files < "$RUNNER_TEMP/shard-files.txt"
           # No files would make flutter test run the whole tree.
           test "${#files[@]}" -gt 0 || { echo "::error::empty shard"; exit 1; }
-          flutter test "${files[@]}"
+          flutter test -x matrix "${files[@]}"
 
   test-dev:
     # Fast single-runner integration check for pushes to dev: runs

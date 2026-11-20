@@ -299,14 +299,33 @@ void smokeHarness() {
   setUp(() => InAppWebViewPlatform.instance = FakeInAppWebViewPlatform());
 }
 
+/// Core entry and shell routes whose loaded `zh/regular` smoke stays in the
+/// PR tier; all remaining routes and compact/empty/failed states run under
+/// the `matrix` tag.
+const prCoreSmokeTemplates = <String>{
+  '/login',
+  '/recommended',
+  '/ranking',
+  '/new',
+  '/search',
+  '/settings',
+  '/me',
+  '/downloads',
+  '/reverse-image',
+};
+
 /// Registers [group]'s pages in every state they show: loaded at the
 /// regular profile, then back; loaded at the compact profile; empty;
 /// failed.
-void smokeMatrix(SmokeGroup group) {
+///
+/// When [prCoreLoaded] is provided, loaded `regular` cases for templates in
+/// that set stay untagged (PR tier) and all other cases carry `tags: ['matrix']`.
+void smokeMatrix(SmokeGroup group, {Set<String> prCoreLoaded = const {}}) {
   smokeHarness();
   for (final (index, MapEntry(key: template, value: page))
       in smokePages[group]!.entries.indexed) {
     final location = smokeLocation(page.at ?? template, index);
+    final loadedIsPrCore = prCoreLoaded.contains(template);
     testWidgets('$template loaded at $location', (tester) async {
       await smokeScene(
         tester,
@@ -315,7 +334,7 @@ void smokeMatrix(SmokeGroup group) {
         back: true,
         content: true,
       );
-    });
+    }, tags: loadedIsPrCore ? null : const ['matrix']);
     testWidgets('$template compact', (tester) async {
       await smokeScene(
         tester,
@@ -324,7 +343,7 @@ void smokeMatrix(SmokeGroup group) {
         profile: LayoutProfile.compact,
         content: true,
       );
-    });
+    }, tags: const ['matrix']);
     if (page.empty case final empty?) {
       testWidgets('$template empty', (tester) async {
         await smokeScene(
@@ -333,7 +352,7 @@ void smokeMatrix(SmokeGroup group) {
           setup: empty,
           content: false,
         );
-      });
+      }, tags: const ['matrix']);
     }
     if (page.reads case final reads?) {
       final (failure, reply) = smokeFailures[index % smokeFailures.length];
@@ -354,7 +373,7 @@ void smokeMatrix(SmokeGroup group) {
           content: false,
         );
         expect(read, isTrue, reason: '$location never read $reads');
-      });
+      }, tags: const ['matrix']);
     }
   }
 }

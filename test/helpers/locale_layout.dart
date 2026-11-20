@@ -33,6 +33,10 @@ enum LayoutProfile {
 /// Registers [name] once per supported locale × [LayoutProfile], named
 /// `name [ru/compact]`. Runs only under `test/locale_layout/`, where the
 /// real fonts are loaded.
+///
+/// The tightest cell (`ru/compact`: longest UI copy on a 320dp screen at 1.3×
+/// text scale) stays untagged so every PR runs it; the other 7 locale×profile
+/// cells carry the `matrix` tag for nightly and l10n/route/theme PR runs.
 void localeLayoutMatrix(
   String name,
   Future<void> Function(
@@ -44,6 +48,8 @@ void localeLayoutMatrix(
 ) {
   for (final locale in AppLocalizations.supportedLocales) {
     for (final profile in LayoutProfile.values) {
+      final isPrCore =
+          locale.languageCode == 'ru' && profile == LayoutProfile.compact;
       testWidgets('$name [${locale.toLanguageTag()}/${profile.name}]', (
         tester,
       ) async {
@@ -54,7 +60,7 @@ void localeLayoutMatrix(
         addTearDown(tester.view.reset);
         addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
         await body(tester, locale, profile);
-      });
+      }, tags: isPrCore ? null : const ['matrix']);
     }
   }
 }

@@ -15,5 +15,5 @@ void main() {
     expect(entries.difference(pages), isEmpty);
   });
 
-  smokeMatrix(SmokeGroup.entry);
+  smokeMatrix(SmokeGroup.entry, prCoreLoaded: prCoreSmokeTemplates);
 }
