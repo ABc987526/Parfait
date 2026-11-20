@@ -107,24 +107,26 @@ def run_apple_sim_recording(
             "failures-only",
             "test/review/films_catalog_sim.dart",
         ]
-        res = subprocess.run(
-            cmd,
-            cwd=str(REPO_ROOT),
-            env=env,
-            stdin=subprocess.DEVNULL,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=900.0,
-        )
-        # Do not silently pass if OOM killed or Did not complete
-        combined = f"{res.stdout}\n{res.stderr}"
-        if "did not complete" in combined or "No tests ran." in combined:
-            raise RuntimeError(f"Apple sim test suite incomplete on {plat}:\n{combined[-1500:]}")
-
         dev_dir = review_out / "runs" / sim_run_stamp / plat
         try:
+            res = subprocess.run(
+                cmd,
+                cwd=str(REPO_ROOT),
+                env=env,
+                stdin=subprocess.DEVNULL,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=900.0,
+            )
+            # Do not silently pass if OOM killed, incomplete, or non-zero exit
+            combined = f"{res.stdout}\n{res.stderr}"
+            if res.returncode != 0 or "did not complete" in combined or "No tests ran." in combined:
+                raise RuntimeError(
+                    f"Apple sim test suite failed on {plat} (rc={res.returncode}):\n{combined[-1500:]}"
+                )
+
             for it in required_items:
                 cid = it["id"]
                 film_dir = dev_dir / "films" / cid
@@ -165,14 +167,39 @@ def run_apple_sim_recording(
                 rel = f"{plat}/{cid}.sim.{fmt}"
                 out_path = run_dir / rel
                 sheet_dir = run_dir / "sheets" / plat / cid
-                art = encode_frames_to_media(
-                    frames,
-                    out_path,
-                    fmt,
-                    fps=20,
-                    sheet_dir=sheet_dir,
-                    direction=str(it.get("direction") or "one_way"),
-                )
+                try:
+                    art = encode_frames_to_media(
+                        frames,
+                        out_path,
+                        fmt,
+                        fps=20,
+                        sheet_dir=sheet_dir,
+                        direction=str(it.get("direction") or "one_way"),
+                    )
+                except Exception as enc_exc:
+                    records.append({
+                        "catalog_id": cid,
+                        "module": it.get("module"),
+                        "route_template": it.get("route_template"),
+                        "shell_layer": it.get("shell_layer"),
+                        "audit_candidate": it.get("audit_candidate"),
+                        "direction": it.get("direction"),
+                        "platform": plat,
+                        "evidence_kind": "widget_tester_simulation",
+                        "capture_mode": "flutter_test_film_recorder",
+                        "status": "failed",
+                        "artifact_relpath": None,
+                        "decode_verified": False,
+                        "route_before": sim_meta.get("route_before", ""),
+                        "route_after": sim_meta.get("route_after", ""),
+                        "diagnostics": {
+                            "sim_device": sim_meta.get("device", plat),
+                            "frame_count": len(frames),
+                            "error": f"encode={enc_exc}",
+                        },
+                        "known_blind_spots": list(APPLE_REQUIRED_BLIND_SPOTS),
+                    })
+                    continue
                 st = "ok"
                 if not art.decode_verified:
                     st = "failed"

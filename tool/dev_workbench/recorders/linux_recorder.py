@@ -375,21 +375,25 @@ def run_linux_recording(
                         fresh_onboarding=fresh,
                     )
                     cid_str = s_obj.start(wb)
-                    wb.send_command(cid_str, "resizeWindow", {"width": 1280, "height": 760}, timeout=15.0)
-                    time.sleep(0.4)
-                    # Collapse DEV SHELL banner if compiled with PARFAIT_DEV_SHELL=true so app layout starts cleanly at y=0
                     try:
-                        snap0 = wb.snapshot(cid_str, timeout=5.0)
-                        cbtn = wb.resolve_target(cid_str, {"kind": "key", "query": "dev-shell-collapse-btn"}, snap0)
-                        _xdotool(s_obj.env, "mousemove", "--window", s_obj.wid, str(int(cbtn["x"])), str(int(cbtn["y"])))
-                        _xdotool(s_obj.env, "click", "1")
-                        time.sleep(0.25)
-                    except Exception:
-                        pass
-                    if sign_in:
-                        wb.send_command(cid_str, "loopbackSignIn", {}, timeout=12.0)
-                        time.sleep(0.6)
-                    return s_obj, cid_str
+                        wb.send_command(cid_str, "resizeWindow", {"width": 1280, "height": 760}, timeout=15.0)
+                        time.sleep(0.4)
+                        # Collapse DEV SHELL banner if compiled with PARFAIT_DEV_SHELL=true so app layout starts cleanly at y=0
+                        try:
+                            snap0 = wb.snapshot(cid_str, timeout=5.0)
+                            cbtn = wb.resolve_target(cid_str, {"kind": "key", "query": "dev-shell-collapse-btn"}, snap0)
+                            _xdotool(s_obj.env, "mousemove", "--window", s_obj.wid, str(int(cbtn["x"])), str(int(cbtn["y"])))
+                            _xdotool(s_obj.env, "click", "1")
+                            time.sleep(0.25)
+                        except Exception:
+                            pass
+                        if sign_in:
+                            wb.send_command(cid_str, "loopbackSignIn", {}, timeout=12.0)
+                            time.sleep(0.6)
+                        return s_obj, cid_str
+                    except BaseException:
+                        s_obj.stop()
+                        raise
 
                 sess, client_id = _open_sess()
                 try:
@@ -398,24 +402,10 @@ def run_linux_recording(
                         if not sess.is_alive():
                             sess.stop()
                             sess, client_id = _open_sess()
+                            guide_completed_sent = False
 
                         cid = it["id"]
                         rt = it.get("route_template")
-                        # Pre-home login routes require guideCompleted=true while still signed out
-                        if fresh and rt in ("/login", "/user-agreement", "/login/web", "/login/callback") and not guide_completed_sent:
-                            # Advance Welcome -> Language -> Next to persist guideCompleted naturally
-                            wb.navigate(client_id, "/welcome/language", settle_sec=0.4)
-                            snap_tmp = wb.snapshot(client_id)
-                            try:
-                                btn = wb.resolve_target(client_id, {"kind": "any_text", "queries": ["下一步", "Next"]}, snap_tmp)
-                                _xdotool(sess.env, "mousemove", "--window", sess.wid, str(int(btn["x"])), str(int(btn["y"])))
-                                _xdotool(sess.env, "click", "1")
-                                time.sleep(0.5)
-                                guide_completed_sent = True
-                            except Exception:
-                                pass
-
-                        wb.reset_faults()
                         route_before = ""
                         route_after = ""
                         anomaly_reason = ""
@@ -423,11 +413,29 @@ def run_linux_recording(
                         blind_spots: list[str] = []
                         frames: list[bytes] = []
                         capturer = _X11FrameCapturer(sess.env, sess.wid, fps=10)
+                        cap_t0 = 0.0
+                        cap_t1 = 0.0
                         try:
+                            # Pre-home login routes require guideCompleted=true while still signed out
+                            if fresh and rt in ("/login", "/user-agreement", "/login/web", "/login/callback") and not guide_completed_sent:
+                                # Advance Welcome -> Language -> Next to persist guideCompleted naturally
+                                wb.navigate(client_id, "/welcome/language", settle_sec=0.4)
+                                snap_tmp = wb.snapshot(client_id)
+                                try:
+                                    btn = wb.resolve_target(client_id, {"kind": "any_text", "queries": ["下一步", "Next"]}, snap_tmp)
+                                    _xdotool(sess.env, "mousemove", "--window", sess.wid, str(int(btn["x"])), str(int(btn["y"])))
+                                    _xdotool(sess.env, "click", "1")
+                                    time.sleep(0.5)
+                                    guide_completed_sent = True
+                                except Exception:
+                                    pass
+
+                            wb.reset_faults()
                             if not (fresh and rt == "/splash"):
                                 wb.navigate(client_id, str(it["route"]), settle_sec=0.55)
                             snap = wb.snapshot(client_id)
                             route_before = str(snap.get("route") or "")
+                            cap_t0 = time.monotonic()
                             capturer.start()
                             time.sleep(0.15)
                             t_start = time.monotonic()
@@ -449,6 +457,7 @@ def run_linux_recording(
                             anomaly_reason = f"{type(exc).__name__}: {exc}"
                         finally:
                             frames = capturer.stop()
+                            cap_t1 = time.monotonic()
                             wb.reset_faults()
                             if sess.is_alive():
                                 try:
@@ -479,7 +488,7 @@ def run_linux_recording(
                                     route_after = route_before
 
                         if not frames:
-                            # Emergency single frame via screenshot fallback
+                            # No X11 frames captured; record failed item without aborting batch.
                             hard_error = anomaly_reason or "no X11 frames captured"
                             records.append({
                                 "catalog_id": cid,
@@ -505,14 +514,37 @@ def run_linux_recording(
                         rel = f"linux/{cid}.{fmt}"
                         out_path = run_dir / rel
                         sheet_dir = run_dir / "sheets" / "linux" / cid
-                        art = encode_frames_to_media(
-                            frames,
-                            out_path,
-                            fmt,
-                            fps=10,
-                            sheet_dir=sheet_dir,
-                            direction=str(it.get("direction") or "one_way"),
-                        )
+                        actual_elapsed = max(0.2, (cap_t1 - cap_t0) if cap_t0 > 0 else 1.0)
+                        measured_fps = max(1, min(10, round(len(frames) / actual_elapsed)))
+                        try:
+                            art = encode_frames_to_media(
+                                frames,
+                                out_path,
+                                fmt,
+                                fps=measured_fps,
+                                sheet_dir=sheet_dir,
+                                direction=str(it.get("direction") or "one_way"),
+                            )
+                        except Exception as enc_exc:
+                            records.append({
+                                "catalog_id": cid,
+                                "module": it.get("module"),
+                                "route_template": rt,
+                                "shell_layer": it.get("shell_layer"),
+                                "audit_candidate": it.get("audit_candidate"),
+                                "direction": it.get("direction"),
+                                "platform": "linux",
+                                "evidence_kind": "native_os_recording",
+                                "capture_mode": "x11_window_capture",
+                                "status": "failed",
+                                "artifact_relpath": None,
+                                "decode_verified": False,
+                                "route_before": route_before,
+                                "route_after": route_after,
+                                "diagnostics": {"error": f"{anomaly_reason}; encode={enc_exc}".strip("; ")},
+                                "known_blind_spots": blind_spots,
+                            })
+                            continue
                         st = "ok"
                         if not art.decode_verified:
                             st = "failed"

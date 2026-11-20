@@ -403,15 +403,36 @@ def run_android_recording(
                 out_path = run_dir / rel
                 sheet_dir = run_dir / "sheets" / "android_avd" / cid
                 dur_total = max(0.8, time.monotonic() - t0)
-                art = transcode_video_segment(
-                    local_raw,
-                    out_path,
-                    fmt,
-                    start_sec=0.35,
-                    duration_sec=dur_total,
-                    sheet_dir=sheet_dir,
-                    direction=str(it.get("direction") or "one_way"),
-                )
+                try:
+                    art = transcode_video_segment(
+                        local_raw,
+                        out_path,
+                        fmt,
+                        start_sec=0.35,
+                        duration_sec=dur_total,
+                        sheet_dir=sheet_dir,
+                        direction=str(it.get("direction") or "one_way"),
+                    )
+                except Exception as enc_exc:
+                    records.append({
+                        "catalog_id": cid,
+                        "module": it.get("module"),
+                        "route_template": rt,
+                        "shell_layer": it.get("shell_layer"),
+                        "audit_candidate": it.get("audit_candidate"),
+                        "direction": it.get("direction"),
+                        "platform": "android_avd",
+                        "evidence_kind": "native_os_recording",
+                        "capture_mode": "adb_screenrecord",
+                        "status": "failed",
+                        "artifact_relpath": None,
+                        "decode_verified": False,
+                        "route_before": route_before,
+                        "route_after": route_after,
+                        "diagnostics": {"error": f"{anomaly_reason}; encode={enc_exc}".strip("; ")},
+                        "known_blind_spots": [],
+                    })
+                    continue
                 st = "ok"
                 if not art.decode_verified:
                     st = "failed"

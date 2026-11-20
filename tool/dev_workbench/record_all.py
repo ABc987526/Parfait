@@ -195,6 +195,11 @@ def main(argv: list[str] | None = None) -> int:
             parser.error(f"Unknown platform {p!r}; valid={ALL_PLATFORMS}")
 
     id_filter = {s.strip() for s in args.catalog_ids.split(",") if s.strip()} if args.catalog_ids else None
+    if id_filter:
+        valid_ids = {str(it["id"]) for it in load_catalog()}
+        unknown_ids = sorted(id_filter - valid_ids)
+        if unknown_ids:
+            parser.error(f"Unknown --catalog-ids: {', '.join(unknown_ids)}")
 
     # Merge with existing manifest if updating an existing run_id selectively
     existing_map: dict[tuple[str, str], dict[str, Any]] = {}
@@ -208,78 +213,93 @@ def main(argv: list[str] | None = None) -> int:
     real_targets = [p for p in selected_platforms if p not in SIM_TARGETS]
     apple_targets = tuple(p for p in selected_platforms if p in SIM_TARGETS)
 
-    if real_targets:
-        need_avd = "android_avd" in real_targets
-        with ManagedWorkbenchServer(
-            port=args.port,
-            artifacts_dir=run_dir,
-            allow_emulator_host=need_avd,
-        ) as srv:
-            wb = srv.client()
-            if "windows" in real_targets:
-                print("[windows] Starting real Win32 OS dynamic recording...", flush=True)
-                all_new.extend(
-                    run_windows_recording(
-                        wb,
-                        srv.url,
-                        srv.token,
-                        run_dir,
-                        with_foreground_shell=args.with_windows_foreground_shell,
-                        catalog_ids=id_filter,
+    recording_error: BaseException | None = None
+    try:
+        if real_targets:
+            need_avd = "android_avd" in real_targets
+            with ManagedWorkbenchServer(
+                port=args.port,
+                artifacts_dir=run_dir,
+                allow_emulator_host=need_avd,
+            ) as srv:
+                wb = srv.client()
+                if "windows" in real_targets:
+                    print("[windows] Starting real Win32 OS dynamic recording...", flush=True)
+                    all_new.extend(
+                        run_windows_recording(
+                            wb,
+                            srv.url,
+                            srv.token,
+                            run_dir,
+                            with_foreground_shell=args.with_windows_foreground_shell,
+                            catalog_ids=id_filter,
+                        )
                     )
-                )
-            if "linux" in real_targets:
-                print("[linux] Starting real Xvfb GTK dynamic recording...", flush=True)
-                all_new.extend(
-                    run_linux_recording(
-                        wb,
-                        srv.url,
-                        srv.token,
-                        run_dir,
-                        catalog_ids=id_filter,
+                if "linux" in real_targets:
+                    print("[linux] Starting real Xvfb GTK dynamic recording...", flush=True)
+                    all_new.extend(
+                        run_linux_recording(
+                            wb,
+                            srv.url,
+                            srv.token,
+                            run_dir,
+                            catalog_ids=id_filter,
+                        )
                     )
-                )
-            if "android_avd" in real_targets:
-                print("[android_avd] Starting real KVM AVD dynamic recording...", flush=True)
-                all_new.extend(
-                    run_android_recording(
-                        wb,
-                        srv.bound_port,
-                        srv.token,
-                        run_dir,
-                        rebuild_apk=not args.skip_android_rebuild,
-                        catalog_ids=id_filter,
+                if "android_avd" in real_targets:
+                    print("[android_avd] Starting real KVM AVD dynamic recording...", flush=True)
+                    all_new.extend(
+                        run_android_recording(
+                            wb,
+                            srv.bound_port,
+                            srv.token,
+                            run_dir,
+                            rebuild_apk=not args.skip_android_rebuild,
+                            catalog_ids=id_filter,
+                        )
                     )
-                )
 
-    if apple_targets:
-        print(f"[apple-sim] Starting WidgetTester simulation for {apple_targets}...", flush=True)
-        all_new.extend(
-            run_apple_sim_recording(
-                run_dir,
-                platforms=apple_targets,
-                catalog_ids=id_filter,
+        if apple_targets:
+            print(f"[apple-sim] Starting WidgetTester simulation for {apple_targets}...", flush=True)
+            all_new.extend(
+                run_apple_sim_recording(
+                    run_dir,
+                    platforms=apple_targets,
+                    catalog_ids=id_filter,
+                )
             )
-        )
+    except BaseException as exc:
+        recording_error = exc
+    finally:
+        if all_new or existing_map:
+            for rec in all_new:
+                existing_map[(str(rec["catalog_id"]), str(rec["platform"]))] = rec
 
-    for rec in all_new:
-        existing_map[(str(rec["catalog_id"]), str(rec["platform"]))] = rec
+            merged_records = sorted(
+                existing_map.values(),
+                key=lambda r: (str(r.get("platform")), str(r.get("catalog_id"))),
+            )
+            manifest = {
+                "schema_version": 1,
+                "run_id": run_id,
+                "git_head": git_head_sha(REPO_ROOT),
+                "generated_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+                "records": merged_records,
+            }
+            m_path, r_json, r_md = save_manifest_and_reports(run_dir, manifest)
+            update_latest_pointer(art_root, run_dir)
+            print(f"[done] Wrote {m_path}, {r_json}, {r_md}", flush=True)
 
-    merged_records = sorted(
-        existing_map.values(),
-        key=lambda r: (str(r.get("platform")), str(r.get("catalog_id"))),
-    )
-    manifest = {
-        "schema_version": 1,
-        "run_id": run_id,
-        "git_head": git_head_sha(REPO_ROOT),
-        "generated_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
-        "records": merged_records,
-    }
-    m_path, r_json, r_md = save_manifest_and_reports(run_dir, manifest)
-    update_latest_pointer(art_root, run_dir)
-    print(f"[done] Wrote {m_path}, {r_json}, {r_md}", flush=True)
-    return _verify_existing_manifest(run_dir)
+    if recording_error is not None:
+        raise recording_error
+    rc = _verify_existing_manifest(run_dir)
+    if rc != 0:
+        return rc
+    failed_count = sum(1 for rec in all_new if rec.get("status") == "failed")
+    if failed_count > 0:
+        print(f"Recording completed with {failed_count} failed record(s).", file=sys.stderr)
+        return 1
+    return 0
 
 
 if __name__ == "__main__":

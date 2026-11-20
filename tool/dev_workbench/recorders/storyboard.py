@@ -444,6 +444,8 @@ def extract_media_frames(
         with Image.open(media_path) as im:
             n_frames = max(1, int(getattr(im, "n_frames", 1)))
             elapsed = 0.0
+            min_step = (1.0 / fps) if (fps is not None and fps > 0) else 0.0
+            last_emitted_t: float | None = None
             out_idx = 0
             for idx in range(n_frames):
                 im.seek(idx)
@@ -454,9 +456,12 @@ def extract_media_frames(
                     continue
                 if duration_sec is not None and t_sec > start_sec + duration_sec:
                     break
+                if min_step > 0 and last_emitted_t is not None and (t_sec - last_emitted_t) < min_step - 1e-6:
+                    continue
                 dst = out_dir / f"f{out_idx:04d}.png"
                 im.convert("RGB").save(dst, format="PNG")
                 written.append(dst)
+                last_emitted_t = t_sec
                 out_idx += 1
         return written
 

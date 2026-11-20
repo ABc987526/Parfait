@@ -5,12 +5,18 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import sys
 import time
 from pathlib import Path
 from typing import Any
 
 APPLE_SIM_PLATFORMS = frozenset({"iphone", "ipad", "macos"})
 REAL_OS_PLATFORMS = frozenset({"windows", "android_avd", "linux"})
+REAL_OS_CAPTURE_MODES: dict[str, frozenset[str]] = {
+    "windows": frozenset({"win32_hidden_desktop", "win32_foreground_sendinput"}),
+    "android_avd": frozenset({"adb_screenrecord"}),
+    "linux": frozenset({"x11_window_capture"}),
+}
 ALL_PLATFORMS = ("windows", "android_avd", "linux", "iphone", "ipad", "macos")
 
 VALID_EVIDENCE_KINDS = frozenset({
@@ -69,14 +75,21 @@ def resolve_run_dir(root: Path | None = None, run_id: str | None = None) -> Path
 def update_latest_pointer(root: Path, run_dir: Path) -> None:
     root.mkdir(parents=True, exist_ok=True)
     latest = root / "latest"
-    if latest.is_symlink() or latest.is_file():
-        latest.unlink()
-    elif latest.is_dir():
+    if latest.is_dir() and not latest.is_symlink():
         return
+    tmp_link = root / f".latest.{os.getpid()}.tmp"
     try:
-        latest.symlink_to(run_dir)
-    except OSError:
-        pass
+        if tmp_link.is_symlink() or tmp_link.exists():
+            tmp_link.unlink()
+        tmp_link.symlink_to(run_dir)
+        os.replace(tmp_link, latest)
+    except OSError as exc:
+        try:
+            if tmp_link.is_symlink() or tmp_link.exists():
+                tmp_link.unlink()
+        except OSError:
+            pass
+        print(f"warning: failed to update latest symlink {latest}: {exc}", file=sys.stderr)
 
 
 def git_head_sha(repo_root: Path) -> str:
@@ -161,6 +174,11 @@ def validate_manifest_data(
             if ek != "native_os_recording":
                 errors.append(
                     f"{cid}/{plat}: real OS target MUST set evidence_kind='native_os_recording', got {ek!r}"
+                )
+            allowed_modes = REAL_OS_CAPTURE_MODES.get(plat, frozenset())
+            if cm not in allowed_modes:
+                errors.append(
+                    f"{cid}/{plat}: real OS target capture_mode={cm!r} not in allowed {sorted(allowed_modes)}"
                 )
 
         if st in ("ok", "recorded_with_anomaly"):

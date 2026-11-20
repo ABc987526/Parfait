@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import http.client
 import json
+import queue
 import subprocess
 import sys
 import threading
@@ -278,6 +279,10 @@ class WorkbenchClient:
                 timeout=8.0,
             )
             if res.get("found"):
+                cx = float(res.get("centerX", float(res["x"]) + float(res["width"]) * 0.5))
+                cy = float(res.get("centerY", float(res["y"]) + float(res["height"]) * 0.5))
+                if vw > 0 and vh > 0 and not (0.0 <= cx <= vw and 0.0 <= cy <= vh):
+                    continue
                 bx = float(res["x"])
                 by = float(res["y"])
                 bw = float(res["width"])
@@ -342,27 +347,45 @@ class ManagedWorkbenchServer:
             stderr=subprocess.STDOUT,
             text=True,
         )
-        deadline = time.time() + 12.0
-        while time.time() < deadline:
-            if self._proc.poll() is not None:
-                err = self._proc.stdout.read() if self._proc.stdout else ""
-                raise RuntimeError(f"server.py exited early: {err}")
-            line = self._proc.stdout.readline().strip() if self._proc.stdout else ""
-            if "workbench_ready" in line:
-                def _drain(pipe: Any) -> None:
-                    try:
-                        for _ in pipe:
-                            pass
-                    except Exception:
-                        pass
+        lines: queue.Queue[str | None] = queue.Queue()
 
-                threading.Thread(target=_drain, args=(self._proc.stdout,), daemon=True).start()
-                info = json.loads(self.state_file.read_text(encoding="utf-8"))
-                self.url = str(info["url"])
-                self.token = str(info["token"])
-                self.bound_port = int(info["port"])
-                return self
-        raise TimeoutError("Timed out waiting for workbench_ready")
+        def _reader(pipe: Any) -> None:
+            try:
+                if pipe is not None:
+                    for raw in pipe:
+                        lines.put(raw.strip())
+            except Exception:
+                pass
+            finally:
+                lines.put(None)
+
+        threading.Thread(target=_reader, args=(self._proc.stdout,), daemon=True).start()
+        deadline = time.monotonic() + 12.0
+        collected: list[str] = []
+        try:
+            while True:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise TimeoutError("Timed out waiting for workbench_ready")
+                try:
+                    line = lines.get(timeout=min(0.25, remaining))
+                except queue.Empty:
+                    if self._proc.poll() is not None:
+                        raise RuntimeError(f"server.py exited early: {' | '.join(collected[-10:])}")
+                    continue
+                if line is None:
+                    raise RuntimeError(f"server.py exited early: {' | '.join(collected[-10:])}")
+                if line:
+                    collected.append(line)
+                if "workbench_ready" in line:
+                    info = json.loads(self.state_file.read_text(encoding="utf-8"))
+                    self.url = str(info["url"])
+                    self.token = str(info["token"])
+                    self.bound_port = int(info["port"])
+                    return self
+        except BaseException:
+            self.__exit__(None, None, None)
+            raise
 
     def client(self) -> WorkbenchClient:
         return WorkbenchClient(self.url, self.token)
