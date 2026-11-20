@@ -169,8 +169,7 @@ void main() {
       final router = createPixivRouter(initialLocation: '/recommended');
       addTearDown(router.dispose);
       router.routerDelegate.addListener(() {
-        final path = router.state.uri.path;
-        if (visited.isEmpty || visited.last != path) visited.add(path);
+        visited.add(router.state.uri.path);
       });
 
       await seedAccounts(const [testerAccount], currentId: testerAccount.id);
@@ -203,6 +202,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 350));
 
       expect(bridge.events, ['onListen', 'readInitial', 'flush:1']);
+      expect(bridge.delivered, ['initial:111', 'stream:222']);
       expect(
         visited.where(
           (p) => p.contains('/illust/111') || p.contains('/user/222'),
@@ -231,7 +231,17 @@ class _QueuedIntentSource implements AndroidIntentSource {
   bool _initialConsumed = false;
   bool _listening = false;
   final List<String> events = [];
+  final List<String> delivered = [];
   late final StreamController<AndroidIntentResult> _controller;
+
+  static String _labelOf(AndroidIntentResult item) => switch (item) {
+    RoutedAndroidIntent(:final route) => switch (route) {
+      IllustRoute(:final illustId) => '$illustId',
+      UserRoute(:final userId) => '$userId',
+      _ => route.runtimeType.toString(),
+    },
+    _ => item.runtimeType.toString(),
+  };
 
   void _flushIfReady() {
     if ((!_initialConsumed && _initial != null) ||
@@ -244,7 +254,10 @@ class _QueuedIntentSource implements AndroidIntentSource {
     events.add('flush:${queued.length}');
     scheduleMicrotask(() {
       for (final item in queued) {
-        if (!_controller.isClosed) _controller.add(item);
+        if (!_controller.isClosed) {
+          delivered.add('stream:${_labelOf(item)}');
+          _controller.add(item);
+        }
       }
     });
   }
@@ -255,6 +268,7 @@ class _QueuedIntentSource implements AndroidIntentSource {
     _initialConsumed = true;
     final current = _initial;
     _initial = null;
+    if (current != null) delivered.add('initial:${_labelOf(current)}');
     _flushIfReady();
     return current ?? const IgnoredAndroidIntent('test: none');
   }

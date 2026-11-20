@@ -56,7 +56,7 @@ reviewed: 2026-11-21
 - **Code:** `lib/app/widgets/feed/feed_grid.dart`
 
 ### FEED-19 Grid columns follow the user's density
-- **Rule:** Every illustration grid uses `IllustFeedGrid` with `illustColumnsForContext(context, extent, density)` over `illustColumnsFor(extent, density)`: min card extent 120/180/360dp and min columns 3/2/1 (compact/standard/comfortable), widening `FormFactor.pc` `standard` min extent to 204dp (min 2 columns, keeping 3 columns beside the 1280px inspector and ~5 columns full-width at 1440px).
+- **Rule:** Every illustration grid uses `IllustFeedGrid` with `illustColumnsForContext(context, extent, density)` over `illustColumnsFor(extent, density)`: mobile/tablet min card extent 120/180/360dp and min columns 3/2/1 (compact/standard/comfortable); `FormFactor.pc` uses 176/204/268dp for compact/standard/comfortable (min columns 3/2/1; keeping 3 columns beside the 1280px inspector and ~5 columns full-width at 1440px).
 - **Why:** User decision: unified density preference with comfortable desktop proportions.
 - **Check:** `test/responsive_layout_test.dart` "illustColumnsFor derives columns from the extent and density" "IllustFeedGrid counts columns on the sliver extent, not the window" "PC standard grid keeps 3 columns at 1280px inspector width"
 - **Code:** `lib/app/widgets/feed/feed_grid.dart`, `lib/core/settings/app_settings.dart`

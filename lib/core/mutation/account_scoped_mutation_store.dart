@@ -97,13 +97,14 @@ mixin AccountScopedMutationStore<S> on Notifier<S> {
   }) {
     if (!ledger.isActive(envelope)) return false;
     final current = readMutationBoundary(ref);
-    _boundary = current;
     final reason = mutationBoundaryReason(envelope, current);
     if (reason != null) {
-      ledger.discard(envelope, reason);
-      onBoundaryCancelled();
+      invalidateBoundary(current, settleState: _built);
+      _boundary = current;
+      if (!_built) onBoundaryCancelled();
       return false;
     }
+    _boundary = current;
     if (!isPendingOwner()) {
       ledger.discard(envelope, MutationDiscardReason.stale);
       return false;

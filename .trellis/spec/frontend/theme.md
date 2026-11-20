@@ -125,7 +125,7 @@ reviewed: 2026-11-21
 ### THEME-15 Badges over artwork are EntityBadge
 - **Rule:** Over-artwork markers use `EntityBadge` on `imageControl` (differentiated by text, never per-badge fill colors). Ranking positions use tabular `EntityRankLabel` (`rankPodium` for 1–3, `rank` otherwise).
 - **Why:** Colored badges lost legibility and read as warnings.
-- **Check:** `test/illust_card_badges_test.dart` "the pager image flies back only to a card on screen"
+- **Check:** manual — visual inspection of EntityBadge and EntityRankLabel over artwork
 - **Code:** `lib/app/widgets/entity_row.dart`
 
 ### THEME-16 Icons are unified outlined vector glyphs; filled marks selection or state

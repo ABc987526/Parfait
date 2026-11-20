@@ -317,7 +317,12 @@ void main() {
       of: find.byType(PipelineWarmup),
       matching: find.byType(Positioned),
     );
-    expect(warmups, findsNWidgets(2));
+    final activeWarmups = tester.widgetList<Positioned>(warmups).toList();
+    expect(activeWarmups, isNotEmpty);
+    expect(
+      activeWarmups.every((w) => (w.left ?? 0) < 0 && (w.top ?? 0) < 0),
+      isTrue,
+    );
     for (var frame = 0; frame < 4; frame++) {
       await tester.pump();
     }

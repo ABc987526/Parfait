@@ -109,7 +109,7 @@ reviewed: 2026-11-21
 - **Code:** `lib/core/network/pixiv_http_client.dart`
 
 ### NET-17 A blocked local address fails before connecting
-- **Rule:** On Android 17, user-configured hosts resolving to local networks request `ACCESS_LOCAL_NETWORK` via the system dialog once per host set; while pending or denied, policy, DoH, LLM, and login WebView fail immediately with `LocalNetworkBlocked` (`ErrorCategory.localNetwork`) without connecting. Built-in hosts are never checked.
+- **Rule:** On Android 17, user-configured hosts resolving to local networks request `ACCESS_LOCAL_NETWORK` via the system dialog once per host set; while pending or denied, policy, DoH, LLM, and login WebView fail immediately with `LocalNetworkBlocked` (`ErrorCategory.localNetwork`) without connecting. Built-in hosts are never checked. Known gap: requests are not held back while the first check after settings load or change runs (at most 3 s).
 - **Why:** User decision: fail immediately with the system permission dialog rather than hanging until TCP timeout.
 - **Check:** `test/local_network_test.dart` "configured local hosts ask once; denied, none connects", `test/doh_resolver_test.dart` "a blocked local endpoint is skipped without a request"
 - **Code:** `lib/core/platform/local_network.dart`, `lib/core/network/local_network_address.dart`, `android/app/src/main/kotlin/io/github/lopution/parfait/LocalNetworkChannel.kt`
@@ -149,7 +149,7 @@ reviewed: 2026-11-21
 ## Continued transfers
 
 ### NET-15 A continuation appends only the same file
-- **Rule:** Originals and downloads run one connection at a time (`bytes=N-`; only 206 with total continues). Continuations send `If-Range` with the first ETag and require 206 matching offset and total (else terminal `ContinuedFetchMismatch`). A 200 without `If-Range` marks the candidate as range-ignoring per network and retries elsewhere without consuming 200 bytes. All ranges of a transfer share one `ImageRoutePin`.
+- **Rule:** Originals and downloads run one connection at a time (`bytes=N-`; only 206 with total continues, while an initial 200 is consumed as a complete file). Continuations send `If-Range` with the first ETag and require 206 matching offset and total (else terminal `ContinuedFetchMismatch`). A 200 to a continuation requested without `If-Range` marks the candidate as range-ignoring per network and retries elsewhere without consuming its bytes. All ranges of a transfer share one `ImageRoutePin`.
 - **Why:** Mismatched ranges corrupted files, and parallel range splitting lost to single-connection streaming on every measured network.
 - **Check:** `test/continued_fetch_test.dart` "every continuation asks If-Range with the first ETag" " fails the transfer without appending or a retry" "a 200 to a continuation without If-Range is asked again elsewhere; " "streams " "cancelling closes the live connection", `test/restricted_compat_image_test.dart` "every range of a transfer keeps to the route of its first" "a resumed transfer tries last a route that sent a whole file ", `test/download_resume_test.dart` "a large file arrives on one connection, in order" "a retry after pause continues from the anchor", `test/image_worker_host_test.dart` "arrives whole on one range request, its progress against the "
 - **Code:** `lib/core/network/compat/continued_fetch.dart`, `lib/core/network/compat/network_policy_ladder.dart`, `lib/core/download/download_manager.dart`, `lib/core/download/download_manager_adapters.dart`, `lib/core/image/image_worker_host.dart`
