@@ -187,7 +187,7 @@ reviewed: 2026-11-21
 - **Rule:** Resizing/folding reparents branch Navigators via stable `GlobalKey`s (preserving stacks and scroll offsets), preserves the on-screen image index across single-column <-> two-pane detail transitions (measured from laid-out pages), and anchors `DetailOverlayFrame` with a persistent `GlobalKey` across the 960x600 threshold.
 - **Why:** Prevents losing navigation stacks or reading position when resizing windows or folding devices.
 - **Check:** `test/home_branch_stack_test.dart` "a resize keeps every branch, its stack and its scroll"; `test/illust_detail_actions_test.dart` "arrow keys page the image pane; a resize keeps the page" "a switch between the single column and two panes keeps the image, read from the screen"
-- **Code:** `lib/app/widgets/home_branch_stack.dart`, `lib/features/illust/detail/illust_detail_page.dart`, `lib/features/illust/detail/illust_detail_content.dart`, `lib/features/illust/detail/widgets/detail_overlay_frame.dart`
+- **Code:** `lib/app/widgets/home_branch_stack.dart`, `lib/features/illust/detail/illust_detail_page.dart`, `lib/features/illust/detail/illust_detail_scroll.dart`, `lib/features/illust/detail/illust_detail_shells.dart`, `lib/features/illust/detail/widgets/detail_overlay_frame.dart`
 
 ### NAV-22 Esc goes back
 - **Rule:** `KeyboardBack` maps `Esc` to the router's `popRoute` (unfocusing text fields first; no-op at the start root), using a dedicated intent because page routes disable `DismissIntent`.

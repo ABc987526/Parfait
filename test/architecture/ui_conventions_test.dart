@@ -58,7 +58,7 @@ const _heroFiles = <String>{
   'lib/features/illust/detail/widgets/page_image.dart',
   'lib/features/illust/detail/ugoira_viewer.dart',
   'lib/features/illust/viewer/image_viewer_page.dart',
-  'lib/features/settings/me_dashboard_page.dart',
+  'lib/features/settings/me_recent_history.dart',
 };
 
 const _durationCensus = <String, int>{

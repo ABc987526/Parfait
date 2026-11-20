@@ -30,10 +30,9 @@ import '../../../app/widgets/display_actions.dart';
 import '../../../core/entity/illust_caption.dart';
 import '../../../core/entity/illust_entity.dart';
 import '../../../core/download/download_providers.dart';
-import '../../../core/download/download_task.dart'
-    show DownloadEvent, DownloadGroupSubmission;
+import '../../../core/download/download_task.dart' show DownloadEvent;
 import '../../../core/illust/illust_download_controller.dart';
-import '../../../core/share/share_service.dart';
+import '../illust_actions.dart';
 import '../../../core/image/image_demand.dart';
 import '../../../core/image/image_worker_providers.dart';
 import '../../../core/platform/image_clipboard.dart';
@@ -41,7 +40,6 @@ import '../../../app/system_ui.dart';
 import '../../../app/theme/func_tokens.dart';
 import '../../../app/theme/replica_theme.dart';
 import '../../../l10n/lookup.dart';
-import '../../../app/widgets/app_snack_bar.dart';
 import '../../../app/widgets/artwork_controls.dart';
 import '../../../app/widgets/entity_row.dart' show EntityBadge;
 import '../../../app/widgets/feed/feed_states.dart' show FeedLoading;
@@ -603,45 +601,10 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
     showDownloadSubmittedSnackBar(context);
   }
 
-  Future<void> _share(IllustEntity entity) async {
-    final outcome = await ref
-        .read(shareServiceProvider)
-        .share(
-          SharePayload.illust(
-            id: entity.id,
-            title: entity.title,
-            author: entity.user.name,
-          ),
-          sharePositionOrigin: shareOriginOf(context),
-        );
-    if (outcome == ShareOutcome.copiedToClipboard && mounted) {
-      showAppSnackBar(context, context.l10n.linkCopied);
-    }
-  }
+  Future<void> _share(IllustEntity entity) => shareIllust(context, ref, entity);
 
-  Future<void> _downloadAll(IllustEntity entity) async {
-    final l10n = context.l10n;
-    late final DownloadGroupSubmission submission;
-    try {
-      submission = await ref
-          .read(illustDownloadControllerProvider)
-          .downloadAll(entity);
-    } catch (error) {
-      if (!mounted) return;
-      AppHaptics.error();
-      showErrorSnackBar(
-        context,
-        action: l10n.downloadSubmissionFailed,
-        error: error,
-      );
-      return;
-    }
-    if (!mounted) return;
-    showDownloadSubmittedSnackBar(
-      context,
-      alreadyQueued: submission.group == null,
-    );
-  }
+  Future<void> _downloadAll(IllustEntity entity) =>
+      downloadAllIllustPages(context, ref, entity);
 
   /// Page counter → thumbnail jump sheet: same destination as a swipe,
   /// routed through PageController so `onPageChanged` still replaces the

@@ -1,88 +1,47 @@
 import 'dart:async';
-import 'dart:math' as math;
 
-import 'package:flutter/rendering.dart' show RenderAbstractViewport;
-import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:visibility_detector/visibility_detector.dart';
+import 'package:material_ui/material_ui.dart';
 
-import '../../../app/format/app_format.dart';
-import '../../../app/theme/func_tokens.dart';
-
-import '../../../app/navigation/route_animation.dart';
-import '../../../app/pixiv_image.dart';
-import '../../../app/pull_to_refresh.dart';
-import '../../../app/widgets/ambient_wash.dart';
-import '../../../app/widgets/app_top_bar.dart';
-import '../../../app/widgets/artwork_controls.dart';
-import '../../../app/widgets/author_summary.dart';
-import '../../../app/widgets/bookmark_switch_button.dart'
-    show BookmarkSwitchButton, showBookmarkEditSheet;
-import '../../../app/widgets/card_actions/card_action.dart';
-import '../../../app/widgets/card_actions/illust_card_actions.dart';
-import '../../../app/widgets/follow_switch_button.dart';
-import '../../../core/auth/account_store.dart';
-import '../../../core/bookmark/bookmark_models.dart';
-import '../../../core/bookmark/bookmark_store.dart';
-import '../../../core/download/download_providers.dart';
-import '../../../core/download/download_task.dart'
-    show DownloadEvent, DownloadGroupSubmission;
-import '../../../core/debug/frame_probe.dart';
-import '../../../core/entity/illust_entity.dart';
-import '../../../core/entity/illust_store.dart';
-import '../../../core/history/history_models.dart';
-import '../../../core/history/history_repository.dart';
-import '../../../core/history/history_snapshot.dart';
-import '../../../core/history/history_visibility.dart';
-import '../../../core/platform/image_clipboard.dart';
-import '../../../core/settings/settings_controller.dart';
-import '../../../core/share/share_service.dart';
-import '../../../app/widgets/app_menu_button.dart';
-import '../../../app/widgets/selection_app_bar.dart';
-import '../../../core/illust/illust_detail_controller.dart';
-import '../../../core/illust/illust_download_controller.dart';
 import '../../../app/haptics/app_haptics.dart';
+import '../../../app/icons/app_icons.dart';
+import '../../../app/icons/ui_icons.dart';
+import '../../../app/layout/app_breakpoints.dart';
 import '../../../app/motion/motion_tokens.dart';
 import '../../../app/motion/scroll_hide.dart';
 import '../../../app/motion/state_fade.dart';
-import '../../../app/motion/swipe_paging.dart';
-import '../../../app/theme/func_semantic_tokens.dart';
-import '../../../app/motion/hero_transition.dart';
+import '../../../app/navigation/home_shell_metrics.dart';
+import '../../../app/navigation/route_animation.dart';
+import '../../../app/navigation/route_facade.dart';
+import '../../../app/pull_to_refresh.dart';
+import '../../../app/widgets/app_top_bar.dart';
+import '../../../app/widgets/comment_composer.dart';
+import '../../../app/widgets/errors/error_details.dart' show showErrorSnackBar;
+import '../../../app/widgets/feed/desktop_inspector_scope.dart';
 import '../../../app/widgets/feed/feed_states.dart';
-import 'author_works_section.dart';
-import 'comments_preview_section.dart';
-import 'detail_page_activity.dart';
+import '../../../core/auth/account_store.dart';
+import '../../../core/debug/frame_probe.dart';
+import '../../../core/download/download_providers.dart';
+import '../../../core/download/download_task.dart' show DownloadEvent;
+import '../../../core/entity/illust_entity.dart';
+import '../../../core/entity/illust_store.dart';
+import '../../../core/illust/illust_detail_controller.dart';
+import '../../../core/illust/illust_download_controller.dart';
+import '../../../core/settings/settings_controller.dart';
+import '../../../l10n/context.dart';
+import '../illust_actions.dart';
+import 'illust_detail_menu.dart';
+import 'illust_detail_scroll.dart';
+import 'illust_detail_shells.dart';
 import 'related_illusts_section.dart';
 import 'widgets/detail_action_bar.dart';
 import 'widgets/detail_comment_layer.dart';
-import 'widgets/detail_image_pager.dart';
 import 'widgets/detail_overlay_frame.dart';
 import 'widgets/illust_detail_skeleton.dart';
-import 'widgets/detail_page_counter.dart';
-import 'widgets/illust_series_section.dart';
-import 'widgets/info_block.dart';
-import 'widgets/page_image.dart';
-import 'ugoira_viewer.dart';
-import '../../../app/navigation/route_facade.dart';
-import '../../../app/widgets/app_snack_bar.dart';
-import '../../../app/widgets/errors/error_details.dart';
-import '../../../app/widgets/feed/desktop_inspector_scope.dart';
-import '../../../l10n/context.dart';
-import '../../../app/navigation/home_shell_metrics.dart';
-import '../../../app/layout/app_breakpoints.dart';
-import '../../../app/layout/content_widths.dart';
-import '../../../app/layout/sliver_width_builder.dart';
-import '../../../app/layout/deferred_cache_scroll_view.dart';
-import '../../../app/layout/two_pane.dart';
-import '../../../app/widgets/smooth_wheel_scroll.dart';
-import '../../../app/widgets/comment_composer.dart';
-import '../../../app/icons/app_icons.dart';
-import '../../../app/icons/ui_icons.dart';
 
 export '../../../app/widgets/feed/desktop_inspector_scope.dart'
     show IllustEmbeddedBackController;
-
-part 'illust_detail_content.dart';
+export 'illust_detail_scroll.dart' show detailFirstImageFrame;
 
 class IllustDetailPage extends ConsumerStatefulWidget {
   const IllustDetailPage({
@@ -120,104 +79,32 @@ class IllustDetailPage extends ConsumerStatefulWidget {
 
 class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
     with TickerProviderStateMixin {
+  final IllustDetailScrollController _scroll = IllustDetailScrollController();
+
   /// Page indexes selected in the explicit download-selection mode;
-  /// `null` means the mode is off. A non-null empty set means the mode is
-  /// on with nothing selected yet — "Done" stays disabled until n > 0.
+  /// `null` means the mode is off.
   Set<int>? _selectedPages;
 
-  /// Page-counter overlay data: the topmost image page currently in
-  /// view feeds the `n / m` pill (VisibilityDetector per page — the pill
-  /// hides for a single page). Empty set
-  /// means nothing artwork is on screen (scrolled into the meta tail).
-  final Set<int> _visiblePages = <int>{};
-
-  /// The pill's page, kept out of this State: the trackers report on their
-  /// own timer, typically while a swipe settles, and a page setState would
-  /// rebuild every built page, the info block and the related grid just to
-  /// move a counter.
-  final ValueNotifier<int?> _topVisiblePage = ValueNotifier<int?>(null);
-
-  /// The image the reader is on, shared by the two layouts: the top image
-  /// in view in the single column, the image pager's page in the two-pane
-  /// layout. A switch between them opens on the same image (NAV-21).
-  int _imageIndex = 0;
-
-  /// The layout the last build used; a switch to the single column brings
-  /// its list back to [_imageIndex].
-  bool? _lastTwoPane;
-
-  /// One key per image page, so the single column can be brought to an
-  /// image the two-pane layout was showing.
-  final Map<int, GlobalKey> _pageKeys = {};
-
-  /// Whether the collapse button after the last page is on screen: the
-  /// floating one under the count steps aside then, so only one shows.
-  /// Read from the button's box, not a VisibilityDetector: a sliver child
-  /// scrolled off but still laid out stops painting and never reports.
-  final ValueNotifier<bool> _pagesToggleOnScreen = ValueNotifier(false);
-  final GlobalKey _pagesToggleKey = GlobalKey();
-  final GlobalKey _infoAnchorKey = GlobalKey();
-
-  /// Passed to the narrow layout's [SmoothWheelScroll] `controller:`
-  /// parameter so the artwork-info jump can walk the lazily-built page
-  /// list until the InfoBlock anchor exists. The component then uses this
-  /// as its scroll controller — it only builds an internal one when none
-  /// is passed — so we never touch a controller the component owns (R9).
-  final ScrollController _narrowScroll = ScrollController();
-
-  /// Two-pane right column scroll controller — kept explicit so resizing across
-  /// the two-pane breakpoint preserves the user's meta/caption/comments offset.
-  final ScrollController _metaScroll = ScrollController();
-  double _lastMetaOffset = 0;
-  double? _narrowInfoStartOffset;
-
-  /// The floating action bar's presence (1 shown): it slides away while
-  /// reading down and returns on the way back up, like the shell's bar.
-  /// The Hero image flying in from a card or back to it is drawn above the
-  /// page, so with a card the bar rises only once the route has landed and
-  /// slides away as soon as the route starts to leave.
+  /// The floating action bar's presence (1 shown).
   late final AnimationController _barVisibility = AnimationController(
     vsync: this,
     value: widget.embeddedInspector || widget.heroImageUrl == null ? 1 : 0,
   );
   final _scrollHide = ScrollHideTracker();
 
-  /// Whether the in-place comment composer is up ([DetailCommentLayer]).
   bool _composing = false;
   final _composerKey = GlobalKey<CommentComposerState>();
-
-  /// TalkBack is exploring: chrome that slides away cannot be found, so
-  /// the bar stays.
   bool _touchExploration = false;
 
-  /// How drawn the top bar is over the narrow layout's first image: 0
-  /// while the image is under it, 1 once the image has scrolled away
-  /// (see [AppTopBar.immersion]).
-  final _immersion = ValueNotifier<double>(0);
-
-  /// Scroll offset where the top bar starts drawing; set by each build
-  /// from the first image's height.
-  double _immersionStart = 0;
-
-  /// Status bar plus toolbar over the narrow layout's artwork; 0 in the
-  /// two-pane layout, whose pages sit below an opaque bar.
-  double _topChromeExtent = 0;
-
-  /// The top bar's arrival: it fades in with the page flying in from a
-  /// card (see [AppTopBar.entrance]); without a card it is there at once.
   late final AnimationController _topBarEntrance = AnimationController(
     vsync: this,
     value: widget.embeddedInspector || widget.heroImageUrl == null ? 1 : 0,
   );
   Animation<double>? _routeAnimation;
-
-  /// Whether the route has started showing the page.
   bool _entered = false;
 
-  /// The layout switch's fade: a window crossing the two-pane breakpoint
-  /// fades the page in instead of swapping it in one frame. Running from
-  /// part-way when a drag crosses back and forth, so the page does not
-  /// flash between the two layouts.
+  /// Cross-breakpoint layout switch fade (running from current opacity on
+  /// rapid drags across the breakpoint so the page never flashes).
   late final AnimationController _layoutFade = AnimationController(
     vsync: this,
     value: 1,
@@ -227,15 +114,19 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
     end: 1.0,
   ).animate(_layoutFade);
 
+  bool _blockMode = false;
+  bool _pagesExpanded = false;
+  StreamSubscription<DownloadEvent>? _downloadEvents;
+
   @override
   void initState() {
     super.initState();
     widget.embeddedBackController?.handler = _handleEmbeddedBack;
-    _narrowScroll
-      ..addListener(_updateImmersion)
-      ..addListener(_schedulePagesToggleCheck)
-      ..addListener(_updateNarrowInfoStartOffset);
-    _metaScroll.addListener(_onMetaScrollChanged);
+    _downloadEvents = ref.read(downloadManagerProvider).events.listen((event) {
+      if (mounted && event.snapshot.illustId == widget.illustId) {
+        setState(() {});
+      }
+    });
   }
 
   @override
@@ -247,89 +138,6 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
       }
       widget.embeddedBackController?.handler = _handleEmbeddedBack;
     }
-  }
-
-  bool _handleEmbeddedBack() {
-    if (_composing) {
-      final composer = _composerKey.currentState;
-      composer == null ? _closeComposer() : composer.dismiss();
-      return true;
-    }
-    if (_downloadMode) {
-      _exitDownloadMode();
-      return true;
-    }
-    return false;
-  }
-
-  void _onMetaScrollChanged() {
-    if (_metaScroll.hasClients) {
-      _lastMetaOffset = _metaScroll.offset;
-    }
-  }
-
-  void _updateNarrowInfoStartOffset([double? topChromeExtent]) {
-    final infoCtx = _infoAnchorKey.currentContext;
-    if (infoCtx == null || !infoCtx.mounted || !_narrowScroll.hasClients) {
-      return;
-    }
-    final infoRo = infoCtx.findRenderObject();
-    final scrollRo = _narrowScroll.position.context.notificationContext
-        ?.findRenderObject();
-    if (infoRo is! RenderBox ||
-        !infoRo.hasSize ||
-        scrollRo is! RenderBox ||
-        !scrollRo.hasSize) {
-      return;
-    }
-    final topEdge =
-        scrollRo.localToGlobal(Offset.zero).dy +
-        (topChromeExtent ?? _topChromeExtent);
-    _narrowInfoStartOffset =
-        _narrowScroll.offset + (infoRo.localToGlobal(Offset.zero).dy - topEdge);
-  }
-
-  double _captureNarrowMetaOffset(double topChromeExtent) {
-    _updateNarrowInfoStartOffset(topChromeExtent);
-    final infoStart = _narrowInfoStartOffset;
-    if (!_narrowScroll.hasClients || infoStart == null) return 0;
-    return math.max(0.0, _narrowScroll.offset - infoStart);
-  }
-
-  void _scheduleMetaSync(double target) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !_metaScroll.hasClients) return;
-      _metaScroll.jumpTo(
-        target.clamp(0.0, _metaScroll.position.maxScrollExtent),
-      );
-    });
-  }
-
-  void _scheduleNarrowMetaSync(double targetMetaOffset) {
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      while (mounted &&
-          _infoAnchorKey.currentContext == null &&
-          _narrowScroll.hasClients) {
-        final position = _narrowScroll.position;
-        if (position.pixels >= position.maxScrollExtent) break;
-        position.jumpTo(
-          math.min(
-            position.pixels + position.viewportDimension,
-            position.maxScrollExtent,
-          ),
-        );
-        await WidgetsBinding.instance.endOfFrame;
-      }
-      if (!mounted || !_narrowScroll.hasClients) return;
-      _updateNarrowInfoStartOffset();
-      final infoStart = _narrowInfoStartOffset;
-      if (infoStart == null) return;
-      final target = (infoStart + targetMetaOffset).clamp(
-        0.0,
-        _narrowScroll.position.maxScrollExtent,
-      );
-      _narrowScroll.jumpTo(target);
-    });
   }
 
   @override
@@ -347,29 +155,101 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
       context,
       MotionTokens.chrome,
     );
+    // Reduced motion turned on mid-fade lands the page at once (MOTION-02).
+    if (_layoutFade.value < 1 &&
+        MotionTokens.resolve(context, MotionTokens.branchSwitch) ==
+            Duration.zero) {
+      _layoutFade.value = 1;
+    }
     final route = RouteAnimationScope.of(context);
     if (!identical(route, _routeAnimation)) {
       _routeAnimation?.removeStatusListener(_onRouteStatus);
       _routeAnimation = route?..addStatusListener(_onRouteStatus);
-      // Read after the first frame: a route that is not a FuncPage provides
-      // its proxy, which reports a completed placeholder until the push
-      // starts.
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           _onRouteStatus(_routeAnimation?.status ?? AnimationStatus.completed);
         }
       });
     }
+    _syncTwoPaneTransitionIfNeeded();
   }
 
-  /// The top bar and the action bar enter with the page, not after its
-  /// landing: waiting held the page's controls back until the image had
-  /// flown in. Leaving, they stay and go with the page: sliding the action
-  /// bar down on its own read as a second, smaller exit under the page's
-  /// fade.
+  /// Handles breakpoint crossings in `didChangeDependencies` (where
+  /// `HomeShellChrome` and `MediaQuery` changes notify) so `build()` never
+  /// triggers layout-fade animations or schedules scroll-sync side effects.
+  void _syncTwoPaneTransitionIfNeeded() {
+    final async = ref.read(illustDetailControllerProvider(widget.illustId));
+    final entity = _entityOf(async);
+    if (entity == null || !_rendersContent(async, entity)) return;
+    final layout = IllustFirstImageLayout.of(
+      context,
+      entity,
+      expanded: _pagesExpanded,
+      embeddedInspector: widget.embeddedInspector,
+    );
+    final twoPane = layout.useTwoPane;
+    final wasTwoPane = _scroll.lastTwoPane;
+    final prevTopChromeExtent = _scroll.topChromeExtent;
+    _scroll.lastTwoPane = twoPane;
+    _scroll.topChromeExtent = twoPane ? 0 : layout.topChrome;
+    _scroll.immersionStart = layout.immersionStart;
+    _scroll.schedulePostLayoutSync();
+    if (wasTwoPane == true && !twoPane) {
+      final metaOffset = _scroll.metaScroll.hasClients
+          ? _scroll.metaScroll.offset
+          : _scroll.lastMetaOffset;
+      if (metaOffset > 0) {
+        _scroll.scheduleNarrowMetaSync(metaOffset, isMounted: () => mounted);
+      } else {
+        _scroll.scheduleNarrowReveal(
+          getContext: () => context,
+          isMounted: () => mounted,
+          entity: entity,
+          isPagesExpanded: () => _pagesExpanded,
+          onExpandPages: _expandPages,
+        );
+      }
+      _fadeLayoutIn(context);
+    } else if (wasTwoPane == false && twoPane) {
+      final index = _scroll.narrowTopImage(context, layout);
+      if (index != null) _scroll.imageIndex = index;
+      final metaOffset = _scroll.captureNarrowMetaOffset(prevTopChromeExtent);
+      _scroll.lastMetaOffset = metaOffset;
+      if (metaOffset > 0) {
+        _scroll.scheduleMetaSync(metaOffset, isMounted: () => mounted);
+      }
+      _fadeLayoutIn(context);
+    }
+  }
+
+  @override
+  void dispose() {
+    if (widget.embeddedBackController?.handler == _handleEmbeddedBack) {
+      widget.embeddedBackController?.handler = null;
+    }
+    unawaited(_downloadEvents?.cancel());
+    _scroll.dispose();
+    _barVisibility.dispose();
+    _routeAnimation?.removeStatusListener(_onRouteStatus);
+    _topBarEntrance.dispose();
+    _layoutFade.dispose();
+    super.dispose();
+  }
+
+  bool _handleEmbeddedBack() {
+    if (_composing) {
+      final composer = _composerKey.currentState;
+      composer == null ? _closeComposer() : composer.dismiss();
+      return true;
+    }
+    if (_downloadMode) {
+      _exitDownloadMode();
+      return true;
+    }
+    return false;
+  }
+
   void _onRouteStatus(AnimationStatus status) {
-    // Only the initial entry reveals chrome; later route status transitions
-    // (such as a cancelled back gesture) must leave scroll-hidden chrome alone.
     if (_entered) return;
     if (status != AnimationStatus.forward && !status.isCompleted) return;
     _entered = true;
@@ -379,152 +259,6 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
     }
   }
 
-  /// The bar draws over the last toolbar height before the first image
-  /// leaves the screen top, so it is solid by the time content would
-  /// scroll under it.
-  void _updateImmersion() {
-    if (!_narrowScroll.hasClients) return;
-    final drawn = (_narrowScroll.offset - _immersionStart) / kToolbarHeight;
-    _immersion.value = drawn.clamp(0.0, 1.0).toDouble();
-  }
-
-  bool _pagesToggleCheckScheduled = false;
-
-  /// A scroll is reported before the frame lays it out: the button's box
-  /// is read once that frame is done.
-  void _schedulePagesToggleCheck() {
-    if (_pagesToggleCheckScheduled) return;
-    _pagesToggleCheckScheduled = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _pagesToggleCheckScheduled = false;
-      if (mounted) _updatePagesToggleOnScreen();
-    });
-  }
-
-  /// At least half of the button inside the scroll view counts as on
-  /// screen.
-  void _updatePagesToggleOnScreen() {
-    final box = _pagesToggleKey.currentContext?.findRenderObject();
-    final Object? viewport = box == null
-        ? null
-        : RenderAbstractViewport.maybeOf(box);
-    if (box is! RenderBox || !box.hasSize || viewport is! RenderBox) {
-      _pagesToggleOnScreen.value = false;
-      return;
-    }
-    final top = box.localToGlobal(Offset.zero, ancestor: viewport).dy;
-    final height = box.size.height;
-    final shown =
-        math.min(top + height, viewport.size.height) - math.max(top, 0.0);
-    _pagesToggleOnScreen.value = shown >= height / 2;
-  }
-
-  /// Folds an expanded set back to page 1. A reader already past page 1
-  /// lands where the shorter list now ends — page 1's bottom under the top
-  /// bar, the expand button and info right below — instead of wherever
-  /// the list happens to clamp.
-  void _collapsePages(double firstPageEnd) {
-    if (_narrowScroll.hasClients && _narrowScroll.offset > firstPageEnd) {
-      _narrowScroll.jumpTo(firstPageEnd);
-    }
-    setState(() => _pagesExpanded = false);
-  }
-
-  bool _onBarScroll(ScrollNotification notification) {
-    if (_touchExploration || _downloadMode || _composing) return false;
-    final hide = _scrollHide.update(
-      notification,
-      _barVisibility,
-      travel: DetailActionBar.restingExtent(context),
-    );
-    if (hide != null) slideChrome(context, _barVisibility, hidden: hide);
-    return false;
-  }
-
-  void _onPageVisibility(int index, VisibilityInfo info) {
-    // A detector torn down with the page still reports once more.
-    if (!mounted) return;
-    // The narrow layout runs under the see-through top bar: a page leaving
-    // the top whose last strip sits behind the bar is not on screen to the
-    // reader, and the count must not hang over the info below it.
-    final bounds = info.visibleBounds;
-    final behindTopChrome = bounds.top > 0 && bounds.height <= _topChromeExtent;
-    if (info.visibleFraction > 0 && !behindTopChrome) {
-      _visiblePages.add(index);
-    } else {
-      _visiblePages.remove(index);
-    }
-    _topVisiblePage.value = _visiblePages.isEmpty
-        ? null
-        : _visiblePages.reduce(math.min);
-    // Scrolled into the meta tail, the last image read stays the one a
-    // switch to the two-pane layout opens on.
-    final top = _topVisiblePage.value;
-    if (top != null) _imageIndex = top;
-  }
-
-  /// The image at the top of the single column right now, read from the
-  /// pages already laid out. The visibility trackers report on their own
-  /// timer, so a switch to the two-pane layout cannot wait for them
-  /// (NAV-21); the boxes still hold the single column's last frame.
-  int? _narrowTopImage(_FirstImageLayout layout) {
-    int? top;
-    for (final entry in _pageKeys.entries) {
-      final box = entry.value.currentContext?.findRenderObject();
-      if (box is! RenderBox || !box.hasSize) continue;
-      final rect = box.localToGlobal(Offset.zero) & box.size;
-      final visible =
-          rect.bottom > layout.topChrome && rect.top < _narrowBottom;
-      if (!visible) continue;
-      if (top == null || entry.key < top) top = entry.key;
-    }
-    return top;
-  }
-
-  /// The bottom of the single column's viewport in global coordinates.
-  double get _narrowBottom {
-    if (!_narrowScroll.hasClients) return MediaQuery.sizeOf(context).height;
-    final viewport = _narrowScroll.position.context.notificationContext
-        ?.findRenderObject();
-    if (viewport is! RenderBox || !viewport.hasSize) {
-      return MediaQuery.sizeOf(context).height;
-    }
-    return viewport.localToGlobal(Offset.zero).dy + viewport.size.height;
-  }
-
-  /// The ⋮ menu's artwork-info item scrolls the InfoBlock into view.
-  /// The InfoBlock's parts are built
-  /// lazily below the page list, so on long works the narrow scroll first
-  /// steps one viewport at a time until its first part exists — each step's
-  /// viewport is contiguous with the previous one, so every section gets
-  /// built as we pass. ensureVisible uses the target's own context
-  /// (risks R9 — we never touch SmoothWheelScroll's controller).
-  Future<void> _scrollToInfo() async {
-    while (_infoAnchorKey.currentContext == null && _narrowScroll.hasClients) {
-      final position = _narrowScroll.position;
-      if (position.pixels >= position.maxScrollExtent) break;
-      position.jumpTo(
-        math.min(
-          position.pixels + position.viewportDimension,
-          position.maxScrollExtent,
-        ),
-      );
-      await WidgetsBinding.instance.endOfFrame;
-      if (!mounted) return;
-    }
-    final anchor = _infoAnchorKey.currentContext;
-    if (anchor == null || !anchor.mounted) return;
-    await Scrollable.ensureVisible(
-      anchor,
-      duration: MotionTokens.resolve(anchor, MotionTokens.spatial),
-    );
-  }
-
-  bool _revealScheduled = false;
-
-  /// Plays the layout switch's fade. A switch while one is still running
-  /// continues from the current opacity rather than restarting, so a drag
-  /// back and forth over the breakpoint does not flash the page.
   void _fadeLayoutIn(BuildContext context) {
     final duration = MotionTokens.resolve(context, MotionTokens.branchSwitch);
     if (duration == Duration.zero) {
@@ -542,97 +276,47 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
     unawaited(fade);
   }
 
-  /// A switch from the two-pane layout to the single column brings its
-  /// list back to the image the pager was showing (NAV-21). The list is
-  /// lazy, so the target page is walked into view first; a collapsed set
-  /// opens before the page exists at all.
-  void _scheduleNarrowReveal(IllustEntity entity) {
-    if (_revealScheduled) return;
-    _revealScheduled = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      _revealScheduled = false;
-      if (!mounted) return;
-      final index = _imageIndex;
-      if (index <= 0) return;
-      final layout = _FirstImageLayout.of(
-        context,
-        entity,
-        expanded: _pagesExpanded,
+  void _collapsePages(double firstPageEnd) {
+    _scroll.clampForCollapse(firstPageEnd);
+    setState(() => _pagesExpanded = false);
+    _scroll.schedulePostLayoutSync();
+  }
+
+  void _expandPagesFromSlot(double removedBand) {
+    _scroll.compensateExpandedSlot(removedBand);
+    _expandPages();
+  }
+
+  void _expandPages() {
+    setState(() => _pagesExpanded = true);
+    _scroll.schedulePostLayoutSync();
+  }
+
+  void _toggleBlockMode() => setState(() => _blockMode = !_blockMode);
+
+  bool _onScrollNotification(ScrollNotification notification) {
+    if (!_touchExploration && !_downloadMode && !_composing) {
+      final hide = _scrollHide.update(
+        notification,
+        _barVisibility,
+        travel: DetailActionBar.restingExtent(context),
       );
-      if (index >= layout.shownPages) {
-        setState(() => _pagesExpanded = true);
-        await WidgetsBinding.instance.endOfFrame;
-        if (!mounted) return;
-      }
-      await _revealNarrowPage(index);
-    });
-  }
-
-  Future<void> _revealNarrowPage(int index) async {
-    while (mounted && _narrowScroll.hasClients) {
-      final page = _pageKeys[index]?.currentContext;
-      if (page != null && page.mounted) break;
-      final position = _narrowScroll.position;
-      if (position.pixels >= position.maxScrollExtent) break;
-      position.jumpTo(
-        math.min(
-          position.pixels + position.viewportDimension,
-          position.maxScrollExtent,
-        ),
-      );
-      await WidgetsBinding.instance.endOfFrame;
+      if (hide != null) slideChrome(context, _barVisibility, hidden: hide);
     }
-    final page = _pageKeys[index]?.currentContext;
-    if (page == null || !page.mounted) return;
-    await Scrollable.ensureVisible(
-      page,
-      duration: MotionTokens.resolve(page, MotionTokens.spatial),
-    );
-  }
-
-  bool _blockMode = false;
-
-  /// Whether a multi-image illustration shows every page. Lives with this
-  /// page only: a new visit starts collapsed again.
-  bool _pagesExpanded = false;
-  StreamSubscription<DownloadEvent>? _downloadEvents;
-
-  @override
-  void dispose() {
-    if (widget.embeddedBackController?.handler == _handleEmbeddedBack) {
-      widget.embeddedBackController?.handler = null;
-    }
-    unawaited(_downloadEvents?.cancel());
-    _narrowScroll.dispose();
-    _metaScroll.dispose();
-    _topVisiblePage.dispose();
-    _pagesToggleOnScreen.dispose();
-    _barVisibility.dispose();
-    _immersion.dispose();
-    _routeAnimation?.removeStatusListener(_onRouteStatus);
-    _topBarEntrance.dispose();
-    _layoutFade.dispose();
-    super.dispose();
-  }
-
-  /// Download badge states derive from live manager tasks; without this
-  /// subscription the Provider-backed snapshot would never notify the UI.
-  void _ensureDownloadListener() {
-    // Only this work's: a batch elsewhere rebuilt every open detail page
-    // once per saved page.
-    _downloadEvents ??= ref.read(downloadManagerProvider).events.listen((
-      event,
-    ) {
-      if (mounted && event.snapshot.illustId == widget.illustId) {
-        setState(() {});
+    final metrics = notification.metrics;
+    if (metrics.maxScrollExtent > 0 &&
+        metrics.pixels >= metrics.maxScrollExtent - 500) {
+      final related = relatedIllustControllerProvider(widget.illustId);
+      if (ref.read(related.exists) &&
+          ref.read(related).value?.isAllHidden == false) {
+        unawaited(ref.read(related.notifier).loadMore());
       }
-    });
+    }
+    return false;
   }
 
   bool get _downloadMode => _selectedPages != null;
 
-  /// Raises the comment composer on [surface] in place of the action bar;
-  /// signed out, opens the sign-in instead.
   void _openComposer(CommentComposerInputState surface) {
     final signedIn =
         ref.read(accountStoreProvider).value?.usableCurrent != null;
@@ -644,7 +328,6 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
       setState(() => _composing = true);
       slideChrome(context, _barVisibility, hidden: true);
     }
-    // The composer exists from the next frame.
     WidgetsBinding.instance.addPostFrameCallback(
       (_) => _composerKey.currentState?.open(surface),
     );
@@ -653,27 +336,20 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
   void _closeComposer() {
     if (!_composing || !mounted) return;
     setState(() => _composing = false);
-    // Opening hid the bar under touch exploration too. The selection bar
-    // keeps it hidden while that mode is on.
     if (!_downloadMode) slideChrome(context, _barVisibility, hidden: false);
   }
 
-  /// Entering the mode is a management-mode transition → confirm haptic.
   void _enterDownloadMode() {
     if (_downloadMode) return;
     AppHaptics.confirm();
-    // Every page has to be on screen to be picked.
     setState(() {
       _selectedPages = <int>{};
       _pagesExpanded = true;
     });
-    // The selection brings its own download; the bar slides aside.
+    _scroll.schedulePostLayoutSync();
     slideChrome(context, _barVisibility, hidden: true);
   }
 
-  /// Any exit path (cancel button, blank tap, system back) is a light
-  /// confirmation. In-flight download tasks are owned by DownloadManager
-  /// and are never touched here — the mode is only a selection layer.
   void _exitDownloadMode() {
     if (!_downloadMode) return;
     AppHaptics.select();
@@ -698,9 +374,6 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
     });
   }
 
-  /// "Done" submits every selected page through the download controller
-  /// (dedupe/retry-safe). Success exits the mode; failure keeps the mode
-  /// and the selection so the user can retry the remainder.
   Future<void> _submitSelection(IllustEntity entity) async {
     final selected = _selectedPages;
     if (selected == null || selected.isEmpty) return;
@@ -727,11 +400,17 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
 
   @override
   Widget build(BuildContext context) {
-    _ensureDownloadListener();
+    ref.listen<AsyncValue<IllustDetailState>>(
+      illustDetailControllerProvider(widget.illustId),
+      (_, next) {
+        final entity = _entityOf(next);
+        if (entity != null && _rendersContent(next, entity)) {
+          _syncTwoPaneTransitionIfNeeded();
+        }
+      },
+    );
     final async = ref.watch(illustDetailControllerProvider(widget.illustId));
     final entity = _entityOf(async);
-    // The narrow layout opens on the artwork under a see-through bar —
-    // the skeleton too, so content arriving never shifts it.
     final twoPane =
         !widget.embeddedInspector &&
         AppBreakpoints.useTwoPaneDetailOf(
@@ -747,11 +426,6 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
         !twoPane &&
         (entity == null ? async.isLoading : rendersContent);
     return PopScope(
-      // While the selection mode is on, system back exits the mode instead
-      // of leaving the page, like the selection bar's close button.
-      // In-flight downloads are untouched — the mode is only a UI
-      // selection layer.
-      // Back sends the comment composer down first.
       canPop:
           widget.embeddedBackController != null ||
           (!_downloadMode && !_composing),
@@ -764,8 +438,6 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
             .read(illustDetailControllerProvider(widget.illustId).notifier)
             .reload(),
         child: Scaffold(
-          // The comment composer takes the keyboard's inset itself; the
-          // page under it keeps its size (LAYOUT-10's overlay exception).
           resizeToAvoidBottomInset: false,
           extendBodyBehindAppBar: immersive,
           appBar: hideTwoPaneAppBar || hideInspectorAppBar
@@ -775,16 +447,10 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
               : _buildAppBar(context, async, immersive: immersive),
           body: _fadeStates(
             async.when(
-              // U5 (R7): AsyncNotifier.build() returns a Future, so the first
-              // frame is ALWAYS AsyncLoading — a spinner here would hide the
-              // store snapshot the feed already placed in IllustStore, and the
-              // Hero destination would not exist on the first frame. Render the
-              // snapshot immediately; the controller's IllustDetailLoading state
-              // stays as the no-snapshot first-load signal.
               loading: () {
                 final snapshot = _snapshotEntity();
                 if (snapshot != null) {
-                  return _buildContent(context, ref, snapshot);
+                  return _buildContent(context, snapshot);
                 }
                 return const IllustDetailSkeleton();
               },
@@ -798,28 +464,22 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
                     )
                     .reload(),
               ),
-              data: (state) {
-                // Snapshot-first (R1): the shared store renders stale data behind
-                // any in-flight refresh; the controller state drives the terminal
-                // surfaces (the loading branch above reads the store directly).
-                return switch (state) {
-                  IllustDetailRestricted(:final entity) => FeedEmpty(
-                    icon: AppIcons.eyeOff,
-                    title: context.l10n.illustDetailRestricted(entity.id),
-                  ),
-                  IllustDetailNotFound() => FeedEmpty(
-                    icon: AppIcons.searchOff,
-                    title: context.l10n.illustDetailNotFound,
-                  ),
-                  IllustDetailReady(:final entity) => _buildContent(
-                    context,
-                    ref,
-                    entity,
-                    detailReady: true,
-                  ),
-                  IllustDetailError(:final error, :final snapshot) =>
-                    _errorOrSnapshot(context, ref, error, snapshot),
-                };
+              data: (state) => switch (state) {
+                IllustDetailRestricted(:final entity) => FeedEmpty(
+                  icon: AppIcons.eyeOff,
+                  title: context.l10n.illustDetailRestricted(entity.id),
+                ),
+                IllustDetailNotFound() => FeedEmpty(
+                  icon: AppIcons.searchOff,
+                  title: context.l10n.illustDetailNotFound,
+                ),
+                IllustDetailReady(:final entity) => _buildContent(
+                  context,
+                  entity,
+                  detailReady: true,
+                ),
+                IllustDetailError(:final error, :final snapshot) =>
+                  _errorOrSnapshot(context, error, snapshot),
               },
             ),
           ),
@@ -828,38 +488,22 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
     );
   }
 
-  /// The no-snapshot skeleton hands over to the content with a fade. Empty
-  /// and error states fade in by themselves; the snapshot-first path never
-  /// shows the skeleton, so the Hero destination is never faded.
   Widget _fadeStates(Widget body) =>
       StateFade(kind: body is IllustDetailSkeleton, child: body);
 
-  /// The page-selection mode's top bar: the count, select all, and
-  /// download; close (or system back) leaves the mode.
   PreferredSizeWidget _buildSelectionAppBar(
     BuildContext context,
     IllustEntity entity,
   ) {
-    final l10n = context.l10n;
     final selected = _selectedPages ?? const <int>{};
-    return selectionAppBar(
+    return buildIllustDetailSelectionAppBar(
       context,
-      count: selected.length,
+      selectedCount: selected.length,
       onClose: _exitDownloadMode,
-      actions: [
-        IconButton(
-          tooltip: l10n.selectAll,
-          onPressed: () => _selectAllPages(entity),
-          icon: const Icon(UiIcons.selectAll),
-        ),
-        IconButton(
-          tooltip: l10n.downloadSelectedPages,
-          onPressed: selected.isEmpty
-              ? null
-              : () => unawaited(_submitSelection(entity)),
-          icon: const Icon(AppIcons.download),
-        ),
-      ],
+      onSelectAll: () => _selectAllPages(entity),
+      onSubmit: selected.isEmpty
+          ? null
+          : () => unawaited(_submitSelection(entity)),
     );
   }
 
@@ -877,9 +521,6 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
     required bool immersive,
   }) {
     final entity = _entityOf(async);
-    // Restricted and not-found states render a FeedEmpty body without an
-    // InfoBlock — the menu's artwork-info item only exists while the
-    // content actually renders.
     final rendersContent = _rendersContent(async, entity);
     final twoPane =
         !widget.embeddedInspector &&
@@ -888,19 +529,24 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
           HomeShellChrome.contentSizeOf(context),
         );
     if (widget.embeddedInspector) {
-      return _buildInspectorAppBar(
+      return buildIllustDetailInspectorAppBar(
         context,
         entity: entity,
-        rendersContent: rendersContent,
+        moreMenu: entity == null
+            ? null
+            : _buildMoreMenu(
+                entity,
+                rendersContent: rendersContent,
+                includeShare: true,
+                includeInfoJump: false,
+              ),
+        onOpenFullStage: widget.onOpenFullStage,
+        onCloseInspector: widget.onCloseInspector,
       );
     }
     final isModalOverlay = DetailOverlayFrame.isActiveOf(context);
     return AppTopBar(
       automaticallyImplyLeading: !isModalOverlay,
-      // Over the artwork the bar shows nothing but controls; the work's
-      // title fades in with the surface once the image scrolls away. The
-      // opaque layouts keep a generic label: the real title wraps freely
-      // in InfoBlock.
       title: SelectionContainer.disabled(
         child: Text(
           immersive && entity != null
@@ -910,20 +556,15 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
           overflow: TextOverflow.ellipsis,
         ),
       ),
-      immersion: immersive ? _immersion : null,
-      // Nothing to lift the controls off while page 1 sits below the bar.
+      immersion: immersive ? _scroll.immersion : null,
       overArtwork:
           entity == null ||
-          _FirstImageLayout.of(
+          IllustFirstImageLayout.of(
             context,
             entity,
             expanded: _pagesExpanded,
           ).artworkUnderBar,
       entrance: immersive ? _topBarEntrance : null,
-      // In single-column mode, overflow actions sit on the top bar while
-      // download and bookmark float in DetailActionBar. In two-pane/tabletop,
-      // the secondary inspector owns the single ⋮ menu and Share button
-      // (FB-03) so the screen never carries duplicate menu triggers.
       actions: [
         if (entity != null && (!twoPane || !rendersContent))
           _buildMoreMenu(
@@ -942,133 +583,162 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
     );
   }
 
-  PreferredSizeWidget _buildInspectorAppBar(
-    BuildContext context, {
-    required IllustEntity? entity,
-    required bool rendersContent,
-  }) {
-    final l10n = context.l10n;
-    final tokens = FuncSemanticTokens.of(context);
-    return AppTopBar(
-      automaticallyImplyLeading: false,
-      titleSpacing: FuncSpacing.lg,
-      backgroundColor: tokens.surface,
-      title: SelectionContainer.disabled(
-        child: Text(
-          l10n.illustDetailTitle,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-      ),
-      actions: [
-        if (entity != null && widget.onOpenFullStage != null)
-          IconButton(
-            key: const ValueKey('desktop-inspector-expand'),
-            tooltip: l10n.viewerOpenDetail,
-            icon: const Icon(AppIcons.expand, size: 18),
-            onPressed: () => widget.onOpenFullStage!(entity),
-          ),
-        if (entity != null)
-          _buildMoreMenu(
-            entity,
-            rendersContent: rendersContent,
-            includeShare: true,
-            includeInfoJump: false,
-          ),
-        if (widget.onCloseInspector != null)
-          IconButton(
-            key: const ValueKey('desktop-inspector-close'),
-            tooltip: l10n.profileShareClose,
-            icon: const Icon(UiIcons.close, size: 19),
-            onPressed: widget.onCloseInspector,
-          ),
-      ],
-    );
-  }
-
   Widget _buildMoreMenu(
     IllustEntity entity, {
     required bool rendersContent,
     required bool includeShare,
     required bool includeInfoJump,
+  }) => buildIllustDetailMoreMenu(
+    context: context,
+    ref: ref,
+    entity: entity,
+    rendersContent: rendersContent,
+    includeShare: includeShare,
+    includeInfoJump: includeInfoJump,
+    onSelectPages: _enterDownloadMode,
+    onInfoJump: () => unawaited(_scroll.scrollToInfo(isMounted: () => mounted)),
+  );
+
+  Widget _buildContent(
+    BuildContext context,
+    IllustEntity entity, {
+    bool detailReady = false,
   }) {
-    return _DetailMoreMenu(
+    final detailQuality = ref.watch(detailQualityProvider);
+    String? detailUrlFor(int index) =>
+        detailReady ? entity.detailUrlAt(index, detailQuality) : null;
+
+    final layout = IllustFirstImageLayout.of(
+      context,
+      entity,
+      expanded: _pagesExpanded,
+      embeddedInspector: widget.embeddedInspector,
+    );
+    // Keep metrics aligned on initial first-content build (when no dependency
+    // change occurred yet after snapshot/data arrival).
+    _scroll.topChromeExtent = layout.useTwoPane ? 0 : layout.topChrome;
+    _scroll.immersionStart = layout.immersionStart;
+    _scroll.lastTwoPane ??= layout.useTwoPane;
+
+    final imageSlivers = buildIllustDetailImageSlivers(
       entity: entity,
-      actions: [
-        if (includeShare) _DetailMenuAction.share,
-        if (rendersContent) ...[
-          _DetailMenuAction.editBookmark,
-          if (isDesktopImageClipboardSupported) copyImageCardAction,
-          watchLaterCardAction,
-        ],
-        if (entity.pageCount > 1 && !entity.isUgoira)
-          _DetailMenuAction.selectPages,
-        if (rendersContent) ...[
-          if (includeInfoJump) _DetailMenuAction.info,
-          ...muteCardActions,
-        ],
-      ],
-      onSelected: (BuildContext buttonContext, _DetailMenuAction action) =>
-          switch (action) {
-            _DetailMenuAction.share => unawaited(
-              _share(buttonContext, ref, entity),
-            ),
-            _DetailMenuAction.editBookmark => unawaited(
-              showBookmarkEditSheet(
-                context,
-                BookmarkKey(BookmarkEntityType.illust, entity.id),
-                title: entity.title,
+      layout: layout,
+      scroll: _scroll,
+      heroScope: widget.heroScope,
+      heroImageUrl: widget.heroImageUrl,
+      heroImageDecodeWidth: widget.heroImageDecodeWidth,
+      detailReady: detailReady,
+      detailUrlFor: detailUrlFor,
+      downloadMode: _downloadMode,
+      selectedPages: _selectedPages,
+      pagesExpanded: _pagesExpanded,
+      onTogglePageSelected: _togglePageSelected,
+      onEnterDownloadMode: _enterDownloadMode,
+      onCollapsePages: () => _collapsePages(layout.firstPageEnd),
+      onExpandPages: () => _expandPagesFromSlot(layout.alone - layout.natural),
+    );
+    final metaSlivers = buildIllustDetailMetaSlivers(
+      context,
+      illustId: widget.illustId,
+      entity: entity,
+      infoAnchorKey: _scroll.infoAnchorKey,
+      blockMode: _blockMode,
+      onToggleBlockMode: _toggleBlockMode,
+      onCompose: _openComposer,
+      twoPane: layout.useTwoPane,
+      embeddedInspector: widget.embeddedInspector,
+    );
+    final composerLayer = _composing
+        ? Positioned.fill(
+            child: SelectionContainer.disabled(
+              child: DetailCommentLayer(
+                illustId: widget.illustId,
+                composerKey: _composerKey,
+                onClose: _closeComposer,
               ),
             ),
-            _DetailMenuAction.selectPages => _enterDownloadMode(),
-            _DetailMenuAction.info => unawaited(_scrollToInfo()),
-          },
-    );
-  }
+          )
+        : null;
 
-  /// Every page, deduplicated by the manager. Any submission failure is
-  /// shown: manager, ownership and channel errors would otherwise vanish.
-  Future<void> _downloadAll(IllustEntity entity) async {
-    final DownloadGroupSubmission submission;
-    try {
-      submission = await ref
-          .read(illustDownloadControllerProvider)
-          .downloadAll(entity);
-    } catch (error) {
-      if (!mounted) return;
-      AppHaptics.error();
-      showErrorSnackBar(
-        context,
-        action: context.l10n.downloadSubmissionFailed,
-        error: error,
-      );
-      return;
-    }
-    if (!mounted) return;
-    showDownloadSubmittedSnackBar(
-      context,
-      alreadyQueued: submission.group == null,
-    );
-  }
-
-  Future<void> _share(
-    BuildContext context,
-    WidgetRef ref,
-    IllustEntity entity,
-  ) async {
-    final outcome = await ref
-        .read(shareServiceProvider)
-        .share(
-          SharePayload.illust(
-            id: entity.id,
-            title: entity.title,
-            author: entity.user.name,
+    final Widget layoutBody;
+    if (layout.useTwoPane) {
+      layoutBody = IllustDetailTwoPaneShell(
+        entity: entity,
+        detailUrlFor: detailUrlFor,
+        downloadMode: _downloadMode,
+        selectedPages: _selectedPages ?? const <int>{},
+        onToggleSelect: _togglePageSelected,
+        onLongPress: _enterDownloadMode,
+        onExitDownloadMode: _exitDownloadMode,
+        heroScope: widget.heroScope,
+        initialPage: _scroll.imageIndex,
+        onPageChanged: (page) => _scroll.imageIndex = page,
+        heroImageUrl: widget.heroImageUrl,
+        heroImageDecodeWidth: widget.heroImageDecodeWidth,
+        inspectorHeader: DetailInspectorHeader(
+          entity: entity,
+          moreMenu: _buildMoreMenu(
+            entity,
+            rendersContent: true,
+            includeShare: false,
+            includeInfoJump: false,
           ),
-          sharePositionOrigin: shareOriginOf(context),
+        ),
+        metaScrollController: _scroll.metaScroll,
+        metaSlivers: metaSlivers,
+        onScrollNotification: _onScrollNotification,
+        composerLayer: composerLayer,
+      );
+    } else {
+      final singleColumn = IllustDetailSingleColumnScroll(
+        entity: entity,
+        scrollController: _scroll.narrowScroll,
+        slivers: [...imageSlivers, ...metaSlivers],
+        onScrollNotification: _onScrollNotification,
+        downloadMode: _downloadMode,
+        onExitDownloadMode: _exitDownloadMode,
+        forceSelectionArea: widget.embeddedInspector,
+        topChrome: layout.topChrome,
+        topVisiblePage: _scroll.topVisiblePage,
+        pagesToggleOnScreen: _scroll.pagesToggleOnScreen,
+        canCollapseFromPill: layout.collapsible && _pagesExpanded,
+        onCollapsePages: () => _collapsePages(layout.firstPageEnd),
+      );
+      if (widget.embeddedInspector) {
+        layoutBody = IllustDetailEmbeddedInspectorShell(
+          downloadMode: _downloadMode,
+          header: DetailEmbeddedInspectorHeader(
+            entity: entity,
+            moreMenu: _buildMoreMenu(
+              entity,
+              rendersContent: true,
+              includeShare: false,
+              includeInfoJump: true,
+            ),
+            onOpenFullStage: widget.onOpenFullStage,
+            onCloseInspector: widget.onCloseInspector,
+          ),
+          body: singleColumn,
+          composerLayer: composerLayer,
         );
-    if (outcome == ShareOutcome.copiedToClipboard && context.mounted) {
-      showAppSnackBar(context, context.l10n.linkCopied);
+      } else {
+        layoutBody = IllustDetailNarrowShell(
+          entity: entity,
+          body: singleColumn,
+          barVisibility: _barVisibility,
+          onDownloadAll: () =>
+              unawaited(downloadAllIllustPages(context, ref, entity)),
+          composerLayer: composerLayer,
+        );
+      }
     }
+
+    final page = FadeTransition(
+      key: const ValueKey('detail-layout-fade'),
+      opacity: _layoutFadeOpacity,
+      child: layoutBody,
+    );
+    return IllustDetailHistoryScope(entity: entity, child: page);
   }
 
   IllustEntity? _entityOf(AsyncValue<IllustDetailState> async) {
@@ -1087,12 +757,11 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
 
   Widget _errorOrSnapshot(
     BuildContext context,
-    WidgetRef ref,
     Object error,
     IllustEntity? snapshot,
   ) {
     final entity = snapshot ?? _snapshotEntity();
-    if (entity != null) return _buildContent(context, ref, entity);
+    if (entity != null) return _buildContent(context, entity);
     return FeedError(
       title: context.l10n.illustDetailLoadFailed,
       error: error,
@@ -1102,8 +771,4 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
           .reload(),
     );
   }
-
-  void _expandPages() => setState(() => _pagesExpanded = true);
-
-  void _toggleBlockMode() => setState(() => _blockMode = !_blockMode);
 }
