@@ -78,7 +78,7 @@ reviewed: 2026-10-30
   `databasePath` to `HistoryDatabase`.
 - **Why:** Parallel test isolates sharing the default FFI path corrupted
   each other's data.
-- **Check:** `test/history_persistence_test.dart`
+- **Check:** `test/history_persistence_test.dart` "opens one versioned schema and upgrades v1 rows"
 - **Code:** `lib/core/history/history_database.dart`
 
 ### HIST-07 Writes to the local rows announce themselves

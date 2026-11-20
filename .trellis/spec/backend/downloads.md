@@ -144,7 +144,7 @@ reviewed: 2026-10-26
 - **Rule:** Before opening a staged `.part` file or album subdirectory on
   desktop, sanitize every name segment with `sanitizeDesktopFileName`:
   replace `[<>:"/\\|?*\x00-\x1F]` with `_`, strip trailing dots/spaces,
-  substitute `download` (or `_defaultAlbum`) for `.`/`..`/empty strings,
+  substitute `download` (or the default album fallback) for `.`/`..`/empty strings,
   and prefix Windows reserved device stems (`CON`, `PRN`, `AUX`, `NUL`,
   `COM1`–`COM9`, `LPT1`–`LPT9`, case-insensitive) with `_`.
 - **Why:** Windows silently strips trailing dots/spaces and opens reserved

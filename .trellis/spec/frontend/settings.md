@@ -71,7 +71,7 @@ reviewed: 2026-11-18
   lists and clashed with monochrome workspace navigation; bare 22dp glyphs with
   `*Filled` selection states and trailing counts align hierarchy across mobile
   and desktop without decorative color.
-- **Check:** `test/architecture/ui_conventions_test.dart`, `test/settings_test.dart`
+- **Check:** `test/architecture/ui_conventions_test.dart` "a filled icon with an outlined twin marks a state", `test/settings_test.dart` "account rows never show the email; each shows its own ID"
 - **Code:** `lib/app/widgets/settings/settings_tile.dart`, `lib/features/settings/settings_page.dart`, `lib/features/settings/me_dashboard_page.dart`, `lib/features/settings/pages/account_settings_page.dart`
 
 ### SET-09 A form is one card with its save at the end
@@ -81,7 +81,7 @@ reviewed: 2026-11-18
   "Optional" is a field's helper text, never part of its label.
 - **Why:** User decision: loose fields and buttons on the page surface
   did not read as one form. A long label was cut at narrow widths.
-- **Check:** `test/translation_credentials_page_test.dart`
+- **Check:** `test/translation_credentials_page_test.dart` "typing while the store reads or writes stays a draft" "a dirty draft asks before leaving, a clean one pops"
 - **Code:** `lib/features/settings/pages/translation_credentials_page.dart`, `lib/features/settings/network_settings_page.dart`
 
 ### SET-10 A row's end says what a tap does
@@ -93,7 +93,7 @@ reviewed: 2026-11-18
   attribution) head the About page on the page surface, not in a card.
   The version stays a plain value row, though seven taps on it unlock
   the developer options.
-- **Why:** User report (10-25): on the About page the license, the
+- **Why:** User report: on the About page the license, the
   source link and the facts were alike cards; what opened a page, what
   left the app and what did nothing could not be told apart. The
   attribution left the settings search: it is not a setting.
@@ -172,8 +172,8 @@ reviewed: 2026-11-18
   shows an `AppIcons.settings` shortcut (`settingsTitle` tooltip) in
   `AppTopBar.actions` (omitted when `DesktopCommandBarScope` owns chrome)
   while keeping the bottom `设置` row (`SET-08`). First comes the atmospheric
-  account header (`_AccountHeader`: a `FuncShape.panel` card on `surfaceContainer`
-  layered with `_CardWashBackdrop` `AmbientWash` tinted from the user's cover/work
+  account header (a `FuncShape.panel` card on `surfaceContainer`
+  layered with an `AmbientWash` backdrop tinted from the user's cover/work
   image at `decodeWidth: 96`, containing `PersonCard` at 52dp avatar, name with
   neutral "Premium" pill, user ID, and trailing manage icon button — or one
   sign-in button when signed out — plus a `brandHairline`-separated 3-column
@@ -196,16 +196,16 @@ reviewed: 2026-11-18
   When `MasterDetailWorkspace.canDisplay` holds (`>= 840x480` content), the Me
   tab mounts `MasterDetailWorkspace` (`masterBody` scrolled with vertical
   `ScrollEdgeFade`) wrapping its nested detail `Navigator` in
-  `SettingsDetailScope`: a `280dp` left rail (`40dp` `_CompactAccountHeader`
+  `SettingsDetailScope`: a `280dp` left rail (a compact 40dp account header
   card opening the signed-in user's profile or login with an inline
   `AppIcons.accountManage` button, plus grouped `showChevron: false` monochrome
   single-entry destination items with live `trailingText` counts and
   `*Filled` selected states `heartFilled` / `watchLaterFilled`, including
   `HistoryPage` under data and settings/about on touch tablets without
-  `DesktopCommandBarScope`) that opens directly onto `_MeBookmarksPane` (`收藏`)
+  `DesktopCommandBarScope`) that opens directly onto the bookmarks pane (`收藏`)
   without duplicating profile cards, library metric cards, or history strips in
-  a separate overview pane; `_MeBookmarksPane` and `_MeFollowingPane` defer
-  network-backed filters and feeds until `_MeNetworkScope.of(context)` is true.
+  a separate overview pane; the bookmarks and following panes defer
+  network-backed filters and feeds until the Me tab's network scope is active.
 - **Why:** User decision: settings filled two thirds of the page in a
   style of their own, while static multi-hue icon lists under-utilized desktop
   canvas space; monochrome grouped rows clarify visual hierarchy on mobile, and

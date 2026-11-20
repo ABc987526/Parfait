@@ -49,7 +49,7 @@ reviewed: 2026-10-12
   comments off" and ask for no comments.
 - **Why:** Feed payloads reset counts to 0. With the switch unread the
   preview showed pixiv's notice as a comment and the composer sent
-  comments the server silently dropped (10-21).
+  comments the server silently dropped.
 - **Check:** `test/illust_store_test.dart` "a payload without them keeps the comment count and switch", `test/comments_replies_test.dart` "a closed work keeps pixiv's notice out of its feed" "a work with comments off shows the notice, no composer", `test/illust_detail_actions_test.dart` "a work with comments off asks for none and says so"
 - **Code:** `lib/core/entity/illust_store.dart`, `lib/core/comments/comment_feed_controller.dart`
 
