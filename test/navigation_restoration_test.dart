@@ -11,7 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:parfait/app/navigation/routes.dart';
 import 'package:parfait/app/pixiv_image.dart';
-import 'package:parfait/app/widgets/feed/feed_grid.dart';
+import 'package:parfait/app/widgets/feed/illust_pager_source.dart';
 import 'package:parfait/app/widgets/skeleton/func_skeleton.dart';
 import 'package:parfait/core/auth/account.dart';
 import 'package:parfait/core/auth/account_store.dart';

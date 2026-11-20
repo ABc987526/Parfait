@@ -25,7 +25,7 @@ import '../../../app/motion/still_work.dart';
 import '../../../app/motion/swipe_paging.dart';
 import '../../../app/pixiv_image.dart';
 import '../../../app/scroll_behavior.dart';
-import '../../../app/widgets/feed/feed_grid.dart';
+import '../../../app/widgets/feed/illust_pager_source.dart';
 import '../../../app/widgets/feed/feed_text_warmup.dart';
 import '../../../core/entity/illust_store.dart';
 import 'detail_page_activity.dart';

@@ -18,8 +18,6 @@ import 'feed_selection.dart';
 import 'feed_text_warmup.dart';
 import 'illust_pager_source.dart';
 
-export 'illust_pager_source.dart';
-
 /// How far beyond the viewport feed children are built and start resolving
 /// their images.
 ///
@@ -28,61 +26,6 @@ export 'illust_pager_source.dart';
 /// request+decode to start before it is exposed without keeping a full
 /// extra screen of image work alive during a fling.
 const ScrollCacheExtent kFeedCacheExtent = ScrollCacheExtent.viewport(0.5);
-
-/// A work's card under an [IllustPagerScope]: it registers with the
-/// scope's pager so the image flies back to it only while some of it is
-/// on screen. Outside a scope it is [child] alone.
-class IllustPagerAnchor extends StatefulWidget {
-  const IllustPagerAnchor({
-    super.key,
-    required this.illustId,
-    required this.child,
-  });
-
-  final int illustId;
-  final Widget child;
-
-  @override
-  State<IllustPagerAnchor> createState() => _IllustPagerAnchorState();
-}
-
-class _IllustPagerAnchorState extends State<IllustPagerAnchor> {
-  IllustPagerSource? _source;
-
-  @override
-  void initState() {
-    super.initState();
-    _source = IllustPagerScope.maybeOf(context)
-      ?..attachCard(widget.illustId, context, _rebuild);
-  }
-
-  @override
-  void didUpdateWidget(IllustPagerAnchor oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.illustId != oldWidget.illustId) {
-      _source
-        ?..detachCard(oldWidget.illustId, context)
-        ..attachCard(widget.illustId, context, _rebuild);
-    }
-  }
-
-  @override
-  void dispose() {
-    _source?.detachCard(widget.illustId, context);
-    super.dispose();
-  }
-
-  void _rebuild() => setState(() {});
-
-  @override
-  Widget build(BuildContext context) => switch (_source) {
-    final source? => HeroMode(
-      enabled: source.cardFlies(widget.illustId),
-      child: widget.child,
-    ),
-    null => widget.child,
-  };
-}
 
 /// The resolved column width for feed children, published by
 /// [IllustFeedGrid] so cards can size their preview + decode width without

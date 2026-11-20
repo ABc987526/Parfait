@@ -33,10 +33,11 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 
-DIRECTIVE_RE = re.compile(
-    r"""^\s*(import|export|part\s+of|part)\s+['"]([^'"]+)['"]""",
+DIRECTIVE_STMT_RE = re.compile(
+    r"""^\s*(import|export|part\s+of|part)\s+([^;]+);""",
     re.MULTILINE,
 )
+QUOTED_URI_RE = re.compile(r"""['"]([^'"]+)['"]""")
 PACKAGE_NAME_RE = re.compile(r"^name:\s*(\S+)", re.MULTILINE)
 FIXTURE_REF_RE = re.compile(r"""['"](test/fixtures/[^'"]+)['"]""")
 
@@ -44,6 +45,8 @@ WHOLE_SUITE_FILES = frozenset({
     "pubspec.yaml",
     "pubspec.lock",
     "analysis_options.yaml",
+    "dart_test.yaml",
+    "l10n.yaml",
     "test/flutter_test_config.dart",
 })
 
@@ -110,22 +113,27 @@ def build_reverse_graph(
 
     for rel in dart_files:
         text = (repo / rel).read_text(encoding="utf-8", errors="ignore")
-        for match in DIRECTIVE_RE.finditer(text):
+        for match in DIRECTIVE_STMT_RE.finditer(text):
             kind = " ".join(match.group(1).split())
-            uri = match.group(2)
-            target = resolve_dart_uri(rel, uri, pkg)
-            if target is None:
-                continue
-            if kind in ("import", "export"):
-                # Keep edge even if target was deleted so tests importing a
-                # deleted file are still selected.
-                rev[target].add(rel)
-            elif kind in ("part", "part of"):
-                # Parts and their owning library share one compilation unit:
-                # editing any part marks the owning library (and every sibling
-                # part and importer) dirty.
-                rev[target].add(rel)
-                rev[rel].add(target)
+            body = match.group(2)
+            # Capture primary URI and any conditional `if (...) 'alt.dart'` URIs.
+            uris = QUOTED_URI_RE.findall(body)
+            if kind in ("part", "part of"):
+                uris = uris[:1]
+            for uri in uris:
+                target = resolve_dart_uri(rel, uri, pkg)
+                if target is None:
+                    continue
+                if kind in ("import", "export"):
+                    # Keep edge even if target was deleted so tests importing a
+                    # deleted file are still selected.
+                    rev[target].add(rel)
+                elif kind in ("part", "part of"):
+                    # Parts and their owning library share one compilation unit:
+                    # editing any part marks the owning library (and every sibling
+                    # part and importer) dirty.
+                    rev[target].add(rel)
+                    rev[rel].add(target)
 
         if rel.startswith("test/"):
             for fmatch in FIXTURE_REF_RE.finditer(text):
@@ -197,11 +205,6 @@ def select_affected(
                 if candidate in existing:
                     direct_tests.add(candidate)
             seeds.update(fixture_refs.get("__l10n_arb__", ()))
-        elif path == "l10n.yaml":
-            for candidate in ARB_TESTS:
-                if candidate in existing:
-                    direct_tests.add(candidate)
-            seeds.update(fixture_refs.get("__l10n_arb__", ()))
         elif path == "assets/icon.ttf":
             for candidate in ICON_FONT_TESTS:
                 if candidate in existing:
@@ -243,16 +246,16 @@ def git_changed_files(repo: Path, base: str) -> list[str]:
         text=True,
     ).stdout.strip()
     cmds = [
-        ["git", "diff", "--name-only", f"{merge_base}...HEAD"],
-        ["git", "diff", "--name-only", "HEAD"],
-        ["git", "ls-files", "--others", "--exclude-standard"],
+        ["git", "diff", "--name-only", "-z", f"{merge_base}...HEAD"],
+        ["git", "diff", "--name-only", "-z", "HEAD"],
+        ["git", "ls-files", "--others", "--exclude-standard", "-z"],
     ]
     paths: set[str] = set()
     for cmd in cmds:
         out = subprocess.run(cmd, cwd=repo, check=True, capture_output=True, text=True).stdout
-        for line in out.splitlines():
-            if line.strip():
-                paths.add(line.strip())
+        for entry in out.split("\0"):
+            if entry:
+                paths.add(entry)
     return sorted(paths)
 
 
@@ -267,7 +270,12 @@ def self_test() -> int:
         root = Path(tmp)
         _write(root, "pubspec.yaml", "name: demo\n")
         _write(root, "lib/core/leaf.dart", "const leaf = 1;\n")
-        _write(root, "lib/core/barrel.dart", "export 'leaf.dart';\n")
+        _write(root, "lib/core/leaf_io.dart", "const leaf = 2;\n")
+        _write(
+            root,
+            "lib/core/barrel.dart",
+            "export 'leaf.dart' if (dart.library.io) 'leaf_io.dart';\n",
+        )
         _write(
             root,
             "lib/feature/parent.dart",
@@ -293,9 +301,11 @@ def self_test() -> int:
             "final s = File('test/fixtures/sample/page.html');\n",
         )
 
-        # 1. Transitive export + helper hop
+        # 1. Transitive export (including conditional `if (...)` URI) + helper hop
         res = select_affected(root, ["lib/core/leaf.dart"])
         assert res["mode"] == "selected", res
+        assert res["tests"] == ["test/feature_test.dart"], res
+        res = select_affected(root, ["lib/core/leaf_io.dart"])
         assert res["tests"] == ["test/feature_test.dart"], res
 
         # 2. Bidirectional part-of propagation
@@ -306,11 +316,10 @@ def self_test() -> int:
         res = select_affected(root, ["lib/core/gone.dart"])
         assert res["tests"] == ["test/deleted_ref_test.dart"], res
 
-        # 4. Global whole-suite trigger
-        res = select_affected(root, ["pubspec.yaml"])
-        assert res["mode"] == "whole_suite", res
-        res = select_affected(root, ["test/flutter_test_config.dart"])
-        assert res["mode"] == "whole_suite", res
+        # 4. Global whole-suite triggers
+        for trigger in ("pubspec.yaml", "dart_test.yaml", "l10n.yaml", "test/flutter_test_config.dart"):
+            res = select_affected(root, [trigger])
+            assert res["mode"] == "whole_suite", (trigger, res)
 
         # 5. Subdir flutter_test_config.dart selects only that subdir
         res = select_affected(root, ["test/sub/flutter_test_config.dart"])

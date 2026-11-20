@@ -71,8 +71,8 @@ if ! [[ "$pr" =~ ^[0-9]+$ ]]; then
 fi
 
 read_pr_state() {
-  gh pr view "$pr" --json state,mergeStateStatus,headRefName,headRefOid \
-    --jq '[.state, (.mergeStateStatus // "UNKNOWN"), .headRefName, .headRefOid] | @tsv'
+  gh pr view "$pr" --json state,mergeStateStatus,headRefName,headRefOid,isCrossRepository \
+    --jq '[.state, (.mergeStateStatus // "UNKNOWN"), .headRefName, .headRefOid, (.isCrossRepository | tostring)] | @tsv'
 }
 
 find_worktree_for_branch() {
@@ -87,7 +87,7 @@ find_worktree_for_branch() {
 }
 
 pr_tsv="$(read_pr_state)"
-IFS=$'\t' read -r state merge_state head_ref head_oid <<<"$pr_tsv"
+IFS=$'\t' read -r state merge_state head_ref head_oid is_cross_repo <<<"$pr_tsv"
 
 if [[ "$state" == "MERGED" ]]; then
   echo "land: PR #$pr ($head_ref) is already merged; verifying merge commit and syncing main"
@@ -101,7 +101,7 @@ else
     for _ in 1 2 3 4 5; do
       sleep 2
       pr_tsv="$(read_pr_state)"
-      IFS=$'\t' read -r state merge_state head_ref head_oid <<<"$pr_tsv"
+      IFS=$'\t' read -r state merge_state head_ref head_oid is_cross_repo <<<"$pr_tsv"
       if [[ "$head_oid" == "$expected_oid" ]]; then
         break
       fi
@@ -109,6 +109,10 @@ else
   fi
 
   if [[ "$merge_state" == "BEHIND" && "$do_sync" -eq 1 ]]; then
+    if [[ "$is_cross_repo" == "true" ]]; then
+      echo "land: --sync refused for cross-repository (fork) PR #$pr" >&2
+      exit 1
+    fi
     branch_wt="$(find_worktree_for_branch "$head_ref")"
     if [[ -z "$branch_wt" ]]; then
       echo "land: --sync requires branch '$head_ref' to be checked out in a worktree" >&2
@@ -118,15 +122,20 @@ else
       echo "land: --sync refused because worktree '$branch_wt' ($head_ref) is dirty" >&2
       exit 1
     fi
+    local_head="$(git -C "$branch_wt" rev-parse HEAD)"
+    if [[ "$local_head" != "$head_oid" ]]; then
+      echo "land: --sync refused because local HEAD (${local_head:0:8}) does not match PR head (${head_oid:0:8})" >&2
+      exit 1
+    fi
     echo "land: PR #$pr ($head_ref) is BEHIND main; merging origin/main locally and pushing..."
     git -C "$branch_wt" fetch origin main
-    git -C "$branch_wt" merge --no-edit origin/main
+    git -C "$branch_wt" -c user.email="$NOREPLY_EMAIL" merge --no-edit origin/main
     git -C "$branch_wt" push origin "$head_ref"
     expected_oid="$(git -C "$branch_wt" rev-parse HEAD)"
     for _ in $(seq 1 10); do
       sleep 2
       pr_tsv="$(read_pr_state)"
-      IFS=$'\t' read -r state merge_state head_ref head_oid <<<"$pr_tsv"
+      IFS=$'\t' read -r state merge_state head_ref head_oid is_cross_repo <<<"$pr_tsv"
       if [[ "$head_oid" == "$expected_oid" ]]; then
         break
       fi
@@ -239,14 +248,22 @@ if [[ "$head_ref" == "dev" ]]; then
     dev_wt="$(find_worktree_for_branch dev)"
     if [[ -n "$dev_wt" ]]; then
       if [[ -z "$(git -C "$dev_wt" status --porcelain)" ]]; then
-        git -C "$dev_wt" merge --ff-only origin/main
-        git -C "$dev_wt" push origin dev
+        if git -C "$dev_wt" merge --ff-only origin/main; then
+          git -C "$dev_wt" push origin dev ||
+            echo "land: warning: push origin dev failed after ff-only update; push dev manually" >&2
+        else
+          echo "land: warning: dev fast-forward failed at $dev_wt; sync dev manually" >&2
+        fi
       else
         echo "land: warning: dev worktree at $dev_wt is dirty; skipped dev sync" >&2
       fi
     else
-      git fetch origin main:dev
-      git push origin dev
+      if git fetch origin main:dev; then
+        git push origin dev ||
+          echo "land: warning: push origin dev failed after local dev update; push dev manually" >&2
+      else
+        echo "land: warning: local dev fast-forward failed; sync dev manually" >&2
+      fi
     fi
   else
     echo "land: warning: origin/dev already has newer commits than origin/main; sync dev manually with 'git checkout dev && git merge origin/main && git push origin dev'" >&2

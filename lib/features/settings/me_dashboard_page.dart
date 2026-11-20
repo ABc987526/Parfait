@@ -30,7 +30,7 @@ import '../../app/widgets/ambient_wash.dart';
 import '../../app/widgets/app_top_bar.dart';
 import '../../app/widgets/edge_icon_buttons.dart';
 import '../../app/widgets/entity_row.dart' show EntityBadge;
-import '../../app/widgets/feed/feed_grid.dart'
+import '../../app/widgets/feed/illust_pager_source.dart'
     show IllustPagerAnchor, IllustPagerScope, IllustPagerSource;
 import '../../app/widgets/feed/feed_states.dart';
 import '../../app/widgets/func_bottom_nav.dart';

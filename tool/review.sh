@@ -119,7 +119,7 @@ for device in "${device_list[@]}"; do
     device_status=1
   fi
   if command -v journalctl >/dev/null &&
-    journalctl -k --since "@$since" 2>/dev/null | grep -qi 'out of memory'; then
+    grep -qi 'out of memory' < <(journalctl -k --since "@$since" 2>/dev/null); then
     echo "review ($device): kernel OOM kill detected (raise REVIEW_MEMORY or lower REVIEW_CONCURRENCY; log: $log)" >&2
     device_status=1
   fi

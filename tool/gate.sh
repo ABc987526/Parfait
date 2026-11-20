@@ -94,9 +94,9 @@ trap cleanup EXIT
 changed_list="$(mktemp -t gate-changed.XXXXXX)"
 tmp_files+=("$changed_list")
 {
-  git diff --name-only "$base"...HEAD &&
-    git diff --name-only HEAD &&
-    git ls-files --others --exclude-standard
+  git -c core.quotepath=false diff --name-only "$base"...HEAD &&
+    git -c core.quotepath=false diff --name-only HEAD &&
+    git -c core.quotepath=false ls-files --others --exclude-standard
 } > "$changed_list" && sort -u -o "$changed_list" "$changed_list" ||
   { echo "gate: cannot list the changed files" >&2; exit 2; }
 mapfile -t changed < "$changed_list"
@@ -186,7 +186,7 @@ run_tests() {
     status=1
   fi
   if command -v journalctl >/dev/null &&
-    journalctl -k --since "@$since" 2>/dev/null | grep -qi 'out of memory'; then
+    grep -qi 'out of memory' < <(journalctl -k --since "@$since" 2>/dev/null); then
     echo "gate: the kernel killed a process for memory during the run" \
       "(raise GATE_TEST_MEMORY or lower GATE_TEST_CONCURRENCY)" >&2
     status=1

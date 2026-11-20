@@ -89,7 +89,7 @@ jobs:
   prune-pr-caches:
     # Keep total repository Actions cache safely under the 10 GB eviction
     # ceiling by pruning stale PR-scoped caches nightly.
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'schedule'
     runs-on: ubuntu-latest
     permissions:
       actions: write
@@ -128,10 +128,13 @@ jobs:
                   last_accessed.replace("Z", "+00:00")
               )
               if seen < cutoff:
-                  subprocess.run(
+                  r = subprocess.run(
                       ["gh", "api", "-X", "DELETE", f"repos/{repo}/actions/caches/{cid}"],
                       check=False,
                   )
-                  deleted += 1
+                  if r.returncode == 0:
+                      deleted += 1
+                  else:
+                      print(f"Failed to delete cache {cid} (rc={r.returncode})")
           print(f"Pruned {deleted} stale PR cache(s).")
           PY
