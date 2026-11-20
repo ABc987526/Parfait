@@ -16,6 +16,7 @@
 #                     with their own manifest.
 # REVIEW_CONCURRENCY  test files rendered at once (default 4; each holds a
 #                     whole app, mind the memory)
+# REVIEW_MEMORY       systemd-run memory cap per device pass (default 8G)
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -80,12 +81,53 @@ PY
 }
 
 status=0
+memory="${REVIEW_MEMORY:-8G}"
+concurrency="${REVIEW_CONCURRENCY:-4}"
+use_scope=0
+if command -v systemd-run >/dev/null &&
+  systemd-run --scope --quiet -p "MemoryMax=$memory" true 2>/dev/null; then
+  use_scope=1
+fi
+
 IFS=, read -ra device_list <<<"$devices"
 for device in "${device_list[@]}"; do
   device_run="$run"
   [[ "$device" == phone ]] || device_run="$run/$device"
-  PARFAIT_REVIEW_DEVICE="$device" flutter test --no-pub \
-    --concurrency="${REVIEW_CONCURRENCY:-4}" -r failures-only "$@" || status=$?
+  log="$(mktemp -t review-test.XXXXXX.log)"
+  since="$(date +%s)"
+  device_status=0
+  cmd=(flutter test --no-pub --concurrency="$concurrency" -r failures-only "$@")
+  set +e
+  if [[ "$use_scope" -eq 1 ]]; then
+    echo "review ($device): memory cap $memory, concurrency $concurrency"
+    PARFAIT_REVIEW_DEVICE="$device" systemd-run --scope --quiet \
+      -p "MemoryMax=$memory" -p MemorySwapMax=0 \
+      "${cmd[@]}" 2>&1 | tee "$log"
+    device_status=${PIPESTATUS[0]}
+  else
+    echo "review ($device): running without systemd-run memory cap (concurrency $concurrency)"
+    PARFAIT_REVIEW_DEVICE="$device" "${cmd[@]}" 2>&1 | tee "$log"
+    device_status=${PIPESTATUS[0]}
+  fi
+  set -e
+  if grep -q 'did not complete' "$log"; then
+    echo "review ($device): a test file did not complete (log: $log)" >&2
+    device_status=1
+  fi
+  if grep -q 'No tests ran' "$log"; then
+    echo "review ($device): no tests ran (log: $log)" >&2
+    device_status=1
+  fi
+  if command -v journalctl >/dev/null &&
+    journalctl -k --since "@$since" 2>/dev/null | grep -qi 'out of memory'; then
+    echo "review ($device): kernel OOM kill detected (raise REVIEW_MEMORY or lower REVIEW_CONCURRENCY; log: $log)" >&2
+    device_status=1
+  fi
+  if [[ "$device_status" -eq 0 ]]; then
+    rm -f "$log"
+  else
+    status="$device_status"
+  fi
   if [[ -f "$device_run/manifest.tsv" ]]; then
     render_manifest "$device_run"
     echo "review run ($device): $device_run/manifest.md"
