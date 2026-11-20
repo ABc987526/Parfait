@@ -7,7 +7,8 @@ import '../../app/widgets/feed/feed_grid.dart';
 import '../../app/widgets/feed/feed_selection.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../app/navigation/routes.dart';
+import '../../app/navigation/route_facade.dart';
+import '../../app/widgets/feed/desktop_inspectable_gallery.dart';
 import '../../app/pull_to_refresh.dart';
 import '../../app/widgets/novel_entry.dart';
 import '../../core/entity/illust_store.dart';

@@ -16,7 +16,7 @@ import 'package:parfait/app/layout/form_factor.dart';
 import 'package:parfait/app/layout/window_layout_spec.dart'
     show WindowEnvironmentOverride;
 import 'package:parfait/app/navigation/keyboard_back.dart';
-import 'package:parfait/app/widgets/feed/feed_grid.dart';
+import 'package:parfait/app/widgets/feed/illust_pager_source.dart';
 import 'package:parfait/app/widgets/func_bottom_nav.dart';
 import 'package:parfait/app/widgets/shell_rail.dart';
 import 'package:parfait/app/widgets/skeleton/list_skeletons.dart';

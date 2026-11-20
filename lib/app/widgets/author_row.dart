@@ -1,7 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 
 import '../../l10n/context.dart';
-import '../navigation/routes.dart';
+import '../navigation/route_facade.dart';
 import '../theme/func_semantic_tokens.dart';
 import 'author_summary.dart';
 import '../icons/ui_icons.dart';

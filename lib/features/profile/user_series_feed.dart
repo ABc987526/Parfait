@@ -7,7 +7,7 @@ import '../../app/pull_to_refresh.dart';
 import '../../app/widgets/feed/feed_grid.dart';
 import '../../app/widgets/feed/feed_states.dart';
 import '../../app/widgets/skeleton/illust_grid_skeleton.dart';
-import '../../app/navigation/routes.dart';
+import '../../app/navigation/route_facade.dart';
 import '../../app/pixiv_image.dart';
 import '../../core/network/api_error.dart';
 import '../../core/series/series_feed_controller.dart';

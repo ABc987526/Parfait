@@ -5,7 +5,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../app/haptics/app_haptics.dart';
 import '../../app/motion/app_overlays.dart';
-import '../../app/navigation/routes.dart';
+import '../../app/navigation/route_search_facade.dart';
 import '../../app/theme/func_semantic_tokens.dart';
 import '../../app/theme/func_tokens.dart';
 import '../../app/widgets/app_dialog.dart';

@@ -4,7 +4,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/motion/press_scale.dart';
-import '../../../../app/navigation/routes.dart';
+import '../../../../app/navigation/route_facade.dart';
 import '../../../../app/pixiv_image.dart';
 import '../../../../core/entity/illust_store.dart';
 import '../../../../core/history/history_repository.dart';

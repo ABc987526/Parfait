@@ -18,7 +18,9 @@ import '../../app/icons/app_icons.dart';
 import '../../app/layout/content_widths.dart';
 import '../../app/motion/hero_transition.dart';
 import '../../app/motion/motion_tokens.dart';
-import '../../app/navigation/routes.dart';
+import '../../app/navigation/route_facade.dart';
+import '../../app/navigation/me_workspace_facade.dart';
+import '../../app/widgets/feed/desktop_inspectable_gallery.dart';
 import '../../app/person_avatar.dart';
 import '../../app/pixiv_image.dart';
 import '../../app/pull_to_refresh.dart';
@@ -28,7 +30,7 @@ import '../../app/widgets/ambient_wash.dart';
 import '../../app/widgets/app_top_bar.dart';
 import '../../app/widgets/edge_icon_buttons.dart';
 import '../../app/widgets/entity_row.dart' show EntityBadge;
-import '../../app/widgets/feed/feed_grid.dart'
+import '../../app/widgets/feed/illust_pager_source.dart'
     show IllustPagerAnchor, IllustPagerScope, IllustPagerSource;
 import '../../app/widgets/feed/feed_states.dart';
 import '../../app/widgets/func_bottom_nav.dart';
@@ -38,7 +40,8 @@ import '../../app/widgets/scroll_edge_fade.dart';
 import '../../app/widgets/settings/settings_group.dart';
 import '../../app/widgets/settings/settings_tile.dart';
 import '../../app/widgets/settings_load_error.dart';
-import '../../app/window/desktop_command_bar.dart' show DesktopCommandBarScope;
+import '../../app/window/desktop_command_bar_scope.dart'
+    show DesktopCommandBarScope;
 import '../../core/auth/account.dart';
 import '../../core/auth/account_store.dart';
 import '../../core/bookmark/bookmark_models.dart';

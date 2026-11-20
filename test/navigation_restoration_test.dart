@@ -11,7 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:parfait/app/navigation/routes.dart';
 import 'package:parfait/app/pixiv_image.dart';
-import 'package:parfait/app/widgets/feed/feed_grid.dart';
+import 'package:parfait/app/widgets/feed/illust_pager_source.dart';
 import 'package:parfait/app/widgets/skeleton/func_skeleton.dart';
 import 'package:parfait/core/auth/account.dart';
 import 'package:parfait/core/auth/account_store.dart';
@@ -24,6 +24,7 @@ import 'package:parfait/core/illust/ranking_repository.dart';
 import 'package:parfait/core/illust/recommended_repository.dart';
 import 'package:parfait/core/network/pixiv_http_client.dart';
 import 'package:parfait/core/search/search_models.dart';
+import 'package:parfait/features/history/history_page.dart';
 import 'package:parfait/features/home/recommended/recommended_home_page.dart';
 import 'package:parfait/features/illust/detail/illust_detail_page.dart';
 import 'package:parfait/features/illust/detail/illust_detail_pager_page.dart';

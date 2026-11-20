@@ -3,7 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../../core/spotlight/spotlight_models.dart';
 import '../../format/app_format.dart';
 import '../../motion/press_scale.dart';
-import '../../navigation/routes.dart';
+import '../../navigation/route_facade.dart';
 import '../../pixiv_image.dart';
 import '../../theme/func_semantic_tokens.dart';
 import '../../theme/func_tokens.dart';

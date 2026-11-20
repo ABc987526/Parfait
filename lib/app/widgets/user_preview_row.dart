@@ -11,7 +11,7 @@ import '../../core/user/user_entity.dart';
 import '../../core/user/user_repository.dart';
 import '../../core/user/user_store.dart';
 import '../motion/press_scale.dart';
-import '../navigation/routes.dart';
+import '../navigation/route_facade.dart';
 import '../pixiv_image.dart';
 import '../theme/func_semantic_tokens.dart';
 import 'author_summary.dart';

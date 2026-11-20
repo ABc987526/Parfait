@@ -14,7 +14,7 @@ import '../../app/pixiv_image.dart';
 import '../../app/motion/hero_transition.dart' show LiftableBar;
 import '../../app/system_ui.dart';
 import '../../app/theme/func_semantic_tokens.dart';
-import '../../app/window/desktop_command_bar.dart';
+import '../../app/window/desktop_command_bar_scope.dart';
 import '../../core/user/user_entity.dart';
 import '../../app/widgets/ambient_wash.dart';
 import '../../app/widgets/app_menu_button.dart';

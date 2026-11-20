@@ -12,14 +12,15 @@ import '../../app/layout/window_layout_spec.dart';
 import '../../app/motion/app_overlays.dart';
 import '../../app/motion/motion_tokens.dart';
 import '../../app/navigation/home_shell_metrics.dart';
-import '../../app/navigation/routes.dart';
+import '../../app/navigation/route_facade.dart';
 import '../../app/system_ui.dart';
 import '../../app/widgets/app_snack_bar.dart';
 import '../../app/widgets/app_top_bar.dart';
 import '../../app/widgets/errors/error_details.dart';
 import '../../app/widgets/feed/feed_states.dart';
 import '../../app/widgets/watchlist_toggle.dart';
-import '../../app/window/desktop_command_bar.dart' show DesktopCommandBarScope;
+import '../../app/window/desktop_command_bar_scope.dart'
+    show DesktopCommandBarScope;
 import '../../app/window/desktop_title_bar.dart' show DesktopChromeMetrics;
 import '../../core/auth/account_store.dart';
 import '../../core/errors/no_retry.dart';

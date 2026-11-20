@@ -7,7 +7,7 @@ import '../../app/theme/func_semantic_tokens.dart';
 import '../../app/widgets/app_top_bar.dart';
 import '../../app/widgets/skeleton/func_skeleton.dart';
 import '../../app/widgets/skeleton/illust_grid_skeleton.dart';
-import '../../app/window/desktop_command_bar.dart';
+import '../../app/window/desktop_command_bar_scope.dart';
 import '../../l10n/context.dart';
 import 'profile_header_delegate.dart';
 import 'profile_illust_feed.dart';

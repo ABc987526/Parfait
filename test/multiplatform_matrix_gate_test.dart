@@ -8,7 +8,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:parfait/app/layout/input_modality.dart';
 import 'package:parfait/app/layout/window_layout_spec.dart';
 import 'package:parfait/app/navigation/func_page.dart';
-import 'package:parfait/app/navigation/routes.dart';
+import 'package:parfait/app/navigation/route_extras.dart';
 import 'package:parfait/app/widgets/card_actions/card_action_sheet.dart';
 import 'package:parfait/app/widgets/feed/illust_card.dart';
 import 'package:parfait/app/widgets/func_bottom_nav.dart';

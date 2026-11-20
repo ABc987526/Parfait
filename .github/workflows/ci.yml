@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
   pull_request:
 
 concurrency:
@@ -12,9 +12,9 @@ concurrency:
 jobs:
   changes:
     # Path gate for the heavy build jobs: docs-only changes (.trellis, *.md)
-    # skip compilation entirely. analyze-and-test stays unconditional because
-    # the ruleset requires it — a workflow-level paths-ignore would leave the
-    # required check pending forever and block merges.
+    # skip compilation entirely. analyze-and-test stays unconditional on PRs
+    # because the ruleset requires it — a workflow-level paths-ignore would
+    # leave the required check pending forever and block merges.
     runs-on: ubuntu-latest
     outputs:
       build: ${{ steps.filter.outputs.build }}
@@ -76,19 +76,56 @@ jobs:
               - 'rust-toolchain.toml'
 
   analyze:
+    # Skipped on push to main: the ruleset requires strict up-to-date status
+    # checks, so every merge to main was already analyzed on the exact tree.
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/dev'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # The budget measures the change from HEAD^1: a pull request's
           # merge commit's first parent is the base it was merged onto (a
-          # base branch fetched later may have moved), and on main it is
+          # base branch fetched later may have moved), and on dev it is
           # the commit before the merge.
           fetch-depth: 2
       - run: python3 tool/check_spec.py --self-test
       - run: python3 tool/check_spec.py
+      - run: python3 tool/affected_tests.py --self-test
+      - run: python3 tool/apk_size_report.py --self-test
       - name: Test budget (spec TEST-05)
         run: python3 tool/test_budget.py --base HEAD^1 --summary "$GITHUB_STEP_SUMMARY"
+      - name: PR size watermark
+        if: github.event_name == 'pull_request'
+        run: |
+          python3 - <<'PY'
+          import os, subprocess
+
+          out = subprocess.run(
+              ["git", "diff", "--numstat", "HEAD^1..HEAD"],
+              check=True,
+              capture_output=True,
+              text=True,
+          ).stdout.splitlines()
+          files = len(out)
+          added = deleted = 0
+          for line in out:
+              parts = line.split("\t")
+              if len(parts) >= 2 and parts[0].isdigit() and parts[1].isdigit():
+                  added += int(parts[0])
+                  deleted += int(parts[1])
+          net = added - deleted
+          msg = f"PR size: {files} files, +{added}/-{deleted} (net {net:+d} lines)"
+          print(msg)
+          summary = os.environ.get("GITHUB_STEP_SUMMARY")
+          if summary:
+              with open(summary, "a", encoding="utf-8") as fh:
+                  fh.write(f"\n{msg}\n")
+          if files > 80 or abs(net) > 4000:
+              print(
+                  f"::warning::{msg} exceeds soft watermark (80 files / 4,000 net lines); "
+                  "consider landing dev milestones more frequently or splitting stages"
+              )
+          PY
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           flutter-version: "3.47.9"
@@ -101,13 +138,14 @@ jobs:
   workflows-and-secrets:
     # actionlint checks the workflow files (and, through the runner's
     # shellcheck, their run scripts); gitleaks scans the commits a pull
-    # request or a merge adds. Both are release binaries pinned by version
+    # request or a dev push adds. Both are release binaries pinned by version
     # and checksum, which Dependabot does not bump: update them by hand.
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/dev'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # HEAD^1..HEAD reaches every commit the change adds.
+          # HEAD^1..HEAD (or before..HEAD on dev) reaches every added commit.
           fetch-depth: 0
       - name: Install actionlint and gitleaks
         env:
@@ -129,12 +167,26 @@ jobs:
       - run: actionlint
       - name: Scan the added commits for secrets
         # On a pull request HEAD is its merge commit and HEAD^1 the base;
-        # on main HEAD^1 is the commit before the merge. Known false
-        # positives in older history are listed in .gitleaksignore.
-        run: gitleaks git --no-banner --redact --log-opts="HEAD^1..HEAD" .
+        # on dev, before..HEAD covers all pushed commits (falling back to
+        # HEAD^1..HEAD on branch creation). Known false positives in older
+        # history are listed in .gitleaksignore.
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          range="HEAD^1..HEAD"
+          if [ "$GITHUB_EVENT_NAME" = "push" ] && [ -n "$BEFORE_SHA" ] &&
+            [ "$BEFORE_SHA" != "0000000000000000000000000000000000000000" ] &&
+            git cat-file -e "${BEFORE_SHA}^{commit}" 2>/dev/null; then
+            range="${BEFORE_SHA}..HEAD"
+          fi
+          gitleaks git --no-banner --redact --log-opts="$range" .
 
   test:
     name: test (shard ${{ matrix.shard }} of ${{ strategy.job-total }})
+    # Full sharded suite runs on pull requests; push to main is already
+    # covered by the strict PR ruleset, and push to dev runs test-dev below.
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     strategy:
       # Let all shards finish so one failure does not hide the others'.
@@ -164,13 +216,86 @@ jobs:
           test "${#files[@]}" -gt 0 || { echo "::error::empty shard"; exit 1; }
           flutter test "${files[@]}"
 
+  test-dev:
+    # Fast single-runner integration check for pushes to dev: runs
+    # architecture scans + affected non-locale_layout tests. The full
+    # sharded suite (including locale_layout) runs on the dev -> main PR.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Select affected tests for dev push
+        id: select
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          base="HEAD^1"
+          if [ -n "$BEFORE_SHA" ] &&
+            [ "$BEFORE_SHA" != "0000000000000000000000000000000000000000" ] &&
+            git cat-file -e "${BEFORE_SHA}^{commit}" 2>/dev/null; then
+            base="$BEFORE_SHA"
+          fi
+          git diff --name-only "${base}..HEAD" > "$RUNNER_TEMP/changed.txt"
+          python3 tool/affected_tests.py \
+            --changed-list "$RUNNER_TEMP/changed.txt" \
+            --include-architecture \
+            --json > "$RUNNER_TEMP/affected.json"
+          python3 - "$RUNNER_TEMP/affected.json" "$RUNNER_TEMP/dev-tests.txt" "$GITHUB_OUTPUT" <<'PY'
+          import json, pathlib, sys
+
+          data = json.loads(pathlib.Path(sys.argv[1]).read_text())
+          out_files = pathlib.Path(sys.argv[2])
+          gh_out = pathlib.Path(sys.argv[3])
+          if data["mode"] == "skip_dart":
+              out_files.write_text("")
+              with gh_out.open("a") as fh:
+                  fh.write("run=false\n")
+              print("No Dart/asset changes in dev push; skipping flutter test.")
+              sys.exit(0)
+          if data["mode"] == "whole_suite":
+              # Global config changed on dev: keep dev fast with architecture
+              # scans; full suite runs on the dev -> main PR.
+              tests = sorted(
+                  p.as_posix()
+                  for p in pathlib.Path("test/architecture").glob("*_test.dart")
+              )
+              print(f"Whole-suite trigger ({data['reason']}); running {len(tests)} architecture tests on dev.")
+          else:
+              tests = [t for t in data["tests"] if not t.startswith("test/locale_layout/")]
+              if len(tests) > 45:
+                  arch = [t for t in tests if t.startswith("test/architecture/")]
+                  rest = [t for t in tests if not t.startswith("test/architecture/")][:30]
+                  tests = sorted(set(arch + rest))
+                  print(f"Capped dev fast pass to {len(tests)} files; full suite runs on dev -> main PR.")
+          out_files.write_text("\n".join(tests) + ("\n" if tests else ""))
+          with gh_out.open("a") as fh:
+              fh.write(f"run={'true' if tests else 'false'}\n")
+          print(f"Selected {len(tests)} test files for dev push.")
+          PY
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        if: steps.select.outputs.run == 'true'
+        with:
+          flutter-version: "3.47.9"
+          channel: "stable"
+          cache: true
+      - if: steps.select.outputs.run == 'true'
+        run: flutter pub get --enforce-lockfile
+      - name: Run selected dev tests
+        if: steps.select.outputs.run == 'true'
+        run: |
+          mapfile -t files < "$RUNNER_TEMP/dev-tests.txt"
+          flutter test "${files[@]}"
+
   analyze-and-test:
     # The single check the ruleset requires. It aggregates analyze, every
     # test shard and the workflow and secret scans, so keep the name and
     # let it run even when they fail: a skipped required check would count
     # as passing.
     needs: [analyze, test, workflows-and-secrets]
-    if: always()
+    if: always() && github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - name: Require analyze, all test shards and the scans to succeed
@@ -189,15 +314,17 @@ jobs:
           fi
 
   android-release:
-    # Release-side safety: the release workflow must never publish a debug
-    # signed APK, so the release-signing check runs on main and on PRs from
-    # this repository. PRs from forks cannot read secrets; android-size
-    # covers them. PRs run it only for Android-side changes; on main every
-    # build-affecting merge runs it, which is the size backstop for
-    # Dart-only PRs.
+    # Release-side safety (REL-13): the release workflow must never publish a
+    # debug-signed APK, so the release-signing check runs on every
+    # build-affecting push to main and on PRs from this repository when
+    # Android files change. PRs from forks cannot read secrets; android-size
+    # covers them on PR, and push to main still signs and size-checks after
+    # merge.
     needs: changes
     if: >-
-      (github.event_name == 'push' && needs.changes.outputs.build == 'true') ||
+      (github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      needs.changes.outputs.build == 'true') ||
       (github.event_name == 'pull_request' &&
       needs.changes.outputs.android == 'true' &&
       github.event.pull_request.head.repo.full_name == github.repository)
@@ -208,7 +335,9 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
-          cache: gradle
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           flutter-version: "3.47.9"
@@ -221,6 +350,7 @@ jobs:
           # (cargo --target-dir), not rust/target.
           workspaces: plugins/rhttp/rhttp/rust -> ../../../../build/rhttp/build
           shared-key: android
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - run: flutter pub get --enforce-lockfile
       - name: Decode release keystore
         env:
@@ -329,7 +459,9 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
-          cache: gradle
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+        with:
+          cache-read-only: true
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           flutter-version: "3.47.9"
@@ -342,6 +474,7 @@ jobs:
           # (cargo --target-dir), not rust/target.
           workspaces: plugins/rhttp/rhttp/rust -> ../../../../build/rhttp/build
           shared-key: android
+          save-if: "false"
       - run: flutter pub get --enforce-lockfile
       - name: Build fdroid split release
         run: |
@@ -372,7 +505,7 @@ jobs:
 
   plugin:
     needs: changes
-    if: needs.changes.outputs.plugin == 'true'
+    if: github.event_name == 'pull_request' && needs.changes.outputs.plugin == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -397,10 +530,10 @@ jobs:
         working-directory: plugins/rhttp/rhttp/rust
 
   android-unit:
-    # Kotlin JVM tests only: no Dart code is compiled, so Dart changes
-    # cannot affect them.
+    # Kotlin JVM tests only: skip Flutter's Dart/asset compilation tasks so
+    # this job tests Android native code without compiling lib/ twice.
     needs: changes
-    if: needs.changes.outputs.android == 'true'
+    if: github.event_name == 'pull_request' && needs.changes.outputs.android == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -408,7 +541,9 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
-          cache: gradle
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+        with:
+          cache-read-only: true
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           flutter-version: "3.47.9"
@@ -416,12 +551,18 @@ jobs:
           cache: true
       - run: flutter pub get --enforce-lockfile
       - run: flutter build apk --config-only --flavor fdroid
-      - run: ./gradlew --no-daemon :app:testGithubDebugUnitTest :app:testFdroidDebugUnitTest
+      - run: >-
+          ./gradlew --no-daemon
+          -x compileFlutterBuildGithubDebug
+          -x copyFlutterAssetsGithubDebug
+          -x compileFlutterBuildFdroidDebug
+          -x copyFlutterAssetsFdroidDebug
+          :app:testGithubDebugUnitTest :app:testFdroidDebugUnitTest
         working-directory: android
 
   deps-report:
     needs: changes
-    if: needs.changes.outputs.deps == 'true'
+    if: github.event_name == 'pull_request' && needs.changes.outputs.deps == 'true'
     runs-on: ubuntu-latest
     continue-on-error: true
     steps:

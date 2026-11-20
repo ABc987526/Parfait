@@ -4,50 +4,20 @@ import 'dart:math' as math;
 import 'package:material_ui/material_ui.dart';
 
 import '../../app/motion/app_overlays.dart';
+import '../../app/navigation/docked_search_contract.dart';
 import '../../app/theme/func_semantic_tokens.dart';
 import '../../app/widgets/page_header.dart';
 import '../../core/debug/frame_probe.dart';
 import '../../core/search/search_models.dart';
-import '../../core/search/search_shortcut.dart';
 import 'search_input_engine.dart'
     show SearchInputEngine, SearchInputEngineState;
 
-/// What the docked search panel decided when it closed.
-sealed class DockedSearchOutcome {
-  const DockedSearchOutcome();
-}
-
-/// The user searched [query]: the host moves to the results (R10).
-final class DockedSearchSubmitted extends DockedSearchOutcome {
-  const DockedSearchSubmitted(this.query);
-
-  final SearchQuery query;
-}
-
-/// The window narrowed to the phone layout: carry the draft to the full
-/// input page instead (R10). The keyword is exactly as typed — handing it
-/// over must not trim it — and the filter drafts come along too.
-final class DockedSearchNarrowed extends DockedSearchOutcome {
-  const DockedSearchNarrowed({
-    required this.keyword,
-    required this.type,
-    this.illustFilters,
-    this.novelFilters,
-  });
-
-  final String keyword;
-  final SearchResultType type;
-  final IllustSearchFilters? illustFilters;
-  final NovelSearchFilters? novelFilters;
-}
-
-/// What the draft names by id or link: the host opens it once the panel is
-/// out of the way (R10).
-final class DockedSearchShortcut extends DockedSearchOutcome {
-  const DockedSearchShortcut(this.shortcut);
-
-  final SearchShortcut shortcut;
-}
+export '../../app/navigation/docked_search_contract.dart'
+    show
+        DockedSearchNarrowed,
+        DockedSearchOutcome,
+        DockedSearchShortcut,
+        DockedSearchSubmitted;
 
 /// A docked panel is at least this wide, however narrow its trigger is.
 const double dockedSearchMinWidth = 360;

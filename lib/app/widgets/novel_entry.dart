@@ -6,7 +6,7 @@ import '../../core/mute/mute_store.dart';
 import '../../core/novel/novel_entity.dart';
 import '../../l10n/context.dart';
 import '../format/app_format.dart';
-import '../navigation/routes.dart';
+import '../navigation/route_facade.dart';
 import '../pixiv_image.dart';
 import '../theme/func_semantic_tokens.dart';
 import 'entity_row.dart';

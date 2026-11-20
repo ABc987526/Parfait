@@ -25,7 +25,7 @@ import '../../core/reverse_image/sauce_nao_provider.dart';
 import '../../core/reverse_image/webview_upload_provider.dart';
 import '../../core/errors/error_category.dart';
 import '../../core/settings/settings_controller.dart';
-import '../../app/navigation/routes.dart';
+import '../../app/navigation/route_facade.dart';
 import '../../app/widgets/app_menu_button.dart';
 import '../../app/widgets/app_progress_bar.dart';
 import '../../app/widgets/app_snack_bar.dart';
@@ -37,7 +37,7 @@ import '../../app/motion/reveal.dart';
 import '../../app/theme/func_semantic_tokens.dart';
 import '../../app/widgets/app_choice_chip.dart';
 import '../../app/layout/content_widths.dart';
-import '../../app/window/desktop_command_bar.dart';
+import '../../app/window/desktop_command_bar_scope.dart';
 import '../../app/icons/app_icons.dart';
 import '../../app/icons/ui_icons.dart';
 

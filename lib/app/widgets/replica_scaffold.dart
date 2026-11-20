@@ -1,7 +1,7 @@
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 
-import '../window/desktop_command_bar.dart' show DesktopCommandBarScope;
+import '../window/desktop_command_bar_scope.dart' show DesktopCommandBarScope;
 import 'app_top_bar.dart';
 
 class ReplicaScaffold extends StatelessWidget {

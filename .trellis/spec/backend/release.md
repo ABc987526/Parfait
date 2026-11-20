@@ -60,11 +60,13 @@ reviewed: 2026-11-14
 
 ### REL-03 Size gate thresholds live in the workflows
 - **Rule:** `tool/apk_size_report.py` fails on an APK carrying another ABI
-  or exceeding its threshold; arm64 also has a hard cap of 32,000,000
-  bytes. Thresholds are the `PIXIV_APK_MAX_BYTES_*` defaults, identical in
+  or exceeding its threshold and emits a `::warning::` when headroom falls
+  below 500,000 bytes; arm64 also has a hard cap of 32,000,000 bytes.
+  Thresholds are the `PIXIV_APK_MAX_BYTES_*` defaults, identical in
   `ci.yml` and `release.yml`. Release-signed size checks need the secrets
   and must not be bypassed; the fdroid `android-size` job is for forks.
-- **Why:** Diverging caps let a release fail after CI passed.
+- **Why:** Diverging caps let a release fail after CI passed; low-headroom
+  warnings flag approaching limits before a release PR blocks.
 - **Check:** `tool/apk_size_report.py`
 - **Code:** `tool/apk_size_report.py`, `.github/workflows/ci.yml`
 
@@ -143,17 +145,26 @@ reviewed: 2026-11-14
 - **Check:** manual
 - **Code:** `.github/workflows/windows.yml`, `.github/workflows/linux.yml`, `.github/workflows/apple.yml`, `.github/workflows/ci.yml`
 
-### REL-13 Dart-only PRs skip the APK build; main is the size backstop
-- **Rule:** User decision: on PRs, `android-release`, `android-size` and
-  `android-unit` run only when the `android` path filter matches (Android,
-  plugins, assets, pubspec, toolchain, workflows, the size script). Every
-  build-affecting push to `main` still builds, signs and size-checks the
-  APK. When that check fails on `main`, the next PR fixes it before
-  anything else merges. A script that a build job calls joins the filter.
-- **Why:** The release build set the PR wall clock at 7–9 minutes while
-  Dart changes almost never move the APK past its cap.
+### REL-13 Branch lanes, Android PR gating, and main as the size backstop
+- **Rule:** User decision: `dev` is the long-lived integration branch
+  (protected against deletion and force-push on GitHub); task branches
+  merge into `dev` via `--no-ff`, and `dev -> main` opens a milestone PR.
+  On PRs, `analyze`, `workflows-and-secrets`, and full `test` shards run
+  (`analyze-and-test` required), while `android-release`, `android-size`,
+  `android-unit` (skipping Flutter Dart/asset tasks), and `plugin` run
+  only when their path filters match. Pushes to `dev` run `analyze`,
+  `workflows-and-secrets`, and a single-runner `test-dev` pass. Pushes to
+  `main` skip redundant tests/lints (already proven by strict PR checks)
+  and run `android-release` on every build-affecting merge as the official
+  signing and size backstop (covering Dart-only and fork PRs). Gradle and
+  Rust Android caches write only from `main` (`setup-gradle`
+  `cache-read-only` / `rust-cache` `save-if`), and nightly `linux.yml`
+  prunes stale PR caches older than 24h so repo cache stays below 10 GB.
+- **Why:** Re-running 7 test shards on `push: main`, compiling Dart inside
+  `android-unit`, and duplicating 1.35 GB PR Gradle caches caused 10 GB
+  cache eviction thrashing and ~11 min Android rebuilds.
 - **Check:** manual
-- **Code:** `.github/workflows/ci.yml`
+- **Code:** `.github/workflows/ci.yml`, `.github/workflows/linux.yml`
 
 ## Toolchain
 

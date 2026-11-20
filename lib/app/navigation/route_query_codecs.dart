@@ -1,38 +1,49 @@
-part of 'routes.dart';
+import 'package:go_router/go_router.dart';
+
+import '../../core/bookmark/bookmark_models.dart';
+import '../../core/illust/ranking_repository.dart';
+import '../../core/illust/recommended_repository.dart';
+import '../../core/network/api_date.dart';
+import '../../core/new/new_feed_models.dart';
+import '../../core/novel/novel_repository.dart';
+import '../../core/search/search_models.dart';
+import '../../core/user/user_repository.dart';
 
 /// `?mode=` of the ranking routes; null (absent or unknown) lets the page
 /// open on the last category viewed.
-RankingMode? _rankingMode(String? raw) => RankingMode.values.asNameMap()[raw];
+RankingMode? rankingModeFromQuery(String? raw) =>
+    RankingMode.values.asNameMap()[raw];
 
-NovelRankingMode? _novelRankingMode(String? raw) =>
+NovelRankingMode? novelRankingModeFromQuery(String? raw) =>
     NovelRankingMode.values.asNameMap()[raw];
 
 /// `?date=` of the ranking routes: anything but a pickable past day is the
 /// latest ranking.
-DateTime? _rankingDate(GoRouterState state) =>
+DateTime? rankingDateFromState(GoRouterState state) =>
     rankingDateOrLatest(parseApiDate(state.uri.queryParameters['date']));
 
-Map<String, String> _rankingQueryParameters(String mode, DateTime? date) => {
+Map<String, String> rankingQueryParameters(String mode, DateTime? date) => {
   'mode': mode,
   if (date != null) 'date': formatApiDate(date),
 };
 
-RecommendedContentType _recommendedType(String? raw) =>
+RecommendedContentType recommendedTypeFromQuery(String? raw) =>
     RecommendedContentType.values.firstWhere(
       (type) => type.name == raw,
       orElse: () => RecommendedContentType.illust,
     );
 
-NewFeedScope _newFeedScope(String? raw) => switch (raw?.toLowerCase()) {
+NewFeedScope newFeedScopeFromQuery(String? raw) => switch (raw?.toLowerCase()) {
   'everyone' || 'all' => NewFeedScope.everyone,
   'mypixiv' || 'my_pixiv' => NewFeedScope.myPixiv,
   'following' || 'follow' || _ => NewFeedScope.following,
 };
 
-SearchResultType _searchType(String? raw) => SearchResultType.values.firstWhere(
-  (value) => value.name == raw,
-  orElse: () => SearchResultType.illust,
-);
+SearchResultType searchTypeFromQuery(String? raw) =>
+    SearchResultType.values.firstWhere(
+      (value) => value.name == raw,
+      orElse: () => SearchResultType.illust,
+    );
 
 /// Extracts the active `(keyword, type)` pair when [uri] points at a search
 /// results or tag feed route, or `null` on any other location.
@@ -40,7 +51,7 @@ SearchResultType _searchType(String? raw) => SearchResultType.values.firstWhere(
   if (uri.path.endsWith('/search/results')) {
     return (
       keyword: uri.queryParameters['q'] ?? '',
-      type: _searchType(uri.queryParameters['type']),
+      type: searchTypeFromQuery(uri.queryParameters['type']),
     );
   }
   final segments = uri.path.split('/');
@@ -53,7 +64,10 @@ SearchResultType _searchType(String? raw) => SearchResultType.values.firstWhere(
       } on FormatException {
         keyword = rawTag;
       }
-      return (keyword: keyword, type: _searchType(uri.queryParameters['type']));
+      return (
+        keyword: keyword,
+        type: searchTypeFromQuery(uri.queryParameters['type']),
+      );
     }
   }
   return null;
@@ -191,9 +205,9 @@ NovelSearchFilters _novelSearchFilters(GoRouterState state) {
   );
 }
 
-SearchQuery _searchQuery(GoRouterState state) {
+SearchQuery searchQueryFromState(GoRouterState state) {
   final keyword = state.uri.queryParameters['q'] ?? '';
-  return switch (_searchType(state.uri.queryParameters['type'])) {
+  return switch (searchTypeFromQuery(state.uri.queryParameters['type'])) {
     SearchResultType.illust => IllustSearchQuery(
       keyword: keyword,
       filters: _illustSearchFilters(state),
@@ -222,7 +236,7 @@ Map<String, String> _sharedFilterQueryParams(SearchFilters filters) => {
   if (filters.bookmarkMax != null) 'bmax': '${filters.bookmarkMax}',
 };
 
-Map<String, String> _searchQueryParameters(SearchQuery query) => {
+Map<String, String> searchQueryParameters(SearchQuery query) => {
   'q': query.keyword,
   'type': query.type.name,
   ...switch (query) {
@@ -260,19 +274,19 @@ SearchRatioPattern? _searchRatio(String? raw) {
   return null;
 }
 
-BookmarkRestrict _bookmarkRestrictFromQuery(String? restrict) =>
+BookmarkRestrict bookmarkRestrictFromQuery(String? restrict) =>
     restrict == BookmarkRestrict.private.name
     ? BookmarkRestrict.private
     : BookmarkRestrict.public;
 
 /// Illustrations unless the location names novels: older locations carry
 /// no kind.
-BookmarkEntityType _bookmarkKindFromQuery(String? kind) =>
+BookmarkEntityType bookmarkKindFromQuery(String? kind) =>
     kind == BookmarkEntityType.novel.name
     ? BookmarkEntityType.novel
     : BookmarkEntityType.illust;
 
-BookmarkRestrict _bookmarkRestrictFromUser(UserRestrict restrict) =>
+BookmarkRestrict bookmarkRestrictFromUser(UserRestrict restrict) =>
     switch (restrict) {
       UserRestrict.public => BookmarkRestrict.public,
       UserRestrict.private => BookmarkRestrict.private,

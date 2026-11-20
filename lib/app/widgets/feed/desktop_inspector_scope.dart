@@ -3,8 +3,8 @@ import 'package:flutter/widgets.dart';
 
 import '../../../core/entity/illust_entity.dart';
 import '../../../core/settings/app_settings.dart';
-import '../../window/desktop_command_bar.dart';
-import 'feed_grid.dart';
+import '../../window/desktop_command_bar_scope.dart';
+import 'illust_pager_source.dart';
 
 /// Minimum viewport width required to mount the desktop side inspector cleanly.
 const double desktopInspectorMinWidth = 1040;
@@ -81,4 +81,57 @@ class DesktopInspectorScope extends InheritedWidget {
       enabled != oldWidget.enabled ||
       !identical(selectedId, oldWidget.selectedId) ||
       onInspect != oldWidget.onInspect;
+}
+
+/// Coordinates system back / Esc inside an embedded detail inspector so an
+/// active sub-mode (page download selection or comment composer) dismisses
+/// before its outer host closes the inspector pane.
+class IllustEmbeddedBackController {
+  bool Function()? handler;
+
+  bool handleBack() => handler?.call() ?? false;
+}
+
+/// Factory that builds the desktop side detail inspector panel without
+/// coupling feed widgets directly to `features/illust/detail/`.
+typedef DesktopGalleryInspectorBuilder =
+    Widget Function({
+      required DesktopInspectorTarget target,
+      required double panelWidth,
+      required bool active,
+      required IllustEmbeddedBackController backController,
+      required VoidCallback onClose,
+      required ValueChanged<IllustEntity> onOpenStage,
+    });
+
+DesktopGalleryInspectorBuilder? _desktopGalleryInspectorBuilder;
+
+/// Whether a desktop gallery inspector builder has been registered.
+bool get hasDesktopGalleryInspector => _desktopGalleryInspectorBuilder != null;
+
+/// Registers the desktop gallery inspector builder once from router assembly.
+void registerDesktopGalleryInspector(DesktopGalleryInspectorBuilder builder) {
+  _desktopGalleryInspectorBuilder = builder;
+}
+
+/// Builds the registered desktop gallery inspector panel, or `null` when none
+/// is registered (e.g. a narrow unit test without the full app router).
+Widget? buildDesktopGalleryInspector({
+  required DesktopInspectorTarget target,
+  required double panelWidth,
+  required bool active,
+  required IllustEmbeddedBackController backController,
+  required VoidCallback onClose,
+  required ValueChanged<IllustEntity> onOpenStage,
+}) {
+  final builder = _desktopGalleryInspectorBuilder;
+  if (builder == null) return null;
+  return builder(
+    target: target,
+    panelWidth: panelWidth,
+    active: active,
+    backController: backController,
+    onClose: onClose,
+    onOpenStage: onOpenStage,
+  );
 }

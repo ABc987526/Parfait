@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/widgets/danger_filled_button.dart';
 import '../../../app/motion/app_overlays.dart';
 import '../../../app/motion/removal.dart';
-import '../../../app/navigation/routes.dart' show openLogin;
+import '../../../app/navigation/route_facade.dart';
 import '../../../app/person_avatar.dart';
 import '../../../app/theme/func_semantic_tokens.dart';
 import '../../../app/widgets/app_dialog.dart';

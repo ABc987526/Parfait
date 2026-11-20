@@ -3,10 +3,11 @@ prefix: TEST
 applies_to:
   - test/**
   - tool/test_shards.py
+  - tool/affected_tests.py
   - tool/test_budget.py
   - tool/test_budget.json
   - dart_test.yaml
-reviewed: 2026-11-14
+reviewed: 2026-11-21
 ---
 
 # Tests
@@ -181,22 +182,24 @@ reviewed: 2026-11-14
 
 ## Test environment traps
 
-### TEST-06 CI shards whole files
+### TEST-06 CI shards whole files; local gate resolves the Dart import graph
 - **Rule:** CI gives each shard whole test files through
   `tool/test_shards.py`; never use `flutter test --total-shards`. Every
-  file under `test/` ending in `_test.dart` lands in exactly one shard. A
-  case still sets up its own state, so `--plain-name` runs it alone.
-  Locally `tool/gate.sh` runs the analyze job's checks, the architecture
-  scans in `test/architecture/` and the test files that changed or import
-  a changed file (`tool/gate.sh --fast` skips the reverse-import scan during
-  iteration); the whole suite runs in CI.
-- **Why:** `--total-shards` splits cases inside every file, so each shard
-  compiled and loaded almost the whole suite and extra shards bought
-  little; case-level splitting also broke cases that relied on an earlier
-  one. Seven shards finish in about three minutes; the suite run file by
-  file locally takes about twenty.
-- **Check:** `tool/test_shards.py`
-- **Code:** `tool/test_shards.py`, `tool/gate.sh`, `.github/workflows/ci.yml`
+  file under `test/` ending in `_test.dart` lands in exactly one shard on
+  PRs; pushes to `dev` run a fast affected-test pass and pushes to `main`
+  rely on the strict PR gate. Locally `tool/gate.sh` runs static checks,
+  `test/architecture/` scans, and the transitive tests selected by
+  `tool/affected_tests.py` (following `import`, `export`, `part`/`part of`,
+  subdirectory `flutter_test_config.dart`, `.arb`, `assets/icon.ttf`, and
+  `test/fixtures/**`, skipping Dart checks on pure docs/tooling diffs)
+  under a bounded concurrency cap (`GATE_TEST_CONCURRENCY`, default 4
+  under 4G and 6 under 8G). `tool/gate.sh --fast` skips fan-out during
+  iteration.
+- **Why:** `--total-shards` made each shard compile almost the whole
+  suite; direct grep missed `part of` and helper hops, while uncapped
+  `-j 10` on a 20-thread host triggered silent `frontend_server` OOMs.
+- **Check:** `tool/test_shards.py`, `tool/affected_tests.py`
+- **Code:** `tool/test_shards.py`, `tool/affected_tests.py`, `tool/gate.sh`, `.github/workflows/ci.yml`
 
 ### TEST-07 Loopback sockets retry; databases get their own path
 - **Rule:** A test that binds or connects to `127.0.0.1` wraps its body in

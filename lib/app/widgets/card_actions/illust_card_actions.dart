@@ -15,7 +15,7 @@ import '../../../l10n/app_localizations.dart';
 import '../../../l10n/context.dart';
 import '../../clipboard.dart';
 import '../../haptics/app_haptics.dart';
-import '../../navigation/routes.dart';
+import '../../navigation/route_facade.dart';
 import '../app_snack_bar.dart';
 import '../errors/error_details.dart';
 import '../undo_snack_bar.dart';

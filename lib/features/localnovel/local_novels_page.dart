@@ -9,7 +9,7 @@ import '../../app/haptics/app_haptics.dart';
 import '../../app/layout/content_widths.dart';
 import '../../app/motion/app_overlays.dart';
 import '../../app/motion/removal.dart';
-import '../../app/navigation/routes.dart';
+import '../../app/navigation/route_facade.dart';
 import '../../app/pull_to_refresh.dart';
 import '../../app/widgets/app_dialog.dart';
 import '../../app/widgets/app_menu_button.dart';

@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:parfait/app/motion/hero_transition.dart';
-import 'package:parfait/app/widgets/feed/feed_grid.dart';
+import 'package:parfait/app/widgets/feed/illust_pager_source.dart';
 import 'package:parfait/app/widgets/feed/illust_card.dart';
 import 'package:parfait/core/auth/account_store.dart';
 import 'package:parfait/core/auth/credential.dart';

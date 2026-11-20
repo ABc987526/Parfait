@@ -4,15 +4,15 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../core/debug/trace_marks.dart';
 import '../layout/app_breakpoints.dart';
+import '../layout/form_factor.dart';
 import '../theme/func_semantic_tokens.dart';
 import 'fit_label.dart';
-import 'page_header.dart';
 import 'scroll_edge_fade.dart';
 
 /// The single entry point for top-of-page tab rows (D3). Labels always
 /// render at the themed size — they are never shrunk to fit. When the
 /// widest label fits every equal slot, the row divides the width evenly —
-/// on a wide window ([PageHeader.isWide], the shell's larger forms) each
+/// on a wide window (where the shell shows its rail, the shell's larger forms) each
 /// slot at most [maxSlotWidth], or the widest label if that is wider, with
 /// the row kept at the start edge, even on a row narrower than
 /// [AppBreakpoints.medium]; a phone always splits its row in full.
@@ -133,8 +133,10 @@ class AppTabBar extends StatelessWidget implements PreferredSizeWidget {
           (widest + _labelPadding.horizontal).ceilToDouble(),
         );
         final width = slot * labels.length;
-        if ((!PageHeader.isWide(context) &&
-                constraints.maxWidth < AppBreakpoints.medium) ||
+        final isWide = FormFactor.of(
+          context,
+        ).hasRail(MediaQuery.sizeOf(context).width);
+        if ((!isWide && constraints.maxWidth < AppBreakpoints.medium) ||
             constraints.maxWidth <= width) {
           return bar;
         }

@@ -6,7 +6,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../app/haptics/app_haptics.dart';
-import '../../app/navigation/routes.dart';
+import '../../app/widgets/feed/desktop_inspectable_gallery.dart';
 import '../../app/widgets/app_menu_button.dart';
 import '../../app/widgets/app_tab_bar.dart';
 import '../../app/widgets/app_top_bar.dart';

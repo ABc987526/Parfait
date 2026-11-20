@@ -13,7 +13,7 @@ import '../../core/auth/account_store.dart';
 import '../../core/entity/comment_entity.dart';
 import '../../core/entity/illust_store.dart';
 import '../../core/novel/novel_store.dart';
-import '../../app/navigation/routes.dart';
+import '../../app/navigation/route_facade.dart';
 import '../../app/widgets/comment_text.dart';
 import '../../app/widgets/inline_translation.dart';
 import '../../l10n/context.dart';

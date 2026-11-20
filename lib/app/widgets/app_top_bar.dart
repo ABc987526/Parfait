@@ -7,7 +7,7 @@ import '../motion/hero_transition.dart'
 import '../motion/motion_tokens.dart';
 import '../system_ui.dart';
 import '../theme/func_semantic_tokens.dart';
-import '../window/desktop_command_bar.dart' show DesktopCommandBarScope;
+import '../window/desktop_command_bar_scope.dart' show DesktopCommandBarScope;
 import 'app_tab_bar.dart';
 import 'artwork_controls.dart';
 

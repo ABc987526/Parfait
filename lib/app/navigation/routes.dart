@@ -5,62 +5,44 @@ import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
-import '../haptics/app_haptics.dart';
-import '../widgets/feed/feed_text_warmup.dart';
 import '../../core/auth/account_store.dart';
-import '../../core/bookmark/bookmark_models.dart';
 import '../../core/debug/trace_marks.dart';
 import '../../core/entity/comment_entity.dart';
-import '../../core/network/api_date.dart';
 import '../../core/entity/illust_entity.dart';
-import '../image_tier_cache.dart';
 import '../../core/entity/illust_store.dart';
 import '../../core/illust/illust_detail_controller.dart';
 import '../../core/navigation/home_destination.dart';
 import '../../core/navigation/route_observer.dart';
-import '../../core/illust/ranking_repository.dart';
-import '../../core/illust/recommended_repository.dart';
 import '../../core/new/new_feed_models.dart';
 import '../../core/novel/novel_entity.dart';
-import '../../core/novel/novel_repository.dart' hide NovelPage;
 import '../../core/novel/novel_store.dart';
 import '../../core/platform/intent_router.dart';
-import '../../core/profile/profile_models.dart';
 import '../../core/reverse_image/image_input.dart';
-import '../../core/search/search_models.dart';
-import '../../core/search/search_shortcut.dart';
 import '../../core/settings/app_settings.dart';
 import '../../core/settings/settings_controller.dart';
-import '../../core/user/user_repository.dart';
 import '../../features/bookmark/bookmark_tags_page.dart';
-import '../../features/profile/bookmark_tag_feed_page.dart';
 import '../../features/comments/comments_page.dart';
 import '../../features/history/history_page.dart';
-import '../../features/novel/local_novel_reader_page.dart';
-import '../../features/localnovel/local_novels_page.dart';
-import '../../features/watchlater/watchlater_page.dart';
-import '../../features/novel/novel_markers_page.dart';
-import '../../features/watchlist/watchlist_page.dart';
 import '../../features/home/home_page.dart';
 import '../../features/home/recommended/recommended_home_page.dart';
 import '../../features/illust/detail/illust_detail_page.dart';
 import '../../features/illust/detail/illust_detail_pager_page.dart';
+import '../../features/illust/detail/widgets/desktop_gallery_inspector.dart';
 import '../../features/illust/detail/widgets/detail_overlay_frame.dart';
-import '../../features/illust/detail/widgets/info_block.dart';
 import '../../features/illust/viewer/image_viewer_page.dart';
+import '../../features/localnovel/local_novels_page.dart';
 import '../../features/login/login_page.dart';
 import '../../features/login/login_webview_page.dart';
 import '../../features/new/new_page.dart';
+import '../../features/novel/local_novel_reader_page.dart';
+import '../../features/novel/novel_markers_page.dart';
 import '../../features/novel/novel_page.dart';
 import '../../features/novel/novel_series_page.dart';
 import '../../features/onboarding/language_page.dart';
 import '../../features/onboarding/user_agreement_page.dart';
 import '../../features/onboarding/welcome_page.dart';
+import '../../features/profile/bookmark_tag_feed_page.dart';
 import '../../features/profile/profile_edit_page.dart';
-import '../../features/profile/profile_filter_bar.dart';
-import '../../features/profile/profile_illust_feed.dart';
-import '../../features/profile/profile_novel_feed.dart';
-import '../../features/profile/profile_user_feed.dart';
 import '../../features/profile/user_page.dart';
 import '../../features/ranking/novel_ranking_page.dart';
 import '../../features/ranking/ranking_page.dart';
@@ -70,45 +52,61 @@ import '../../features/search/search_page.dart';
 import '../../features/search/search_result_page.dart';
 import '../../features/search/tag_search_page.dart';
 import '../../features/series/illust_series_page.dart';
-import '../../features/spotlight/spotlight_article_page.dart';
-import '../../features/spotlight/spotlight_feed_page.dart';
-import '../../features/settings/network_probe_page.dart';
-import '../../features/settings/pages/frame_probe_page.dart';
-import '../../features/settings/network_settings_page.dart';
 import '../../features/settings/me_dashboard_page.dart';
+import '../../features/settings/network_probe_page.dart';
+import '../../features/settings/network_settings_page.dart';
+import '../../features/settings/pages/frame_probe_page.dart';
+import '../../features/settings/pages/translation_credentials_page.dart';
 import '../../features/settings/settings_catalog.dart' show focusQuery;
 import '../../features/settings/settings_page.dart';
-import '../widgets/settings/settings_anchor.dart';
-import '../../features/settings/pages/translation_credentials_page.dart';
+import '../../features/spotlight/spotlight_article_page.dart';
+import '../../features/spotlight/spotlight_feed_page.dart';
+import '../../features/watchlater/watchlater_page.dart';
+import '../../features/watchlist/watchlist_page.dart';
 import '../../l10n/context.dart';
+import '../image_tier_cache.dart';
 import '../motion/hero_transition.dart';
 import '../motion/motion_tokens.dart';
-import 'forward_history.dart';
-import 'func_page.dart';
-import '../pixiv_image.dart';
 import '../startup_gate.dart';
-import '../widgets/app_snack_bar.dart';
-import '../layout/form_factor.dart';
-import '../widgets/home_branch_stack.dart';
-import '../widgets/feed/feed_grid.dart';
+import '../widgets/feed/desktop_inspector_scope.dart';
 import '../widgets/feed/feed_states.dart' show FeedError;
 import '../widgets/func_bottom_nav.dart';
+import '../widgets/home_branch_stack.dart';
+import '../widgets/settings/settings_anchor.dart';
+import 'docked_search_contract.dart';
+import 'forward_history.dart';
+import 'func_page.dart';
+import 'route_extras.dart';
+import 'route_facade.dart';
+import 'route_query_codecs.dart';
+import 'route_search_facade.dart';
 
-export '../../features/history/history_page.dart' show HistoryPage;
-export '../../features/illust/detail/widgets/desktop_gallery_inspector.dart'
-    show DesktopGalleryInspector, DesktopInspectableGallery;
-export '../../features/localnovel/local_novels_page.dart' show LocalNovelsPage;
-export '../../features/novel/novel_markers_page.dart' show NovelMarkersPage;
-export '../../features/watchlater/watchlater_page.dart' show WatchLaterPage;
-export '../../features/watchlist/watchlist_page.dart' show WatchlistPage;
+export 'route_extras.dart';
+export 'route_facade.dart';
+export 'route_query_codecs.dart';
+export 'route_search_facade.dart';
 
 part 'route_branches.dart';
-part 'route_extras.dart';
-part 'route_facade.dart';
-part 'route_query_codecs.dart';
-part 'route_search_facade.dart';
 
 GoRouter createPixivRouter({String initialLocation = '/splash'}) {
+  registerDockedSearchPresenter(showDockedSearch);
+  registerDesktopGalleryInspector(
+    ({
+      required target,
+      required panelWidth,
+      required active,
+      required backController,
+      required onClose,
+      required onOpenStage,
+    }) => DesktopGalleryInspector(
+      target: target,
+      panelWidth: panelWidth,
+      active: active,
+      backController: backController,
+      onClose: onClose,
+      onOpenStage: onOpenStage,
+    ),
+  );
   final appRootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
   final recommendedNavigatorKey = GlobalKey<NavigatorState>(
     debugLabel: 'recommended',
@@ -280,7 +278,9 @@ GoRouter createPixivRouter({String initialLocation = '/splash'}) {
             branchIndex: 0,
             home: const RecommendedHomePage(),
             homeBuilder: (context, state) => RecommendedHomePage(
-              initialType: _recommendedType(state.uri.queryParameters['type']),
+              initialType: recommendedTypeFromQuery(
+                state.uri.queryParameters['type'],
+              ),
               onTypeChanged: (type) => replaceRecommendedType(context, type),
             ),
             navigatorKey: recommendedNavigatorKey,
@@ -295,8 +295,10 @@ GoRouter createPixivRouter({String initialLocation = '/splash'}) {
             branchIndex: 1,
             home: const RankingPage(),
             homeBuilder: (context, state) => RankingPage(
-              initialMode: _rankingMode(state.uri.queryParameters['mode']),
-              date: _rankingDate(state),
+              initialMode: rankingModeFromQuery(
+                state.uri.queryParameters['mode'],
+              ),
+              date: rankingDateFromState(state),
               onRouteChanged: (mode, date) =>
                   replaceRankingMode(context, mode, date),
             ),
@@ -312,7 +314,9 @@ GoRouter createPixivRouter({String initialLocation = '/splash'}) {
             branchIndex: 2,
             home: const NewPage(),
             homeBuilder: (context, state) => NewPage(
-              initialScope: _newFeedScope(state.uri.queryParameters['scope']),
+              initialScope: newFeedScopeFromQuery(
+                state.uri.queryParameters['scope'],
+              ),
               onScopeChanged: (scope) => replaceNewFeed(context, scope),
             ),
             navigatorKey: newNavigatorKey,
@@ -402,42 +406,4 @@ Future<void> routeExternalIntent(
     case IgnoredAndroidIntent():
       break;
   }
-}
-
-/// Opens the download tasks screen from process-level triggers (tray menu).
-void openDownloadsFromRouter(GoRouter router, {bool? rail}) {
-  final path = _livePathOf(router);
-  if (_isPreHomePath(path)) return;
-  if (path == '/downloads' || path.endsWith('/downloads')) return;
-  final effectiveRail = rail ?? _hasRailFromRouter(router);
-  unawaited(
-    router.push<void>(
-      _appPageLocation(router, 'downloads', rail: effectiveRail),
-    ),
-  );
-}
-
-String _livePathOf(GoRouter router) {
-  try {
-    return router.state.uri.path;
-  } on Object {
-    final config = router.routerDelegate.currentConfiguration;
-    if (config.isNotEmpty) return config.uri.path;
-    return router.routeInformationProvider.value.uri.path;
-  }
-}
-
-bool _isPreHomePath(String path) =>
-    path == '/' ||
-    path == '/splash' ||
-    path == '/user-agreement' ||
-    path == '/welcome' ||
-    path.startsWith('/welcome/') ||
-    path == '/login' ||
-    path.startsWith('/login/');
-
-bool _hasRailFromRouter(GoRouter router) {
-  final navContext = router.routerDelegate.navigatorKey.currentContext;
-  if (navContext == null) return false;
-  return FormFactor.of(navContext).hasRail(MediaQuery.sizeOf(navContext).width);
 }

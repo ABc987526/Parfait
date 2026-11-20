@@ -13,7 +13,7 @@ import '../layout/input_modality.dart';
 import '../theme/func_semantic_tokens.dart';
 import '../widgets/app_date_picker.dart';
 import '../widgets/prompt_host.dart';
-import '../window/desktop_command_bar.dart'
+import '../window/desktop_command_bar_scope.dart'
     show DesktopCommandBarScope, desktopCommandBarHeightFor;
 import '../window/desktop_title_bar.dart' show DesktopChromeMetrics;
 import 'motion_tokens.dart';

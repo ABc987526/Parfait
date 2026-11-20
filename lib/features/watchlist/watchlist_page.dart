@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/format/app_format.dart';
 import '../../app/layout/content_widths.dart';
 import '../../app/motion/app_overlays.dart';
-import '../../app/navigation/routes.dart';
+import '../../app/navigation/route_facade.dart';
 import '../../app/pull_to_refresh.dart';
 import '../../app/pixiv_image.dart';
 import '../../app/widgets/app_tab_bar.dart';

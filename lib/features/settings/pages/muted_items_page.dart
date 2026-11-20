@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/motion/removal.dart';
 import '../../../app/motion/state_fade.dart';
-import '../../../app/navigation/routes.dart';
+import '../../../app/navigation/route_facade.dart';
 import '../../../app/person_avatar.dart';
 import '../../../app/pixiv_image.dart';
 import '../../../app/theme/func_semantic_tokens.dart';
