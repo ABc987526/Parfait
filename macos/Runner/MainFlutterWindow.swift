@@ -175,6 +175,8 @@ final class MacosIntentBridge:
   private static let supportedSchemes: Set<String> = ["parfait", "pixiv"]
 
   private var initialUri: String?
+  private var pendingLiveUris: [String] = []
+  private var initialConsumed = false
   private var eventSink: FlutterEventSink?
   private var registered = false
 
@@ -193,12 +195,14 @@ final class MacosIntentBridge:
       }
       switch call.method {
       case "getInitialIntent":
+        self.initialConsumed = true
         if let uri = self.initialUri {
           self.initialUri = nil
           result(Self.viewPayload(for: uri))
         } else {
           result(["action": "android.intent.action.MAIN"])
         }
+        self.flushPendingLiveUrisIfReady()
       default:
         result(FlutterMethodNotImplemented)
       }
@@ -223,23 +227,46 @@ final class MacosIntentBridge:
     ]
   }
 
+  private func emit(uri: String) {
+    DispatchQueue.main.async { [weak self] in
+      guard let self else { return }
+      guard let sink = self.eventSink else {
+        self.pendingLiveUris.append(uri)
+        return
+      }
+      if let window = (NSApp.delegate as? FlutterAppDelegate)?.mainFlutterWindow
+        ?? NSApp.windows.first(where: { $0 is MainFlutterWindow }) {
+        if window.isMiniaturized {
+          window.deminiaturize(nil)
+        }
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+      }
+      sink(Self.viewPayload(for: uri))
+    }
+  }
+
+  private func flushPendingLiveUrisIfReady() {
+    guard initialConsumed || initialUri == nil else { return }
+    guard eventSink != nil, !pendingLiveUris.isEmpty else { return }
+    let queued = pendingLiveUris
+    pendingLiveUris.removeAll()
+    for uri in queued {
+      emit(uri: uri)
+    }
+  }
+
   private func recordIncoming(url: URL) -> Bool {
     guard Self.isSupportedUrl(url) else { return false }
     let uri = url.absoluteString
-    if let sink = eventSink {
-      DispatchQueue.main.async {
-        if let window = (NSApp.delegate as? FlutterAppDelegate)?.mainFlutterWindow
-          ?? NSApp.windows.first(where: { $0 is MainFlutterWindow }) {
-          if window.isMiniaturized {
-            window.deminiaturize(nil)
-          }
-          window.makeKeyAndOrderFront(nil)
-          NSApp.activate(ignoringOtherApps: true)
-        }
-        sink(Self.viewPayload(for: uri))
-      }
-    } else {
+    if !initialConsumed && initialUri == nil && eventSink == nil {
       initialUri = uri
+    } else if !initialConsumed && initialUri != nil {
+      pendingLiveUris.append(uri)
+    } else if eventSink != nil {
+      emit(uri: uri)
+    } else {
+      pendingLiveUris.append(uri)
     }
     return true
   }
@@ -257,6 +284,7 @@ final class MacosIntentBridge:
 
   func onListen(withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink) -> FlutterError? {
     self.eventSink = events
+    flushPendingLiveUrisIfReady()
     return nil
   }
 

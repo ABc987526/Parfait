@@ -27,7 +27,7 @@ REPO = Path(__file__).resolve().parent.parent
 SPEC_DIR = Path('.trellis/spec')
 
 SOFT_LINE_LIMIT = 300
-HARD_LINE_LIMIT = 500
+HARD_LINE_LIMIT = 400
 CONTENTS_THRESHOLD = 100
 MAX_EXAMPLE_LINES = 10
 REVIEW_MAX_AGE_DAYS = 90
@@ -55,16 +55,34 @@ ROOT_FILES = {
     'rust-toolchain.toml', 'AGENTS.md', 'CONTRIBUTING.md', 'NOTICE',
 }
 
-# Process records that do not belong in a public spec.
+# Process records and stale/internal implementation details that do not belong
+# in a public spec.
 FORBIDDEN = (
     (re.compile(r'\b20\d\d-\d\d(-\d\d)?\b'), 'a date'),
+    (re.compile(r'(?<![\w./-])(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])(?![\w/-]|\.\d)'),
+     'a bare MM-DD date'),
     (re.compile(r'\b\d\d-\d\d-[a-z][a-z0-9]*(-[a-z0-9]+)+'), 'a task name'),
     (re.compile(r'\.trellis/(tasks|workspace)|/root/|journal-\d'),
      'a private path'),
     (re.compile(r'(?<![\w/&])#\d+\b'), 'an issue or PR number'),
     (re.compile(r'\b(?=[0-9a-f]*\d)(?=[0-9a-f]*[a-f])[0-9a-f]{7,40}\b'),
      'a commit hash'),
+    (re.compile(r'\bIcons\.[a-zA-Z_]\w*'),
+     'a removed Material Icons.* reference'),
 )
+
+PRIVATE_SYMBOL_RE = re.compile(
+    r'^_[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*(?:\(\))?$'
+)
+ADJ_SINGLE_STR_RE = re.compile(r"(?<!\\)'(?:\s*//[^\n]*)*\s*'")
+ADJ_DOUBLE_STR_RE = re.compile(r'(?<!\\)"(?:\s*//[^\n]*)*\s*"')
+
+
+def normalize_dart_strings(text: str) -> str:
+    """Joins adjacent Dart string literals and unescapes quotes for matching."""
+    joined = ADJ_SINGLE_STR_RE.sub('', text)
+    joined = ADJ_DOUBLE_STR_RE.sub('', joined)
+    return joined.replace("\\'", "'").replace('\\"', '"')
 
 
 @dataclass
@@ -265,8 +283,16 @@ def check_text(spec: SpecFile, repo: Repo, report: Report) -> None:
             if hit:
                 report.error(at, f'contains {what}: "{hit.group(0)}"')
         for token in BACKTICK_RE.findall(line):
-            if is_repo_path(token) and not path_exists(repo, token):
-                report.error(at, f'path does not exist: {token}')
+            if is_repo_path(token):
+                if not path_exists(repo, token):
+                    report.error(at, f'path does not exist: {token}')
+            elif (
+                PRIVATE_SYMBOL_RE.match(token)
+                and not token.endswith('.dart')
+            ):
+                report.error(
+                    at, f'exposes a private Dart symbol: `{token}`'
+                )
         for target in LINK_RE.findall(line):
             if target.startswith(('http://', 'https://', '#')):
                 continue
@@ -377,9 +403,19 @@ def check_rule_fields(at: str, rule_id: str, body: list[tuple[int, str]],
         if not repo.exists(path):
             report.error(at, f'{rule_id} Check names a missing file: {path}')
             continue
-        # Dart sources escape apostrophes inside single-quoted test names.
-        text = repo.read(path).replace("\\'", "'") if path in repo.files else ''
-        for name in QUOTED_RE.findall(names):
+        quoted = QUOTED_RE.findall(names)
+        if path.endswith('_test.dart') and not quoted:
+            report.error(
+                at,
+                f'{rule_id} Check names {path} without a quoted test name',
+            )
+            continue
+        text = (
+            normalize_dart_strings(repo.read(path))
+            if path in repo.files
+            else ''
+        )
+        for name in quoted:
             if name not in text:
                 report.error(at, f'{rule_id} Check names a test that is not '
                              f'in {path}: "{name}"')
@@ -688,6 +724,17 @@ def self_test() -> int:
         ('a long example', append('\n```\n' + 'x\n' * 11 + '```\n'),
          'code block'),
         ('a file missing from the index', unlisted, 'does not list other.md'),
+        ('a bare MM-DD date', append('\nDecided on 10-21.\n'),
+         'bare MM-DD date'),
+        ('a removed Material Icons.* ref', append('\nUses `Icons.close`.\n'),
+         'Material Icons.*'),
+        ('a private Dart symbol', append('\nUses `_PrivateHelper`.\n'),
+         'private Dart symbol'),
+        ('whole-file Dart test Check', replace('"back goes home"', ''),
+         'without a quoted test name'),
+        ('multiline Dart test name matches', lambda files: files.update({
+            'test/nav_test.dart': "test('back '\n  'goes home', () {});",
+        }), None),
     ]
     failures = 0
     for name, edit, expected in cases:

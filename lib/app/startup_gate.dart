@@ -1,8 +1,5 @@
-import 'dart:async';
 import 'dart:convert';
-import 'dart:math' as math;
 import 'dart:typed_data';
-import 'dart:ui' as ui show FragmentProgram, FragmentShader;
 
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,7 +7,6 @@ import 'package:go_router/go_router.dart';
 
 import '../core/auth/account_store.dart';
 import '../core/errors/error_category.dart';
-import '../core/log.dart';
 import '../core/navigation/home_destination.dart';
 import '../core/settings/app_settings.dart';
 import '../l10n/lookup.dart';
@@ -227,10 +223,6 @@ class _StartupGateState extends ConsumerState<StartupGate> {
 /// ones are smooth. Painting an invisible clipped + transformed image (plus
 /// `replicaTheme`'s rounded-rect [InkHighlight] overlay) for the first few
 /// frames compiles those pipelines up front.
-///
-/// When a host theme opts into Material 3's [InkSparkle] shader (for example
-/// bare `MaterialApp` harnesses), its fragment program is also loaded once and
-/// drawn transparently so the first tap never stalls on shader compilation.
 class PipelineWarmup extends StatefulWidget {
   const PipelineWarmup({super.key, required this.child});
 
@@ -250,76 +242,9 @@ class _PipelineWarmupState extends State<PipelineWarmup> {
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
   );
 
-  /// The asset [InkSparkle] loads its program from.
-  static const _sparkleAsset = 'packages/material_ui/shaders/ink_sparkle.frag';
-
-  /// The program, loaded once per process and kept for good by the
-  /// future: dart:ui caches programs only weakly, and [InkSparkle] has to
-  /// get this one, whose pipeline is compiled, not a second copy.
-  static Future<ui.FragmentProgram>? _sparkleProgram;
-
-  static const _sparkleSize = Size.square(8);
-
-  /// Sets [InkSparkle]'s uniforms to draw nothing: no colour, no alpha, and
-  /// no zero divisor. By name, as [InkSparkle] sets them: a renamed or
-  /// reordered uniform throws here instead of drawing a stray ripple.
-  static void _setInvisibleSparkle(ui.FragmentShader shader) {
-    shader.getUniformVec4('u_color').set(0, 0, 0, 0);
-    // Alpha, sparkle alpha, blur, radius scale.
-    shader.getUniformVec4('u_composite_1').set(0, 0, 1, 1);
-    shader.getUniformVec2('u_center').set(4, 4);
-    shader.getUniformFloat('u_max_radius').set(4);
-    shader.getUniformVec2('u_resolution_scale').set(1 / 8, 1 / 8);
-    shader.getUniformVec2('u_noise_scale').set(1, 1);
-    shader.getUniformFloat('u_noise_phase').set(0);
-    for (final circle in ['u_circle1', 'u_circle2', 'u_circle3']) {
-      shader.getUniformVec2(circle).set(0, 0);
-    }
-    for (final rotation in ['u_rotation1', 'u_rotation2', 'u_rotation3']) {
-      shader.getUniformVec2(rotation).set(1, 0);
-    }
-  }
-
-  ui.FragmentShader? _sparkle;
-
   @override
   void initState() {
     super.initState();
-    _tick();
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (_sparkleProgram != null ||
-        Theme.of(context).splashFactory != InkSparkle.splashFactory) {
-      return;
-    }
-    final program = _sparkleProgram = ui.FragmentProgram.fromAsset(
-      _sparkleAsset,
-    );
-    unawaited(
-      program.then(
-        _warmSparkle,
-        onError: (Object error) => log('PipelineWarmup: ink sparkle: $error'),
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    _sparkle?.dispose();
-    super.dispose();
-  }
-
-  void _warmSparkle(ui.FragmentProgram program) {
-    if (!mounted) return;
-    final shader = program.fragmentShader();
-    _setInvisibleSparkle(shader);
-    setState(() {
-      _sparkle = shader;
-      _framesLeft = math.max(_framesLeft, 1);
-    });
     _tick();
   }
 
@@ -330,9 +255,7 @@ class _PipelineWarmupState extends State<PipelineWarmup> {
       _ticking = false;
       if (!mounted || _framesLeft <= 0) return;
       setState(() {
-        if (--_framesLeft > 0) return;
-        _sparkle?.dispose();
-        _sparkle = null;
+        _framesLeft--;
       });
       _tick();
     });
@@ -340,7 +263,6 @@ class _PipelineWarmupState extends State<PipelineWarmup> {
 
   @override
   Widget build(BuildContext context) {
-    final sparkle = _sparkle;
     final highlight = Theme.of(context).highlightColor;
     return Stack(
       // The content stays the first child, laid out as without the Stack:
@@ -387,45 +309,9 @@ class _PipelineWarmupState extends State<PipelineWarmup> {
             child: ClipRect(child: Image.memory(_pixel, width: 8, height: 8)),
           ),
         ],
-        // On screen and over the content: the shader draws transparent,
-        // and a draw under an opaque page may be dropped unrendered.
-        if (sparkle != null)
-          Positioned(
-            left: 0,
-            top: 0,
-            child: CustomPaint(
-              size: _sparkleSize,
-              painter: _SparkleWarmupPainter(sparkle),
-            ),
-          ),
       ],
     );
   }
-}
-
-/// Draws the ripple shader as [InkSparkle] does on a card, a rect inside
-/// the card's rounded clip. Takes no taps.
-class _SparkleWarmupPainter extends CustomPainter {
-  const _SparkleWarmupPainter(this.shader);
-
-  final ui.FragmentShader shader;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rect = Offset.zero & size;
-    canvas
-      ..save()
-      ..clipRRect(FuncShape.card.toRRect(rect))
-      ..drawRect(rect, Paint()..shader = shader)
-      ..restore();
-  }
-
-  @override
-  bool shouldRepaint(_SparkleWarmupPainter oldDelegate) =>
-      shader != oldDelegate.shader;
-
-  @override
-  bool hitTest(Offset position) => false;
 }
 
 /// Neutral cold-start surface and the router's initial location.

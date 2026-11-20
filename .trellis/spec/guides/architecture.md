@@ -39,7 +39,7 @@ reviewed: 2026-11-21
   `_*Status` or `_*Placeholder` widgets that duplicate the component layer.
 - **Why:** Feature-local copies of feed states and follow buttons drifted
   apart and kept their own follow booleans.
-- **Check:** `test/architecture/layering_and_hygiene_test.dart`
+- **Check:** `test/architecture/layering_and_hygiene_test.dart` "lib import graph respects layering rules (allow-list must shrink to empty)"
 - **Code:** `lib/app/widgets`, `lib/core`
 
 ### ARCH-03 Every cross-layer contract has one owner

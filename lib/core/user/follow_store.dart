@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../auth/account_store.dart';
-import '../mutation/mutation_boundary.dart';
+import '../mutation/account_scoped_mutation_store.dart';
 import '../mutation/mutation_models.dart';
 import '../network/api_error.dart';
 import 'follow_models.dart';
@@ -11,49 +10,13 @@ import 'follow_models.dart';
 /// User cards and profile headers observe confirmed state here. Each pending
 /// operation is fenced by the account, credential and network revision that
 /// created it; a late response can therefore never update another account.
-class FollowStore extends Notifier<Map<int, FollowEntry>> {
-  final MutationLedger _ledger = MutationLedger();
-  MutationBoundary? _boundary;
-
-  /// The revision the current account boundary began at: remote snapshots
-  /// captured before it belong to the previous account and are dropped.
-  int _boundaryRevision = 0;
-  bool _built = false;
-  bool _disposeRegistered = false;
-
+class FollowStore extends Notifier<Map<int, FollowEntry>>
+    with AccountScopedMutationStore<Map<int, FollowEntry>> {
   @override
   Map<int, FollowEntry> build() {
-    if (_ledger.isDisposed) {
-      _ledger.reopen();
-      _disposeRegistered = false;
-    }
-    ref.watch(
-      accountStoreProvider.select((async) {
-        final account = async.value;
-        // C1: the stable account id is the invalidate boundary; a token
-        // refresh or profile metadata update keeps the same store valid.
-        return account?.usableCurrent?.id;
-      }),
-    );
-    final current = readMutationBoundary(ref);
-    if (_boundary != null && !sameMutationBoundary(_boundary, current)) {
-      _invalidateBoundary(current, settleState: false);
-    }
-    _boundary = current;
-    if (!_disposeRegistered) {
-      _disposeRegistered = true;
-      ref.onDispose(() {
-        _ledger.dispose();
-        _built = false;
-      });
-    }
-    _built = true;
+    initAccountBoundary();
     return {};
   }
-
-  int revisionNow() => _ledger.revisionNow;
-
-  List<MutationDiscardEvent> get discardEvents => _ledger.discardEvents;
 
   FollowEntry? entryOf(int userId) => state[userId];
 
@@ -71,8 +34,8 @@ class FollowStore extends Notifier<Map<int, FollowEntry>> {
     FollowRestrict restrict,
   ) {
     if (userId <= 0) throw const FormatException('userId must be positive');
-    final boundary = _requireBoundary();
-    final envelope = _ledger.begin(
+    final boundary = requireBoundary();
+    final envelope = ledger.begin(
       boundary: boundary,
       entityType: 'user',
       entityId: '$userId',
@@ -125,7 +88,7 @@ class FollowStore extends Notifier<Map<int, FollowEntry>> {
     if (!_owns(operation)) return;
     final added = operation.kind == FollowOperationKind.add;
     final wish = state[operation.userId]?.wish;
-    _ledger.finish(operation.envelope);
+    ledger.finish(operation.envelope);
     state = {
       ...state,
       operation.userId: FollowEntry(
@@ -149,9 +112,9 @@ class FollowStore extends Notifier<Map<int, FollowEntry>> {
         operation.cancelToken.isCancelled ||
         previous?.wish != (operation.kind == FollowOperationKind.add);
     if (cancelled) {
-      _ledger.discard(operation.envelope, MutationDiscardReason.cancelled);
+      ledger.discard(operation.envelope, MutationDiscardReason.cancelled);
     } else {
-      _ledger.finish(operation.envelope);
+      ledger.finish(operation.envelope);
     }
     if (previous?.pending?.envelope != operation.envelope) return;
     state = {
@@ -168,7 +131,7 @@ class FollowStore extends Notifier<Map<int, FollowEntry>> {
 
   bool cancel(FollowOperation operation) {
     if (!_owns(operation)) return false;
-    _ledger.discard(operation.envelope, MutationDiscardReason.cancelled);
+    ledger.discard(operation.envelope, MutationDiscardReason.cancelled);
     final previous = state[operation.userId];
     if (previous?.pending?.envelope != operation.envelope) return false;
     state = {
@@ -220,7 +183,7 @@ class FollowStore extends Notifier<Map<int, FollowEntry>> {
     Iterable<FollowSnapshot> snapshots, {
     int? snapshotRevision,
   }) {
-    if (snapshotRevision != null && snapshotRevision < _boundaryRevision) {
+    if (snapshotRevision != null && snapshotRevision < boundaryRevision) {
       return;
     }
     Map<int, FollowEntry>? next;
@@ -269,48 +232,15 @@ class FollowStore extends Notifier<Map<int, FollowEntry>> {
     );
   }
 
-  bool _owns(FollowOperation operation) {
-    if (!_ledger.isActive(operation.envelope)) return false;
-    final current = readMutationBoundary(ref);
-    _boundary = current;
-    final reason = mutationBoundaryReason(operation.envelope, current);
-    if (reason != null) {
-      _ledger.discard(operation.envelope, reason);
-      _setCancelled(operation);
-      return false;
-    }
-    final entry = state[operation.userId];
-    if (entry?.pending?.envelope != operation.envelope) {
-      _ledger.discard(operation.envelope, MutationDiscardReason.stale);
-      return false;
-    }
-    return true;
-  }
+  bool _owns(FollowOperation operation) => ownsMutation(
+    operation.envelope,
+    isPendingOwner: () =>
+        state[operation.userId]?.pending?.envelope == operation.envelope,
+    onBoundaryCancelled: () => _setCancelled(operation),
+  );
 
-  MutationBoundary _requireBoundary() {
-    final current = readMutationBoundary(ref);
-    if (current == null) {
-      throw const ApiUnauthorized('no signed-in account');
-    }
-    if (_boundary != null && !sameMutationBoundary(_boundary, current)) {
-      _invalidateBoundary(current, settleState: _built);
-    }
-    _boundary = current;
-    return current;
-  }
-
-  void _invalidateBoundary(
-    MutationBoundary? current, {
-    required bool settleState,
-  }) {
-    final reason = _boundary == null || current == null
-        ? MutationDiscardReason.accountChanged
-        : _boundary!.accountId != current.accountId
-        ? MutationDiscardReason.accountChanged
-        : MutationDiscardReason.accountChanged;
-    _boundaryRevision = _ledger.advance();
-    _ledger.cancelAll(reason);
-    if (!settleState) return;
+  @override
+  void settlePendingOnBoundaryInvalidated() {
     final next = <int, FollowEntry>{...state};
     for (final item in next.entries) {
       if (!item.value.isUnsettled) continue;

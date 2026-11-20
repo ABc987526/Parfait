@@ -644,12 +644,7 @@ List<RouteBase> _settingsSubRoutes(
             context,
             state,
             observer,
-            FutureBuilder<PackageInfo>(
-              future: PackageInfo.fromPlatform(),
-              builder: (context, snapshot) => LicensesSettingsPage(
-                applicationVersion: snapshot.data?.version,
-              ),
-            ),
+            const _VersionedLicensesSettingsPage(),
           ),
         ),
       ],
@@ -970,4 +965,14 @@ class _RememberedIllustState extends State<_RememberedIllust>
 
   @override
   Widget build(BuildContext context) => widget.builder(_shown.value, _remember);
+}
+
+class _VersionedLicensesSettingsPage extends ConsumerWidget {
+  const _VersionedLicensesSettingsPage();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final version = ref.watch(packageInfoProvider).asData?.value.version;
+    return LicensesSettingsPage(applicationVersion: version);
+  }
 }

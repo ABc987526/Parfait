@@ -9,7 +9,7 @@ applies_to:
   - lib/app/widgets/feed/illust_card*.dart
   - lib/features/illust/**
   - android/app/src/main/AndroidManifest.xml
-reviewed: 2026-11-20
+reviewed: 2026-11-21
 ---
 
 # Page transitions, back gesture and Hero flights
@@ -23,450 +23,143 @@ reviewed: 2026-11-20
 ## Page transitions and back
 
 ### TRANS-01 Per-platform page transitions
-- **Rule:** Pushed routes in `FuncPage` use platform-appropriate motion while
-  preserving `TurnCurve` mid-push reversal, leaving-route touch blocking
-  (`IgnorePointer`), root-shell secondary motion when covered, and the
-  `ReducedMotion` instant collapse (`TRANS-01`):
-  - **Android:** slides from the trailing edge with `CupertinoPageTransition`
-    and `TurnCurve` over `MotionTokens.pageTransition` (500ms); system back
-    never drives an in-app partial drag.
-  - **iOS:** same `CupertinoPageTransition` slide over
-    `MotionTokens.pageTransition` (500ms), plus interactive left-edge swipe
-    back (TRANS-02).
-  - **Desktop (Windows / macOS / Linux):** lightweight fade + subtle horizontal
-    slide over `MotionTokens.desktopPageTransition` (150ms), collapsing to
-    instant under `ReducedMotion`.
-  - There is no transition setting and no hand-written per-feature route
-    transition; a stored `pageTransitionStyle` is ignored and not written back.
-    Shared-element pages keep their dedicated transition (TRANS-09).
-- **Why:** Mobile users expect spatial Cupertino slides, whereas pointer
-  desktop navigation feels sluggish behind a 500ms full-width slide and needs
-  a crisp 150ms fade+slide. `TurnCurve` ensures reversing a mid-flight push
-  turns smoothly without stalling, and `ReducedMotion` keeps state changes
-  immediate.
+- **Rule:** `FuncPage` uses `CupertinoPageTransition` + `TurnCurve` over `MotionTokens.pageTransition` (500 ms) on Android and iOS (plus iOS edge-swipe, TRANS-02), and a 150 ms `MotionTokens.desktopPageTransition` fade+slide on Desktop, collapsing to instant under `ReducedMotion` while keeping leaving-route `IgnorePointer` and covered-shell motion. No user transition setting or per-feature route transition exists; legacy `pageTransitionStyle` is ignored. Shared-element pages use TRANS-09.
+- **Why:** Matches mobile spatial slides and snappy desktop navigation while handling mid-push reversal smoothly.
 - **Check:** `test/func_page_test.dart` "a page slides in from the trailing edge over the page below" "back mid-push turns the slide where it is; the page below answers" "desktop uses the lightweight 150ms fade-and-slide transition and respects reduced motion"; `test/navigation_router_test.dart` "openDownloadTasks lands on /downloads; the shell moves aside"; `test/pop_snapshot_paint_test.dart` "a TurnCurve goes on from where it turns, on the other curve"; `test/app_settings_test.dart` "values saved by older versions carry over; retired keys are never"
 - **Code:** `lib/app/navigation/func_page.dart`, `lib/app/motion/motion_tokens.dart`, `lib/core/settings/app_settings.dart`
 
 ### TRANS-02 iOS edge-swipe gesture and pager coexistence
-- **Rule:** Never install `CupertinoPageTransitionsBuilder` or
-  `CupertinoPageRoute` directly. Instead, on **iOS only**, `FuncPage` attaches
-  a custom 24dp leading-edge back gesture detector inside
-  `CupertinoPageTransition` that only begins when all of the following hold:
-  1) the drag starts within the leading 24dp edge zone (plus safe-area edge
-     padding) and moves inward,
-  2) the route `isCurrent`, not a `fullscreenDialog`, and its branch/route
-     `TickerMode` is visible/enabled,
-  3) `popGestureEnabled` is true (`canPop` / no active `PopScope(canPop: false)`
-     dirty-form guard and no internal local history pop pending).
-  Android and desktop do not attach this gesture detector (`handleStartBackGesture`
-  stays false).
-- **Why:** `CupertinoPageTransitionsBuilder` injects a global edge recognizer
-  without branch visibility awareness and can steal horizontal drags inside
-  `DetailImagePager` or `PageView`. Restricting detection to iOS, the leading
-  24dp inward edge zone, active visible routes, and `canPop` enables native
-  iOS swipe-back while protecting horizontal pagers, `PopScope` confirmations
-  (TRANS-03), and offstage shell branches (TRANS-04).
+- **Rule:** Never install `CupertinoPageTransitionsBuilder` or `CupertinoPageRoute` directly. On iOS only, `FuncPage` attaches a 24dp leading-edge inward back detector gated on `isCurrent`, non-`fullscreenDialog`, active branch `TickerMode`, and `popGestureEnabled` (`canPop`, no `PopScope(canPop: false)`). Android and desktop keep `handleStartBackGesture` false.
+- **Why:** Protects horizontal pagers, dirty-form `PopScope` guards (TRANS-03), and offstage branches (TRANS-04) while enabling native iOS swipe-back.
 - **Check:** `test/func_page_test.dart` "iOS edge-swipe pops active visible route from left 24dp edge without stealing pager drags" "iOS edge-swipe respects PopScope dirty-form guard and stays off on offstage branches"
 - **Code:** `lib/app/navigation/func_page.dart`
 
 ### TRANS-03 Back uses PopScope.onPopInvokedWithResult
-- **Rule:** Pages handle back with `PopScope.onPopInvokedWithResult`;
-  `WillPopScope` is not used and `enableOnBackInvokedCallback` stays on. A
-  page with unsaved edits reports a non-pop disposition, so back, the
-  button or the gesture, shows its discard confirmation.
-- **Why:** The system's back-to-home animation needs the callback model;
-  a dirty page must not be swiped away.
+- **Rule:** Pages use `PopScope.onPopInvokedWithResult` (never `WillPopScope`), keeping `enableOnBackInvokedCallback` enabled and blocking pops when unsaved edits need confirmation.
+- **Why:** Supports Android predictive back-to-home without discarding dirty forms.
 - **Check:** `test/func_page_test.dart` "a dirty profile editor confirms on the back gesture instead of popping"
 - **Code:** `lib/features/profile/profile_edit_page.dart`
 
 ### TRANS-04 The back gesture is the back button
-- **Rule:** No route or binding observer takes the system back gesture
-  (`handleStartBackGesture` returns false everywhere): nothing follows the
-  finger, a cancel does nothing, and the commit reaches
-  `handlePopRoute`, the back button's path. That path pops only the
-  visible branch's page, or the root-level page covering the shell. Do
-  not add `PredictiveBackPageTransitionsBuilder` or a gesture driver.
-- **Why:** User decision (10-20): no in-app gesture-following back. A
-  route following the gesture had to gate itself on branch visibility
-  (parked branches keep an `isCurrent` route offstage and popped a page
-  the user could not see) and release the Navigator when a commit threw;
-  the back button's path already does both. Upheld 11-05 and 11-20: in-app
-  predictive-back previews clashed with the app's custom slide, Hero, and
-  sheet transitions on device and were reverted.
+- **Rule:** No route or observer takes the Android/desktop system back gesture (`handleStartBackGesture` returns false); commits route through `handlePopRoute`, popping only the visible branch or root overlay. Never add `PredictiveBackPageTransitionsBuilder`.
+- **Why:** User decision: in-app predictive-back previews conflicted with custom slide, Hero, sheet, and offstage-branch transitions.
 - **Check:** `test/func_page_test.dart` "only the visible branch answers the back gesture" "a root-level page owns the gesture over the whole shell"
 - **Code:** `lib/app/navigation/func_page.dart`
 
 ### TRANS-06 Transitions snapshot only what does not move live
-- **Rule:** Every transition runs inside `FuncTransitionGuard`: entering
-  and covered pages paint live with running tickers; a popping page and a
-  settled reveal paint one snapshot each. A reveal is settled 650ms after
-  its cover began (Android's ink sparkle runs 617ms from the tap); a
-  finger down on a revealing page turns it live until the reveal ends. A
-  page under a shared-element page (`underSharedElement`), the home shell
-  under the viewer included, is never frozen: it stays live while the
-  image flies.
-- **Why:** Re-rendering the leaving page every frame dropped frames;
-  freezing the entering page froze its entrances. A detail page frozen
-  under the viewer's return flight could not be scrolled or tapped to any
-  visible effect until the image had landed. A swipe on a revealed page
-  showed only once the reveal ended, and a sparkle frozen mid-fade went
-  at once at its end (10-24).
+- **Rule:** `FuncTransitionGuard` keeps entering and covered pages live while snapshotting popping pages and settled reveals (settled 650 ms after cover began so press feedback finishes; touching a revealing page turns it live immediately). Pages under shared-element routes (`underSharedElement`, including the home shell under the viewer) stay live throughout flights.
+- **Why:** Snapshotting leaving pages saves raster cost without freezing entering animations, return-flight interaction, or active touch responses.
 - **Check:** `test/func_page_test.dart` "the entering page stays live while a transition runs"; `test/pop_snapshot_paint_test.dart` "a finger on a settled reveal turns it live until it ends" "a reveal inside the press window keeps the page live"; `test/hero_transition_test.dart` "the viewer leaves whole and square; the detail page answers mid-flight"
 - **Code:** `lib/app/motion/page_transitions.dart`
 
 ## Hero flights
 
 ### TRANS-07 Hero tags are scoped per surface; only the branch on screen pairs
-- **Rule:** The only Hero tags are `illustHeroTag(scope, id)`. Each mounted
-  surface uses its own stable scope (the history page `'history'`, the Me
-  row `'me-history'`), and the card and the detail route it opens share
-  scope and id. A route without a matching source uses the normal
-  transition; it never fakes a source. `HomeBranchStack` wraps every
-  branch but the current one in `HeroMode(enabled: false)`.
-- **Why:** The same work in two mounted feeds flew from the wrong card. A
-  route on the root navigator (the viewer) collects the Heroes of every
-  branch's top page; the same work open in a branch out of sight shared
-  the tag, and in release the last one collected won: the image flew to
-  where the hidden branch had it, read by the user as "the history's
-  place" (10-21).
+- **Rule:** All Hero tags use `illustHeroTag(scope, id)` with stable per-surface scopes (`'history'`, `'me-history'`, etc.); routes without a matching source skip Hero cleanly; `HomeBranchStack` wraps inactive branches in `HeroMode(enabled: false)`.
+- **Why:** Prevented root overlays like the viewer from flying to matching cards in hidden branches.
 - **Check:** `test/architecture/ui_conventions_test.dart` "Hero uses only the shared illustHeroTag family", `test/hero_transition_test.dart` "the viewer pairs only with the branch on screen"
 - **Code:** `lib/app/motion/hero_transition.dart`, `lib/app/widgets/home_branch_stack.dart`
 
 ### TRANS-08 Opening a work never waits for the image
-- **Rule:** A card may start `PixivImage.preload` on pointer down but pushes
-  the detail route without awaiting it. The detail page's first frame
-  renders from `initialEntity` and the card's preview URL, loaded through
-  the same worker entry as the card.
-- **Why:** Awaiting preload delayed every tap; a different first URL made
-  the Hero start from a placeholder.
+- **Rule:** Cards may start `PixivImage.preload` on pointer-down but push immediately; the detail page's first frame paints `initialEntity` using the card's preview URL and worker entry.
+- **Why:** Awaiting preload delayed taps and mismatched URLs flashed placeholders.
 - **Check:** `test/hero_transition_test.dart` "a top-square card flies its square over the whole work; the page image "; `test/pixiv_image_pipelines_test.dart` "a preload lands on the entry of the widget that will show"
 - **Code:** `lib/app/widgets/feed/illust_card.dart`
 
 ### TRANS-09 Shared-element pages cover a still page, then show
-- **Rule:** A page opened with a Hero is `FuncPage(sharedElement: true)`
-  and does not move: `MotionTokens.sharedElement` (450ms), no slide, no
-  barrier colour, the page below still and live. With its background
-  (`sharedElementBackdrop`, the detail) two layers run off the
-  controller: opening, the background (`scaffoldBackgroundColor`) covers
-  the page below over `sharedElementBackdropIn`, then the content fades in
-  over `sharedElementContentIn`, painted at the faintest alpha (1/255)
-  from the opening's second frame until then; leaving, the content fades out over
-  `sharedElementContentOut`, then the background over
-  `sharedElementBackdropOut`. The viewer has no background: its stage
-  fades whole (`_Primed` on `sharedElementFadeIn` with `reverseCurve: Curves.easeInOutCubic`). A leave that cuts an opening
-  short takes each layer down from the opacity it reached (`TurnCurve`).
-  The Hero flies on `illustHeroCurve`, `MotionTokens.spatialCurve`
-  turning with its route, set as `curve` and `reverseCurve` on the ends
-  in the page that opens or leaves (a flight reads that end's curve), so
-  an image sent back mid-flight goes home from where it is. A leaving page takes
-  no touch, so the page below answers while the image flies. An opening
-  page takes none until its content has shown, and its barrier takes
-  that touch, so the page below gets none either. While a
-  landed page leaves, `HeroLiftHole` cuts the flying image's spot out of
-  its content, so what is under the content shows there; an opening page
-  has none. The viewer's endpoint (`IllustHeroFlightChild.containsImage`)
-  cuts nothing. Under a page pushed on top it slides like any page. A
-  page that is leaving keeps the page it was on (`didChangePrevious` is
-  ignored once it is not active), so two backs in a row leave the page
-  under the shared-element page still. The
-  transition's widget structure never changes over the route's life. A
-  detail pager aims each settled work's back flight
-  (`IllustPagerSource.aimHomeFlight`): a card with nothing on screen takes
-  no flight. Do not refuse the transition (`canTransitionTo` false).
-- **Why:** User decision (10-20): the detail's content laid half
-  transparent over the feed read as odd; the Hero stays. A slide moves
-  both ends of the flight while the image crosses between them.
-  Shared-element transitions on Android, iOS (zoom) and in Flutter's
-  Wonderous keep the page below still. One curve played backwards held
-  the leaving page until the image had nearly landed; switching curves
-  mid-opening dropped a half-shown page in one frame; a flight sent back
-  retraced the opening curve (10-24). The viewer's dark
-  stage covers the page below by itself, and a drag to dismiss it reveals
-  that page. A changed transition widget type reparents the page's
-  GlobalKey subtree and rebuilds the whole page in that frame. Hero pairs
-  by tag alone, so a card built in the cache extent pulled the image in
-  from off the screen. Refusing the transition stopped the secondary
-  animation, so the bottom bar appeared over the leaving page. A hole in
-  the viewer read as a sharp-edged window that did not fade with the
-  stage. Content at alpha 0 is not painted, so its whole page of text was
-  first drawn when its fade began, mid-flight: a raster frame of 12–20ms
-  stalled the image on every opening (10-24). The Navigator announces the
-  route below both to a page still leaving when the page under it leaves
-  too (`suitableForAnnouncement` keeps popping routes); taking it handed
-  the leaving page's slide to the feed under the detail, which slid in
-  from a third of the way across while the image landed (10-26). A
-  second tap on the card fell on the opening page's content, still
-  unseen, and opened the viewer over the flying image (10-31).
+- **Rule:** Hero pages use `FuncPage(sharedElement: true)` (`MotionTokens.sharedElement` 450 ms, no slide, still live underlying page): detail pages layer `sharedElementBackdrop` (`sharedElementBackdropIn`/`Out`) then content (`sharedElementContentIn`/`Out`, primed at 1/255 alpha from frame 1 so text rasterizes before reveal); viewer fades whole (`sharedElementFadeIn`, `Curves.easeInOutCubic` reverse). Reversals use `TurnCurve`; Hero uses `illustHeroCurve`; leaving pages ignore touches and `didChangePrevious`; opening pages block touches until visible; landed detail exits punch `HeroLiftHole` (viewer does not); `IllustPagerSource.aimHomeFlight` skips offscreen cards. Never change transition widget structure or set `canTransitionTo: false`.
+- **Why:** User decision: clean backdrop-then-content reveal without raster stalls, offscreen flights, double-tap viewer launches, or sliding underlying feeds on double-back.
 - **Check:** `test/func_page_test.dart` "a shared-element page covers a still page" "the viewer stage fades whole, with no background" "two backs in a row leave the page under the shared-element"; `test/hero_transition_test.dart` "the viewer leaves whole and square; the detail page answers mid-flight" "an image sent back mid-flight turns where it is"; `test/architecture/ui_conventions_test.dart` "Hero uses only the shared illustHeroTag family"; `test/illust_card_badges_test.dart` "the pager image flies back only to a card on screen"
 - **Code:** `lib/app/navigation/func_page.dart`, `lib/app/navigation/routes.dart`, `lib/app/motion/hero_transition.dart`, `lib/app/widgets/feed/feed_grid.dart`
 
 ### TRANS-10 The card page's bars ride over a card flight; other flights clip
-- **Rule:** A card's flight to and from its page (an `IllustHeroCardFrame`
-  end) lifts the card page's bars over the image: the bands of the page
-  above and below the card's viewport, across the page, captured as the
-  flight takes off (the screen before a push, the card's page on a pop).
-  They slide off the screen as the image opens, the top one up and the
-  bottom one down, each by its own height, and back as it returns, by the
-  image's progress; each keeps its background (the page colour) solid and
-  fades its content with the slide. The image is clipped at the far end
-  alone. Meanwhile a real bar that is a `LiftableBar` (the top bar, the
-  bottom navigation, the user page's header and tab strip) paints
-  nothing, and the card's viewport, with the clips above it up to the
-  card's page that end on a band's inner edge (a tab body's stack, the
-  pull-to-refresh's path clip: missed, it cut every refreshable feed flat
-  under the sliding bar, 11-05), lets its content paint into the bands: the page under a bar shows until the
-  lifted copy slides over it. The shared-element page's `HeroBarsCover`,
-  over its background and under its content, paints the rest of a band
-  (no `LiftableBar` as wide) in the page colour. Bars, clips and cover
-  come back as the flight ends, where the lifted ones rest, in the frame
-  that drops the lifted copies: the shuttle releases them when it is
-  deactivated, in that frame's build, not in `dispose`, after its paint
-  (the bars flashed out for a frame, 11-05). A shuttle moved mid-flight
-  with a GlobalKey (a branch navigator across a layout breakpoint) lifts
-  again after that frame's layout: its endpoints attach only after
-  `activate`. A bar's shadow over the content beside it is a `LiftableShadow`:
-  the lifted bar casts it (the one whose inner edge meets the band's),
-  and the real one holds off while its page's bars are lifted. "Its
-  page" is the card's route and every route holding the card's
-  Navigator: the home shell's bottom bar floats over a branch on the
-  shell's route, and the branch page's copy appears only a frame after
-  takeoff. Other flights use a global clip between the source and
-  destination chrome boundaries, interpolated by how much the
-  shared-element page over the card's route covers it (its background,
-  or the whole page without one), or over the route holding
-  the card's navigator (the viewer on the root navigator over a branch's
-  detail page; `HeroPageCover`, the more opaque of a leaving page and its
-  reopened successor; `boundedOverlayOnWide` routes skip `_LiftedBars.capture`
-  so underlying feed bars stay put while `DetailOverlayFrame` drives
-  `HomeShellModalScrim` from `RouteAnimationScope.of(context)` and
-  `!(route?.isFirst ?? true)` for continuous 0.0-start and monotonic-decay
-  scrim progress), by flight
-  progress where no page registered one. Flight progress (radius, the
-  cropped part's reveal) is read off the shuttle's size between the two
-  ends, not the route animation. Ignore horizontal route transforms, and
-  use a conservative chrome fallback when an endpoint is offstage. Chrome
-  drawn over a Hero image (card badges, the detail top bar, page counter
-  and action bar) is `HeroChrome`: while a flight runs, the chrome its
-  ends overlap is hidden, including that of a page opened while the
-  image flew home, and fades in (`stateFade`) once the image has landed.
-  Chrome that hides what is under it stays (`HeroChrome.holdable`), and
-  the flight is clipped below it: the detail top bar steps aside only
-  while see-through, its status strip never. An end's status inset is
-  the flight overlay's, not the page's (zeroed behind or below an app
-  bar); the viewer's end (`IllustHeroFlightChild.edgeToEdge`) has no top
-  chrome. Tests inspect the render-time clip.
-- **Why:** Artwork covered app bars and the bottom bar, or was cut hard on
-  landing; slide transforms made the boundary empty. The page covers the
-  page below over the first part of the flight while the image flies on, so a clip that
-  followed the image left it over the tab row and the bottom bar of a
-  feed already shown. On a card flight no clip read right (user, 10-24,
-  after three prototypes): a bar that only fades either cut the image
-  along a line nobody could see or let it fly over the bar before the bar
-  showed. Google's Jetsnack keeps its bars over the shared element and
-  slides them away (`renderInSharedTransitionScopeOverlay` with
-  `animateEnterExit`). A whole bar fading over the image showed the image
-  through it, split in two; its solid background does not. Only the bands
-  are captured, so the takeoff frame rasterizes two strips, not a page.
-  Without the shadow the image met the lifted bottom bar with a hard edge
-  and the real shadow stayed at the rest line, popping back on landing
-  (10-26). A cover over the whole bands opened a blank strip between
-  each sliding bar and the feed on a return, the feed cut flat along it
-  (11-04). A card opened again while its image flew home
-  sends the flight to the new page but keeps the shuttle, built with the
-  old route's animation, which stops: the clip and the corners froze at
-  the card end and the tab row cut the image on the detail page. The
-  shuttle is painted over every page, so chrome on the image was covered
-  as a flight set off and popped back whole at the landing, and badges
-  floated over the card's empty slot. Between the work page and the
-  viewer (11-04), the image jumped under the status icons at takeoff, a
-  half-drawn bar vanished over an empty band where the image stayed cut,
-  and the viewer's end was cut by a status strip it does not have: the
-  ends' insets came from the pages' own MediaQuery.
-- **Check:** `test/hero_lifted_bars_test.dart` "a card flight lifts the card page's bars over the image" (with their shadows) "a card flight shows the feed under the bars it lifts, and ", `test/hero_transition_test.dart` "Hero pop flight is occluded by the chrome" "Hero push from a nested feed stays intact" "chrome over a flight steps aside until the landing" "detail and viewer: the clip runs between the work page's top ", `test/home_branch_stack_test.dart` "wide HomePage modal scrim starts at 0.0 on frame 0 and decays monotonically on pop or interrupt"
+- **Rule:** Card flights (`IllustHeroCardFrame`) capture top/bottom bar bands (with `LiftableShadow`) and slide them off/on with solid backgrounds while hiding real `LiftableBar`s and unclipping viewport bounds, releasing on shuttle `deactivate` (re-lifting if reparented). `boundedOverlayOnWide` routes skip bar capture and drive `HomeShellModalScrim` continuously from `RouteAnimationScope.of(context)`. Other flights interpolate global chrome clips via `HeroPageCover` using shuttle geometry and flight-overlay status insets (`edgeToEdge` viewer has no top chrome). `HeroChrome` hides overlapping artwork chrome until landing (`holdable` opaque bars clip below).
+- **Why:** User decision: keeps bars riding naturally over card flights without hard mid-bar cuts, 1-frame bar flashes, or status-inset jumps between detail and viewer.
+- **Check:** `test/hero_lifted_bars_test.dart` "a card flight lifts the card page's bars over the image" "a card flight shows the feed under the bars it lifts, and ", `test/hero_transition_test.dart` "Hero pop flight is occluded by the chrome" "Hero push from a nested feed stays intact" "chrome over a flight steps aside until the landing" "detail and viewer: the clip runs between the work page's top ", `test/home_branch_stack_test.dart` "wide HomePage modal scrim starts at 0.0 on frame 0 and decays monotonically on pop or interrupt"
 - **Code:** `lib/app/motion/hero_rect_clip.dart`, `lib/app/motion/hero_transition.dart`, `lib/app/motion/hero_lifted_bars.dart`, `lib/app/navigation/func_page.dart`, `lib/app/widgets/func_bottom_nav.dart`, `lib/app/widgets/app_top_bar.dart`, `lib/features/profile/profile_header_delegate.dart`
 
 ### TRANS-11 Card rounding lives inside the Hero child
-- **Rule:** The card's corner clip (`IllustHeroCardFrame`) wraps the Hero
-  child with a clean `ClipRRect(borderRadius: FuncShape.card)` (no inner
-  thumbnail border in either theme per THEME-20). Only a flight with a card end rounds its corners;
-  detail ↔ viewer flies square. A card that shows
-  only part of the image (the top of a taller one, the middle of a wider
-  one) hands its `cropAspect` to the flight, which lays the image out
-  covering the rect, top-aligned and centered across, and cuts it to the
-  rect for the whole flight, the way an uncropped card's image fills it
-  (user decision: like any other Hero).
-- **Why:** A clip outside the Hero snapped from square to rounded on pop;
-  fitting the image inside the rect mid-flight read as a second shrink.
-  A radius lerped by flight progress rounded the square detail ↔ viewer
-  flight on its way. Fading in the part the card hid made the history
-  row's flights look unlike every other one.
+- **Rule:** `IllustHeroCardFrame` clips inside the Hero child (`ClipRRect(FuncShape.card)`, no inner border per THEME-20); only card-ended flights round corners (detail <-> viewer stays square). Cropped cards pass `cropAspect` so the flight covers and clips cleanly like uncropped Heroes.
+- **Why:** Outer clips snapped corners on pop and lerping radii rounded detail-to-viewer flights.
 - **Check:** `test/hero_transition_test.dart` "a cropped image covers its flight rect; both sides keep pace"
 - **Code:** `lib/app/widgets/feed/illust_card.dart`, `lib/features/settings/me_dashboard_page.dart`, `lib/app/motion/hero_transition.dart`
 
 ### TRANS-20 Artwork flights scale both sides together
-- **Rule:** Every artwork Hero (feed card, history cover, detail page,
-  ugoira, viewer) sets `createRectTween: illustHeroRectTween`: the center
-  rides Material's arc, width and height follow one progress. The Hero
-  that receives the flight picks the tween, so all of them carry it.
-- **Why:** Material's default arcs two opposite corners. Between rects of
-  different size and shape one side lands long before the other: an 88dp
-  history cover reached its width, then shrank a step more in height.
+- **Rule:** Every artwork Hero sets `createRectTween: illustHeroRectTween` so center arcs while width and height interpolate together.
+- **Why:** Material's default corner-arc tween made dissimilar shapes finish width before height.
 - **Check:** `test/hero_transition_test.dart` "a cropped image covers its flight rect; both sides keep pace"; `test/settings_test.dart` "a recent cover flies to its work and back, an unseen one not"
 - **Code:** `lib/app/motion/hero_transition.dart`
 
 ### TRANS-22 A flight keeps the card's image until it lands
-- **Rule:** A detail endpoint shows the card's preview (`heroImageUrl`,
-  a top square over its copy: TRANS-23) until its route's opening
-  completes; the page's own URL takes over
-  after the landing. Pages read their route's transition through
-  `RouteAnimationScope.of`, where `FuncPage` provides its controller, not
-  `ModalRoute.animation`.
-- **Why:** A flight takes the destination Hero's child once, from the
-  frame a Hero measures the opening page in, offstage. There the route's
-  `ModalRoute.animation` proxy reads `completed`, so a detail URL already
-  known in that frame (a cached payload) was built into the flight: the
-  image changed file mid-flight, and an ultra-long work's narrow `large`
-  replaced the card's sharp square (10-25).
+- **Rule:** Detail Hero endpoints keep `heroImageUrl` until the route animation from `RouteAnimationScope.of` completes (never reading `ModalRoute.animation`), then switch to the detail URL.
+- **Why:** `ModalRoute.animation` read `completed` during offstage Hero measurement and swapped URLs mid-flight.
 - **Check:** `test/hero_transition_test.dart` "a top-square card flies its square over the whole work; the page image "
 - **Code:** `lib/app/navigation/func_page.dart`, `lib/app/navigation/route_animation.dart`, `lib/features/illust/detail/widgets/page_image.dart`
 
 ### TRANS-23 A tall card's square flies over the whole work; an author's cover does not fly
-- **Rule:** A card too tall for its box shows the square thumbnail
-  (TRANS-11's crops end there). pixiv's own (`img-master/…_square1200`,
-  `isTopSquareThumbnail`) is the work's full-width top square:
-  `IllustCardCrop.topSquare` keeps the Hero. Such a card fetches the whole
-  work at the feed-quality tier (`entity.previewUrl`) in the background
-  while it is built, decoded at the page's width, and its tap decodes that
-  copy and the page image at the page's width (foreground). The push
-  flies the square, sharp, at the top of the work's box over the copy,
-  fit to width, which paints once decoded (nothing before). After the
-  landing the page image (detail-quality setting) shows over both: at
-  once when decoded by its first frame, else fading in (`imageFade`) once
-  decoded, or with its own load error. A copy of the page image's own
-  file is dropped when that image shows at once. The pop flies the
-  detail's image, and the card's square fades back over its top across
-  60–90% of the return. An author's chosen cover (`custom-thumb`,
-  `IllustCardCrop.square`) and a tall ugoira's cover open without a Hero.
-- **Why:** The square is the only sharp file of an ultra-long work at
-  card size: `large` fits 600×1200, so its width is a few dozen pixels,
-  and a flight from it showed a blur. The square alone (10-24) left the
-  rest of the box blank until the page image arrived, then faded it in:
-  half the work, then the other half (11-04 device report). User
-  decision 11-04: a whole copy at the user's feed tier goes under the
-  square, as PixEz and FreePiv put `medium` under the page image. The
-  square matched the work's top in every work checked, ratios 2.7 to 29;
-  an author's cover is a square from anywhere in the work (user
-  decision: keep the cover, no Hero). An ugoira's viewer lays out no top
-  square. Android's `MaterialContainerTransform` fades a return's start
-  view back over 60–90%. The page image's reveal is no quality hand-off
-  of one widget, so TRANS-15 still holds for every swap of one file for
-  another.
+- **Rule:** Tall cards showing Pixiv's top square (`isTopSquareThumbnail`, `IllustCardCrop.topSquare`) keep Hero, preload the whole feed-tier preview underneath, fly the sharp square over the copy, reveal the detail image after landing (fading if not yet decoded), and fade the square back across 60–90% of return. Author `custom-thumb` covers (`IllustCardCrop.square`) and tall ugoira covers open without Hero.
+- **Why:** User decision: keeps ultra-long works sharp during flight without leaving the lower half blank or flying unrelated custom covers.
 - **Check:** `test/hero_transition_test.dart` "a top-square card flies its square over the whole work; the page image "; `test/recommended_feed_test.dart` "a tall card keeps its Hero only on pixiv's own top square, "; `test/illust_card_layout_test.dart` "pixiv's own square thumbnail is the work's top, an author's is not" "isTopSquareThumbnail knows pixiv's own square at any size"
 - **Code:** `lib/app/widgets/feed/illust_card_layout.dart`, `lib/app/widgets/feed/illust_card.dart`, `lib/app/motion/hero_transition.dart`, `lib/features/illust/detail/widgets/page_image.dart`, `lib/app/pixiv_image.dart`
 
 ### TRANS-12 Only the viewer's entry page flies back
-- **Rule:** The viewer carries a Hero only on the page it opened on. After a
-  page turn a drag-to-dismiss slides the stage down; back and the back
-  gesture fade the viewer out (TRANS-09).
-- **Why:** Shrinking into the card showed a different page landing on it.
+- **Rule:** Viewer carries Hero only on its opening page; after turning pages, drag-to-dismiss slides down and back fades out (TRANS-09).
+- **Why:** Flying a different page back into the entry card looked wrong.
 - **Check:** `test/hero_transition_test.dart` "only the entry page flies back; a drag from another page "
 - **Code:** `lib/features/illust/viewer/image_viewer_page.dart`
 
 ### TRANS-13 The detail image list has one sliver type
-- **Rule:** The detail page builds its image pages as one `SliverList`
-  whatever the page count.
-- **Why:** A sliver type chosen by page count rebuilt the landing Hero when
-  the payload disagreed with the snapshot, and the orphaned endpoint
-  painted under the flight.
+- **Rule:** Detail pages always build image pages as one `SliverList` regardless of page count.
+- **Why:** Switching sliver types when payload count differed rebuilt the landing Hero mid-flight.
 - **Check:** `test/hero_transition_test.dart` "mid-flight the detail endpoint paints no image of its own"
 - **Code:** `lib/features/illust/detail/widgets/detail_image_pager.dart`
 
 ### TRANS-14 Drag-to-dismiss yields to controls that own their drag
-- **Rule:** A control under `DragToDismiss` that owns every drag direction
-  (the page scrubber) claims its pointers through `allowPointer`. Overlays
-  that appear mid-drag go after the slider in its `Stack`.
-- **Why:** A thumb drifting vertically lost the arena to the dismiss drag;
-  an overlay inserted before the slider rebuilt it and killed the drag.
+- **Rule:** Omnidirectional controls under `DragToDismiss` (e.g. scrubber) claim pointers via `allowPointer`; transient drag overlays mount after the slider in its `Stack`.
+- **Why:** Prevented vertical thumb drift or inserted overlays from breaking scrubber drags.
 - **Check:** `test/illust_detail_viewer_test.dart` "scrubbing jumps to the target page without building crossed pages"
 - **Code:** `lib/app/motion/drag_to_dismiss.dart`, `lib/features/illust/viewer/image_viewer_chrome.dart`
 
 ## Image hand-off
 
 ### TRANS-15 PixivImage owns every quality hand-off
-- **Rule:** Artwork URL and quality changes go through `PixivImage`, which
-  keeps the previous decoded frame until the new one is ready (gapless).
-  Callers add no "ready" flag and never swap in a blank loading state.
-  The one reveal outside it is TRANS-23's: the page image over the
-  square and the copy a top-square flight carried.
+- **Rule:** Quality/URL upgrades go through `PixivImage` gaplessly (keeping previous decoded frames until ready; no caller-managed ready flags or blank loading swaps; TRANS-23 is the sole exception).
 - **Why:** Per-page ready flags flashed blank frames between qualities.
 - **Check:** `test/pixiv_image_variants_test.dart` "quality handoff keeps an old decoded frame placeholder"
 - **Code:** `lib/app/pixiv_image.dart`
 
 ### TRANS-16 Fade cold loads only
-- **Rule:** A cold load fades the placeholder off an image painted at once
-  (300 ms linear). An already-decoded target appears without a fade, and a
-  reused feed slot showing another work swaps without a fade. Feed cards
-  are keyed by scope and work id.
-- **Why:** Fading both layers dipped to grey; fading a cached Hero target
-  flashed white; a recycled slot dissolved one work into another across
-  the grid.
+- **Rule:** Cold loads fade the placeholder off an already-painted image (300 ms linear); already-decoded targets and recycled slots showing another work swap without fading; feed cards key by scope and work ID.
+- **Why:** Avoids grey cross-fades, white Hero flashes, and recycled-slot dissolves.
 - **Check:** `test/pixiv_image_variants_test.dart` "the same URL on a reused slot keeps the cold-load fade"
 - **Code:** `lib/app/pixiv_image.dart`, `lib/app/widgets/feed/feed_grid.dart`
 
 ### TRANS-17 Decoded images survive backgrounding
-- **Rule:** The app's binding keeps decoded frames on Android's
-  `TRIM_MEMORY_UI_HIDDEN` and clears only live streams and `rootBundle`.
-- **Why:** The stock binding cleared the image cache on every hide, and
-  every artwork faded in again on resume.
+- **Rule:** The app binding retains decoded image frames on Android `TRIM_MEMORY_UI_HIDDEN`, clearing only live streams and `rootBundle`.
+- **Why:** Avoids re-fading every artwork on app resume.
 - **Check:** manual
 - **Code:** `lib/main.dart`
 
 ### TRANS-18 Pager neighbours paint a decode, never a load
-- **Rule:** A pager page outside the build window paints the feed's
-  existing decode (`PixivImage.decodedStandIn`) where the built page will
-  draw it, or a bare surface. A page built where a swipe settled keeps
-  its stand-in over the detail for the building frame, then fades it off
-  on the effects spring (at once under reduced motion); a neighbour built
-  off screen shows at once. `findChildIndexCallback` maps pages by work
-  id.
-- **Why:** A stand-in at another position jumped on landing; index mapping
-  rebuilt pages as other works when the list shifted. The rest of a page
-  built on landing cut in around its image.
+- **Rule:** Unbuilt pager pages render `PixivImage.decodedStandIn` (or bare surface) at the exact detail rect, fading it off on the effects spring once settled and built (instant off-screen or under reduced motion); `findChildIndexCallback` maps by work ID.
+- **Why:** Eliminated landing jumps and wrong-work rebuilds when feed lists shifted.
 - **Check:** `test/illust_detail_page_test.dart` "a short first image sits a band low; Hero and badge keep to it", `test/illust_detail_pager_test.dart` "a rewritten feed list keeps the viewport on the same work" "a page built where a swipe settles fades in around"
 - **Code:** `lib/features/illust/detail/illust_detail_pager_page.dart`
 
 ### TRANS-19 The viewer decodes a preview first, the whole file once zoomed
-- **Rule:** A viewer page decodes at `ImageViewerPage.previewDecodeWidth`
-  (twice the screen width) until it is zoomed to `fullDecodeScale` (1.5),
-  then decodes the whole file and keeps it. Every page has a transition
-  key, so the preview paints while the whole file decodes. The return
-  Hero and `openImageViewer`'s preload use the page's decode width.
-- **Why:** An original decoded whole is tens of megabytes and slow on a
-  swipe; a return shuttle at another width decoded a second time.
+- **Rule:** Viewer pages decode at `ImageViewerPage.previewDecodeWidth` (2x screen width) until zoomed to `fullDecodeScale` (1.5x), keeping a stable transition key across the upgrade; return Hero and `openImageViewer` preload match preview width.
+- **Why:** Full originals are tens of megabytes and stalled swipes; mismatched return widths triggered double decodes.
 - **Check:** `test/illust_detail_viewer_test.dart` "a page decodes a preview until zoomed, then the whole file", `test/hero_transition_test.dart` "the viewer leaves whole and square; the detail page answers mid-flight"
 - **Code:** `lib/features/illust/viewer/image_viewer_page.dart`, `lib/app/navigation/routes.dart`
 
 ### TRANS-21 Every artwork flight checks its card end
-- **Rule:** At its start the shared shuttle (`inspectHeroFlight`) checks
-  the card end (the source of a push, the landing of a pop): live
-  (TickerMode on), on its route's page (measured in the page, which may
-  still be moving), and, pushed from a card (`IllustHeroCardFrame`)
-  within 2 s of a card tap, overlapping the box `noteHeroCardOpened`
-  took at the tap; detail to viewer shares the tag but starts from the
-  detail image, so it skips that check. A failure logs one entry
-  (tag, direction, reasons, each end's route, navigator restoration id
-  and box) to `HeroAnomalyLog`, newest first, the last 20 kept in
-  preferences; with developer options unlocked a prompt says so. The
-  frame probe page shows, copies and clears the log. A normal flight
-  does only the comparisons.
-- **Why:** A wrong flight showed on devices a few times a day and never
-  on demand, so the user could not record one. Route names and
-  restoration ids say which page and branch a flight end is on.
+- **Rule:** `inspectHeroFlight` verifies card-ended flights are live, on-page, and match `noteHeroCardOpened` within 2 s (skipping detail-to-viewer), logging anomalies (last 20) to `HeroAnomalyLog` and surfacing a prompt when developer options are unlocked.
+- **Why:** Captures rare real-device flight glitches with route and box diagnostics.
 - **Check:** `test/hero_transition_test.dart` "a flight from a card out of sight is logged, others not" "a push is held to the tapped card only when it leaves a card"
 - **Code:** `lib/app/motion/hero_anomaly.dart`, `lib/core/debug/hero_anomaly_log.dart`, `lib/features/settings/pages/frame_probe_page.dart`
 
 ### TRANS-24 iOS shared-element routes dim the backdrop on a shrunken opaque-free canvas
-- **Rule:** Shared-element iOS `FuncPage` routes start dismiss drags from a 48dp leading edge, the 72dp top chrome strip, or top-rested downward scrolls without stealing horizontal pager swipes or scroll-up drags. During drag (`_revealingBelow`), `_FuncPageRoute` flips route `opaque` and `overlayEntries.first.opaque` to `false` via `_syncRouteOpacity()` so the route below stays visible behind the damped, min-`0.85`-scaled, `FuncShape.dialog`-rounded canvas, restores `opaque` on cancel, and hands the shrunken card rect into the return `Hero` flight on commit.
-- **Why:** Leaving `overlayEntries.first.opaque` `true` while dragging culled the route below until `pop()`, flashing solid background frames before snapping to the feed on finger release.
+- **Rule:** iOS shared-element `FuncPage` routes start dismiss drags from a 48dp leading edge, 72dp top chrome strip, or top-rested downward scroll without stealing pager swipes. While dragging, the route flips `opaque` and its first overlay entry's `opaque` to `false` so the underlying route shows behind the damped, min-0.85-scaled, `FuncShape.dialog`-rounded canvas, restoring `opaque` on cancel and handing the shrunken rect to the return Hero on commit.
+- **Why:** Keeping overlay entries opaque culled the underlying route and flashed solid backgrounds until `pop()`.
 - **Check:** `test/func_page_test.dart` "iOS sharedElement route uses damped canvas scale, backdrop fade, widened edge, and gesture cleanup" "iOS sharedElement vertical pull dismisses cleanly without conflicting with scrollables or horizontal pager"
 - **Code:** `lib/app/navigation/func_page.dart`, `lib/app/motion/hero_transition.dart`, `lib/app/theme/func_tokens.dart`

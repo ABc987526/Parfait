@@ -775,6 +775,63 @@ void main() {
     expect(sinkFactory.names, ['42_100x200_123_p0']);
   });
 
+  test(
+    'streaming progress ticks update snapshots without rewriting recovery store',
+    () async {
+      final store = _CountingRecoveryStore();
+      var now = DateTime.utc(2026, 11, 21, 0, 0, 0);
+      final chunks = StreamController<List<int>>();
+      addTearDown(chunks.close);
+
+      final manager = DownloadManager(
+        transport: _StreamTransport(
+          _StreamResponse(stream: chunks.stream, contentLength: 100),
+        ),
+        sinkFactory: _PendingIdSinkFactory(pendingId: 42),
+        submissionContext: _context,
+        recoveryStore: store,
+        now: () => now,
+      );
+      addTearDown(manager.dispose);
+
+      final submitted = manager.submit(_request());
+      await turnUntil(
+        () => store.records.any((r) => r.pendingMediaStoreId == 42),
+      );
+      final upsertsBeforeStream = store.upsertCount;
+
+      final observedBytes = <int>[];
+      final sub = manager.changes.listen((_) {
+        observedBytes.add(manager.taskById(submitted.id)!.receivedBytes);
+      });
+      addTearDown(sub.cancel);
+
+      for (var i = 0; i < 10; i++) {
+        now = now.add(const Duration(milliseconds: 250));
+        chunks.add(List.filled(10, i));
+        await Future<void>.delayed(Duration.zero);
+      }
+      await turnUntil(
+        () => manager.taskById(submitted.id)?.receivedBytes == 100,
+      );
+
+      // Zero durable writes during the 10 throttled progress ticks, while
+      // in-memory snapshots still notified listeners and pendingOutputId
+      // stayed persisted for crash recovery.
+      expect(observedBytes, containsAll(<int>[10, 50, 100]));
+      expect(store.upsertCount, upsertsBeforeStream);
+      expect(store.records.single.pendingMediaStoreId, 42);
+
+      await chunks.close();
+      await turnUntil(
+        () =>
+            manager.taskById(submitted.id)?.status == DownloadStatus.succeeded,
+      );
+      expect(store.records.single.status, DownloadStatus.succeeded);
+      expect(store.records.single.pendingMediaStoreId, isNull);
+    },
+  );
+
   group('ugoira recovery', () {
     test(
       'interrupted Ugoira output is orphaned and its owned pending row is cleaned',
@@ -842,6 +899,65 @@ void main() {
       },
     );
   });
+}
+
+class _CountingRecoveryStore extends MemoryDownloadRecoveryStore {
+  int upsertCount = 0;
+
+  @override
+  Future<void> upsert(DownloadRecoveryRecord record) async {
+    upsertCount++;
+    await super.upsert(record);
+  }
+}
+
+class _PendingIdSink extends MemorySink implements DownloadSinkOutputMetadata {
+  _PendingIdSink(this.pendingOutputId);
+
+  @override
+  final int pendingOutputId;
+}
+
+class _PendingIdSinkFactory extends MemorySinkFactory {
+  _PendingIdSinkFactory({required this.pendingId});
+
+  final int pendingId;
+
+  @override
+  Future<DownloadSink> begin(
+    DownloadRequest request,
+    String displayName, {
+    DownloadDestination destination = DownloadDestination.builtin,
+  }) async => _PendingIdSink(pendingId);
+}
+
+class _StreamResponse implements DownloadResponse {
+  _StreamResponse({required this.stream, this.contentLength});
+
+  @override
+  final int statusCode = 200;
+
+  @override
+  final int? contentLength;
+
+  @override
+  final Stream<List<int>> stream;
+
+  @override
+  Future<void> close() async {}
+}
+
+class _StreamTransport implements DownloadTransport {
+  _StreamTransport(this._response);
+
+  final DownloadResponse _response;
+
+  @override
+  Future<DownloadResponse> open(
+    Uri url, {
+    required Map<String, String> headers,
+    required DownloadCancelToken cancelToken,
+  }) async => _response;
 }
 
 class _NameRecordingSinkFactory extends MemorySinkFactory {
