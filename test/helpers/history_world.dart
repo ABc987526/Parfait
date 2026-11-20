@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -98,16 +100,30 @@ Future<void> settleHistory(
     var quietTurns = 0;
     for (var i = 0; i < 64; i++) {
       await tester.pump();
+      Object? probeError;
+      StackTrace? probeStack;
       final idle = await tester.runAsync(() async {
         // Yield once so real-zone continuations from widget queries complete
         // before probing the FIFO lock.
         await Future<void>.delayed(Duration.zero);
         final probe = history.count(accountId: '100');
         var done = false;
-        probe.whenComplete(() => done = true).ignore();
+        unawaited(
+          probe.then(
+            (_) => done = true,
+            onError: (Object error, StackTrace stack) {
+              probeError = error;
+              probeStack = stack;
+              done = true;
+            },
+          ),
+        );
         await Future<void>.delayed(Duration.zero);
         return done;
       });
+      if (probeError != null) {
+        Error.throwWithStackTrace(probeError!, probeStack!);
+      }
       await tester.pump();
       if (idle == true && tester.binding.microtaskCount == 0) {
         quietTurns += 1;

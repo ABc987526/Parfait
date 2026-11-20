@@ -243,7 +243,8 @@ Future<bool> settleReview(
     await _drainIo(tester, maxTurns: 3);
     await tester.pump(frame, phase);
   }
-  return !tester.binding.hasScheduledFrame;
+  return !tester.binding.hasScheduledFrame &&
+      PaintingBinding.instance.imageCache.pendingImageCount == 0;
 }
 
 /// Scrolls the page's main vertical scroll — the one with the most to

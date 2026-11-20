@@ -921,6 +921,12 @@ void main() {
         await tester.pump(const Duration(milliseconds: 50));
         expect(tester.takeException(), isNull);
         expect(find.byType(ShellRail), findsOneWidget);
+        expect(
+          WindowLayoutSpec.of(
+            tester.element(find.byType(ShellRail)),
+          ).devicePixelRatio,
+          2.0,
+        );
 
         tester.view
           ..devicePixelRatio = 1.0
@@ -929,6 +935,12 @@ void main() {
         await tester.pump(const Duration(milliseconds: 50));
         expect(tester.takeException(), isNull);
         expect(find.byType(ShellRail), findsOneWidget);
+        expect(
+          WindowLayoutSpec.of(
+            tester.element(find.byType(ShellRail)),
+          ).devicePixelRatio,
+          1.0,
+        );
       },
       variant: TargetPlatformVariant.only(TargetPlatform.windows),
     );
