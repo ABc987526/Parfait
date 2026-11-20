@@ -53,9 +53,15 @@ class LaunchResult:
         return self.wait_result == 258
 
 
+_PS_SINGLE_QUOTES = ("'", "\u2018", "\u2019", "\u201a", "\u201b")
+
+
 def ps_single_quote(value: str) -> str:
-    """Wrap *value* in PowerShell single quotes with embedded quotes doubled."""
-    return "'" + value.replace("'", "''") + "'"
+    """Wrap *value* in PowerShell single quotes with ASCII and smart quotes doubled."""
+    escaped = value
+    for ch in _PS_SINGLE_QUOTES:
+        escaped = escaped.replace(ch, ch * 2)
+    return "'" + escaped + "'"
 
 
 def to_windows_path(path: str | Path) -> str:
@@ -125,7 +131,7 @@ def run_powershell(
             errors="replace",
             timeout=timeout,
         )
-        if "UtilAcceptVsock" in (res.stderr or "") and attempt < 2:
+        if res.returncode != 0 and "UtilAcceptVsock" in (res.stderr or "") and attempt < 2:
             time.sleep(0.6)
             continue
         if res.returncode != 0:

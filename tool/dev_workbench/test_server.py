@@ -301,6 +301,34 @@ class DevWorkbenchServerTest(unittest.TestCase):
             self.assertNotIn(secret, serialized)
         self.assertIn("[REDACTED]", serialized)
 
+        # Verify redaction covers camelCase codeVerifier and JSON device_token/PHPSESSID
+        from dev_workbench.redaction import redact_text, redact_value
+
+        self.assertEqual(
+            redact_value({"codeVerifier": "cv_secret", "ok": True}),
+            {"codeVerifier": "[REDACTED]", "ok": True},
+        )
+        redacted_json = redact_text(
+            '{"device_token": "dt_secret", "cookies": {"PHPSESSID": "sess_secret"}}'
+        )
+        self.assertNotIn("dt_secret", redacted_json)
+        self.assertNotIn("sess_secret", redacted_json)
+
+        # Reject negative chunk_size in chunked transfer encoding
+        neg_chunk_req = (
+            f"POST /api/commands HTTP/1.1\r\n"
+            f"Host: 127.0.0.1:{self.port}\r\n"
+            f"Content-Type: application/json\r\n"
+            f"X-Parfait-Workbench-Token: {self.token}\r\n"
+            f"Transfer-Encoding: chunked\r\n"
+            f"Connection: close\r\n\r\n"
+            f"-1\r\n\r\n"
+        ).encode("ascii")
+        with socket.create_connection(("127.0.0.1", self.port), timeout=5) as s:
+            s.sendall(neg_chunk_req)
+            resp_head = s.recv(4096).decode("utf-8", errors="replace")
+        self.assertIn("400 ", resp_head.splitlines()[0])
+
         # Also verify /__pixiv__/<host><path> with X-Parfait-Target-Host strips prefix properly
         st, _, raw = self._raw_request(
             "GET",
@@ -393,6 +421,32 @@ class DevWorkbenchServerTest(unittest.TestCase):
             headers={"X-Parfait-Target-Host": "app-api.pixiv.net"},
         )
         self.assertEqual(st, 200)
+
+        # Unknown illust returns 404 and does not mutate 900001; unknown author does not mutate Atelier Aoi
+        st, _, _ = self._raw_request(
+            "GET",
+            "/v1/illust/detail?illust_id=999999",
+            headers={"X-Parfait-Target-Host": "app-api.pixiv.net"},
+        )
+        self.assertEqual(st, 404)
+        st, _, _ = self._raw_request(
+            "POST",
+            "/v2/illust/bookmark/add",
+            headers={"X-Parfait-Target-Host": "app-api.pixiv.net"},
+            body=b"illust_id=999999",
+        )
+        self.assertEqual(st, 404)
+        self.assertFalse(self.state.pixiv.illusts[0]["is_bookmarked"])
+
+        was_followed = self.state.pixiv.authors[0]["is_followed"]
+        st, _, _ = self._raw_request(
+            "POST",
+            "/v1/user/follow/delete",
+            headers={"X-Parfait-Target-Host": "app-api.pixiv.net"},
+            body=b"user_id=777777",
+        )
+        self.assertEqual(st, 200)
+        self.assertEqual(self.state.pixiv.authors[0]["is_followed"], was_followed)
 
     def test_artifact_traversal_blocked(self) -> None:
         st, _, _ = self._raw_request("GET", "/artifacts/../session.json")

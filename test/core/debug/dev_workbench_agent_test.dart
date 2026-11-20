@@ -95,6 +95,8 @@ void main() {
           'ok': true,
           'type': type,
           'args': args,
+          'accessToken': 'cmd_secret_token',
+          'note': 'Authorization: Bearer cmd_bearer_999',
         },
       );
 
@@ -110,6 +112,10 @@ void main() {
         expect(encodedHb, contains(kRedactedPlaceholder));
         expect(results.single['id'], 'c1');
         expect(results.single['ok'], isTrue);
+        final encodedRes = jsonEncode(results.single['result']);
+        expect(encodedRes, isNot(contains('cmd_secret_token')));
+        expect(encodedRes, isNot(contains('cmd_bearer_999')));
+        expect(encodedRes, contains(kRedactedPlaceholder));
       } finally {
         agent.dispose();
         await server.close(force: true);

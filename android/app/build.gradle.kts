@@ -156,10 +156,12 @@ android {
     }
 
     buildTypes {
-        debug {
+        configureEach {
             if (devAppIdRequested) {
                 applicationIdSuffix = ".dev"
             }
+        }
+        debug {
         }
         release {
             // R8 + resource shrinking: classes.dex was ~2.2MB of unshrunk

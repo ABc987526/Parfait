@@ -22,6 +22,8 @@ _SENSITIVE_KEY_EXACT = frozenset({
     "secret",
     "password",
     "code_verifier",
+    "codeverifier",
+    "phpsessid",
     "transferenvelope",
     "transfer_envelope",
 })
@@ -43,11 +45,11 @@ _API_KEY_HEADER_RE = re.compile(
     re.IGNORECASE,
 )
 _PARAM_SECRET_RE = re.compile(
-    r"""((?:[A-Za-z0-9_.-]*(?:access_?token|refresh_?token|id_?token|code_?verifier|phpsessid|api_?key|apikey|secret|password|token)|(?<![A-Za-z0-9_])(?:code|cookie))\s*=\s*["']?)([^"'\s&;,}]+)(["']?)""",
+    r"""((?:(?<![A-Za-z0-9_.-])[A-Za-z0-9_.-]*(?:access[-_]?token|refresh[-_]?token|id[-_]?token|code[-_]?verifier|phpsessid|api[-_]?key|apikey|secret|password|token)|(?<![A-Za-z0-9_])(?:code|cookie))\s*=\s*["']?)([^"'\s&;,}]+)(["']?)""",
     re.IGNORECASE,
 )
 _JSON_SECRET_RE = re.compile(
-    r'("[A-Za-z0-9_.-]*(?:access_?token|refresh_?token|id_?token|cookie|set-cookie|authorization|x-parfait-workbench-token|api_?key|secret|password|code_?verifier|transfer_?envelope)"\s*:\s*)"([^"\\]*(?:\\.[^"\\]*)*)"',
+    r'("[A-Za-z0-9_.-]*(?:access[-_]?token|refresh[-_]?token|id[-_]?token|token|cookies?|set-cookie|phpsessid|authorization|x-parfait-workbench-token|api[-_]?key|apikey|secret|password|credential|code[-_]?verifier|transfer[-_]?envelope)"\s*:\s*)"([^"\\]*(?:\\.[^"\\]*)*)"',
     re.IGNORECASE,
 )
 
@@ -56,6 +58,7 @@ def _is_sensitive_key(key: str) -> bool:
     low = key.lower().replace("-", "").replace("_", "")
     return (
         key.lower() in _SENSITIVE_KEY_EXACT
+        or low in _SENSITIVE_KEY_EXACT
         or "token" in low
         or "secret" in low
         or "cookie" in low

@@ -15,43 +15,14 @@ constexpr wchar_t kSingleInstanceMutexName[] =
 constexpr wchar_t kDevSingleInstanceMutexName[] =
     L"Local\\io.github.lopution.parfait.dev.SingleInstance";
 
-#if !(defined(PARFAIT_DEV_TARGET) && PARFAIT_DEV_TARGET)
-bool IsTruthyEnv(const wchar_t* name) {
-  wchar_t buf[8]{};
-  DWORD len = ::GetEnvironmentVariableW(name, buf, 8);
-  return len > 0 && (buf[0] == L'1' || buf[0] == L't' || buf[0] == L'T');
-}
-
-bool HasNonEmptyEnv(const wchar_t* name) {
-  return ::GetEnvironmentVariableW(name, nullptr, 0) > 1;
-}
-
-bool HasFlag(const std::string& arg, const char* flag) {
-  const std::string prefix = std::string(flag) + "=";
-  return arg == flag || arg.rfind(prefix, 0) == 0;
-}
-#endif
-
 bool HasDevProfileFlag(const std::vector<std::string>& args) {
-#if defined(PARFAIT_DEV_TARGET) && PARFAIT_DEV_TARGET
   (void)args;
+#if defined(PARFAIT_DEV_TARGET) && PARFAIT_DEV_TARGET
   return true;
 #else
-  for (const auto& arg : args) {
-    if (HasFlag(arg, "--dev-profile") || HasFlag(arg, "--profile") ||
-        HasFlag(arg, "--source") || HasFlag(arg, "--loopback") ||
-        HasFlag(arg, "--workbench-url")) {
-      return true;
-    }
-  }
-  return IsTruthyEnv(L"PARFAIT_DEV_PROFILE") ||
-         IsTruthyEnv(L"PARFAIT_DEV_INSTANCE") ||
-         HasNonEmptyEnv(L"PARFAIT_DEV_ROOT") ||
-         HasNonEmptyEnv(L"PARFAIT_DEV_PROFILE_NAME") ||
-         HasNonEmptyEnv(L"PARFAIT_WORKBENCH_URL") ||
-         HasNonEmptyEnv(L"PARFAIT_DEV_WORKBENCH_URL") ||
-         HasNonEmptyEnv(L"PARFAIT_DEV_SOURCE") ||
-         HasNonEmptyEnv(L"PARFAIT_DEV_LOOPBACK_URL");
+  // Non-dev builds must never switch single-instance mutex via env/CLI flags,
+  // because production Dart code still binds to the production storage paths.
+  return false;
 #endif
 }
 

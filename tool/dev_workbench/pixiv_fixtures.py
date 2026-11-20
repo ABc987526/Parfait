@@ -203,6 +203,9 @@ class PixivLoopbackState:
     ai_show: bool = True
     restricted_mode: bool = False
     _comment_seq: int = 7000
+    _dev_user: dict[str, object] = field(
+        default_factory=lambda: _user_obj(900001, "Parfait Dev", "parfait_dev")
+    )
 
     def __post_init__(self) -> None:
         if not self.authors:
@@ -292,11 +295,11 @@ class PixivLoopbackState:
                 ),
             ]
 
-    def _find_illust(self, illust_id: int) -> dict[str, object]:
+    def _find_illust(self, illust_id: int) -> dict[str, object] | None:
         for item in self.illusts:
             if item["id"] == illust_id:
                 return item
-        return self.illusts[0]
+        return None
 
     def _find_novel(self, novel_id: int) -> dict[str, object]:
         for item in self.novels:
@@ -309,8 +312,8 @@ class PixivLoopbackState:
             if author["id"] == user_id:
                 return author
         if user_id == 900001:
-            return _user_obj(900001, "Parfait Dev", "parfait_dev")
-        return self.authors[0]
+            return self._dev_user
+        return _user_obj(user_id, f"User {user_id}", f"user_{user_id}")
 
     @staticmethod
     def _next_url_for(
@@ -421,12 +424,17 @@ class PixivLoopbackState:
 
         if path == "/v1/illust/detail":
             iid = int((params.get("illust_id") or ["900001"])[0])
-            return self._json(200, {"illust": self._find_illust(iid)})
+            illust = self._find_illust(iid)
+            if illust is None:
+                return self._json(404, {"error": {"user_message": "Artwork not found"}})
+            return self._json(200, {"illust": illust})
 
         if path.startswith("/ajax/illust/") and path.endswith("/pages"):
             parts = [p for p in path.split("/") if p]
             iid = int(parts[2]) if len(parts) >= 4 and parts[2].isdigit() else 900001
             illust = self._find_illust(iid)
+            if illust is None:
+                return self._json(404, {"error": True, "message": "Artwork not found", "body": []})
             count = int(illust["page_count"])
             w = int(illust["width"])
             h = int(illust["height"])
@@ -682,6 +690,8 @@ class PixivLoopbackState:
             is_add = path.endswith("/add")
             if "illust_id" in form:
                 item = self._find_illust(int(form["illust_id"][0]))
+                if item is None:
+                    return self._json(404, {"error": {"user_message": "Artwork not found"}})
                 item["is_bookmarked"] = is_add
             return self._json(200, {})
 

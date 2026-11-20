@@ -32,6 +32,10 @@ Future<void> main(List<String> args) async {
       devTransportProvider.overrideWith(
         () => DevTransportNotifier(options.initialTransportConfig),
       ),
+      // Dev sessions intentionally store credentials in 0600 JSON files inside
+      // the isolated dev profile dir rather than the OS keychain/keystore so
+      // local dev/live experiments never touch production credentials. This
+      // entrypoint is never packaged into release builds.
       credentialStoreProvider.overrideWith(
         (ref) => DevFileCredentialStore(
           ref.watch(appStoragePathsProvider).credentialsDir!,

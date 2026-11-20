@@ -746,4 +746,86 @@ void main() {
       expect(throttle.shouldReport(1 << 20, null), isFalse);
     });
   });
+
+  test(
+    'devLoopbackOrigin routes fetches to loopback and rebuilds policy on mode switch',
+    () async {
+      final server1 = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      final server2 = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      final hits1 = <String?>[];
+      final hits2 = <String?>[];
+      for (final pair in [(server1, hits1), (server2, hits2)]) {
+        pair.$1.listen((req) async {
+          pair.$2.add(req.headers.value('x-parfait-target-host'));
+          req.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType('image', 'png')
+            ..add(onePixelPng);
+          await req.response.close();
+        });
+      }
+      addTearDown(() => server1.close(force: true));
+      addTearDown(() => server2.close(force: true));
+
+      final harness = _Harness();
+      addTearDown(harness.stop);
+
+      ImageWorkerConfig makeConfig({
+        required String mode,
+        String? loopbackOrigin,
+        Set<String> blocked = const {},
+      }) => ImageWorkerConfig(
+        imageSource: 'i.pximg.net',
+        mode: mode,
+        networkIdentity: 'test-net',
+        echFrontHost: 'cloudflare-ech.com',
+        dohEndpoints: const ['https://dns.example/dns-query'],
+        bootstrapNoSniEnabled: true,
+        localNetworkBlockedHosts: blocked,
+        devLoopbackOrigin: loopbackOrigin,
+      );
+
+      // Even with mode='auto' and i.pximg.net marked blocked, devLoopbackOrigin
+      // forces directOnly loopback transport and ignores blocked hosts.
+      await harness.start(
+        config: makeConfig(
+          mode: 'auto',
+          loopbackOrigin: 'http://127.0.0.1:${server1.port}',
+          blocked: const {'i.pximg.net'},
+        ),
+      );
+      harness.fetch(1, 'https://i.pximg.net/img-master/img/loopback_1.png');
+      expect(await harness.eventFor(1), isA<ResultEvent>());
+      expect(hits1, ['i.pximg.net']);
+
+      // Changing devLoopbackOrigin rebuilds the policy to the new origin.
+      harness.worker.send(
+        encodeConfig(
+          makeConfig(
+            mode: 'auto',
+            loopbackOrigin: 'http://127.0.0.1:${server2.port}',
+          ),
+        ),
+      );
+      harness.fetch(2, 'https://i.pximg.net/img-master/img/loopback_2.png');
+      expect(await harness.eventFor(2), isA<ResultEvent>());
+      expect(hits2, ['i.pximg.net']);
+
+      // Clearing devLoopbackOrigin rebuilds the policy back to live mode, so
+      // localNetworkBlockedHosts is enforced again without hitting loopback.
+      harness.worker.send(
+        encodeConfig(
+          makeConfig(
+            mode: 'directOnly',
+            loopbackOrigin: null,
+            blocked: const {'i.pximg.net'},
+          ),
+        ),
+      );
+      harness.fetch(3, 'https://i.pximg.net/img-master/img/blocked_live.png');
+      expect(await harness.eventFor(3), isA<FailureEvent>());
+      expect(hits1, hasLength(1));
+      expect(hits2, hasLength(1));
+    },
+  );
 }

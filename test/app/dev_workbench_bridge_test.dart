@@ -41,6 +41,7 @@ void main() {
             builder: (_, _) => Column(
               children: [
                 const Text('DuplicateLabel', key: ValueKey('shared_key')),
+                const Text('007'),
                 const Offstage(
                   offstage: true,
                   child: Text(
@@ -94,10 +95,11 @@ void main() {
         exposeVmExtensions: false,
       );
 
+      final credentialStore = FakeCredentialStore();
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            ...accountProviderOverrides(),
+            ...accountProviderOverrides(credentialStore: credentialStore),
             imageWorkerProvider.overrideWithValue(stalledImageWorker()),
             desktopWindowHostProvider.overrideWithValue(windowHost),
             devTransportProvider.overrideWith(
@@ -168,6 +170,13 @@ void main() {
         }))['found'],
         isTrue,
       );
+      expect(
+        (await state.dispatchDebugCommand('findBounds', {
+          'kind': 'text',
+          'query': '007',
+        }))['found'],
+        isTrue,
+      );
 
       final baseBounds = await state.dispatchDebugCommand('findBounds', {
         'kind': 'key',
@@ -205,6 +214,7 @@ void main() {
       );
       await pumpUntil(tester, () => signInRes != null);
       expect(signInRes!['accountId'], '900001');
+      expect(await credentialStore.read('900001'), isNotNull);
       final afterSignIn = await state.dispatchDebugCommand('snapshot');
       expect(afterSignIn['hasUsableAccount'], isTrue);
 
@@ -218,6 +228,7 @@ void main() {
       final afterLive = await state.dispatchDebugCommand('snapshot');
       expect(afterLive['sourceMode'], 'live');
       expect(afterLive['hasUsableAccount'], isFalse);
+      expect(await credentialStore.read('900001'), isNull);
 
       await expectLater(
         state.dispatchDebugCommand('loopbackSignIn'),
