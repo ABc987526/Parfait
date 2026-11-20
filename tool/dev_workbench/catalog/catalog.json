@@ -1,0 +1,3543 @@
+{
+  "schema_version": 1,
+  "items": [
+    {
+      "id": "shell.win_caption.close_top_edge_unmax",
+      "module": "desktop_shell",
+      "shell_layer": "DesktopWindowFrame",
+      "audit_candidate": "SC-W1",
+      "route_template": "/recommended",
+      "route": "/recommended",
+      "direction": "one_way",
+      "states": [
+        "normal_unmaximized"
+      ],
+      "target": {
+        "kind": "key",
+        "query": "desktop-window-close",
+        "offset_x_ratio": 0.5,
+        "offset_y_ratio": 0.06
+      },
+      "actions": [
+        {
+          "type": "hover",
+          "duration_ms": 450
+        },
+        {
+          "type": "click",
+          "allow_process_exit": true
+        },
+        {
+          "type": "wait_ms",
+          "ms": 350
+        }
+      ],
+      "format": "gif",
+      "platforms": {
+        "windows": "required",
+        "linux": "not_applicable:linux_uses_gtk_system_title_bar",
+        "macos": "not_applicable:macos_uses_native_nswindow_traffic_lights",
+        "android_avd": "not_applicable:mobile_has_no_desktop_caption_buttons",
+        "iphone": "not_applicable:mobile_has_no_desktop_caption_buttons",
+        "ipad": "not_applicable:tablet_touch_has_no_desktop_caption_buttons"
+      }
+    },
+    {
+      "id": "shell.win_caption.maximize_top_edge_unmax",
+      "module": "desktop_shell",
+      "shell_layer": "DesktopWindowFrame",
+      "audit_candidate": "SC-W1",
+      "route_template": "/recommended",
+      "route": "/recommended",
+      "direction": "two_way",
+      "states": [
+        "normal_unmaximized",
+        "maximized"
+      ],
+      "target": {
+        "kind": "key",
+        "query": "desktop-window-maximize",
+        "offset_x_ratio": 0.5,
+        "offset_y_ratio": 0.06
+      },
+      "actions": [
+        {
+          "type": "hover",
+          "duration_ms": 400
+        },
+        {
+          "type": "click"
+        },
+        {
+          "type": "wait_ms",
+          "ms": 300
+        },
+        {
+          "type": "click",
+          "offset_y_ratio": 0.5
+        },
+        {
+          "type": "wait_ms",
+          "ms": 300
+        }
+      ],
+      "format": "gif",
+      "platforms": {
+        "windows": "required",
+        "linux": "not_applicable:linux_uses_gtk_system_title_bar",
+        "macos": "not_applicable:macos_uses_native_nswindow_traffic_lights",
+        "android_avd": "not_applicable:mobile_has_no_desktop_caption_buttons",
+        "iphone": "not_applicable:mobile_has_no_desktop_caption_buttons",
+        "ipad": "not_applicable:tablet_touch_has_no_desktop_caption_buttons"
+      }
+    },
+    {
+      "id": "shell.win_caption.maximize_capture_release",
+      "module": "desktop_shell",
+      "shell_layer": "DesktopWindowFrame",
+      "audit_candidate": "SC-W2",
+      "route_template": "/recommended",
+      "route": "/recommended",
+      "direction": "two_way",
+      "states": [
+        "normal_unmaximized",
+        "maximized"
+      ],
+      "target": {
+        "kind": "key",
+        "query": "desktop-window-maximize",
+        "offset_x_ratio": 0.5,
+        "offset_y_ratio": 0.5
+      },
+      "actions": [
+        {
+          "type": "hover",
+          "duration_ms": 400
+        },
+        {
+          "type": "click"
+        },
+        {
+          "type": "wait_ms",
+          "ms": 350
+        },
+        {
+          "type": "click"
+        },
+        {
+          "type": "wait_ms",
+          "ms": 350
+        }
+      ],
+      "format": "gif",
+      "platforms": {
+        "windows": "foreground_opt_in:requires_active_desktop_GetCursorPos_and_SetCapture",
+        "linux": "not_applicable:win32_htmaxbutton_capture_specific",
+        "macos": "not_applicable:win32_htmaxbutton_capture_specific",
+        "android_avd": "not_applicable:mobile_has_no_desktop_caption_buttons",
+        "iphone": "not_applicable:mobile_has_no_desktop_caption_buttons",
+        "ipad": "not_applicable:tablet_touch_has_no_desktop_caption_buttons"
+      }
+    },
+    {
+      "id": "shell.win_caption.drag_and_double_click",
+      "module": "desktop_shell",
+      "shell_layer": "DesktopWindowFrame",
+      "audit_candidate": "SC-W2",
+      "route_template": "/recommended",
+      "route": "/recommended",
+      "direction": "two_way",
+      "states": [
+        "normal_unmaximized"
+      ],
+      "target": {
+        "kind": "non_client_drag",
+        "index": 0
+      },
+      "actions": [
+        {
+          "type": "drag",
+          "dx_ratio": 0.08,
+          "dy_ratio": 0.05,
+          "duration_ms": 400
+        },
+        {
+          "type": "double_click"
+        },
+        {
+          "type": "wait_ms",
+          "ms": 350
+        },
+        {
+          "type": "double_click"
+        },
+        {
+          "type": "wait_ms",
+          "ms": 350
+        }
+      ],
+      "format": "mp4",
+      "platforms": {
+        "windows": "foreground_opt_in:requires_active_desktop_win32k_modal_move_loop",
+        "linux": "not_applicable:linux_uses_gtk_system_title_bar",
+        "macos": "not_applicable:widget_tester_has_no_os_window_move_loop",
+        "android_avd": "not_applicable:mobile_has_no_desktop_titlebar_drag",
+        "iphone": "not_applicable:mobile_has_no_desktop_titlebar_drag",
+        "ipad": "not_applicable:tablet_has_no_desktop_titlebar_drag"
+      }
+    },
+    {
+      "id": "shell.win_frame.top_border_resize",
+      "module": "desktop_shell",
+      "shell_layer": "DesktopWindowFrame",
+      "audit_candidate": "SC-W1",
+      "route_template": "/recommended",
+      "route": "/recommended",
+      "direction": "one_way",
+      "states": [
+        "normal_unmaximized"
+      ],
+      "target": {
+        "kind": "viewport_ratio",
+        "x_ratio": 0.5,
+        "y_ratio": 0.002
+      },
+      "actions": [
+        {
+          "type": "hover",
+          "duration_ms": 350
+        },
+        {
+          "type": "drag",
+          "dx_ratio": 0.0,
+          "dy_ratio": 0.06,
+          "duration_ms": 450
+        },
+        {
+          "type": "wait_ms",
+          "ms": 300
+        }
+      ],
+      "format": "mp4",
+      "platforms": {
+        "windows": "foreground_opt_in:requires_active_desktop_win32k_modal_size_loop",
+        "linux": "not_applicable:xvfb_without_reparenting_wm_border_resize",
+        "macos": "not_applicable:widget_tester_has_no_os_window_border_drag",
+        "android_avd": "not_applicable:mobile_has_no_resizable_window_border",
+        "iphone": "not_applicable:mobile_has_no_resizable_window_border",
+        "ipad": "not_applicable:tablet_has_no_win32_window_border"
+      }
+    },
+    {
+      "id": "shell.win_caption.tooltip_hover",
+      "module": "desktop_shell",
+      "shell_layer": "DesktopWindowFrame",
+      "audit_candidate": "SC-W3",
+      "route_template": "/recommended",
+      "route": "/recommended",
+      "direction": "one_way",
+      "states": [
+        "normal_unmaximized"
+      ],
+      "target": {
+        "kind": "key",
+        "query": "desktop-window-minimize",
+        "offset_x_ratio": 0.5,
+        "offset_y_ratio": 0.5
+      },
+      "actions": [
+        {
+          "type": "hover",
+          "duration_ms": 800
+        },
+        {
+          "type": "hover",
+          "target": {
+            "kind": "key",
+            "query": "desktop-window-maximize",
+            "offset_x_ratio": 0.5,
+            "offset_y_ratio": 0.5
+          },
+          "duration_ms": 800
+        }
+      ],
+      "format": "gif",
+      "platforms": {
+        "windows": "required",
+        "linux": "not_applicable:linux_uses_gtk_system_title_bar",
+        "macos": "not_applicable:macos_uses_native_nswindow_traffic_lights",
+        "android_avd": "not_applicable:mobile_has_no_desktop_caption_buttons",
+        "iphone": "not_applicable:mobile_has_no_desktop_caption_buttons",
+        "ipad": "not_applicable:tablet_touch_has_no_desktop_caption_buttons"
+      }
+    },
+    {
+      "id": "shell.command_bar.tooltip_and_icons",
+      "module": "desktop_shell",
+      "shell_layer": "DesktopCommandBar",
+      "audit_candidate": "SC-W3",
+      "route_template": "/recommended",
+      "route": "/recommended",
+      "direction": "one_way",
+      "states": [
+        "normal_seeded"
+      ],
+      "target": {
+        "kind": "key",
+        "query": "desktop-command-rail-toggle",
+        "offset_x_ratio": 0.5,
+        "offset_y_ratio": 0.5
+      },
+      "actions": [
+        {
+          "type": "hover",
+          "duration_ms": 800
+        },
+        {
+          "type": "hover",
+          "target": {
+            "kind": "key",
+            "query": "desktop-command-refresh",
+            "offset_x_ratio": 0.5,
+            "offset_y_ratio": 0.5
+          },
+          "duration_ms": 800
+        },
+        {
+          "type": "hover",
+          "target": {
+            "kind": "key",
+            "query": "desktop-command-filter",
+            "offset_x_ratio": 0.5,
+            "offset_y_ratio": 0.5
+          },
+          "duration_ms": 800
+        }
+      ],
+      "format": "gif",
+      "platforms": {
+        "windows": "required",
+        "linux": "required",
+        "macos": "required",
+        "android_avd": "not_applicable:mobile_has_no_desktop_command_bar",
+        "iphone": "not_applicable:mobile_has_no_desktop_command_bar",
+        "ipad": "not_applicable:tablet_touch_has_no_desktop_command_bar"
+      }
+    },
+    {
+      "id": "shell.command_bar.rail_toggle_roundtrip",
+      "module": "desktop_shell",
+      "shell_layer": "DesktopCommandBar",
+      "route_template": "/recommended",
+      "route": "/recommended",
+      "direction": "two_way",
+      "states": [
+        "wide_two_pane"
+      ],
+      "target": {
+        "kind": "key",
+        "query": "desktop-command-rail-toggle"
+      },
+      "actions": [
+        {
+          "type": "click"
+        },
+        {
+          "type": "wait_ms",
+          "ms": 350
+        },
+        {
+          "type": "click"
+        },
+        {
+          "type": "wait_ms",
+          "ms": 350
+        }
+      ],
+      "format": "gif",
+      "platforms": {
+        "windows": "required",
+        "linux": "required",
+        "macos": "required",
+        "android_avd": "not_applicable:mobile_phone_avd_has_no_desktop_command_bar",
+        "iphone": "not_applicable:mobile_has_no_desktop_command_bar",
+        "ipad": "not_applicable:ipad_uses_in_rail_expand_button"
+      }
+    },
+    {
+      "id": "shell.command_bar.filter_and_account_popovers",
+      "module": "desktop_shell",
+      "shell_layer": "DesktopCommandBar",
+      "route_template": "/recommended",
+      "route": "/recommended",
+      "direction": "two_way",
+      "states": [
+        "normal_seeded"
+      ],
+      "target": {
+        "kind": "key",
+        "query": "desktop-command-filter"
+      },
+      "actions": [
+        {
+          "type": "click"
+        },
+        {
+          "type": "wait_ms",
+          "ms": 350
+        },
+        {
+          "type": "key",
+          "key": "Escape"
+        },
+        {
+          "type": "wait_ms",
+          "ms": 250
+        },
+        {
+          "type": "click",
+          "target": {
+            "kind": "key",
+            "query": "desktop-command-account"
+          }
+        },
+        {
+          "type": "wait_ms",
+          "ms": 350
+        },
+        {
+          "type": "key",
+          "key": "Escape"
+        },
+        {
+          "type": "wait_ms",
+          "ms": 250
+        }
+      ],
+      "format": "gif",
+      "platforms": {
+        "windows": "required",
+        "linux": "required",
+        "macos": "required",
+        "android_avd": "not_applicable:mobile_has_no_desktop_command_bar",
+        "iphone": "not_applicable:mobile_has_no_desktop_command_bar",
+        "ipad": "not_applicable:tablet_touch_has_no_desktop_command_bar"
+      }
+    },
+    {
+      "id": "shell.command_bar.search_pill_and_history_roundtrip",
+      "module": "desktop_shell",
+      "shell_layer": "DesktopCommandBar",
+      "route_template": "/recommended",
+      "route": "/recommended",
+      "direction": "two_way",
+      "states": [
+        "normal_seeded"
+      ],
+      "target": {
+        "kind": "key",
+        "query": "desktop-command-search-pill"
+      },
+      "actions": [
+        {
+          "type": "click"
+        },
+        {
+          "type": "wait_ms",
+          "ms": 400
+        },
+        {
+          "type": "click",
+          "target": {
+            "kind": "key",
+            "query": "desktop-command-back"
+          }
+        },
+        {
+          "type": "wait_ms",
+          "ms": 350
+        },
+        {
+          "type": "click",
+          "target": {
+            "kind": "key",
+            "query": "desktop-command-forward"
+          }
+        },
+        {
+          "type": "wait_ms",
+          "ms": 350
+        }
+      ],
+      "format": "mp4",
+      "platforms": {
+        "windows": "required",
+        "linux": "required",
+        "macos": "required",
+        "android_avd": "not_applicable:mobile_has_no_desktop_command_bar",
+        "iphone": "not_applicable:mobile_has_no_desktop_command_bar",
+        "ipad": "not_applicable:tablet_touch_has_no_desktop_command_bar"
+      }
+    },
+    {
+      "id": "shell.menu_bar.shortcuts_navigation",
+      "module": "desktop_shell",
+      "shell_layer": "DesktopMenuBar",
+      "route_template": "/recommended",
+      "route": "/recommended",
+      "direction": "two_way",
+      "states": [
+        "normal_seeded"
+      ],
+      "target": {
+        "kind": "key",
+        "query": "desktop-command-search-pill"
+      },
+      "actions": [
+        {
+          "type": "key",
+          "key": "Ctrl+K"
+        },
+        {
+          "type": "wait_ms",
+          "ms": 350
+        },
+        {
+          "type": "key",
+          "key": "Alt+Left"
+        },
+        {
+          "type": "wait_ms",
+          "ms": 300
+        }
+      ],
+      "format": "gif",
+      "platforms": {
+        "windows": "required",
+        "linux": "required",
+        "macos": "required",
+        "android_avd": "not_applicable:mobile_has_no_desktop_menubar_shortcuts",
+        "iphone": "not_applicable:mobile_has_no_desktop_menubar_shortcuts",
+        "ipad": "not_applicable:ipad_sim_targets_touch_shell"
+      }
+    },
+    {
+      "id": "shell.home_stack.branch_switch_roundtrip",
+      "module": "navigation_shell",
+      "shell_layer": "HomeBranchStack",
+      "route_template": "/recommended",
+      "route": "/recommended",
+      "direction": "two_way",
+      "states": [
+        "normal_seeded"
+      ],
+      "target": {
+        "kind": "any_text",
+        "queries": [
+          "排行",
+          "Ranking"
+        ]
+      },
+      "actions": [
+        {
+          "type": "tap"
+        },
+        {
+          "type": "wait_ms",
+          "ms": 400
+        },
+        {
+          "type": "tap",
+          "target": {
+            "kind": "any_text",
+            "queries": [
+              "推荐",
+              "For you",
+              "Recommended"
+            ]
+          }
+        },
+        {
+          "type": "wait_ms",
+          "ms": 400
+        }
+      ],
+      "format": "mp4",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "shell.home_stack.swipe_and_retap_top",
+      "module": "navigation_shell",
+      "shell_layer": "HomeBranchStack",
+      "route_template": "/recommended",
+      "route": "/recommended",
+      "direction": "two_way",
+      "states": [
+        "compact_single_pane"
+      ],
+      "target": {
+        "kind": "viewport_ratio",
+        "x_ratio": 0.5,
+        "y_ratio": 0.6
+      },
+      "actions": [
+        {
+          "type": "swipe",
+          "dx_ratio": 0.0,
+          "dy_ratio": -0.45,
+          "duration_ms": 350
+        },
+        {
+          "type": "wait_ms",
+          "ms": 300
+        },
+        {
+          "type": "swipe",
+          "dx_ratio": 0.0,
+          "dy_ratio": 0.25,
+          "duration_ms": 300
+        },
+        {
+          "type": "tap",
+          "target": {
+            "kind": "any_text",
+            "queries": [
+              "推荐",
+              "For you",
+              "Recommended"
+            ]
+          }
+        },
+        {
+          "type": "wait_ms",
+          "ms": 400
+        }
+      ],
+      "format": "mp4",
+      "platforms": {
+        "windows": "not_applicable:covered_on_mobile_touch_bottom_bar",
+        "android_avd": "required",
+        "linux": "not_applicable:covered_on_mobile_touch_bottom_bar",
+        "iphone": "required",
+        "ipad": "not_applicable:ipad_uses_navigation_rail",
+        "macos": "not_applicable:macos_uses_navigation_rail"
+      }
+    },
+    {
+      "id": "onboarding.splash.render",
+      "module": "onboarding_auth",
+      "route_template": "/splash",
+      "route": "/splash",
+      "sim_setup": {
+        "signedIn": false
+      },
+      "direction": "one_way",
+      "states": [
+        "normal_seeded"
+      ],
+      "target": {
+        "kind": "viewport_ratio",
+        "x_ratio": 0.5,
+        "y_ratio": 0.5
+      },
+      "actions": [
+        {
+          "type": "wait_ms",
+          "ms": 600
+        }
+      ],
+      "format": "gif",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "onboarding.welcome.start_flow",
+      "module": "onboarding_auth",
+      "route_template": "/welcome",
+      "route": "/welcome",
+      "sim_setup": {
+        "signedIn": false
+      },
+      "direction": "one_way",
+      "states": [
+        "normal_seeded"
+      ],
+      "target": {
+        "kind": "viewport_ratio",
+        "x_ratio": 0.5,
+        "y_ratio": 0.8
+      },
+      "actions": [
+        {
+          "type": "wait_ms",
+          "ms": 350
+        },
+        {
+          "type": "scroll",
+          "dy": -120
+        }
+      ],
+      "format": "gif",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "onboarding.welcome_language.pick",
+      "module": "onboarding_auth",
+      "route_template": "/welcome/language",
+      "route": "/welcome/language",
+      "sim_setup": {
+        "signedIn": false
+      },
+      "direction": "two_way",
+      "states": [
+        "normal_seeded"
+      ],
+      "target": {
+        "kind": "any_text",
+        "queries": [
+          "English",
+          "简体中文"
+        ]
+      },
+      "actions": [
+        {
+          "type": "tap"
+        },
+        {
+          "type": "wait_ms",
+          "ms": 300
+        },
+        {
+          "type": "tap",
+          "target": {
+            "kind": "any_text",
+            "queries": [
+              "简体中文",
+              "Chinese (Simplified)"
+            ]
+          }
+        },
+        {
+          "type": "wait_ms",
+          "ms": 300
+        }
+      ],
+      "format": "gif",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "onboarding.user_agreement.scroll",
+      "module": "onboarding_auth",
+      "route_template": "/user-agreement",
+      "route": "/user-agreement",
+      "sim_setup": {
+        "signedIn": false
+      },
+      "direction": "one_way",
+      "states": [
+        "normal_seeded"
+      ],
+      "target": {
+        "kind": "viewport_ratio",
+        "x_ratio": 0.5,
+        "y_ratio": 0.5
+      },
+      "actions": [
+        {
+          "type": "scroll",
+          "dy": -360
+        },
+        {
+          "type": "wait_ms",
+          "ms": 300
+        }
+      ],
+      "format": "mp4",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "auth.login.help_and_compat_toggle",
+      "module": "onboarding_auth",
+      "route_template": "/login",
+      "route": "/login",
+      "sim_setup": {
+        "signedIn": false
+      },
+      "direction": "two_way",
+      "states": [
+        "normal_seeded"
+      ],
+      "target": {
+        "kind": "any_semantics",
+        "queries": [
+          "Pixiv 官方网络兼容",
+          "Pixiv official network compatibility"
+        ]
+      },
+      "actions": [
+        {
+          "type": "tap"
+        },
+        {
+          "type": "wait_ms",
+          "ms": 350
+        },
+        {
+          "type": "tap"
+        },
+        {
+          "type": "wait_ms",
+          "ms": 300
+        }
+      ],
+      "format": "gif",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "auth.login_web.host_chrome_and_fallback",
+      "module": "onboarding_auth",
+      "audit_candidate": "SC-W4",
+      "route_template": "/login/web",
+      "route": "/login/web",
+      "sim_setup": {
+        "signedIn": false
+      },
+      "direction": "one_way",
+      "states": [
+        "normal_seeded"
+      ],
+      "target": {
+        "kind": "any_semantics",
+        "queries": [
+          "在浏览器打开",
+          "Open in browser"
+        ]
+      },
+      "actions": [
+        {
+          "type": "wait_ms",
+          "ms": 500
+        },
+        {
+          "type": "hover",
+          "duration_ms": 400
+        }
+      ],
+      "format": "gif",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "not_applicable:widget_tester_has_no_native_inappwebview_platform",
+        "ipad": "not_applicable:widget_tester_has_no_native_inappwebview_platform",
+        "macos": "not_applicable:widget_tester_has_no_native_inappwebview_platform"
+      }
+    },
+    {
+      "id": "auth.login_callback.landing",
+      "module": "onboarding_auth",
+      "route_template": "/login/callback",
+      "route": "/login/callback",
+      "sim_setup": {
+        "signedIn": false
+      },
+      "direction": "one_way",
+      "states": [
+        "normal_seeded"
+      ],
+      "target": {
+        "kind": "viewport_ratio",
+        "x_ratio": 0.5,
+        "y_ratio": 0.5
+      },
+      "actions": [
+        {
+          "type": "wait_ms",
+          "ms": 500
+        }
+      ],
+      "format": "gif",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "overlay.reverse_image.engine_tabs",
+      "module": "overlay_roots",
+      "route_template": "/reverse-image",
+      "route": "/reverse-image",
+      "direction": "one_way",
+      "states": [
+        "normal_seeded"
+      ],
+      "target": {
+        "kind": "key",
+        "query": "reverseTaskHeader"
+      },
+      "actions": [
+        {
+          "type": "wait_ms",
+          "ms": 350
+        },
+        {
+          "type": "tap",
+          "optional": true,
+          "target": {
+            "kind": "any_text",
+            "queries": [
+              "IQDB",
+              "SauceNAO"
+            ]
+          }
+        },
+        {
+          "type": "wait_ms",
+          "ms": 300
+        }
+      ],
+      "format": "gif",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "overlay.root_me.tabs_roundtrip",
+      "module": "overlay_roots",
+      "route_template": "/me",
+      "route": "/me",
+      "direction": "two_way",
+      "states": [
+        "normal_seeded"
+      ],
+      "target": {
+        "kind": "any_text",
+        "queries": [
+          "收藏",
+          "Bookmarked",
+          "Bookmarks"
+        ]
+      },
+      "actions": [
+        {
+          "type": "tap"
+        },
+        {
+          "type": "wait_ms",
+          "ms": 350
+        },
+        {
+          "type": "tap",
+          "target": {
+            "kind": "any_text",
+            "queries": [
+              "粉丝",
+              "Fans",
+              "作品",
+              "Works",
+              "插画",
+              "Illustration",
+              "Illusts"
+            ]
+          }
+        },
+        {
+          "type": "wait_ms",
+          "ms": 300
+        },
+        {
+          "type": "tap",
+          "target": {
+            "kind": "any_text",
+            "queries": [
+              "收藏",
+              "Bookmarked",
+              "Bookmarks"
+            ]
+          }
+        },
+        {
+          "type": "wait_ms",
+          "ms": 250
+        }
+      ],
+      "format": "gif",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "overlay.root_downloads.scroll_and_inspect",
+      "module": "overlay_roots",
+      "route_template": "/downloads",
+      "route": "/downloads",
+      "sim_setup": {
+        "downloadSingles": 3
+      },
+      "direction": "one_way",
+      "states": [
+        "normal_seeded"
+      ],
+      "target": {
+        "kind": "viewport_ratio",
+        "x_ratio": 0.5,
+        "y_ratio": 0.45
+      },
+      "actions": [
+        {
+          "type": "scroll",
+          "dy": -240
+        },
+        {
+          "type": "wait_ms",
+          "ms": 350
+        }
+      ],
+      "format": "gif",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "feed.recommended.scroll_and_context_menu",
+      "module": "feeds",
+      "route_template": "/recommended",
+      "route": "/recommended",
+      "direction": "two_way",
+      "states": [
+        "normal_seeded"
+      ],
+      "target": {
+        "kind": "any_text",
+        "queries": [
+          "Harbor Dawn Study",
+          "illust 1000"
+        ]
+      },
+      "actions": [
+        {
+          "type": "scroll",
+          "dy": -360
+        },
+        {
+          "type": "scroll",
+          "dy": 360
+        },
+        {
+          "type": "context_action"
+        },
+        {
+          "type": "wait_ms",
+          "ms": 350
+        },
+        {
+          "type": "key",
+          "key": "Escape"
+        }
+      ],
+      "format": "mp4",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "feed.recommended.empty_state",
+      "module": "feeds",
+      "route_template": "/recommended",
+      "route": "/recommended",
+      "sim_setup": {
+        "emptyRecommended": true
+      },
+      "direction": "two_way",
+      "states": [
+        "empty"
+      ],
+      "target": {
+        "kind": "viewport_ratio",
+        "x_ratio": 0.5,
+        "y_ratio": 0.5
+      },
+      "actions": [
+        {
+          "type": "fault",
+          "routePrefix": "/v1/illust/recommended",
+          "mode": "empty"
+        },
+        {
+          "type": "navigate",
+          "path": "/recommended"
+        },
+        {
+          "type": "wait_ms",
+          "ms": 500
+        },
+        {
+          "type": "fault",
+          "reset": true
+        }
+      ],
+      "format": "gif",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "feed.recommended.error_retry",
+      "module": "feeds",
+      "route_template": "/recommended",
+      "route": "/recommended",
+      "sim_route": "/recommended",
+      "sim_setup": {
+        "errorRecommended": true
+      },
+      "direction": "two_way",
+      "states": [
+        "error_retry"
+      ],
+      "target": {
+        "kind": "any_text",
+        "queries": [
+          "重试",
+          "Retry"
+        ]
+      },
+      "actions": [
+        {
+          "type": "fault",
+          "routePrefix": "/v1/novel/recommended",
+          "mode": "server_500"
+        },
+        {
+          "type": "navigate",
+          "path": "/recommended?type=novel",
+          "sim_path": "/recommended"
+        },
+        {
+          "type": "wait_ms",
+          "ms": 500
+        },
+        {
+          "type": "fault",
+          "reset": true
+        },
+        {
+          "type": "tap"
+        },
+        {
+          "type": "wait_ms",
+          "ms": 500
+        }
+      ],
+      "format": "mp4",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "feed.ranking.mode_switch_roundtrip",
+      "module": "feeds",
+      "route_template": "/ranking",
+      "route": "/ranking",
+      "direction": "two_way",
+      "states": [
+        "normal_seeded"
+      ],
+      "target": {
+        "kind": "any_text",
+        "queries": [
+          "每周",
+          "Weekly",
+          "周榜"
+        ]
+      },
+      "actions": [
+        {
+          "type": "tap"
+        },
+        {
+          "type": "wait_ms",
+          "ms": 350
+        },
+        {
+          "type": "scroll",
+          "dy": -300
+        },
+        {
+          "type": "tap",
+          "target": {
+            "kind": "any_text",
+            "queries": [
+              "每日",
+              "Daily",
+              "日榜"
+            ]
+          }
+        },
+        {
+          "type": "wait_ms",
+          "ms": 350
+        }
+      ],
+      "format": "mp4",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "feed.new_works.scope_switch_roundtrip",
+      "module": "feeds",
+      "route_template": "/new",
+      "route": "/new",
+      "direction": "two_way",
+      "states": [
+        "normal_seeded"
+      ],
+      "target": {
+        "kind": "any_text",
+        "queries": [
+          "大家",
+          "Everyone"
+        ]
+      },
+      "actions": [
+        {
+          "type": "tap"
+        },
+        {
+          "type": "wait_ms",
+          "ms": 350
+        },
+        {
+          "type": "tap",
+          "target": {
+            "kind": "any_text",
+            "queries": [
+              "关注",
+              "Following"
+            ]
+          }
+        },
+        {
+          "type": "wait_ms",
+          "ms": 350
+        }
+      ],
+      "format": "gif",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "search.home.tabs_and_trending_scroll",
+      "module": "search",
+      "route_template": "/search",
+      "route": "/search",
+      "direction": "two_way",
+      "states": [
+        "normal_seeded"
+      ],
+      "target": {
+        "kind": "any_text",
+        "queries": [
+          "小说",
+          "Novel",
+          "Novels"
+        ]
+      },
+      "actions": [
+        {
+          "type": "tap"
+        },
+        {
+          "type": "wait_ms",
+          "ms": 350
+        },
+        {
+          "type": "tap",
+          "target": {
+            "kind": "any_text",
+            "queries": [
+              "插画 & 漫画",
+              "Illust & Manga",
+              "插画"
+            ]
+          }
+        },
+        {
+          "type": "scroll",
+          "dy": -240
+        }
+      ],
+      "format": "gif",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "search.input.autocomplete_and_clear",
+      "module": "search",
+      "route_template": "/search/input",
+      "route": "/search/input",
+      "direction": "two_way",
+      "states": [
+        "normal_seeded"
+      ],
+      "target": {
+        "kind": "any_semantics",
+        "queries": [
+          "取消",
+          "Cancel"
+        ],
+        "offset_x_ratio": 3.5,
+        "offset_y_ratio": 0.5
+      },
+      "actions": [
+        {
+          "type": "tap"
+        },
+        {
+          "type": "type_text",
+          "text": "harbor"
+        },
+        {
+          "type": "wait_ms",
+          "ms": 400
+        },
+        {
+          "type": "tap",
+          "target": {
+            "kind": "any_semantics",
+            "queries": [
+              "清除",
+              "Clear"
+            ]
+          }
+        },
+        {
+          "type": "wait_ms",
+          "ms": 250
+        }
+      ],
+      "format": "gif",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "search.results.filter_overlay_roundtrip",
+      "module": "search",
+      "route_template": "/search/results",
+      "route": "/search/results?q=harbor&type=illust",
+      "direction": "two_way",
+      "states": [
+        "normal_seeded",
+        "wide_two_pane",
+        "compact_single_pane"
+      ],
+      "target": {
+        "kind": "any_semantics",
+        "queries": [
+          "筛选",
+          "Filters",
+          "Filter"
+        ]
+      },
+      "actions": [
+        {
+          "type": "tap"
+        },
+        {
+          "type": "wait_ms",
+          "ms": 400
+        },
+        {
+          "type": "key",
+          "key": "Escape"
+        },
+        {
+          "type": "wait_ms",
+          "ms": 300
+        }
+      ],
+      "format": "mp4",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "illust.detail.caption_and_bookmark_roundtrip",
+      "module": "illust_detail",
+      "route_template": "/recommended/illust/:illustId",
+      "route": "/recommended/illust/900001",
+      "sim_route": "/recommended/illust/1000",
+      "direction": "two_way",
+      "states": [
+        "normal_seeded",
+        "wide_two_pane"
+      ],
+      "target": {
+        "kind": "key",
+        "query": "illust-detail-caption"
+      },
+      "actions": [
+        {
+          "type": "scroll",
+          "target": {
+            "kind": "viewport_ratio",
+            "x_ratio": 0.5,
+            "y_ratio": 0.55
+          },
+          "dy": -260
+        },
+        {
+          "type": "tap"
+        },
+        {
+          "type": "wait_ms",
+          "ms": 350
+        },
+        {
+          "type": "tap"
+        },
+        {
+          "type": "wait_ms",
+          "ms": 300
+        }
+      ],
+      "format": "mp4",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "illust.detail.responsive_two_pane_resize",
+      "module": "illust_detail",
+      "route_template": "/recommended/illust/:illustId",
+      "route": "/recommended/illust/900001",
+      "sim_route": "/recommended/illust/1000",
+      "direction": "two_way",
+      "states": [
+        "wide_two_pane",
+        "compact_single_pane"
+      ],
+      "target": {
+        "kind": "viewport_ratio",
+        "x_ratio": 0.5,
+        "y_ratio": 0.5
+      },
+      "actions": [
+        {
+          "type": "resize_window",
+          "width": 1280,
+          "height": 760
+        },
+        {
+          "type": "wait_ms",
+          "ms": 400
+        },
+        {
+          "type": "resize_window",
+          "width": 460,
+          "height": 760
+        },
+        {
+          "type": "wait_ms",
+          "ms": 450
+        },
+        {
+          "type": "resize_window",
+          "width": 1280,
+          "height": 760
+        },
+        {
+          "type": "wait_ms",
+          "ms": 400
+        }
+      ],
+      "format": "mp4",
+      "platforms": {
+        "windows": "required",
+        "linux": "required",
+        "macos": "required",
+        "android_avd": "not_applicable:fixed_emulator_panel_tested_via_compact_layout",
+        "iphone": "not_applicable:fixed_phone_viewport",
+        "ipad": "required"
+      }
+    },
+    {
+      "id": "illust.detail.multipage_expand_collapse",
+      "module": "illust_detail",
+      "route_template": "/recommended/illust/:illustId",
+      "route": "/recommended/illust/900002",
+      "sim_route": "/recommended/illust/1002",
+      "direction": "two_way",
+      "states": [
+        "multi_page"
+      ],
+      "target": {
+        "kind": "any_text",
+        "queries": [
+          "展开全部",
+          "Show all",
+          "共 3 页",
+          "3 pages"
+        ]
+      },
+      "actions": [
+        {
+          "type": "scroll",
+          "dy": -320
+        },
+        {
+          "type": "wait_ms",
+          "ms": 450
+        },
+        {
+          "type": "tap",
+          "optional": true,
+          "target": {
+            "kind": "key",
+            "query": "illust-collapse-pages-floating"
+          }
+        },
+        {
+          "type": "wait_ms",
+          "ms": 300
+        }
+      ],
+      "format": "mp4",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "illust.detail.ugoira_playback_toggle",
+      "module": "illust_detail",
+      "route_template": "/recommended/illust/:illustId",
+      "route": "/recommended/illust/900003",
+      "sim_route": "/recommended/illust/1000",
+      "direction": "two_way",
+      "states": [
+        "ugoira"
+      ],
+      "target": {
+        "kind": "key",
+        "query": "ugoira-900003"
+      },
+      "actions": [
+        {
+          "type": "wait_ms",
+          "ms": 600
+        },
+        {
+          "type": "tap"
+        },
+        {
+          "type": "wait_ms",
+          "ms": 350
+        },
+        {
+          "type": "tap"
+        }
+      ],
+      "format": "gif",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "not_applicable:review_world_id_1000_is_static_multipage_covered_by_loopback_3os",
+        "ipad": "not_applicable:review_world_id_1000_is_static_multipage_covered_by_loopback_3os",
+        "macos": "not_applicable:review_world_id_1000_is_static_multipage_covered_by_loopback_3os"
+      }
+    },
+    {
+      "id": "viewer.mouse_drag_paging",
+      "module": "image_viewer",
+      "audit_candidate": "SC-W5",
+      "route_template": "/recommended/illust/:illustId/viewer/:page",
+      "route": "/recommended/illust/900002/viewer/0",
+      "sim_route": "/recommended/illust/1000/viewer/0",
+      "direction": "two_way",
+      "states": [
+        "multi_page"
+      ],
+      "target": {
+        "kind": "key",
+        "query": "viewer-page-0"
+      },
+      "actions": [
+        {
+          "type": "drag",
+          "dx_ratio": -0.45,
+          "dy_ratio": 0.0,
+          "duration_ms": 400
+        },
+        {
+          "type": "wait_ms",
+          "ms": 350
+        },
+        {
+          "type": "drag",
+          "target": {
+            "kind": "viewport_ratio",
+            "x_ratio": 0.5,
+            "y_ratio": 0.5
+          },
+          "dx_ratio": 0.45,
+          "dy_ratio": 0.0,
+          "duration_ms": 400
+        },
+        {
+          "type": "wait_ms",
+          "ms": 350
+        }
+      ],
+      "format": "mp4",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "viewer.win_double_topbar_and_f11_hotzone",
+      "module": "image_viewer",
+      "audit_candidate": "SC-W4",
+      "route_template": "/recommended/illust/:illustId/viewer/:page",
+      "route": "/recommended/illust/900002/viewer/0",
+      "sim_route": "/recommended/illust/1000/viewer/0",
+      "direction": "two_way",
+      "states": [
+        "normal_unmaximized",
+        "fullscreen_f11"
+      ],
+      "target": {
+        "kind": "viewport_ratio",
+        "x_ratio": 0.5,
+        "y_ratio": 0.5
+      },
+      "actions": [
+        {
+          "type": "hover",
+          "duration_ms": 350
+        },
+        {
+          "type": "key",
+          "key": "F11"
+        },
+        {
+          "type": "wait_ms",
+          "ms": 400
+        },
+        {
+          "type": "hover",
+          "target": {
+            "kind": "viewport_ratio",
+            "x_ratio": 0.94,
+            "y_ratio": 0.005
+          },
+          "duration_ms": 700
+        },
+        {
+          "type": "key",
+          "key": "F11"
+        },
+        {
+          "type": "wait_ms",
+          "ms": 350
+        }
+      ],
+      "format": "mp4",
+      "platforms": {
+        "windows": "required",
+        "linux": "required",
+        "macos": "not_applicable:macos_uses_native_green_fullscreen_button",
+        "android_avd": "not_applicable:mobile_has_no_desktop_command_bar_or_f11",
+        "iphone": "not_applicable:mobile_has_no_desktop_command_bar_or_f11",
+        "ipad": "not_applicable:tablet_has_no_desktop_command_bar_or_f11"
+      }
+    },
+    {
+      "id": "viewer.info_panel_and_zoom_roundtrip",
+      "module": "image_viewer",
+      "route_template": "/recommended/illust/:illustId/viewer/:page",
+      "route": "/recommended/illust/900002/viewer/0",
+      "sim_route": "/recommended/illust/1000/viewer/0",
+      "direction": "two_way",
+      "states": [
+        "normal_seeded"
+      ],
+      "target": {
+        "kind": "any_semantics",
+        "queries": [
+          "作品信息",
+          "Artwork info",
+          "Info"
+        ]
+      },
+      "actions": [
+        {
+          "type": "tap"
+        },
+        {
+          "type": "wait_ms",
+          "ms": 350
+        },
+        {
+          "type": "tap"
+        },
+        {
+          "type": "double_click",
+          "target": {
+            "kind": "viewport_ratio",
+            "x_ratio": 0.45,
+            "y_ratio": 0.5
+          }
+        },
+        {
+          "type": "wait_ms",
+          "ms": 300
+        },
+        {
+          "type": "double_click",
+          "target": {
+            "kind": "viewport_ratio",
+            "x_ratio": 0.45,
+            "y_ratio": 0.5
+          }
+        }
+      ],
+      "format": "mp4",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "illust.comments.scroll_and_stamps",
+      "module": "comments",
+      "route_template": "/recommended/illust/:illustId/comments",
+      "route": "/recommended/illust/900001/comments",
+      "sim_route": "/recommended/illust/1000/comments",
+      "direction": "two_way",
+      "states": [
+        "normal_seeded"
+      ],
+      "target": {
+        "kind": "any_semantics",
+        "queries": [
+          "Stamp",
+          "Stamps"
+        ]
+      },
+      "actions": [
+        {
+          "type": "scroll",
+          "dy": -200
+        },
+        {
+          "type": "tap"
+        },
+        {
+          "type": "wait_ms",
+          "ms": 350
+        },
+        {
+          "type": "tap"
+        }
+      ],
+      "format": "gif",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "illust.comment_replies.open_thread",
+      "module": "comments",
+      "route_template": "/recommended/illust/:illustId/comments/:rootCommentId",
+      "route": "/recommended/illust/900001/comments/7001",
+      "sim_route": "/recommended/illust/1000/comments/1",
+      "direction": "one_way",
+      "states": [
+        "normal_seeded"
+      ],
+      "target": {
+        "kind": "viewport_ratio",
+        "x_ratio": 0.5,
+        "y_ratio": 0.45
+      },
+      "actions": [
+        {
+          "type": "scroll",
+          "dy": -180
+        },
+        {
+          "type": "wait_ms",
+          "ms": 300
+        }
+      ],
+      "format": "gif",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "user.profile.follow_and_tabs_roundtrip",
+      "module": "user_profile",
+      "route_template": "/recommended/user/:userId",
+      "route": "/recommended/user/910002",
+      "sim_route": "/recommended/user/99",
+      "direction": "two_way",
+      "states": [
+        "normal_seeded",
+        "wide_two_pane"
+      ],
+      "target": {
+        "kind": "any_text",
+        "queries": [
+          "关注",
+          "Follow"
+        ]
+      },
+      "actions": [
+        {
+          "type": "tap"
+        },
+        {
+          "type": "wait_ms",
+          "ms": 350
+        },
+        {
+          "type": "tap",
+          "target": {
+            "kind": "any_text",
+            "queries": [
+              "已关注",
+              "Following"
+            ]
+          }
+        },
+        {
+          "type": "scroll",
+          "dy": -280
+        }
+      ],
+      "format": "mp4",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "user.profile_edit.form_scroll",
+      "module": "user_profile",
+      "route_template": "/recommended/profile/:userId/edit",
+      "route": "/recommended/profile/900001/edit",
+      "sim_route": "/recommended/profile/100/edit",
+      "direction": "one_way",
+      "states": [
+        "normal_seeded"
+      ],
+      "target": {
+        "kind": "viewport_ratio",
+        "x_ratio": 0.5,
+        "y_ratio": 0.5
+      },
+      "actions": [
+        {
+          "type": "scroll",
+          "dy": -240
+        },
+        {
+          "type": "wait_ms",
+          "ms": 350
+        }
+      ],
+      "format": "gif",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "series.illust_series.scroll_and_watchlist",
+      "module": "series",
+      "route_template": "/recommended/series/:seriesId",
+      "route": "/recommended/series/8801",
+      "sim_route": "/recommended/series/500",
+      "direction": "two_way",
+      "states": [
+        "normal_seeded"
+      ],
+      "target": {
+        "kind": "viewport_ratio",
+        "x_ratio": 0.5,
+        "y_ratio": 0.5
+      },
+      "actions": [
+        {
+          "type": "scroll",
+          "dy": -320
+        },
+        {
+          "type": "scroll",
+          "dy": 320
+        }
+      ],
+      "format": "mp4",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "series.novel_series.scroll_and_read",
+      "module": "series",
+      "route_template": "/recommended/novel-series/:seriesId",
+      "route": "/recommended/novel-series/6601",
+      "sim_route": "/recommended/novel-series/77",
+      "direction": "one_way",
+      "states": [
+        "normal_seeded"
+      ],
+      "target": {
+        "kind": "viewport_ratio",
+        "x_ratio": 0.5,
+        "y_ratio": 0.5
+      },
+      "actions": [
+        {
+          "type": "scroll",
+          "dy": -280
+        },
+        {
+          "type": "wait_ms",
+          "ms": 300
+        }
+      ],
+      "format": "mp4",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "spotlight.feed.scroll",
+      "module": "spotlight",
+      "route_template": "/recommended/spotlight",
+      "route": "/recommended/spotlight",
+      "direction": "one_way",
+      "states": [
+        "normal_seeded"
+      ],
+      "target": {
+        "kind": "viewport_ratio",
+        "x_ratio": 0.5,
+        "y_ratio": 0.5
+      },
+      "actions": [
+        {
+          "type": "scroll",
+          "dy": -280
+        },
+        {
+          "type": "wait_ms",
+          "ms": 350
+        }
+      ],
+      "format": "gif",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "spotlight.article.scroll_and_read",
+      "module": "spotlight",
+      "route_template": "/recommended/spotlight/article/:articleId",
+      "route": "/recommended/spotlight/article/4401?url=https%3A%2F%2Fwww.pixivision.net%2Fen%2Fa%2F4401",
+      "sim_route": "/recommended/spotlight/article/10943",
+      "direction": "one_way",
+      "states": [
+        "normal_seeded"
+      ],
+      "target": {
+        "kind": "viewport_ratio",
+        "x_ratio": 0.5,
+        "y_ratio": 0.5
+      },
+      "actions": [
+        {
+          "type": "scroll",
+          "dy": -360
+        },
+        {
+          "type": "wait_ms",
+          "ms": 350
+        }
+      ],
+      "format": "mp4",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "novel.reader.chrome_and_spread",
+      "module": "novel_reader",
+      "route_template": "/recommended/novel/:novelId",
+      "route": "/recommended/novel/800001",
+      "sim_route": "/recommended/novel/2000",
+      "direction": "two_way",
+      "states": [
+        "normal_seeded",
+        "wide_two_pane"
+      ],
+      "target": {
+        "kind": "viewport_ratio",
+        "x_ratio": 0.5,
+        "y_ratio": 0.5
+      },
+      "actions": [
+        {
+          "type": "tap"
+        },
+        {
+          "type": "wait_ms",
+          "ms": 400
+        },
+        {
+          "type": "tap"
+        },
+        {
+          "type": "scroll",
+          "dy": -260
+        }
+      ],
+      "format": "mp4",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "novel.uploaded_image.viewer",
+      "module": "novel_reader",
+      "route_template": "/recommended/novel/:novelId/image/:imageId",
+      "route": "/recommended/novel/800001",
+      "sim_route": "/recommended/novel/2100",
+      "direction": "one_way",
+      "states": [
+        "normal_seeded"
+      ],
+      "target": {
+        "kind": "viewport_ratio",
+        "x_ratio": 0.5,
+        "y_ratio": 0.5
+      },
+      "actions": [
+        {
+          "type": "wait_ms",
+          "ms": 600
+        },
+        {
+          "type": "navigate",
+          "path": "/recommended/novel/800001/image/1",
+          "sim_path": "/recommended/novel/2100/image/1"
+        },
+        {
+          "type": "wait_ms",
+          "ms": 500
+        }
+      ],
+      "format": "gif",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "novel.comments.scroll",
+      "module": "comments",
+      "route_template": "/recommended/novel/:novelId/comments",
+      "route": "/recommended/novel/800001/comments",
+      "sim_route": "/recommended/novel/2000/comments",
+      "direction": "one_way",
+      "states": [
+        "normal_seeded"
+      ],
+      "target": {
+        "kind": "viewport_ratio",
+        "x_ratio": 0.5,
+        "y_ratio": 0.5
+      },
+      "actions": [
+        {
+          "type": "scroll",
+          "dy": -200
+        },
+        {
+          "type": "wait_ms",
+          "ms": 300
+        }
+      ],
+      "format": "gif",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "novel.comment_replies.open_thread",
+      "module": "comments",
+      "route_template": "/recommended/novel/:novelId/comments/:rootCommentId",
+      "route": "/recommended/novel/800001/comments/7001",
+      "sim_route": "/recommended/novel/2000/comments/1",
+      "direction": "one_way",
+      "states": [
+        "normal_seeded"
+      ],
+      "target": {
+        "kind": "viewport_ratio",
+        "x_ratio": 0.5,
+        "y_ratio": 0.45
+      },
+      "actions": [
+        {
+          "type": "scroll",
+          "dy": -160
+        },
+        {
+          "type": "wait_ms",
+          "ms": 300
+        }
+      ],
+      "format": "gif",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "feeds.novel_ranking.scroll",
+      "module": "feeds",
+      "route_template": "/recommended/novel-ranking",
+      "route": "/recommended/novel-ranking",
+      "direction": "one_way",
+      "states": [
+        "normal_seeded"
+      ],
+      "target": {
+        "kind": "viewport_ratio",
+        "x_ratio": 0.5,
+        "y_ratio": 0.5
+      },
+      "actions": [
+        {
+          "type": "scroll",
+          "dy": -260
+        },
+        {
+          "type": "wait_ms",
+          "ms": 300
+        }
+      ],
+      "format": "gif",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "feeds.new_novels.scroll",
+      "module": "feeds",
+      "route_template": "/recommended/new-novels",
+      "route": "/recommended/new-novels",
+      "direction": "one_way",
+      "states": [
+        "normal_seeded"
+      ],
+      "target": {
+        "kind": "viewport_ratio",
+        "x_ratio": 0.5,
+        "y_ratio": 0.5
+      },
+      "actions": [
+        {
+          "type": "scroll",
+          "dy": -260
+        },
+        {
+          "type": "wait_ms",
+          "ms": 300
+        }
+      ],
+      "format": "gif",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "library.history.browse_and_selection",
+      "module": "library",
+      "route_template": "/recommended/history",
+      "route": "/recommended/history",
+      "sim_setup": {
+        "withHistory": true
+      },
+      "direction": "two_way",
+      "states": [
+        "normal_seeded"
+      ],
+      "target": {
+        "kind": "viewport_ratio",
+        "x_ratio": 0.5,
+        "y_ratio": 0.45
+      },
+      "actions": [
+        {
+          "type": "scroll",
+          "dy": -220
+        },
+        {
+          "type": "scroll",
+          "dy": 220
+        }
+      ],
+      "format": "gif",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "library.watchlater.scroll",
+      "module": "library",
+      "route_template": "/recommended/watchlater",
+      "route": "/recommended/watchlater",
+      "sim_setup": {
+        "watchlater": 3
+      },
+      "direction": "one_way",
+      "states": [
+        "normal_seeded"
+      ],
+      "target": {
+        "kind": "viewport_ratio",
+        "x_ratio": 0.5,
+        "y_ratio": 0.5
+      },
+      "actions": [
+        {
+          "type": "scroll",
+          "dy": -200
+        },
+        {
+          "type": "wait_ms",
+          "ms": 300
+        }
+      ],
+      "format": "gif",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "library.watchlist.tabs_roundtrip",
+      "module": "library",
+      "route_template": "/recommended/watchlist",
+      "route": "/recommended/watchlist",
+      "direction": "two_way",
+      "states": [
+        "normal_seeded"
+      ],
+      "target": {
+        "kind": "any_text",
+        "queries": [
+          "小说",
+          "Novel",
+          "Novels"
+        ]
+      },
+      "actions": [
+        {
+          "type": "tap"
+        },
+        {
+          "type": "wait_ms",
+          "ms": 350
+        },
+        {
+          "type": "tap",
+          "target": {
+            "kind": "any_text",
+            "queries": [
+              "漫画",
+              "Manga"
+            ]
+          }
+        },
+        {
+          "type": "wait_ms",
+          "ms": 300
+        }
+      ],
+      "format": "gif",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "library.novel_markers.scroll",
+      "module": "library",
+      "route_template": "/recommended/novel-markers",
+      "route": "/recommended/novel-markers",
+      "direction": "one_way",
+      "states": [
+        "normal_seeded"
+      ],
+      "target": {
+        "kind": "viewport_ratio",
+        "x_ratio": 0.5,
+        "y_ratio": 0.5
+      },
+      "actions": [
+        {
+          "type": "scroll",
+          "dy": -200
+        },
+        {
+          "type": "wait_ms",
+          "ms": 300
+        }
+      ],
+      "format": "gif",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "library.local_novels.list_view",
+      "module": "library",
+      "route_template": "/recommended/local-novels",
+      "route": "/recommended/local-novels",
+      "sim_setup": {
+        "localNovels": 2
+      },
+      "direction": "one_way",
+      "states": [
+        "empty",
+        "normal_seeded"
+      ],
+      "target": {
+        "kind": "viewport_ratio",
+        "x_ratio": 0.5,
+        "y_ratio": 0.5
+      },
+      "actions": [
+        {
+          "type": "wait_ms",
+          "ms": 450
+        }
+      ],
+      "format": "gif",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "library.local_novel_reader.open",
+      "module": "library",
+      "route_template": "/recommended/local-novels/:localId",
+      "route": "/recommended/local-novels/1",
+      "sim_setup": {
+        "localNovels": 2
+      },
+      "direction": "one_way",
+      "states": [
+        "normal_seeded",
+        "error_retry"
+      ],
+      "target": {
+        "kind": "viewport_ratio",
+        "x_ratio": 0.5,
+        "y_ratio": 0.5
+      },
+      "actions": [
+        {
+          "type": "wait_ms",
+          "ms": 500
+        }
+      ],
+      "format": "gif",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "library.bookmark_tags.tabs_and_scroll",
+      "module": "library",
+      "route_template": "/recommended/bookmarks/tags",
+      "route": "/recommended/bookmarks/tags",
+      "direction": "two_way",
+      "states": [
+        "normal_seeded"
+      ],
+      "target": {
+        "kind": "viewport_ratio",
+        "x_ratio": 0.5,
+        "y_ratio": 0.5
+      },
+      "actions": [
+        {
+          "type": "scroll",
+          "dy": -180
+        },
+        {
+          "type": "scroll",
+          "dy": 180
+        }
+      ],
+      "format": "gif",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "library.bookmark_tag_feed.scroll",
+      "module": "library",
+      "route_template": "/recommended/bookmarks/tag",
+      "route": "/recommended/bookmarks/tag?tag=harbor&kind=illust",
+      "sim_route": "/recommended/bookmarks/tag?tag=%E9%A3%8E%E6%99%AF&kind=illust",
+      "direction": "one_way",
+      "states": [
+        "normal_seeded"
+      ],
+      "target": {
+        "kind": "viewport_ratio",
+        "x_ratio": 0.5,
+        "y_ratio": 0.5
+      },
+      "actions": [
+        {
+          "type": "scroll",
+          "dy": -240
+        },
+        {
+          "type": "wait_ms",
+          "ms": 300
+        }
+      ],
+      "format": "gif",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "search.tag_page.scroll",
+      "module": "search",
+      "route_template": "/recommended/tag/:keyword",
+      "route": "/recommended/tag/harbor",
+      "direction": "one_way",
+      "states": [
+        "normal_seeded"
+      ],
+      "target": {
+        "kind": "viewport_ratio",
+        "x_ratio": 0.5,
+        "y_ratio": 0.5
+      },
+      "actions": [
+        {
+          "type": "scroll",
+          "dy": -260
+        },
+        {
+          "type": "wait_ms",
+          "ms": 300
+        }
+      ],
+      "format": "gif",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "branch.me.open",
+      "module": "branch_app_pages",
+      "route_template": "/recommended/me",
+      "route": "/recommended/me",
+      "direction": "one_way",
+      "states": [
+        "normal_seeded"
+      ],
+      "target": {
+        "kind": "viewport_ratio",
+        "x_ratio": 0.5,
+        "y_ratio": 0.5
+      },
+      "actions": [
+        {
+          "type": "scroll",
+          "dy": -200
+        },
+        {
+          "type": "wait_ms",
+          "ms": 300
+        }
+      ],
+      "format": "gif",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "branch.downloads.open",
+      "module": "branch_app_pages",
+      "route_template": "/recommended/downloads",
+      "route": "/recommended/downloads",
+      "sim_setup": {
+        "downloadSingles": 2
+      },
+      "direction": "one_way",
+      "states": [
+        "normal_seeded"
+      ],
+      "target": {
+        "kind": "viewport_ratio",
+        "x_ratio": 0.5,
+        "y_ratio": 0.5
+      },
+      "actions": [
+        {
+          "type": "scroll",
+          "dy": -200
+        },
+        {
+          "type": "wait_ms",
+          "ms": 300
+        }
+      ],
+      "format": "gif",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "settings.dashboard.hub",
+      "module": "settings",
+      "route_template": "/settings",
+      "route": "/settings",
+      "direction": "one_way",
+      "states": [
+        "normal_seeded",
+        "wide_two_pane"
+      ],
+      "target": {
+        "kind": "viewport_ratio",
+        "x_ratio": 0.5,
+        "y_ratio": 0.5
+      },
+      "actions": [
+        {
+          "type": "scroll",
+          "dy": -260
+        },
+        {
+          "type": "wait_ms",
+          "ms": 300
+        }
+      ],
+      "format": "gif",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "settings.all.master_detail",
+      "module": "settings",
+      "route_template": "/settings/all",
+      "route": "/settings/all",
+      "direction": "two_way",
+      "states": [
+        "normal_seeded",
+        "wide_two_pane"
+      ],
+      "target": {
+        "kind": "any_text",
+        "queries": [
+          "主题",
+          "Theme"
+        ]
+      },
+      "actions": [
+        {
+          "type": "tap"
+        },
+        {
+          "type": "wait_ms",
+          "ms": 350
+        },
+        {
+          "type": "tap",
+          "optional": true,
+          "target": {
+            "kind": "any_semantics",
+            "queries": [
+              "返回",
+              "Back"
+            ]
+          }
+        }
+      ],
+      "format": "mp4",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "settings.account.view_and_dialog",
+      "module": "settings",
+      "route_template": "/settings/account",
+      "route": "/settings/account",
+      "direction": "one_way",
+      "states": [
+        "normal_seeded"
+      ],
+      "target": {
+        "kind": "viewport_ratio",
+        "x_ratio": 0.5,
+        "y_ratio": 0.5
+      },
+      "actions": [
+        {
+          "type": "scroll",
+          "dy": -180
+        },
+        {
+          "type": "wait_ms",
+          "ms": 300
+        }
+      ],
+      "format": "gif",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "settings.theme.mode_toggle_roundtrip",
+      "module": "settings",
+      "route_template": "/settings/theme",
+      "route": "/settings/theme",
+      "direction": "two_way",
+      "states": [
+        "normal_seeded"
+      ],
+      "target": {
+        "kind": "any_text",
+        "queries": [
+          "深色",
+          "Dark"
+        ]
+      },
+      "actions": [
+        {
+          "type": "tap"
+        },
+        {
+          "type": "wait_ms",
+          "ms": 400
+        },
+        {
+          "type": "tap",
+          "target": {
+            "kind": "any_text",
+            "queries": [
+              "跟随系统",
+              "System",
+              "浅色",
+              "Light"
+            ]
+          }
+        },
+        {
+          "type": "wait_ms",
+          "ms": 400
+        }
+      ],
+      "format": "gif",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "settings.language.scroll_options",
+      "module": "settings",
+      "route_template": "/settings/language",
+      "route": "/settings/language",
+      "direction": "two_way",
+      "states": [
+        "normal_seeded"
+      ],
+      "target": {
+        "kind": "viewport_ratio",
+        "x_ratio": 0.5,
+        "y_ratio": 0.5
+      },
+      "actions": [
+        {
+          "type": "scroll",
+          "dy": -160
+        },
+        {
+          "type": "scroll",
+          "dy": 160
+        }
+      ],
+      "format": "gif",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "settings.translate.provider_browse",
+      "module": "settings",
+      "route_template": "/settings/translate",
+      "route": "/settings/translate",
+      "direction": "one_way",
+      "states": [
+        "normal_seeded"
+      ],
+      "target": {
+        "kind": "viewport_ratio",
+        "x_ratio": 0.5,
+        "y_ratio": 0.5
+      },
+      "actions": [
+        {
+          "type": "scroll",
+          "dy": -180
+        },
+        {
+          "type": "wait_ms",
+          "ms": 300
+        }
+      ],
+      "format": "gif",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "settings.translate_credentials.form_view",
+      "module": "settings",
+      "route_template": "/settings/translate/credentials/:provider",
+      "route": "/settings/translate/credentials/baidu",
+      "direction": "one_way",
+      "states": [
+        "normal_seeded"
+      ],
+      "target": {
+        "kind": "viewport_ratio",
+        "x_ratio": 0.5,
+        "y_ratio": 0.5
+      },
+      "actions": [
+        {
+          "type": "scroll",
+          "dy": -160
+        },
+        {
+          "type": "wait_ms",
+          "ms": 300
+        }
+      ],
+      "format": "gif",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "settings.network.scroll",
+      "module": "settings",
+      "route_template": "/settings/network",
+      "route": "/settings/network",
+      "direction": "one_way",
+      "states": [
+        "normal_seeded"
+      ],
+      "target": {
+        "kind": "viewport_ratio",
+        "x_ratio": 0.5,
+        "y_ratio": 0.5
+      },
+      "actions": [
+        {
+          "type": "scroll",
+          "dy": -220
+        },
+        {
+          "type": "wait_ms",
+          "ms": 300
+        }
+      ],
+      "format": "gif",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "settings.network_probe.view",
+      "module": "settings",
+      "route_template": "/settings/network/probe",
+      "route": "/settings/network/probe",
+      "direction": "one_way",
+      "states": [
+        "normal_seeded"
+      ],
+      "target": {
+        "kind": "viewport_ratio",
+        "x_ratio": 0.5,
+        "y_ratio": 0.5
+      },
+      "actions": [
+        {
+          "type": "wait_ms",
+          "ms": 400
+        }
+      ],
+      "format": "gif",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "settings.network_advanced.scroll",
+      "module": "settings",
+      "route_template": "/settings/network/advanced",
+      "route": "/settings/network/advanced",
+      "direction": "one_way",
+      "states": [
+        "normal_seeded"
+      ],
+      "target": {
+        "kind": "viewport_ratio",
+        "x_ratio": 0.5,
+        "y_ratio": 0.5
+      },
+      "actions": [
+        {
+          "type": "scroll",
+          "dy": -240
+        },
+        {
+          "type": "wait_ms",
+          "ms": 300
+        }
+      ],
+      "format": "gif",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "settings.frame_probe.toggle",
+      "module": "settings",
+      "route_template": "/settings/frame-probe",
+      "route": "/settings/frame-probe",
+      "direction": "two_way",
+      "states": [
+        "normal_seeded"
+      ],
+      "target": {
+        "kind": "any_text",
+        "queries": [
+          "开始记录",
+          "Start",
+          "开始"
+        ]
+      },
+      "actions": [
+        {
+          "type": "wait_ms",
+          "ms": 350
+        },
+        {
+          "type": "scroll",
+          "dy": -140
+        }
+      ],
+      "format": "gif",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "settings.browse.menu_choice_roundtrip",
+      "module": "settings",
+      "route_template": "/settings/browse",
+      "route": "/settings/browse",
+      "direction": "two_way",
+      "states": [
+        "normal_seeded"
+      ],
+      "target": {
+        "kind": "any_text",
+        "queries": [
+          "预览质量",
+          "Preview quality"
+        ]
+      },
+      "actions": [
+        {
+          "type": "tap"
+        },
+        {
+          "type": "wait_ms",
+          "ms": 350
+        },
+        {
+          "type": "key",
+          "key": "Escape"
+        }
+      ],
+      "format": "gif",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "settings.motion.toggle_roundtrip",
+      "module": "settings",
+      "route_template": "/settings/motion",
+      "route": "/settings/motion",
+      "direction": "two_way",
+      "states": [
+        "normal_seeded"
+      ],
+      "target": {
+        "kind": "viewport_ratio",
+        "x_ratio": 0.5,
+        "y_ratio": 0.4
+      },
+      "actions": [
+        {
+          "type": "scroll",
+          "dy": -160
+        },
+        {
+          "type": "wait_ms",
+          "ms": 300
+        }
+      ],
+      "format": "gif",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "settings.navigation.scroll",
+      "module": "settings",
+      "route_template": "/settings/navigation",
+      "route": "/settings/navigation",
+      "direction": "one_way",
+      "states": [
+        "normal_seeded"
+      ],
+      "target": {
+        "kind": "viewport_ratio",
+        "x_ratio": 0.5,
+        "y_ratio": 0.5
+      },
+      "actions": [
+        {
+          "type": "scroll",
+          "dy": -180
+        },
+        {
+          "type": "wait_ms",
+          "ms": 300
+        }
+      ],
+      "format": "gif",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "settings.bottom_bar.destination_toggles",
+      "module": "settings",
+      "route_template": "/settings/navigation/bottom-bar",
+      "route": "/settings/navigation/bottom-bar",
+      "direction": "two_way",
+      "states": [
+        "normal_seeded"
+      ],
+      "target": {
+        "kind": "viewport_ratio",
+        "x_ratio": 0.5,
+        "y_ratio": 0.5
+      },
+      "actions": [
+        {
+          "type": "scroll",
+          "dy": -180
+        },
+        {
+          "type": "scroll",
+          "dy": 180
+        }
+      ],
+      "format": "gif",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "settings.download.slider_and_template",
+      "module": "settings",
+      "route_template": "/settings/download",
+      "route": "/settings/download",
+      "direction": "one_way",
+      "states": [
+        "normal_seeded"
+      ],
+      "target": {
+        "kind": "viewport_ratio",
+        "x_ratio": 0.5,
+        "y_ratio": 0.5
+      },
+      "actions": [
+        {
+          "type": "scroll",
+          "dy": -220
+        },
+        {
+          "type": "wait_ms",
+          "ms": 300
+        }
+      ],
+      "format": "gif",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "settings.download_destination.view",
+      "module": "settings",
+      "route_template": "/settings/download/destination",
+      "route": "/settings/download/destination",
+      "direction": "one_way",
+      "states": [
+        "normal_seeded"
+      ],
+      "target": {
+        "kind": "viewport_ratio",
+        "x_ratio": 0.5,
+        "y_ratio": 0.5
+      },
+      "actions": [
+        {
+          "type": "scroll",
+          "dy": -160
+        },
+        {
+          "type": "wait_ms",
+          "ms": 300
+        }
+      ],
+      "format": "gif",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "settings.muted.list_scroll",
+      "module": "settings",
+      "route_template": "/settings/muted",
+      "route": "/settings/muted",
+      "direction": "one_way",
+      "states": [
+        "normal_seeded"
+      ],
+      "target": {
+        "kind": "viewport_ratio",
+        "x_ratio": 0.5,
+        "y_ratio": 0.5
+      },
+      "actions": [
+        {
+          "type": "scroll",
+          "dy": -180
+        },
+        {
+          "type": "wait_ms",
+          "ms": 300
+        }
+      ],
+      "format": "gif",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "settings.backup.actions_view",
+      "module": "settings",
+      "route_template": "/settings/backup",
+      "route": "/settings/backup",
+      "direction": "one_way",
+      "states": [
+        "normal_seeded"
+      ],
+      "target": {
+        "kind": "viewport_ratio",
+        "x_ratio": 0.5,
+        "y_ratio": 0.5
+      },
+      "actions": [
+        {
+          "type": "scroll",
+          "dy": -160
+        },
+        {
+          "type": "wait_ms",
+          "ms": 300
+        }
+      ],
+      "format": "gif",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "settings.tasks.download_queue_view",
+      "module": "settings",
+      "route_template": "/settings/tasks",
+      "route": "/settings/tasks",
+      "sim_setup": {
+        "downloadSingles": 2
+      },
+      "direction": "one_way",
+      "states": [
+        "normal_seeded"
+      ],
+      "target": {
+        "kind": "viewport_ratio",
+        "x_ratio": 0.5,
+        "y_ratio": 0.5
+      },
+      "actions": [
+        {
+          "type": "scroll",
+          "dy": -180
+        },
+        {
+          "type": "wait_ms",
+          "ms": 300
+        }
+      ],
+      "format": "gif",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "settings.about.scroll_and_version",
+      "module": "settings",
+      "route_template": "/settings/about",
+      "route": "/settings/about",
+      "direction": "one_way",
+      "states": [
+        "normal_seeded"
+      ],
+      "target": {
+        "kind": "viewport_ratio",
+        "x_ratio": 0.5,
+        "y_ratio": 0.5
+      },
+      "actions": [
+        {
+          "type": "scroll",
+          "dy": -200
+        },
+        {
+          "type": "wait_ms",
+          "ms": 300
+        }
+      ],
+      "format": "gif",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    },
+    {
+      "id": "settings.about_licenses.scroll",
+      "module": "settings",
+      "route_template": "/settings/about/licenses",
+      "route": "/settings/about/licenses",
+      "direction": "one_way",
+      "states": [
+        "normal_seeded"
+      ],
+      "target": {
+        "kind": "viewport_ratio",
+        "x_ratio": 0.5,
+        "y_ratio": 0.5
+      },
+      "actions": [
+        {
+          "type": "scroll",
+          "dy": -240
+        },
+        {
+          "type": "wait_ms",
+          "ms": 300
+        }
+      ],
+      "format": "gif",
+      "platforms": {
+        "windows": "required",
+        "android_avd": "required",
+        "linux": "required",
+        "iphone": "required",
+        "ipad": "required",
+        "macos": "required"
+      }
+    }
+  ]
+}

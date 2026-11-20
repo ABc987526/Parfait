@@ -103,7 +103,54 @@
     </section>
 
     <section class="panel span-2" aria-labelledby="artifacts-title">
-      <h2 id="artifacts-title">动态录屏产物画廊（Artifacts Shell）</h2>
+      <div class="gallery-header">
+        <div>
+          <h2 id="artifacts-title">五端交互动态产物画廊 &amp; 覆盖矩阵</h2>
+          <p id="manifest-summary" class="subtitle">加载 manifest.json 中…</p>
+        </div>
+        <div class="gallery-controls">
+          <select id="filter-platform">
+            <option value="all">全部平台 (6)</option>
+            <option value="windows">Windows 原生</option>
+            <option value="android_avd">Android KVM AVD</option>
+            <option value="linux">Linux GTK 原生</option>
+            <option value="iphone">iPhone (模拟)</option>
+            <option value="ipad">iPad (模拟)</option>
+            <option value="macos">macOS (模拟)</option>
+          </select>
+          <select id="filter-evidence">
+            <option value="all">全部证据类型</option>
+            <option value="native_os_recording">真实 OS 实录</option>
+            <option value="widget_tester_simulation">WidgetTester 模拟</option>
+            <option value="skipped">前置跳过</option>
+            <option value="not_applicable">N/A 不适用</option>
+          </select>
+          <select id="filter-status">
+            <option value="all">全部状态</option>
+            <option value="ok">ok 正常</option>
+            <option value="recorded_with_anomaly">recorded_with_anomaly 异常实录</option>
+            <option value="failed">failed 失败</option>
+            <option value="skipped_foreground_only">需前台开关补录</option>
+            <option value="not_applicable">不适用</option>
+          </select>
+          <select id="filter-module">
+            <option value="all">全部模块</option>
+          </select>
+          <select id="filter-direction">
+            <option value="all">单/双向全部</option>
+            <option value="one_way">one_way 单向</option>
+            <option value="two_way">two_way 双向</option>
+          </select>
+          <select id="filter-motion">
+            <option value="all">全部动效信号</option>
+            <option value="flagged">仅看动效疑点</option>
+          </select>
+          <input id="filter-search" type="text" placeholder="按 catalog id / 路由 / SC-W 检索" />
+          <label class="inline-check"><input id="toggle-compare" type="checkbox" checked /> 按条目五端并排对比</label>
+          <label class="inline-check"><input id="toggle-sheets" type="checkbox" /> 默认看拼版 Sheet</label>
+        </div>
+      </div>
+      <div id="coverage-gaps-box" class="code-box hidden"></div>
       <div id="artifacts-grid" class="artifacts-grid">暂未挂载产物目录</div>
     </section>
   </main>

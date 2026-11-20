@@ -399,6 +399,62 @@ class WorkbenchState:
             })
         return items
 
+    def _safe_artifact_root_json(self, filename: str) -> Any | None:
+        if self.artifacts_dir is None or not self.artifacts_dir.exists():
+            return None
+        candidate = self.artifacts_dir / filename
+        if candidate.is_symlink() or not candidate.is_file():
+            latest = self.artifacts_dir / "latest"
+            if latest.is_dir():
+                candidate = latest.resolve() / filename
+        if not candidate.is_file() or candidate.is_symlink():
+            return None
+        resolved = candidate.resolve()
+        root_res = self.artifacts_dir.resolve()
+        if not resolved.is_relative_to(root_res):
+            return None
+        try:
+            return json.loads(resolved.read_text(encoding="utf-8"))
+        except Exception:
+            return None
+
+    def catalog_manifest_payload(self) -> dict[str, Any]:
+        manifest = self._safe_artifact_root_json("manifest.json")
+        report = self._safe_artifact_root_json("coverage_report.json")
+        prefix = ""
+        if self.artifacts_dir is not None and not (self.artifacts_dir / "manifest.json").is_file():
+            latest = self.artifacts_dir / "latest"
+            if latest.is_dir():
+                try:
+                    prefix = latest.resolve().relative_to(self.artifacts_dir.resolve()).as_posix().rstrip("/") + "/"
+                except ValueError:
+                    prefix = ""
+        records_out: list[dict[str, Any]] = []
+        if isinstance(manifest, dict):
+            for rec in manifest.get("records", []):
+                if not isinstance(rec, dict):
+                    continue
+                copy = dict(rec)
+                rel = copy.get("artifact_relpath")
+                if isinstance(rel, str) and rel:
+                    copy["artifactUrl"] = f"/artifacts/{urllib.parse.quote(prefix + rel)}"
+                sheet_rels = copy.get("sheet_relpaths")
+                if isinstance(sheet_rels, list) and sheet_rels:
+                    copy["sheetUrls"] = [
+                        f"/artifacts/{urllib.parse.quote(prefix + s)}"
+                        for s in sheet_rels
+                        if isinstance(s, str) and s
+                    ]
+                records_out.append(copy)
+        return {
+            "hasManifest": isinstance(manifest, dict),
+            "runId": manifest.get("run_id") if isinstance(manifest, dict) else None,
+            "gitHead": manifest.get("git_head") if isinstance(manifest, dict) else None,
+            "generatedAt": manifest.get("generated_at") if isinstance(manifest, dict) else None,
+            "records": records_out,
+            "report": report,
+        }
+
     def public_state(self, port: int) -> dict[str, Any]:
         now = time.time()
         with self.lock:
@@ -611,6 +667,9 @@ class _WorkbenchHandler(BaseHTTPRequestHandler):
             return
         if split.path == "/api/artifacts":
             self._send_json(200, {"artifacts": self._wb.list_artifacts()})
+            return
+        if split.path == "/api/catalog-manifest":
+            self._send_json(200, self._wb.catalog_manifest_payload())
             return
         if split.path.startswith("/api/screenshots/"):
             name = split.path[len("/api/screenshots/") :]

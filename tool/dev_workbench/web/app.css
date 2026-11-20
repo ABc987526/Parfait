@@ -101,17 +101,88 @@ button {
   white-space: pre-wrap;
 }
 .logs-tall { max-height: 320px; }
+.gallery-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.gallery-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.gallery-controls input { min-width: 190px; flex: 0 1 220px; }
+.inline-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.inline-check input { min-width: auto; flex: none; }
+.hidden { display: none; }
 .artifacts-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 12px;
 }
-.artifact-card {
+.compare-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.compare-row {
   background: #0d1218;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+}
+.compare-row-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.compare-cells {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+}
+.artifact-card {
+  background: #111822;
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 8px;
   font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
+.artifact-card.is-anomaly { border-color: #f59e0b; }
+.artifact-card.is-failed { border-color: #ef4444; }
 .artifact-card img,
-.artifact-card video { width: 100%; border-radius: 4px; display: block; margin-bottom: 6px; }
+.artifact-card video { width: 100%; border-radius: 4px; display: block; background: #000; }
+.badge-row { display: flex; flex-wrap: wrap; gap: 4px; }
+.badge {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.badge-real { background: #14532d; color: #86efac; }
+.badge-sim { background: #4c1d95; color: #ddd6fe; }
+.badge-anomaly { background: #78350f; color: #fde68a; }
+.badge-motion { background: #7c2d12; color: #fdba74; }
+.badge-fail { background: #7f1d1d; color: #fecaca; }
+.badge-muted { background: #1f2937; color: #9ca3af; }
+.btn-mini { padding: 4px 8px; font-size: 11px; align-self: flex-start; }
+.media-slot a { display: block; }
+.diag-note { font-size: 11px; color: var(--muted); word-break: break-word; }
