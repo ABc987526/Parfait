@@ -1,0 +1,4 @@
+# Python dependencies for tool/build_icons.py (assets/icon.ttf + app_icons.dart).
+fonttools>=4.53,<5
+skia-pathops>=0.8,<1
+picosvg>=0.22,<1
