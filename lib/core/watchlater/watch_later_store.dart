@@ -3,11 +3,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../auth/account_store.dart';
 import '../entity/illust_entity.dart';
 import '../errors/no_retry.dart';
+import '../platform/app_storage_paths.dart';
 import 'watch_later_database.dart';
 import 'watch_later_repository.dart';
 
 final watchLaterDatabaseProvider = Provider<WatchLaterDatabase>((ref) {
-  final database = WatchLaterDatabase();
+  final database = WatchLaterDatabase(
+    databasePath: ref
+        .watch(appStoragePathsProvider)
+        .databasePath(WatchLaterDatabase.databaseName),
+  );
   ref.onDispose(database.close);
   return database;
 });

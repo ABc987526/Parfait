@@ -2,16 +2,18 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../settings/preference_keys.dart';
 import '../settings/shared_preferences.dart';
+
 import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 
 import '../download/download_manager.dart';
 import '../download/download_recovery.dart';
 import '../download/download_destination.dart';
 import '../download/download_request.dart';
 import '../download/pixiv_download_transport.dart';
+import '../platform/app_storage_paths.dart';
 import 'update_download.dart';
 import 'update_service.dart';
 import '../network/http_client_providers.dart';
@@ -40,7 +42,9 @@ final updateServiceProvider = FutureProvider<UpdateService>((ref) async {
       platform: platform,
     );
   }
-  final supportDirectory = await getApplicationSupportDirectory();
+  final supportDirectory = await ref
+      .watch(appStoragePathsProvider)
+      .resolveSupportDir();
   final updateDirectory = Directory(p.join(supportDirectory.path, 'updates'));
   final manifestTransport = HttpUpdateManifestTransport(
     client: ref.watch(resolverHttpClientProvider),

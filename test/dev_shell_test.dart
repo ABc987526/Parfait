@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:parfait/app/dev_shell/dev_shell.dart';
 import 'package:parfait/app/layout/window_layout_spec.dart';
 import 'package:parfait/app/window/desktop_title_bar.dart';
+import 'package:parfait/core/platform/desktop_window_channel.dart';
 import 'package:parfait/core/platform/platform_caps.dart';
 import 'package:parfait/l10n/app_localizations.dart';
 import 'package:parfait/l10n/app_localizations_delegates.dart';
@@ -231,4 +232,84 @@ void main() {
     expect(observed?.isWindows, isTrue);
     expect(observed?.isAndroid, isFalse);
   });
+
+  testWidgets(
+    'DevShellHost passes through host DesktopWindowScope actions only on host platform and host viewport',
+    (tester) async {
+      var minimizes = 0;
+      var maximizes = 0;
+      var closes = 0;
+      final realActions = DesktopWindowActions(
+        onMinimize: () => minimizes++,
+        onToggleMaximize: () => maximizes++,
+        onClose: () => closes++,
+        onToggleFullScreen: () {},
+        onStartDragging: () {},
+        onTitleBarDoubleClick: () {},
+        onRegionsChanged: (_) {},
+      );
+      final metrics = ValueNotifier(DesktopWindowPlatformMetrics.fallback);
+      addTearDown(metrics.dispose);
+      final controller = DevShellController()
+        ..setPlatform(DevShellPlatform.host);
+      addTearDown(controller.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: appLocalizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: DesktopWindowScope(
+            metrics: metrics,
+            actions: realActions,
+            child: DevShellHost(
+              controller: controller,
+              child: DesktopWindowFrame(
+                child: Builder(
+                  builder: (context) => TextButton(
+                    key: const ValueKey('invoke_host_window_actions'),
+                    onPressed: () {
+                      final active = DesktopChromeMetrics.maybeOf(
+                        context,
+                      )!.actions!;
+                      active.onMinimize();
+                      active.onToggleMaximize();
+                      active.onClose();
+                    },
+                    child: const Text('Invoke'),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      // host + host viewport: real actions pass through.
+      await tester.tap(
+        find.byKey(const ValueKey('invoke_host_window_actions')),
+      );
+      await tester.pump();
+      expect((minimizes, maximizes, closes), (1, 1, 1));
+
+      // host + desktop simulated viewport: host window actions must be blocked.
+      controller.setViewport(DevShellViewportPreset.desktop);
+      await tester.pump();
+      await tester.tap(
+        find.byKey(const ValueKey('invoke_host_window_actions')),
+      );
+      await tester.pump();
+      expect((minimizes, maximizes, closes), (1, 1, 1));
+
+      // android + phone simulated viewport: host window actions remain blocked.
+      controller.setPlatform(DevShellPlatform.android);
+      controller.setViewport(DevShellViewportPreset.phone);
+      await tester.pump();
+      await tester.tap(
+        find.byKey(const ValueKey('invoke_host_window_actions')),
+      );
+      await tester.pump();
+      expect((minimizes, maximizes, closes), (1, 1, 1));
+    },
+  );
 }

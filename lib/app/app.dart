@@ -49,9 +49,10 @@ import '../l10n/context.dart';
 import '../l10n/app_localizations_delegates.dart';
 
 class ParfaitApp extends ConsumerStatefulWidget {
-  const ParfaitApp({super.key, this.intentSource});
+  const ParfaitApp({super.key, this.intentSource, this.devWorkbenchBuilder});
 
   final AndroidIntentSource? intentSource;
+  final Widget Function(GoRouter router, Widget child)? devWorkbenchBuilder;
 
   @override
   ConsumerState<ParfaitApp> createState() => _ParfaitAppState();
@@ -295,7 +296,11 @@ class _ParfaitAppState extends ConsumerState<ParfaitApp>
           promptHostKey: _promptHostKey,
           child: PipelineWarmup(child: content),
         );
-        return kParfaitDevShell ? DevShellHost(child: chrome) : chrome;
+        final shellChild = kParfaitDevShell
+            ? DevShellHost(child: chrome)
+            : chrome;
+        return widget.devWorkbenchBuilder?.call(_router, shellChild) ??
+            shellChild;
       },
     );
   }

@@ -1,10 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../settings/shared_preferences.dart';
 
 import '../auth/account_store.dart';
 import '../platform/android_platform_interfaces.dart';
+import '../platform/app_storage_paths.dart';
 import '../platform/desktop_file_sink.dart';
 import '../platform/ios_photo_library.dart';
 import '../platform/media_store_channel.dart';
@@ -41,9 +43,14 @@ final downloadSinkFactoryProvider = Provider<DownloadSinkFactory>((ref) {
   // the destination, losing queued/recoverable jobs. The manager passes the
   // captured destination to every begin call instead.
   final caps = ref.watch(platformCapsProvider);
+  final devDownloadsDir = ref.watch(appStoragePathsProvider).downloadsDir;
   final MediaStoreSession mediaStoreSession;
   if (caps.supportsMediaStore) {
     mediaStoreSession = const MethodChannelMediaStoreSession();
+  } else if (devDownloadsDir != null) {
+    mediaStoreSession = DesktopFileMediaStoreSession(
+      baseDirectory: () async => devDownloadsDir,
+    );
   } else if (caps.supportsPhotoLibrary) {
     mediaStoreSession = const IosPhotoLibraryMediaStoreSession();
   } else {

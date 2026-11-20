@@ -2,8 +2,8 @@ import 'dart:io';
 
 import 'package:file_selector/file_selector.dart';
 import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 
+import '../platform/app_storage_paths.dart';
 import '../platform/shared_image.dart';
 import 'image_input.dart';
 import 'reverse_image_platform.dart';
@@ -66,7 +66,7 @@ class DesktopReverseImageInputPlatform implements ReverseImageInputPlatform {
         'picked image no longer exists',
       );
     }
-    final temp = await getTemporaryDirectory();
+    final temp = await AppStoragePaths.active.resolveTempDir();
     final targetDir = Directory(p.join(temp.path, 'reverse_image'));
     await targetDir.create(recursive: true);
     final target = File(

@@ -10,6 +10,7 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sqflite/sqflite.dart';
 
+import '../platform/app_storage_paths.dart';
 import 'feed_database.dart';
 import 'feed_snapshot_codec.dart';
 
@@ -187,7 +188,11 @@ class FeedSnapshotStore {
 }
 
 final feedDatabaseProvider = Provider<FeedDatabase>((ref) {
-  final database = FeedDatabase();
+  final database = FeedDatabase(
+    databasePath: ref
+        .watch(appStoragePathsProvider)
+        .databasePath(FeedDatabase.databaseName),
+  );
   ref.onDispose(() => unawaited(database.close()));
   return database;
 });

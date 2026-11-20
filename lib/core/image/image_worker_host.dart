@@ -12,6 +12,7 @@ import '../network/compat/network_policy.dart';
 import '../network/compat/origin_refresh.dart';
 import '../network/compat/pixiv_network_factory.dart';
 import '../network/compat/continued_fetch.dart';
+import '../network/dev_transport_override.dart';
 import '../network/pixiv_headers.dart';
 import '../settings/image_mirror.dart';
 import 'disk_image_cache.dart';
@@ -327,6 +328,7 @@ class ImageWorkerHost {
         next.mode != previous.mode ||
         next.echFrontHost != previous.echFrontHost ||
         next.bootstrapNoSniEnabled != previous.bootstrapNoSniEnabled ||
+        next.devLoopbackOrigin != previous.devLoopbackOrigin ||
         !_listEquals(next.dohEndpoints, previous.dohEndpoints) ||
         !_setEquals(
           next.localNetworkBlockedHosts,
@@ -365,18 +367,30 @@ class ImageWorkerHost {
     ImageWorkerConfig config,
     Set<String> allowlist,
   ) {
+    final loopback = config.devLoopbackOrigin;
+    final loopbackUri = loopback == null || loopback.isEmpty
+        ? null
+        : Uri.tryParse(loopback);
     return NetworkAccessPolicy(
       registry: PixivDestinationRegistry(extraImageHosts: allowlist),
-      mode: NetworkMode.values.byName(config.mode),
+      mode: loopbackUri != null
+          ? NetworkMode.directOnly
+          : NetworkMode.values.byName(config.mode),
       revision: NetworkRevision(0, networkIdentity: config.networkIdentity),
       echFrontHost: config.echFrontHost,
       bootstrapNoSniEnabled: config.bootstrapNoSniEnabled,
-      localNetworkBlockedHosts: config.localNetworkBlockedHosts,
-      fastRouteStore: _fastRoutes,
-      routeKindStore: _routeKinds,
-      imageRouteScoreStore: _routeScores,
-      dohEndpoints: config.dohEndpoints,
-      clientFactory: _clientFactory,
+      localNetworkBlockedHosts: loopbackUri != null
+          ? const {}
+          : config.localNetworkBlockedHosts,
+      fastRouteStore: loopbackUri != null ? null : _fastRoutes,
+      routeKindStore: loopbackUri != null ? null : _routeKinds,
+      imageRouteScoreStore: loopbackUri != null ? null : _routeScores,
+      dohEndpoints: loopbackUri != null ? const [] : config.dohEndpoints,
+      clientFactory:
+          _clientFactory ??
+          (loopbackUri == null
+              ? null
+              : loopbackNetworkClientFactory(loopbackUri)),
     );
   }
 

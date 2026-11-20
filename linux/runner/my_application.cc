@@ -132,9 +132,51 @@ const gchar* ReadMapString(FlValue* map, const gchar* key) {
   return nullptr;
 }
 
+#if !(defined(PARFAIT_DEV_TARGET) && PARFAIT_DEV_TARGET)
+bool IsTruthyEnv(const char* name) {
+  const gchar* val = g_getenv(name);
+  return val != nullptr && (val[0] == '1' || val[0] == 't' || val[0] == 'T');
+}
+
+bool HasNonEmptyEnv(const char* name) {
+  const gchar* val = g_getenv(name);
+  return val != nullptr && val[0] != '\0';
+}
+
+bool HasDevEnvConfiguration() {
+  return IsTruthyEnv("PARFAIT_DEV_PROFILE") ||
+         IsTruthyEnv("PARFAIT_DEV_INSTANCE") ||
+         HasNonEmptyEnv("PARFAIT_DEV_ROOT") ||
+         HasNonEmptyEnv("PARFAIT_DEV_PROFILE_NAME") ||
+         HasNonEmptyEnv("PARFAIT_WORKBENCH_URL") ||
+         HasNonEmptyEnv("PARFAIT_DEV_WORKBENCH_URL") ||
+         HasNonEmptyEnv("PARFAIT_DEV_SOURCE") ||
+         HasNonEmptyEnv("PARFAIT_DEV_LOOPBACK_URL");
+}
+#endif
+
+const gchar* ResolveApplicationId() {
+  const gchar* env_id = g_getenv("PARFAIT_APP_ID");
+  if (env_id != nullptr && env_id[0] != '\0') {
+    return env_id;
+  }
+#if defined(PARFAIT_DEV_TARGET) && PARFAIT_DEV_TARGET
+  return "io.github.lopution.parfait.dev";
+#else
+  if (HasDevEnvConfiguration()) {
+    return "io.github.lopution.parfait.dev";
+  }
+  return APPLICATION_ID;
+#endif
+}
+
 const gchar* ResolveTrayIconName() {
   GtkIconTheme* theme = gtk_icon_theme_get_default();
   if (theme != nullptr) {
+    const gchar* app_id = ResolveApplicationId();
+    if (gtk_icon_theme_has_icon(theme, app_id)) {
+      return app_id;
+    }
     if (gtk_icon_theme_has_icon(theme, APPLICATION_ID)) {
       return APPLICATION_ID;
     }
@@ -371,7 +413,7 @@ static void EnsureTrayInitialized(MyApplication* self) {
   gtk_widget_show_all(GTK_WIDGET(self->tray_menu));
 
   self->tray_indicator = g_app_indicator.indicator_new(
-      APPLICATION_ID, ResolveTrayIconName(),
+      ResolveApplicationId(), ResolveTrayIconName(),
       kAppIndicatorCategoryApplicationStatus);
   if (self->tray_indicator == nullptr) {
     g_clear_object(&self->tray_menu);
@@ -886,13 +928,14 @@ static void my_application_class_init(MyApplicationClass* klass) {
 static void my_application_init(MyApplication* self) {}
 
 MyApplication* my_application_new() {
+  const gchar* app_id = ResolveApplicationId();
   // Set the program name to the application ID, which helps various systems
   // like GTK and desktop environments map this running application to its
   // corresponding .desktop file. This ensures better integration by allowing
   // the application to be recognized beyond its binary name.
-  g_set_prgname(APPLICATION_ID);
+  g_set_prgname(app_id);
 
   return MY_APPLICATION(
-      g_object_new(my_application_get_type(), "application-id", APPLICATION_ID,
+      g_object_new(my_application_get_type(), "application-id", app_id,
                    "flags", G_APPLICATION_HANDLES_COMMAND_LINE, nullptr));
 }

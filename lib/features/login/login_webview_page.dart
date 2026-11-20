@@ -19,6 +19,7 @@ import '../../core/auth/account_store.dart';
 import '../../core/auth/oauth_service.dart';
 import '../../core/logging/crash_log.dart';
 import '../../core/network/local_network_address.dart';
+import '../../core/platform/dev_webview_environment.dart';
 import '../../core/platform/local_network.dart';
 import '../../core/platform/platform_caps.dart';
 
@@ -395,6 +396,7 @@ class _LoginWebViewPageState extends ConsumerState<LoginWebViewPage>
   }
 
   Widget _webView() => InAppWebView(
+    webViewEnvironment: DevWebViewEnvironmentHolder.resolveForWebView(),
     // No initialUrlRequest: the first load goes through [_load] and its
     // local network check like every other.
     initialSettings: _guard.settings,
@@ -536,7 +538,8 @@ class _LoginWebViewPageState extends ConsumerState<LoginWebViewPage>
         children: [
           if (!supportsWebView)
             _externalBrowserView(context)
-          else if (_webView2Missing)
+          else if (_webView2Missing ||
+              DevWebViewEnvironmentHolder.isUnavailableInDevWindows())
             _webView2Prompt(context)
           else
             _webView(),

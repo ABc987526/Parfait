@@ -3,11 +3,12 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 
 import '../network/compat/network_contracts.dart';
 import '../network/compat/network_policy.dart';
 import '../network/compat/network_providers.dart';
+import '../network/dev_transport_override.dart';
+import '../platform/app_storage_paths.dart';
 import '../settings/app_settings.dart';
 import '../settings/settings_controller.dart';
 import 'disk_image_cache.dart';
@@ -50,14 +51,18 @@ final imageWorkerProvider = Provider<ImageWorker>((ref) {
       routeScores: await routeScores.scoresFor(identity),
       routeDiscovery: await routeScores.discoveryFor(identity),
       provenOrigins: await fastRoutes.provenOrigins(),
+      devLoopbackOrigin: ref
+          .read(devTransportProvider)
+          .activeLoopbackOriginString,
     );
   }
 
+  final paths = ref.watch(appStoragePathsProvider);
   final worker =
       ImageWorker(
           config: config,
           start: (config, demand) async {
-            final temp = await getTemporaryDirectory();
+            final temp = await paths.resolveTempDir();
             return ImageWorkerClient.start(
               config: config,
               cacheDir: p.join(temp.path, DiskImageCache.directoryName),
@@ -107,6 +112,7 @@ final imageWorkerProvider = Provider<ImageWorker>((ref) {
       push();
     }, fireImmediately: true)
     ..listen(imageMirrorProvider, (_, _) => push())
+    ..listen(devTransportProvider, (_, _) => push())
     ..onDispose(() => unawaited(worker.dispose()));
   return worker;
 });

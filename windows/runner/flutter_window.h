@@ -15,6 +15,7 @@
 #include "win32_window.h"
 
 inline constexpr wchar_t kParfaitMainWindowProp[] = L"ParfaitMainWindow";
+inline constexpr wchar_t kParfaitDevMainWindowProp[] = L"ParfaitDevMainWindow";
 inline constexpr ULONG_PTR kCopyDataOpenUriTag = 0x50465431u;
 
 bool IsSupportedLaunchUri(const std::string& uri);
@@ -25,7 +26,8 @@ class FlutterWindow : public Win32Window {
  public:
   // Creates a new FlutterWindow hosting a Flutter view running |project|.
   explicit FlutterWindow(const flutter::DartProject& project,
-                         std::string initial_intent_uri = std::string());
+                         std::string initial_intent_uri = std::string(),
+                         bool is_dev_profile = false);
   virtual ~FlutterWindow();
 
  protected:
@@ -76,6 +78,7 @@ class FlutterWindow : public Win32Window {
   // The project to run.
   flutter::DartProject project_;
   std::string initial_intent_uri_;
+  bool is_dev_profile_ = false;
   bool initial_intent_consumed_ = false;
   std::vector<std::string> pending_live_uris_;
 

@@ -3,8 +3,10 @@ import 'dart:async';
 import 'package:flutter/rendering.dart' show PipelineOwner;
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:rhttp/rhttp.dart' as rhttp;
 
 import 'app/app.dart';
@@ -16,11 +18,11 @@ import 'core/log.dart';
 import 'core/logging/crash_log.dart';
 import 'core/network/rhttp_gate.dart';
 import 'core/platform/app_root_pipeline_owner.dart';
+import 'core/platform/app_storage_paths.dart';
 import 'core/platform/native_warmup.dart';
 import 'core/platform/platform_caps.dart';
 import 'core/platform/raster_affinity.dart';
 import 'core/platform/touch_resampler.dart';
-import 'package:path_provider/path_provider.dart';
 
 /// Entrypoint: initializes the Rust transport (rhttp) before the first
 /// widget builds, since every native Pixiv API, image, download and diagnostic
@@ -128,17 +130,44 @@ class _ParfaitBinding extends WidgetsFlutterBinding {
   }
 }
 
-Future<void> main() async {
-  _ParfaitBinding.ensureInitialized();
-  // R3: local crash capture before anything else can throw — file logging
-  // only, no remote telemetry.
-  CrashLog.install(await getApplicationSupportDirectory());
-  runZonedGuarded(() {
-    unawaited(_run());
+Future<void> main() => bootParfaitApp();
+
+/// Shared boot sequence used by both production (`main`) and isolated dev
+/// (`main_dev.dart`). Production omits all dev overrides so startup paths and
+/// storage locations remain identical to release builds.
+Future<void> bootParfaitApp({
+  Future<AppStoragePaths> Function()? resolveDevStoragePaths,
+  Future<void> Function(AppStoragePaths paths)? beforeRunApp,
+  List<Override> additionalOverrides = const [],
+  Widget Function(GoRouter router, Widget child)? devWorkbenchBuilder,
+}) async {
+  await runZonedGuarded(() async {
+    _ParfaitBinding.ensureInitialized();
+    if (resolveDevStoragePaths != null) {
+      final devPaths = await resolveDevStoragePaths();
+      AppStoragePaths.setActive(devPaths);
+      await devPaths.ensureCreated();
+    }
+    final activePaths = AppStoragePaths.active;
+    if (beforeRunApp != null) {
+      await beforeRunApp(activePaths);
+    }
+    // R3: local crash capture before anything else can throw — file logging
+    // only, no remote telemetry.
+    CrashLog.install(await activePaths.resolveSupportDir());
+    await _run(
+      devStoragePaths: activePaths.isDev ? activePaths : null,
+      additionalOverrides: additionalOverrides,
+      devWorkbenchBuilder: devWorkbenchBuilder,
+    );
   }, CrashLog.record);
 }
 
-Future<void> _run() async {
+Future<void> _run({
+  AppStoragePaths? devStoragePaths,
+  List<Override> additionalOverrides = const [],
+  Widget Function(GoRouter router, Widget child)? devWorkbenchBuilder,
+}) async {
   // High refresh is requested per-surface in MainActivity
   // (onFlutterSurfaceViewCreated → Surface.setFrameRate to the panel's top
   // rate): OEM builds throttle vsync *delivery* to ~60Hz a few seconds after
@@ -172,7 +201,16 @@ Future<void> _run() async {
   } on Object catch (error) {
     log('window: desktop window setup failed: $error');
   }
-  runApp(const ProviderScope(child: ParfaitApp()));
+  runApp(
+    ProviderScope(
+      overrides: [
+        if (devStoragePaths != null)
+          appStoragePathsProvider.overrideWithValue(devStoragePaths),
+        ...additionalOverrides,
+      ],
+      child: ParfaitApp(devWorkbenchBuilder: devWorkbenchBuilder),
+    ),
+  );
   unawaited(_deleteLegacyImageCache());
   unawaited(_warmUpNativeChannels());
 }
@@ -190,9 +228,10 @@ Future<void> _warmUpNativeChannels() async {
 /// checks again, which costs a few stats.
 Future<void> _deleteLegacyImageCache() async {
   await WidgetsBinding.instance.waitUntilFirstFrameRasterized;
+  final paths = AppStoragePaths.active;
   final deleted = await deleteLegacyImageCache(
-    temp: await getTemporaryDirectory(),
-    support: await getApplicationSupportDirectory(),
+    temp: await paths.resolveTempDir(),
+    support: await paths.resolveSupportDir(),
   );
   if (deleted.isNotEmpty) log('deleted the legacy image cache: $deleted');
 }

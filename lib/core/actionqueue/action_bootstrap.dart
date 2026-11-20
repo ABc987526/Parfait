@@ -16,6 +16,7 @@ import '../bookmark/bookmark_store.dart';
 import '../log.dart';
 import '../network/network_restore_signal.dart';
 import '../paging/feed_snapshot_store.dart';
+import '../platform/app_storage_paths.dart';
 import '../user/follow_models.dart';
 import '../user/follow_repository.dart';
 import '../user/follow_store.dart';
@@ -28,7 +29,11 @@ import 'action_queue.dart';
 import 'action_store.dart';
 
 final actionDatabaseProvider = Provider<ActionDatabase>((ref) {
-  final database = ActionDatabase();
+  final database = ActionDatabase(
+    databasePath: ref
+        .watch(appStoragePathsProvider)
+        .databasePath(ActionDatabase.databaseName),
+  );
   ref.onDispose(() => unawaited(database.close()));
   return database;
 });

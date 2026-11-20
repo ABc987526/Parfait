@@ -162,8 +162,19 @@ abstract class DesktopWindowHost {
   Future<void> dispose();
 }
 
+/// Read-only snapshot of the most recent desktop window metrics and non-client
+/// title-bar regions sent to the native runner.
+abstract interface class DesktopWindowSnapshotSource {
+  DesktopWindowPlatformMetrics get lastMetrics;
+
+  double get lastTitleBarHeight;
+
+  List<DesktopTitleBarRegion> get lastTitleBarRegions;
+}
+
 /// MethodChannel-backed [DesktopWindowHost] talking to Win32 / AppKit / GTK.
-class MethodChannelDesktopWindowHost implements DesktopWindowHost {
+class MethodChannelDesktopWindowHost
+    implements DesktopWindowHost, DesktopWindowSnapshotSource {
   MethodChannelDesktopWindowHost({
     MethodChannel channel = const MethodChannel(kDesktopWindowChannelName),
     bool? isLinuxOverride,
@@ -171,6 +182,7 @@ class MethodChannelDesktopWindowHost implements DesktopWindowHost {
   }) : _channel = channel,
        _isLinuxOverride = isLinuxOverride,
        _environmentOverride = environmentOverride {
+    _lastMetrics = _fallbackMetrics();
     _channel.setMethodCallHandler(_handleIncomingCall);
   }
 
@@ -179,6 +191,19 @@ class MethodChannelDesktopWindowHost implements DesktopWindowHost {
   final Map<String, String>? _environmentOverride;
   final StreamController<DesktopWindowPlatformMetrics> _controller =
       StreamController<DesktopWindowPlatformMetrics>.broadcast();
+
+  late DesktopWindowPlatformMetrics _lastMetrics;
+  double _lastTitleBarHeight = 0;
+  List<DesktopTitleBarRegion> _lastTitleBarRegions = const [];
+
+  @override
+  DesktopWindowPlatformMetrics get lastMetrics => _lastMetrics;
+
+  @override
+  double get lastTitleBarHeight => _lastTitleBarHeight;
+
+  @override
+  List<DesktopTitleBarRegion> get lastTitleBarRegions => _lastTitleBarRegions;
 
   bool get _isLinux => _isLinuxOverride ?? (!kIsWeb && Platform.isLinux);
 
@@ -192,7 +217,9 @@ class MethodChannelDesktopWindowHost implements DesktopWindowHost {
     if (call.method != 'metricsChanged') return;
     final args = call.arguments;
     if (args is Map<Object?, Object?>) {
-      _controller.add(DesktopWindowPlatformMetrics.fromMap(args));
+      final parsed = DesktopWindowPlatformMetrics.fromMap(args);
+      _lastMetrics = parsed;
+      _controller.add(parsed);
     }
   }
 
@@ -205,13 +232,13 @@ class MethodChannelDesktopWindowHost implements DesktopWindowHost {
       final raw = await _channel.invokeMapMethod<Object?, Object?>(
         'getMetrics',
       );
-      if (raw == null) return _fallbackMetrics();
-      return DesktopWindowPlatformMetrics.fromMap(raw);
+      if (raw == null) return _lastMetrics = _fallbackMetrics();
+      return _lastMetrics = DesktopWindowPlatformMetrics.fromMap(raw);
     } on MissingPluginException {
-      return _fallbackMetrics();
+      return _lastMetrics = _fallbackMetrics();
     } on PlatformException catch (error) {
       log('desktop_window getMetrics failed: $error');
-      return _fallbackMetrics();
+      return _lastMetrics = _fallbackMetrics();
     }
   }
 
@@ -220,6 +247,8 @@ class MethodChannelDesktopWindowHost implements DesktopWindowHost {
     required List<DesktopTitleBarRegion> regions,
     double titleBarHeight = 0,
   }) async {
+    _lastTitleBarHeight = titleBarHeight;
+    _lastTitleBarRegions = List<DesktopTitleBarRegion>.unmodifiable(regions);
     try {
       await _channel.invokeMethod<void>('setTitleBarMetrics', <String, Object>{
         'titleBarHeight': titleBarHeight,
@@ -251,12 +280,22 @@ class MethodChannelDesktopWindowHost implements DesktopWindowHost {
 }
 
 /// No-op [DesktopWindowHost] for mobile / web or headless unit tests.
-class NoopDesktopWindowHost implements DesktopWindowHost {
+class NoopDesktopWindowHost
+    implements DesktopWindowHost, DesktopWindowSnapshotSource {
   const NoopDesktopWindowHost({
     this.metrics = DesktopWindowPlatformMetrics.fallback,
   });
 
   final DesktopWindowPlatformMetrics metrics;
+
+  @override
+  DesktopWindowPlatformMetrics get lastMetrics => metrics;
+
+  @override
+  double get lastTitleBarHeight => 0;
+
+  @override
+  List<DesktopTitleBarRegion> get lastTitleBarRegions => const [];
 
   @override
   Future<DesktopWindowPlatformMetrics> getMetrics() async => metrics;
@@ -280,7 +319,7 @@ class NoopDesktopWindowHost implements DesktopWindowHost {
 
 final desktopWindowHostProvider = Provider<DesktopWindowHost>((ref) {
   final caps = ref.watch(platformCapsProvider);
-  final host = caps.isDesktop
+  final DesktopWindowHost host = caps.isDesktop
       ? MethodChannelDesktopWindowHost()
       : const NoopDesktopWindowHost();
   ref.onDispose(() => unawaited(host.dispose()));
