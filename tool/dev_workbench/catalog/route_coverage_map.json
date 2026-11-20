@@ -1,0 +1,276 @@
+{
+  "schema_version": 1,
+  "canonical_routes": {
+    "/": {
+      "excluded": "alias_redirect",
+      "reason": "Redirects immediately to homeStartDestination (/recommended, /ranking, /new, /search, or /settings); tested across shell destinations."
+    },
+    "/splash": {
+      "catalog_ids": ["onboarding.splash.render"]
+    },
+    "/welcome": {
+      "catalog_ids": ["onboarding.welcome.start_flow"]
+    },
+    "/welcome/language": {
+      "catalog_ids": ["onboarding.welcome_language.pick"]
+    },
+    "/user-agreement": {
+      "catalog_ids": ["onboarding.user_agreement.scroll"]
+    },
+    "/login": {
+      "catalog_ids": ["auth.login.help_and_compat_toggle"]
+    },
+    "/login/web": {
+      "catalog_ids": ["auth.login_web.host_chrome_and_fallback"]
+    },
+    "/login/callback": {
+      "catalog_ids": ["auth.login_callback.landing"]
+    },
+    "/reverse-image": {
+      "catalog_ids": ["overlay.reverse_image.engine_tabs"]
+    },
+    "/me": {
+      "catalog_ids": ["overlay.root_me.tabs_roundtrip"]
+    },
+    "/downloads": {
+      "catalog_ids": ["overlay.root_downloads.scroll_and_inspect"]
+    },
+    "/recommended": {
+      "catalog_ids": [
+        "shell.win_caption.close_top_edge_unmax",
+        "shell.win_caption.maximize_top_edge_unmax",
+        "shell.win_caption.maximize_capture_release",
+        "shell.win_caption.drag_and_double_click",
+        "shell.win_frame.top_border_resize",
+        "shell.win_caption.tooltip_hover",
+        "shell.command_bar.tooltip_and_icons",
+        "shell.command_bar.rail_toggle_roundtrip",
+        "shell.command_bar.filter_and_account_popovers",
+        "shell.command_bar.search_pill_and_history_roundtrip",
+        "shell.menu_bar.shortcuts_navigation",
+        "shell.home_stack.branch_switch_roundtrip",
+        "shell.home_stack.swipe_and_retap_top",
+        "feed.recommended.scroll_and_context_menu",
+        "feed.recommended.empty_state",
+        "feed.recommended.error_retry"
+      ]
+    },
+    "/ranking": {
+      "catalog_ids": ["feed.ranking.mode_switch_roundtrip"]
+    },
+    "/new": {
+      "catalog_ids": ["feed.new_works.scope_switch_roundtrip"]
+    },
+    "/search": {
+      "catalog_ids": ["search.home.tabs_and_trending_scroll"]
+    },
+    "/search/input": {
+      "catalog_ids": ["search.input.autocomplete_and_clear"]
+    },
+    "/search/results": {
+      "catalog_ids": ["search.results.filter_overlay_roundtrip"]
+    },
+    "/recommended/illust/:illustId": {
+      "catalog_ids": [
+        "illust.detail.caption_and_bookmark_roundtrip",
+        "illust.detail.responsive_two_pane_resize",
+        "illust.detail.multipage_expand_collapse",
+        "illust.detail.ugoira_playback_toggle"
+      ]
+    },
+    "/recommended/illust/:illustId/viewer/:page": {
+      "catalog_ids": [
+        "viewer.mouse_drag_paging",
+        "viewer.win_double_topbar_and_f11_hotzone",
+        "viewer.info_panel_and_zoom_roundtrip"
+      ]
+    },
+    "/recommended/illust/:illustId/comments": {
+      "catalog_ids": ["illust.comments.scroll_and_stamps"]
+    },
+    "/recommended/illust/:illustId/comments/:rootCommentId": {
+      "catalog_ids": ["illust.comment_replies.open_thread"]
+    },
+    "/recommended/user/:userId": {
+      "catalog_ids": ["user.profile.follow_and_tabs_roundtrip"]
+    },
+    "/recommended/series/:seriesId": {
+      "catalog_ids": ["series.illust_series.scroll_and_watchlist"]
+    },
+    "/recommended/novel-series/:seriesId": {
+      "catalog_ids": ["series.novel_series.scroll_and_read"]
+    },
+    "/recommended/spotlight": {
+      "catalog_ids": ["spotlight.feed.scroll"]
+    },
+    "/recommended/spotlight/article/:articleId": {
+      "catalog_ids": ["spotlight.article.scroll_and_read"]
+    },
+    "/recommended/profile/:userId/edit": {
+      "catalog_ids": ["user.profile_edit.form_scroll"]
+    },
+    "/recommended/novel/:novelId": {
+      "catalog_ids": ["novel.reader.chrome_and_spread"]
+    },
+    "/recommended/novel/:novelId/image/:imageId": {
+      "catalog_ids": ["novel.uploaded_image.viewer"]
+    },
+    "/recommended/novel/:novelId/comments": {
+      "catalog_ids": ["novel.comments.scroll"]
+    },
+    "/recommended/novel/:novelId/comments/:rootCommentId": {
+      "catalog_ids": ["novel.comment_replies.open_thread"]
+    },
+    "/recommended/novel-ranking": {
+      "catalog_ids": ["feeds.novel_ranking.scroll"]
+    },
+    "/recommended/new-novels": {
+      "catalog_ids": ["feeds.new_novels.scroll"]
+    },
+    "/recommended/history": {
+      "catalog_ids": ["library.history.browse_and_selection"]
+    },
+    "/recommended/watchlater": {
+      "catalog_ids": ["library.watchlater.scroll"]
+    },
+    "/recommended/watchlist": {
+      "catalog_ids": ["library.watchlist.tabs_roundtrip"]
+    },
+    "/recommended/novel-markers": {
+      "catalog_ids": ["library.novel_markers.scroll"]
+    },
+    "/recommended/local-novels": {
+      "catalog_ids": ["library.local_novels.list_view"]
+    },
+    "/recommended/local-novels/:localId": {
+      "catalog_ids": ["library.local_novel_reader.open"]
+    },
+    "/recommended/bookmarks/tags": {
+      "catalog_ids": ["library.bookmark_tags.tabs_and_scroll"]
+    },
+    "/recommended/bookmarks/tag": {
+      "catalog_ids": ["library.bookmark_tag_feed.scroll"]
+    },
+    "/recommended/tag/:keyword": {
+      "catalog_ids": ["search.tag_page.scroll"]
+    },
+    "/recommended/me": {
+      "catalog_ids": ["branch.me.open"]
+    },
+    "/recommended/downloads": {
+      "catalog_ids": ["branch.downloads.open"]
+    },
+    "/settings": {
+      "catalog_ids": ["settings.dashboard.hub"]
+    },
+    "/settings/all": {
+      "catalog_ids": ["settings.all.master_detail"]
+    },
+    "/settings/account": {
+      "catalog_ids": ["settings.account.view_and_dialog"]
+    },
+    "/settings/theme": {
+      "catalog_ids": ["settings.theme.mode_toggle_roundtrip"]
+    },
+    "/settings/language": {
+      "catalog_ids": ["settings.language.scroll_options"]
+    },
+    "/settings/translate": {
+      "catalog_ids": ["settings.translate.provider_browse"]
+    },
+    "/settings/translate/credentials/:provider": {
+      "catalog_ids": ["settings.translate_credentials.form_view"]
+    },
+    "/settings/network": {
+      "catalog_ids": ["settings.network.scroll"]
+    },
+    "/settings/network/probe": {
+      "catalog_ids": ["settings.network_probe.view"]
+    },
+    "/settings/network/advanced": {
+      "catalog_ids": ["settings.network_advanced.scroll"]
+    },
+    "/settings/frame-probe": {
+      "catalog_ids": ["settings.frame_probe.toggle"]
+    },
+    "/settings/browse": {
+      "catalog_ids": ["settings.browse.menu_choice_roundtrip"]
+    },
+    "/settings/motion": {
+      "catalog_ids": ["settings.motion.toggle_roundtrip"]
+    },
+    "/settings/navigation": {
+      "catalog_ids": ["settings.navigation.scroll"]
+    },
+    "/settings/navigation/bottom-bar": {
+      "catalog_ids": ["settings.bottom_bar.destination_toggles"]
+    },
+    "/settings/download": {
+      "catalog_ids": ["settings.download.slider_and_template"]
+    },
+    "/settings/download/destination": {
+      "catalog_ids": ["settings.download_destination.view"]
+    },
+    "/settings/muted": {
+      "catalog_ids": ["settings.muted.list_scroll"]
+    },
+    "/settings/backup": {
+      "catalog_ids": ["settings.backup.actions_view"]
+    },
+    "/settings/tasks": {
+      "catalog_ids": ["settings.tasks.download_queue_view"]
+    },
+    "/settings/about": {
+      "catalog_ids": ["settings.about.scroll_and_version"]
+    },
+    "/settings/about/licenses": {
+      "catalog_ids": ["settings.about_licenses.scroll"]
+    }
+  },
+  "excluded_surfaces": [
+    {
+      "id": "ext.oauth_and_turnstile_webview_dom",
+      "category": "external_auth_captcha",
+      "affected_routes": ["/login/web", "/recommended/spotlight/article/:articleId"],
+      "reason": "Third-party Pixiv OAuth login form and Cloudflare Turnstile/CAPTCHA verification widgets rendered inside external WebView origins are external anti-bot/auth boundaries and must never be bypassed or automated."
+    },
+    {
+      "id": "ext.os_file_pickers_and_saf",
+      "category": "os_native_picker_or_share",
+      "affected_routes": [
+        "/reverse-image",
+        "/recommended/local-novels",
+        "/recommended/profile/:userId/edit",
+        "/settings/download/destination",
+        "/settings/backup"
+      ],
+      "reason": "Native OS file dialogs (Win32 IFileOpenDialog, Android SAF/DocumentTree, XDG Desktop Portal, PHPicker/UIDocumentPicker) run out-of-process under OS chrome and cannot be portably driven inside headless or sandboxed recorders."
+    },
+    {
+      "id": "ext.os_native_share_sheets",
+      "category": "os_native_picker_or_share",
+      "affected_routes": [
+        "/recommended/illust/:illustId",
+        "/recommended/novel/:novelId",
+        "/recommended/spotlight/article/:articleId"
+      ],
+      "reason": "Native Android/iOS/Windows share sheets spawned via share_plus belong to OS system processes outside the Parfait window tree."
+    },
+    {
+      "id": "ext.external_browser_handoff",
+      "category": "external_browser_handoff",
+      "affected_routes": [
+        "/login/web",
+        "/recommended/spotlight/article/:articleId",
+        "/settings/about"
+      ],
+      "reason": "External HTTP(S) destinations opened via launchUrl (including Linux WebView fallback after clicking Open in Browser and external profile/pixivision/release URLs) leave the Parfait process boundary."
+    },
+    {
+      "id": "ext.os_desktop_and_taskbar_chrome",
+      "category": "desktop_os_chrome_outside_frame",
+      "affected_routes": ["/recommended"],
+      "reason": "OS taskbar, system tray popup menu chrome outside DesktopWindowFrame, Start menu, and desktop wallpaper sit outside Parfait's client/non-client window frame."
+    }
+  ]
+}
