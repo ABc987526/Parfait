@@ -11,6 +11,7 @@ import '../motion/motion_tokens.dart';
 import '../motion/state_fade.dart';
 import '../pixiv_image.dart';
 import 'app_snack_bar.dart';
+import 'app_spinner.dart';
 import 'comment_text.dart';
 import 'edge_icon_buttons.dart';
 import '../../core/auth/account_store.dart';
@@ -626,12 +627,9 @@ class CommentComposerState extends State<CommentComposer>
                         icon: _disabled
                             ? Semantics(
                                 label: context.l10n.commentSending,
-                                child: const SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
+                                child: const AppSpinner(
+                                  size: 18,
+                                  strokeWidth: 2,
                                 ),
                               )
                             : const Icon(AppIcons.send),

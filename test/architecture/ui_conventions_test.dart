@@ -58,7 +58,7 @@ const _heroFiles = <String>{
   'lib/features/illust/detail/widgets/page_image.dart',
   'lib/features/illust/detail/ugoira_viewer.dart',
   'lib/features/illust/viewer/image_viewer_page.dart',
-  'lib/features/settings/me_dashboard_page.dart',
+  'lib/features/settings/me_recent_history.dart',
 };
 
 const _durationCensus = <String, int>{
@@ -679,4 +679,58 @@ void main() {
       reason: 'NAV-18 raw AppBar in a page — use AppTopBar instead',
     );
   });
+
+  test('spinners go through AppSpinner', () {
+    const owner = 'lib/app/widgets/app_spinner.dart';
+    final pattern = RegExp(r'(?<![A-Za-z_])CircularProgressIndicator\(');
+    final hits = [
+      for (final MapEntry(key: file, value: src) in libNoComments.entries)
+        if (file != owner && pattern.hasMatch(src)) file,
+    ];
+    expect(
+      hits,
+      isEmpty,
+      reason:
+          'Use AppSpinner instead of raw CircularProgressIndicator:\n'
+          '${hits.join('\n')}',
+    );
+  });
+
+  test('feature code never imports package:forui directly', () {
+    final pattern = RegExp(r'''import\s+['"]package:forui/''');
+    final hits = [
+      for (final MapEntry(key: file, value: src) in ArchSourceCache.under(
+        libNoComments,
+        ['lib/features'],
+      ))
+        if (pattern.hasMatch(src)) file,
+    ];
+    expect(
+      hits,
+      isEmpty,
+      reason:
+          'Wrap Forui primitives under lib/app/widgets/ instead of importing '
+          'package:forui/ in features:\n${hits.join('\n')}',
+    );
+  });
+
+  test(
+    'PackageInfo is read through packageInfoProvider, not build FutureBuilder',
+    () {
+      final pattern = RegExp(
+        r'FutureBuilder[\s\S]{0,200}PackageInfo\.fromPlatform\s*\(',
+      );
+      final hits = [
+        for (final MapEntry(key: file, value: src) in libNoComments.entries)
+          if (pattern.hasMatch(src)) file,
+      ];
+      expect(
+        hits,
+        isEmpty,
+        reason:
+            'Read packageInfoProvider instead of constructing FutureBuilder('
+            'future: PackageInfo.fromPlatform()) in build():\n${hits.join('\n')}',
+      );
+    },
+  );
 }

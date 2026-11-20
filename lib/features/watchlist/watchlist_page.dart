@@ -11,6 +11,7 @@ import '../../app/pull_to_refresh.dart';
 import '../../app/pixiv_image.dart';
 import '../../app/widgets/app_tab_bar.dart';
 import '../../app/widgets/app_top_bar.dart';
+import '../../app/widgets/app_spinner.dart';
 import '../../app/widgets/edge_icon_buttons.dart';
 import '../../app/widgets/entity_row.dart';
 import '../../app/widgets/page_header.dart';
@@ -157,13 +158,7 @@ class _LoadMoreFooter extends StatelessWidget {
     if (feed.loadingMore) {
       return const Padding(
         padding: EdgeInsets.all(FuncSpacing.lg),
-        child: Center(
-          child: SizedBox(
-            width: 20,
-            height: 20,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
-        ),
+        child: Center(child: AppSpinner(size: 20, strokeWidth: 2)),
       );
     }
     return const SizedBox(height: FuncSpacing.lg);

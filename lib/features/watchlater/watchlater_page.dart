@@ -68,22 +68,12 @@ class _WatchLaterPageState extends ConsumerState<WatchLaterPage> {
     super.dispose();
   }
 
-  static bool _isPointer(BuildContext context) =>
-      (InputModalityScope.maybeOf(context) ??
-          defaultInputModalityFor(Theme.of(context).platform)) ==
-      InputModality.pointer;
-
-  static bool _isEditingFocused() =>
-      FocusManager.instance.primaryFocus?.context
-          ?.findAncestorWidgetOfExactType<EditableText>() !=
-      null;
-
   bool _onKeyEvent(KeyEvent event) {
     if (!mounted || !_managing || event is! KeyDownEvent) return false;
     if (!(_tickerMode?.value.enabled ?? true) || !(_route?.isCurrent ?? true)) {
       return false;
     }
-    if (_isEditingFocused() || !_isPointer(context)) return false;
+    if (isTextEditingFocused() || !isPointerInput(context)) return false;
     final kbd = HardwareKeyboard.instance;
     if (event.logicalKey == LogicalKeyboardKey.keyA &&
         (kbd.isControlPressed || kbd.isMetaPressed) &&
@@ -120,7 +110,7 @@ class _WatchLaterPageState extends ConsumerState<WatchLaterPage> {
   }
 
   void _handleItemToggle(int illustId, List<int> orderedIds) {
-    if (_isPointer(context) &&
+    if (isPointerInput(context) &&
         HardwareKeyboard.instance.isShiftPressed &&
         _lastToggledId != null) {
       final start = orderedIds.indexOf(_lastToggledId!);

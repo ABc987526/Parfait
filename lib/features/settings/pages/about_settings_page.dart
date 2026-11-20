@@ -13,6 +13,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../app/motion/app_overlays.dart';
+import '../../../app/widgets/app_spinner.dart';
 import '../../../app/motion/reveal.dart';
 import '../../../app/theme/func_semantic_tokens.dart';
 import '../../../app/widgets/app_dialog.dart';
@@ -645,7 +646,7 @@ class _LicensesSettingsPageState extends State<LicensesSettingsPage> {
           builder: (context, snapshot) {
             final data = snapshot.data;
             if (data == null) {
-              return const Center(child: CircularProgressIndicator());
+              return const Center(child: AppSpinner());
             }
             final effectiveVersion = widget.applicationVersion ?? data.version;
             return ListView(

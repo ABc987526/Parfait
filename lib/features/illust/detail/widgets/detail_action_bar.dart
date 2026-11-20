@@ -11,6 +11,7 @@ import '../../../../app/widgets/bookmark_switch_button.dart';
 import '../../../../app/widgets/prompt_anchor.dart';
 import '../../../../core/download/download_providers.dart';
 import '../../../../core/entity/illust_entity.dart';
+import '../../../../app/widgets/app_spinner.dart';
 import '../../../../core/illust/illust_download_controller.dart';
 import '../../../../l10n/context.dart';
 import '../../../../app/icons/app_icons.dart';
@@ -222,13 +223,11 @@ class _DetailDownloadButtonState extends ConsumerState<DetailDownloadButton> {
       icon: StateIconSwitcher(
         value: save.state,
         child: switch (save.state) {
-          IllustPageSaveState.downloading => SizedBox.square(
-            dimension: 22,
-            child: CircularProgressIndicator(
-              // Nothing measured yet (queued, unknown length): spin.
-              value: progress == null || progress == 0 ? null : progress,
-              strokeWidth: 2.5,
-            ),
+          IllustPageSaveState.downloading => AppSpinner(
+            size: 22,
+            // Nothing measured yet (queued, unknown length): spin.
+            value: progress == null || progress == 0 ? null : progress,
+            strokeWidth: 2.5,
           ),
           IllustPageSaveState.exist => Icon(
             AppIcons.downloadDone,

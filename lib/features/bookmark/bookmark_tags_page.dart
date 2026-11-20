@@ -11,6 +11,7 @@ import '../../l10n/context.dart';
 import '../../app/theme/func_semantic_tokens.dart';
 import '../../app/widgets/app_tab_bar.dart';
 import '../../app/layout/content_widths.dart';
+import '../../app/widgets/app_spinner.dart';
 import '../../app/widgets/feed/load_more_listener.dart';
 import '../../app/widgets/page_header.dart';
 import '../../app/widgets/smooth_wheel_scroll.dart';
@@ -217,13 +218,7 @@ class _TagList extends ConsumerWidget {
               if (state.loadingMore) {
                 return const Padding(
                   padding: EdgeInsets.all(FuncSpacing.lg),
-                  child: Center(
-                    child: SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  ),
+                  child: Center(child: AppSpinner(size: 24, strokeWidth: 2)),
                 );
               }
               if (state.loadMoreError != null) {

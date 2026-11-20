@@ -42,10 +42,9 @@ class _TaskHeader extends StatelessWidget {
   Widget _phaseIndicator(BuildContext context) {
     final style = Theme.of(context).textTheme.titleSmall;
     final Widget? icon = switch (state.status) {
-      ReverseImageFlowStatus.searching => const SizedBox(
-        width: 14,
-        height: 14,
-        child: CircularProgressIndicator(strokeWidth: 2),
+      ReverseImageFlowStatus.searching => const AppSpinner(
+        size: 14,
+        strokeWidth: 2,
       ),
       ReverseImageFlowStatus.failure => Icon(
         UiIcons.errorOutline,

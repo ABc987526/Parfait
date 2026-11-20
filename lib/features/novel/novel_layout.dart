@@ -1,8 +1,9 @@
 import 'dart:collection';
 import 'dart:math' as math;
+import 'dart:ui' show Brightness;
 
-import 'package:flutter/foundation.dart' show listEquals;
-import 'package:material_ui/material_ui.dart';
+import 'package:flutter/foundation.dart' show immutable, listEquals;
+import 'package:flutter/painting.dart';
 
 import '../../core/network/api_error.dart';
 import '../../core/network/pixiv_http_client.dart';
@@ -413,7 +414,7 @@ class NovelLayoutPage {
 }
 
 class NovelLayout {
-  const NovelLayout({
+  NovelLayout({
     required this.key,
     required this.pages,
     required this.totalCharacters,
@@ -425,16 +426,42 @@ class NovelLayout {
   final int totalCharacters;
   final List<String> _paragraphOrder;
 
+  late final Map<String, int> _paragraphIndex = {
+    for (var i = 0; i < _paragraphOrder.length; i++) _paragraphOrder[i]: i,
+  };
+
+  late final Map<NovelAnchor, int> _startAnchorPages = () {
+    final map = <NovelAnchor, int>{};
+    for (final page in pages) {
+      map.putIfAbsent(page.startAnchor, () => page.index);
+    }
+    return map;
+  }();
+
   int pageIndexForAnchor(NovelAnchor anchor) {
     if (pages.isEmpty) return 0;
     // A page's own start wins over the previous page's inclusive end. This
     // matters when a relayout restores the anchor captured at a page edge.
-    for (final page in pages) {
-      if (anchor == page.startAnchor) return page.index;
+    final exact = _startAnchorPages[anchor];
+    if (exact != null) return exact;
+    // Binary search for the first page whose endAnchor >= anchor, then verify
+    // anchor >= startAnchor (falling back to linear scan only if pages were
+    // ever non-monotonic, which never happens in layout output).
+    var lo = 0;
+    var hi = pages.length - 1;
+    var candidate = pages.length;
+    while (lo <= hi) {
+      final mid = (lo + hi) >> 1;
+      if (_compareAnchors(anchor, pages[mid].endAnchor) <= 0) {
+        candidate = mid;
+        hi = mid - 1;
+      } else {
+        lo = mid + 1;
+      }
     }
-    for (final page in pages) {
-      if (_compareAnchors(anchor, page.startAnchor) < 0) continue;
-      if (_compareAnchors(anchor, page.endAnchor) <= 0) return page.index;
+    if (candidate < pages.length &&
+        _compareAnchors(anchor, pages[candidate].startAnchor) >= 0) {
+      return pages[candidate].index;
     }
     return pages.length - 1;
   }
@@ -442,10 +469,19 @@ class NovelLayout {
   int pageIndexForCharacter(int characterOffset) {
     if (pages.isEmpty) return 0;
     final target = characterOffset.clamp(0, totalCharacters);
-    for (final page in pages) {
-      if (target <= page.endCharacter) return page.index;
+    var lo = 0;
+    var hi = pages.length - 1;
+    var candidate = pages.length - 1;
+    while (lo <= hi) {
+      final mid = (lo + hi) >> 1;
+      if (target <= pages[mid].endCharacter) {
+        candidate = mid;
+        hi = mid - 1;
+      } else {
+        lo = mid + 1;
+      }
     }
-    return pages.length - 1;
+    return pages[candidate].index;
   }
 
   double progressPercent(int pageIndex) {
@@ -455,11 +491,9 @@ class NovelLayout {
   }
 
   int _compareAnchors(NovelAnchor left, NovelAnchor right) {
-    final leftIndex = _paragraphOrder.indexOf(left.paragraphId);
-    final rightIndex = _paragraphOrder.indexOf(right.paragraphId);
-    final normalizedLeft = leftIndex < 0 ? 0 : leftIndex;
-    final normalizedRight = rightIndex < 0 ? 0 : rightIndex;
-    final paragraphComparison = normalizedLeft.compareTo(normalizedRight);
+    final leftIndex = _paragraphIndex[left.paragraphId] ?? 0;
+    final rightIndex = _paragraphIndex[right.paragraphId] ?? 0;
+    final paragraphComparison = leftIndex.compareTo(rightIndex);
     if (paragraphComparison != 0) return paragraphComparison;
     return left.offset.compareTo(right.offset);
   }
