@@ -211,7 +211,7 @@ def main() -> int:
     parser.add_argument('--exclude-tag', action='append', default=[])
     parser.add_argument('--only-tag', action='append', default=[])
     parser.add_argument('--warn-unrecorded', type=int, default=10)
-    parser.add_argument('--max-unrecorded', type=int, default=None)
+    parser.add_argument('--max-unrecorded', type=int, default=20)
     args = parser.parse_args()
     if args.record:
         return main_record(args.record)
