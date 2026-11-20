@@ -4,6 +4,7 @@ import 'package:parfait/app/motion/hero_rect_clip.dart';
 import 'package:parfait/app/pixiv_image.dart';
 
 import 'review_support.dart';
+import 'package:parfait/app/icons/ui_icons.dart';
 
 /// Route pushes and pops, branch switches and re-tap to top.
 void main() {
@@ -93,7 +94,7 @@ void main() {
     script: (film, router) async {
       await film.tap(find.byType(PixivImage), hold: 15);
       await film.frames(20);
-      await film.tap(back.last);
+      await _tapBackOrClose(film, back);
     },
   );
 
@@ -111,7 +112,7 @@ void main() {
       await film.tap(find.text('我的'));
       await film.tap(find.bySemanticsLabel('illust 1001'), hold: 6);
       await film.frames(10);
-      await film.tap(back.last);
+      await _tapBackOrClose(film, back);
     },
   );
 
@@ -211,7 +212,6 @@ void main() {
   for (final (shape, id) in [
     ('wide', 1500),
     ('tall-crop', 1501),
-    ('square-thumb', 1502),
     ('panorama', 1503),
     ('past-capsule', 1504),
   ]) {
@@ -241,6 +241,35 @@ void main() {
       },
     );
   }
+  // Square-cropped feed previews (hasHero: false) open via standard slide
+  // transition without a Hero flight, avoiding square-to-tall aspect snaps.
+  testFilm(
+    'nav/hero-interrupt-square-thumb',
+    location: '/recommended',
+    setup: shapes,
+    notes:
+        'Square-cropped card (1502, hasHero: false): opens via standard '
+        'route slide without Hero flight and returns cleanly when popped '
+        'mid-transition.',
+    script: (film, router) async {
+      final card = film.tester.getCenter(
+        find.bySemanticsLabel(RegExp('^illust 1502,')).first,
+      );
+      for (final at in [3, 8, 14]) {
+        await _open(film, card);
+        await film.frames(at);
+        await _systemBack();
+        await film.untilSettled();
+      }
+      for (final at in [4, 4, 4, 4]) {
+        await _open(film, card);
+        await film.frames(at);
+        await _systemBack();
+        await film.frames(at);
+      }
+      await film.untilSettled();
+    },
+  );
 
   testFilm(
     'nav/hero-interrupt-under-tabs',
@@ -415,6 +444,16 @@ void main() {
       await pullDown(distance: 190, moveFrames: 12);
     },
   );
+}
+
+/// Taps the visible back button on full-screen detail routes or falls back to
+/// the modal close icon under wide `boundedOverlay` presentations.
+Future<void> _tapBackOrClose(FilmRecorder film, Finder back) {
+  final hitBack = back.hitTestable();
+  final target = hitBack.evaluate().isNotEmpty
+      ? hitBack.last
+      : find.byIcon(UiIcons.close).hitTestable().last;
+  return film.tap(target);
 }
 
 /// Taps [at] and films until a Hero flight is in the air (or 30 frames: a

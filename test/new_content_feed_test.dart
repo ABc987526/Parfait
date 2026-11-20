@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:parfait/app/icons/app_icons.dart';
+import 'package:parfait/app/pull_to_refresh.dart';
 import 'package:parfait/app/widgets/func_bottom_nav.dart';
 import 'package:parfait/core/paging/feed_snapshot_store.dart';
 import 'package:parfait/core/new/new_feed_controller.dart';
@@ -209,7 +210,7 @@ void main() {
     await tester.tap(
       find.descendant(
         of: find.byType(FuncShellBottomNav),
-        matching: find.byIcon(AppIcons.n),
+        matching: find.byIcon(AppIcons.newWorksFilled),
       ),
     );
     await tester.pump();
@@ -244,7 +245,7 @@ void main() {
     await tester.tap(
       find.descendant(
         of: find.byType(FuncShellBottomNav),
-        matching: find.byIcon(AppIcons.n),
+        matching: find.byIcon(AppIcons.newWorksFilled),
       ),
     );
     // As after a release: the overscroll springs onto the trigger, then
@@ -253,12 +254,12 @@ void main() {
       await tester.pump(const Duration(milliseconds: 16));
     }
     // The pull's own indicator shows the refresh in flight.
-    expect(find.byType(RefreshProgressIndicator), findsOneWidget);
+    expect(find.byType(SakuraRefreshIndicator), findsOneWidget);
     expect(repository.requests.length, requestsBefore + 1);
 
     repository.pendingFetch!.complete();
     await tester.pumpAndSettle();
-    expect(find.byType(RefreshProgressIndicator), findsNothing);
+    expect(find.byType(SakuraRefreshIndicator), findsNothing);
     expect(controller.offset, 0);
 
     // The in-page scope re-tap follows the same rule.

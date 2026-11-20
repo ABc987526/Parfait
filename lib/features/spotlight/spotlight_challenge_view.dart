@@ -15,8 +15,9 @@ import '../../core/spotlight/spotlight_article_controller.dart';
 import '../../core/spotlight/spotlight_models.dart';
 import '../../core/spotlight/spotlight_repository.dart';
 import '../../l10n/context.dart';
+import '../../app/icons/app_icons.dart';
 
-enum _ChallengePhase { verifying, interactive, failed }
+enum _ChallengePhase { verifying, interactive, failed, unsupported }
 
 /// Loads a pixivision article through the browser engine when Cloudflare
 /// answers plain HTTP with a managed challenge.
@@ -98,7 +99,7 @@ class _SpotlightChallengeViewState
 
   void _begin() {
     if (!ref.read(platformCapsProvider).supportsInAppWebView) {
-      _phase = _ChallengePhase.failed;
+      _phase = _ChallengePhase.unsupported;
       _handedOver = false;
       _controller = null;
       return;
@@ -207,6 +208,7 @@ class _SpotlightChallengeViewState
       _ChallengePhase.verifying => _verifying(context),
       _ChallengePhase.interactive => _interactive(context),
       _ChallengePhase.failed => _failed(context),
+      _ChallengePhase.unsupported => _unsupported(context),
     };
   }
 
@@ -278,7 +280,7 @@ class _SpotlightChallengeViewState
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              Icons.public_off,
+              AppIcons.globeOff,
               size: 48,
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
@@ -287,7 +289,37 @@ class _SpotlightChallengeViewState
             const SizedBox(height: FuncSpacing.md),
             StateActionButton(label: l10n.retry, onPressed: _retry),
             TextButton.icon(
-              icon: const Icon(Icons.open_in_new),
+              icon: const Icon(AppIcons.externalLink),
+              label: Text(l10n.openInBrowser),
+              onPressed: _openInBrowser,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _unsupported(BuildContext context) {
+    final l10n = context.l10n;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(FuncSpacing.xl),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              AppIcons.externalLink,
+              size: 48,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(height: FuncSpacing.md),
+            Text(
+              l10n.spotlightExternalBrowserHint,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: FuncSpacing.lg),
+            FilledButton.icon(
+              icon: const Icon(AppIcons.externalLink),
               label: Text(l10n.openInBrowser),
               onPressed: _openInBrowser,
             ),

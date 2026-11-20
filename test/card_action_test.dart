@@ -30,6 +30,7 @@ import 'helpers/illust_fixtures.dart';
 import 'helpers/illust_detail_page_support.dart' show RecordingShareService;
 import 'helpers/prompt_host.dart';
 import 'helpers/localized_app.dart';
+import 'package:parfait/app/icons/ui_icons.dart';
 
 /// Records the payloads the card sheet hands to the platform share
 /// boundary — the system sheet itself is plugin territory.
@@ -164,14 +165,16 @@ void main() {
     Color? hoverLayer() =>
         (tester
                     .widget<DecoratedBox>(
-                      find.descendant(
-                        of: card,
-                        matching: find.byWidgetPredicate(
-                          (w) =>
-                              w is DecoratedBox &&
-                              w.position == DecorationPosition.foreground,
-                        ),
-                      ),
+                      find
+                          .descendant(
+                            of: card,
+                            matching: find.byWidgetPredicate(
+                              (w) =>
+                                  w is DecoratedBox &&
+                                  w.position == DecorationPosition.foreground,
+                            ),
+                          )
+                          .first,
                     )
                     .decoration
                 as BoxDecoration)
@@ -455,7 +458,7 @@ void main() {
 
     fixture.muteEditStatus = 500;
     await tester.enterText(find.byType(TextField), 'tagFail');
-    await tester.tap(find.byIcon(Icons.add));
+    await tester.tap(find.byIcon(UiIcons.add));
     await tester.pumpAndSettle();
 
     final field = tester.widget<TextField>(find.byType(TextField));
@@ -471,7 +474,7 @@ void main() {
 
     // The same draft succeeds once the backend recovers.
     fixture.muteEditStatus = 200;
-    await tester.tap(find.byIcon(Icons.add));
+    await tester.tap(find.byIcon(UiIcons.add));
     await tester.pumpAndSettle();
     expect(
       tester.widget<TextField>(find.byType(TextField)).controller!.text,
@@ -520,11 +523,13 @@ void main() {
         isNotNull,
         reason: 'Tab reaches the card',
       );
-      // A visible focus ring over the preview.
+      // A visible 2dp focus ring over the preview (distinct from the 1dp
+      // light-theme foreground thumbnail hairline).
       expect(
         find.byWidgetPredicate(
           (widget) =>
               widget is DecoratedBox &&
+              widget.position == DecorationPosition.background &&
               widget.decoration is BoxDecoration &&
               (widget.decoration as BoxDecoration).border != null,
         ),

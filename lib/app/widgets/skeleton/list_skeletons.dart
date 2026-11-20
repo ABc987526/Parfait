@@ -118,7 +118,7 @@ double _userRowExtent(double width) {
 }
 
 const _avatarDiameter = 48.0;
-const _followButtonWidth = 96.0;
+const _followButtonWidth = 88.0;
 const _followButtonHeight = 36.0;
 
 /// Rows of skeletons filling the available height; an unbounded height gets
@@ -261,11 +261,12 @@ class _UserRowBones extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     FractionallySizedBox(
-                      widthFactor: 0.5,
+                      widthFactor: 0.56,
                       child: SkeletonBone.text(style: tokens.title),
                     ),
+                    const SizedBox(height: FuncSpacing.xs),
                     FractionallySizedBox(
-                      widthFactor: 0.7,
+                      widthFactor: 0.38,
                       child: SkeletonBone.text(style: tokens.caption),
                     ),
                   ],
@@ -287,7 +288,10 @@ class _UserRowBones extends StatelessWidget {
                 const Expanded(
                   child: AspectRatio(
                     aspectRatio: 1,
-                    child: SkeletonBone(height: double.infinity),
+                    child: SkeletonBone(
+                      height: double.infinity,
+                      borderRadius: FuncShape.control,
+                    ),
                   ),
                 ),
               ],

@@ -23,6 +23,7 @@ import 'helpers/test_preferences.dart';
 import 'helpers/localized_app.dart';
 import 'helpers/image_headers.dart';
 import 'helpers/prompt_host.dart';
+import 'package:parfait/app/icons/ui_icons.dart';
 
 void main() {
   late Directory directory;
@@ -117,7 +118,7 @@ void main() {
 
     expect(find.text('约 27 秒后可重试'), findsOneWidget);
     // The big failure icon plus the error avatar on the failed engine's chip.
-    expect(find.byIcon(Icons.error_outline), findsWidgets);
+    expect(find.byIcon(UiIcons.errorOutline), findsWidgets);
   });
 
   testWidgets('a challenge offers the engine web page with the image armed', (
@@ -314,7 +315,7 @@ void main() {
     expect(
       find.descendant(
         of: find.byKey(const ValueKey('reverseTaskHeader')),
-        matching: find.byIcon(Icons.error_outline),
+        matching: find.byIcon(UiIcons.errorOutline),
       ),
       findsWidgets,
     );

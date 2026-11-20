@@ -15,6 +15,8 @@ import 'display_actions.dart';
 import 'errors/error_details.dart';
 import 'inline_translation.dart';
 import 'unmute_undo.dart';
+import '../icons/app_icons.dart';
+import '../icons/ui_icons.dart';
 
 /// Direct tag action menu (R3), opened by a long press on a tag: search,
 /// copy, translate — always offered, a Pixiv translation may be missing or
@@ -62,33 +64,31 @@ Future<void> showTagActionsSheet(
     onLongPress: () => unawaited(sheet()),
     actions: [
       DisplayAction(
-        icon: Icons.search,
+        icon: AppIcons.search,
         label: l10n.tagActionSearch,
         onSelected: onSearch,
       ),
       DisplayAction(
-        icon: Icons.copy_outlined,
+        icon: AppIcons.copy,
         label: l10n.tagActionCopy,
         onSelected: () => unawaited(
           copyToClipboard(context, tag, message: context.l10n.tagCopied),
         ),
       ),
       DisplayAction(
-        icon: Icons.translate,
+        icon: AppIcons.translate,
         label: l10n.tagActionTranslate,
         onSelected: () => unawaited(sheet(translate: true)),
       ),
       if (onToggleMute != null)
         DisplayAction(
-          icon: muted
-              ? Icons.visibility_outlined
-              : Icons.visibility_off_outlined,
+          icon: muted ? AppIcons.eye : AppIcons.eyeOff,
           label: muted ? l10n.tagActionUnmute : l10n.tagActionMute,
           onSelected: onToggleMute,
         ),
       if (onMuteMode != null)
         DisplayAction(
-          icon: Icons.playlist_add_check,
+          icon: UiIcons.checklist,
           label: l10n.tagActionMuteMode,
           onSelected: onMuteMode,
         ),
@@ -170,12 +170,12 @@ class _TagActionsState extends ConsumerState<_TagActions>
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             ListTile(
-              leading: const Icon(Icons.search),
+              leading: const Icon(AppIcons.search),
               title: Text(l10n.tagActionSearch),
               onTap: _closing(widget.onSearch),
             ),
             ListTile(
-              leading: const Icon(Icons.copy_outlined),
+              leading: const Icon(AppIcons.copy),
               title: Text(l10n.tagActionCopy),
               onTap: _closing(widget.onCopy),
             ),
@@ -185,7 +185,7 @@ class _TagActionsState extends ConsumerState<_TagActions>
             // translation; after a failure it asks again.
             ListTile(
               leading: Icon(
-                Icons.translate,
+                AppIcons.translate,
                 color: failure == null || translationNotSetUp(failure)
                     ? null
                     : Theme.of(context).colorScheme.error,
@@ -223,11 +223,7 @@ class _TagActionsState extends ConsumerState<_TagActions>
             ),
             if (onToggleMute != null)
               ListTile(
-                leading: Icon(
-                  widget.muted
-                      ? Icons.visibility_outlined
-                      : Icons.visibility_off_outlined,
-                ),
+                leading: Icon(widget.muted ? AppIcons.eye : AppIcons.eyeOff),
                 title: Text(
                   widget.muted ? l10n.tagActionUnmute : l10n.tagActionMute,
                 ),
@@ -235,7 +231,7 @@ class _TagActionsState extends ConsumerState<_TagActions>
               ),
             if (onMuteMode != null)
               ListTile(
-                leading: const Icon(Icons.playlist_add_check),
+                leading: const Icon(UiIcons.checklist),
                 title: Text(l10n.tagActionMuteMode),
                 onTap: _closing(onMuteMode),
               ),

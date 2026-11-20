@@ -16,6 +16,8 @@ import '../settings_helpers.dart';
 import '../../../app/theme/func_semantic_tokens.dart';
 import '../../../app/clipboard.dart';
 import '../../../app/layout/content_widths.dart';
+import '../../../app/icons/app_icons.dart';
+import '../../../app/icons/ui_icons.dart';
 
 /// Dev-only frame probe page: record timings while scrolling a feed, then
 /// copy the build/raster percentile report for offline analysis. Only
@@ -151,7 +153,7 @@ class _FrameProbePageState extends ConsumerState<FrameProbePage> {
                   child: Row(
                     children: [
                       Icon(
-                        Icons.fiber_manual_record,
+                        UiIcons.recordDot,
                         size: 16,
                         color: theme.colorScheme.error,
                       ),
@@ -186,7 +188,7 @@ class _FrameProbePageState extends ConsumerState<FrameProbePage> {
             else
               FilledButton.icon(
                 onPressed: _start,
-                icon: const Icon(Icons.fiber_manual_record),
+                icon: const Icon(UiIcons.recordDot),
                 label: Text(context.l10n.frameProbeStart),
               ),
             if (_worker case final worker?) ...[
@@ -204,7 +206,7 @@ class _FrameProbePageState extends ConsumerState<FrameProbePage> {
                   IconButton(
                     onPressed: _refreshWorker,
                     tooltip: context.l10n.refresh,
-                    icon: const Icon(Icons.refresh),
+                    icon: const Icon(UiIcons.refresh),
                   ),
                 ],
               ),
@@ -225,7 +227,7 @@ class _FrameProbePageState extends ConsumerState<FrameProbePage> {
                     report,
                     message: context.l10n.networkProbeCopied,
                   ),
-                  icon: const Icon(Icons.copy_outlined, size: 16),
+                  icon: const Icon(AppIcons.copy, size: 16),
                   label: Text(context.l10n.copy),
                 ),
               ),
@@ -267,7 +269,7 @@ class _FrameProbePageState extends ConsumerState<FrameProbePage> {
                 text,
                 message: context.l10n.networkProbeCopied,
               ),
-              icon: const Icon(Icons.copy_outlined, size: 16),
+              icon: const Icon(AppIcons.copy, size: 16),
               label: Text(context.l10n.copy),
             ),
           ],

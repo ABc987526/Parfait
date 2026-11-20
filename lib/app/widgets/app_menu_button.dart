@@ -4,10 +4,11 @@ import 'package:material_ui/material_ui.dart';
 
 import '../motion/motion_tokens.dart';
 import '../theme/func_semantic_tokens.dart';
+import '../icons/ui_icons.dart';
 
-/// Upper bound on a menu's width (the M3 menu maximum). Long translations
-/// truncate inside it instead of widening the menu.
-const double kAppMenuMaxWidth = 280;
+/// Upper bound on a menu's width. Long translations truncate inside it
+/// instead of widening the menu past the viewport.
+const double kAppMenuMaxWidth = 360;
 
 /// Which edge of its anchor a menu lines up with. The menu opens below the
 /// anchor either way.
@@ -60,7 +61,7 @@ class AppMenuButton<T> extends StatefulWidget {
     required this.entries,
     required this.onSelected,
     this.tooltip,
-    this.icon = const Icon(Icons.more_vert),
+    this.icon = const Icon(UiIcons.more),
     this.anchorBuilder,
     this.edge = AppMenuEdge.end,
   });
@@ -147,7 +148,9 @@ class _AppMenuButtonState<T> extends State<AppMenuButton<T>> {
               iconColor: danger,
             ),
       leadingIcon: entry.icon == null ? null : Icon(entry.icon, size: 20),
-      trailingIcon: checked == true ? const Icon(Icons.check, size: 18) : null,
+      trailingIcon: checked == true
+          ? const Icon(UiIcons.check, size: 18)
+          : null,
       onPressed: entry.enabled
           ? () => widget.onSelected(_anchorContext ?? context, entry.value)
           : null,
@@ -181,6 +184,11 @@ class _AppMenuButtonState<T> extends State<AppMenuButton<T>> {
   }
 
   Widget _anchor(Widget Function(Widget child) ambient) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final hairline =
+        theme.extension<FuncSemanticTokens>()?.brandHairline ??
+        scheme.outlineVariant;
     return MenuAnchor(
       controller: _controller,
       consumeOutsideTap: true,
@@ -190,8 +198,19 @@ class _AppMenuButtonState<T> extends State<AppMenuButton<T>> {
       crossAxisUnconstrained: false,
       // In the menu's direction, a positive offset moves it inward.
       alignmentOffset: Offset(_edgeInset, 0),
-      style: const MenuStyle(
-        maximumSize: WidgetStatePropertyAll(
+      style: MenuStyle(
+        backgroundColor: WidgetStatePropertyAll(scheme.surfaceContainerHigh),
+        surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
+        shape: WidgetStatePropertyAll(
+          RoundedRectangleBorder(
+            borderRadius: FuncShape.card,
+            side: BorderSide(color: hairline),
+          ),
+        ),
+        padding: const WidgetStatePropertyAll(
+          EdgeInsets.symmetric(vertical: FuncSpacing.xs),
+        ),
+        maximumSize: const WidgetStatePropertyAll(
           Size(kAppMenuMaxWidth, double.infinity),
         ),
       ),

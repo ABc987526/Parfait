@@ -31,7 +31,7 @@ extension _NovelReaderStageSheets on _NovelReaderStageState {
               child: Padding(
                 padding: EdgeInsets.fromLTRB(
                   FuncSpacing.xl,
-                  desktop ? FuncSpacing.xl : 0,
+                  desktop ? FuncSpacing.lg : 0,
                   FuncSpacing.xl,
                   FuncSpacing.xl,
                 ),
@@ -39,9 +39,10 @@ extension _NovelReaderStageSheets on _NovelReaderStageState {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      l10n.novelReadingProgress,
-                      style: Theme.of(context).textTheme.titleMedium,
+                    _ReaderSheetHeader(
+                      title: l10n.novelReadingProgress,
+                      showClose: desktop,
+                      onClose: () => Navigator.of(sheetContext).pop(),
                     ),
                     Row(
                       children: [
@@ -186,115 +187,174 @@ extension _NovelReaderStageSheets on _NovelReaderStageState {
             // The sheet is at most 9/16 of the screen: on a turned phone
             // the settings scroll inside it.
             final desktop = useWideOverlay(context);
+            final theme = Theme.of(context);
+            final chipLabelStyle = theme.textTheme.labelLarge;
             return SingleChildScrollView(
               padding: MediaQuery.of(context).padding,
               child: Padding(
                 padding: EdgeInsets.fromLTRB(
-                  FuncSpacing.xl,
+                  FuncSpacing.lg,
                   desktop ? FuncSpacing.lg : 0,
-                  FuncSpacing.xl,
+                  FuncSpacing.lg,
                   FuncSpacing.xl,
                 ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _SettingsSliderRow(
-                      label: l10n.novelFontSize,
-                      value: _settings.fontSize,
-                      min: NovelReaderSettings.minFontSize,
-                      max: NovelReaderSettings.maxFontSize,
-                      onChanged: (v) => apply(_settings.copyWith(fontSize: v)),
+                child: ChipTheme(
+                  data: ChipTheme.of(context).copyWith(
+                    labelStyle: chipLabelStyle,
+                    secondaryLabelStyle: chipLabelStyle,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: FuncSpacing.sm,
+                      vertical: FuncSpacing.xs,
                     ),
-                    // Slider range == the model's clamp range (1.3–2.4):
-                    // the old 1.1–2.2 span was a dead zone at the bottom
-                    // and unreachable at the top.
-                    _SettingsSliderRow(
-                      label: l10n.novelLineHeight,
-                      value: _settings.lineHeight,
-                      min: NovelReaderSettings.minLineHeight,
-                      max: NovelReaderSettings.maxLineHeight,
-                      divisions: 11,
-                      onChanged: (v) =>
-                          apply(_settings.copyWith(lineHeight: v)),
+                    labelPadding: const EdgeInsets.symmetric(
+                      horizontal: FuncSpacing.xxs,
                     ),
-                    const SizedBox(height: FuncSpacing.md),
-                    Wrap(
-                      spacing: 8,
-                      children: [
-                        for (final (pageTurn, label) in [
-                          (NovelPageTurn.scroll, l10n.novelPageTurnScroll),
-                          (NovelPageTurn.pages, l10n.novelPageTurnPages),
-                        ])
-                          AppChoiceChip(
-                            label: Text(label),
-                            selected: _settings.pageTurn == pageTurn,
-                            onSelected: () =>
-                                apply(_settings.copyWith(pageTurn: pageTurn)),
-                          ),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (desktop) ...[
+                        _ReaderSheetHeader(
+                          title: l10n.novelReaderSettings,
+                          onClose: () => Navigator.of(sheetContext).pop(),
+                        ),
+                        const SizedBox(height: FuncSpacing.xs),
                       ],
-                    ),
-                    const SizedBox(height: FuncSpacing.sm),
-                    Text(
-                      l10n.novelSpreadMode,
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                    const SizedBox(height: FuncSpacing.xs),
-                    Wrap(
-                      spacing: FuncSpacing.sm,
-                      runSpacing: FuncSpacing.xs,
-                      children: [
-                        for (final (mode, label) in [
-                          (NovelSpreadMode.off, l10n.novelSpreadOff),
-                          (NovelSpreadMode.auto, l10n.novelSpreadAuto),
-                          (
-                            NovelSpreadMode.landscape,
-                            l10n.novelSpreadLandscape,
-                          ),
-                          (NovelSpreadMode.always, l10n.novelSpreadAlways),
-                        ])
-                          AppChoiceChip(
-                            label: Text(label),
-                            selected: _settings.spreadMode == mode,
-                            onSelected: () => apply(
-                              _settings.copyWith(
-                                spreadMode: mode,
-                                pageTurn:
-                                    mode != NovelSpreadMode.off &&
-                                        _settings.pageTurn ==
-                                            NovelPageTurn.scroll
-                                    ? NovelPageTurn.pages
-                                    : null,
+                      _SettingsSliderRow(
+                        label: l10n.novelFontSize,
+                        value: _settings.fontSize,
+                        min: NovelReaderSettings.minFontSize,
+                        max: NovelReaderSettings.maxFontSize,
+                        onChanged: (v) =>
+                            apply(_settings.copyWith(fontSize: v)),
+                      ),
+                      // Slider range == the model's clamp range (1.3–2.4):
+                      // the old 1.1–2.2 span was a dead zone at the bottom
+                      // and unreachable at the top.
+                      _SettingsSliderRow(
+                        label: l10n.novelLineHeight,
+                        value: _settings.lineHeight,
+                        min: NovelReaderSettings.minLineHeight,
+                        max: NovelReaderSettings.maxLineHeight,
+                        divisions: 11,
+                        onChanged: (v) =>
+                            apply(_settings.copyWith(lineHeight: v)),
+                      ),
+                      const SizedBox(height: FuncSpacing.md),
+                      Wrap(
+                        spacing: FuncSpacing.sm,
+                        runSpacing: FuncSpacing.xs,
+                        children: [
+                          for (final (pageTurn, label) in [
+                            (NovelPageTurn.scroll, l10n.novelPageTurnScroll),
+                            (NovelPageTurn.pages, l10n.novelPageTurnPages),
+                          ])
+                            AppChoiceChip(
+                              label: Text(label),
+                              selected: _settings.pageTurn == pageTurn,
+                              onSelected: () =>
+                                  apply(_settings.copyWith(pageTurn: pageTurn)),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: FuncSpacing.sm),
+                      Text(
+                        l10n.novelSpreadMode,
+                        style: theme.textTheme.bodyMedium,
+                      ),
+                      const SizedBox(height: FuncSpacing.xs),
+                      Wrap(
+                        spacing: FuncSpacing.sm,
+                        runSpacing: FuncSpacing.xs,
+                        children: [
+                          for (final (mode, label) in [
+                            (NovelSpreadMode.off, l10n.novelSpreadOff),
+                            (NovelSpreadMode.auto, l10n.novelSpreadAuto),
+                            (
+                              NovelSpreadMode.landscape,
+                              l10n.novelSpreadLandscape,
+                            ),
+                            (NovelSpreadMode.always, l10n.novelSpreadAlways),
+                          ])
+                            AppChoiceChip(
+                              label: Text(label),
+                              selected: _settings.spreadMode == mode,
+                              onSelected: () => apply(
+                                _settings.copyWith(
+                                  spreadMode: mode,
+                                  pageTurn:
+                                      mode != NovelSpreadMode.off &&
+                                          _settings.pageTurn ==
+                                              NovelPageTurn.scroll
+                                      ? NovelPageTurn.pages
+                                      : null,
+                                ),
                               ),
                             ),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: FuncSpacing.sm),
-                    Wrap(
-                      spacing: 8,
-                      children: [
-                        for (final (theme, label) in [
-                          (NovelReaderTheme.system, l10n.novelThemeSystem),
-                          (NovelReaderTheme.paper, l10n.novelThemePaper),
-                          (NovelReaderTheme.sepia, l10n.novelThemeSepia),
-                          (NovelReaderTheme.night, l10n.novelThemeNight),
-                        ])
-                          AppChoiceChip(
-                            label: Text(label),
-                            selected: _settings.theme == theme,
-                            onSelected: () =>
-                                apply(_settings.copyWith(theme: theme)),
-                          ),
-                      ],
-                    ),
-                  ],
+                        ],
+                      ),
+                      const SizedBox(height: FuncSpacing.sm),
+                      Wrap(
+                        spacing: FuncSpacing.sm,
+                        runSpacing: FuncSpacing.xs,
+                        children: [
+                          for (final (themeOption, label) in [
+                            (NovelReaderTheme.system, l10n.novelThemeSystem),
+                            (NovelReaderTheme.paper, l10n.novelThemePaper),
+                            (NovelReaderTheme.sepia, l10n.novelThemeSepia),
+                            (NovelReaderTheme.night, l10n.novelThemeNight),
+                          ])
+                            AppChoiceChip(
+                              label: Text(label),
+                              selected: _settings.theme == themeOption,
+                              onSelected: () =>
+                                  apply(_settings.copyWith(theme: themeOption)),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             );
           },
         );
       },
+    );
+  }
+}
+
+class _ReaderSheetHeader extends StatelessWidget {
+  const _ReaderSheetHeader({
+    required this.title,
+    required this.onClose,
+    this.showClose = true,
+  });
+
+  final String title;
+  final VoidCallback onClose;
+  final bool showClose;
+
+  @override
+  Widget build(BuildContext context) {
+    final titleWidget = Text(
+      title,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: Theme.of(context).textTheme.titleMedium,
+    );
+    if (!showClose) return titleWidget;
+    return Row(
+      children: [
+        Expanded(child: titleWidget),
+        IconButton(
+          tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
+          onPressed: onClose,
+          visualDensity: VisualDensity.compact,
+          icon: const Icon(UiIcons.close),
+        ),
+      ],
     );
   }
 }
@@ -467,7 +527,7 @@ class _SeriesBarRow extends StatelessWidget {
         leading: IconButton(
           tooltip: context.l10n.novelPrevious,
           onPressed: onPrevious,
-          icon: const Icon(Icons.chevron_left),
+          icon: const Icon(UiIcons.chevronLeft),
         ),
         middle: center,
         trailing: Row(
@@ -477,7 +537,7 @@ class _SeriesBarRow extends StatelessWidget {
             IconButton(
               tooltip: context.l10n.novelNext,
               onPressed: onNext,
-              icon: const Icon(Icons.chevron_right),
+              icon: const Icon(UiIcons.chevronRight),
             ),
           ],
         ),
@@ -758,7 +818,7 @@ class _NovelMarkerSection extends ConsumerWidget {
           ListTile(
             enabled: !pending,
             contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.bookmark_add_outlined),
+            leading: const Icon(AppIcons.watchLaterAdd),
             title: Text(l10n.novelMarkerAdd),
             trailing: pending ? progress : null,
             onTap: () => unawaited(write(current)),
@@ -767,7 +827,7 @@ class _NovelMarkerSection extends ConsumerWidget {
           ListTile(
             enabled: !pending,
             contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.bookmark),
+            leading: const Icon(AppIcons.watchLaterFilled),
             title: Text(l10n.novelMarker),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
@@ -791,7 +851,7 @@ class _NovelMarkerSection extends ConsumerWidget {
                   IconButton(
                     tooltip: l10n.novelMarkerDelete,
                     onPressed: () => unawaited(write(null)),
-                    icon: const Icon(Icons.bookmark_remove_outlined),
+                    icon: const Icon(AppIcons.watchLaterRemove),
                   ),
               ],
             ),

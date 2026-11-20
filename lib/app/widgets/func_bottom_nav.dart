@@ -8,7 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/navigation/home_destination.dart';
 import '../../core/navigation/route_observer.dart';
 import '../../l10n/context.dart';
-import '../motion/hero_transition.dart' show LiftableBar, LiftableShadow;
+import '../motion/hero_transition.dart' show LiftableBar;
 import '../motion/motion_tokens.dart';
 import '../motion/scroll_hide.dart';
 import '../icons/app_icons.dart';
@@ -16,6 +16,7 @@ import '../layout/app_breakpoints.dart';
 import '../navigation/frozen_while_hidden.dart';
 import '../navigation/home_shell_metrics.dart';
 import '../theme/func_semantic_tokens.dart';
+import '../theme/func_tokens.dart';
 import 'fit_label.dart';
 import 'prompt_anchor.dart';
 
@@ -23,9 +24,18 @@ IconData homeDestinationIcon(HomeDestination destination) =>
     switch (destination) {
       HomeDestination.recommended => AppIcons.home,
       HomeDestination.ranking => AppIcons.ranking,
-      HomeDestination.newWorks => AppIcons.n,
+      HomeDestination.newWorks => AppIcons.newWorks,
       HomeDestination.search => AppIcons.search,
-      HomeDestination.me => Icons.person_outline,
+      HomeDestination.me => AppIcons.user,
+    };
+
+IconData homeDestinationSelectedIcon(HomeDestination destination) =>
+    switch (destination) {
+      HomeDestination.recommended => AppIcons.homeFilled,
+      HomeDestination.ranking => AppIcons.rankingFilled,
+      HomeDestination.newWorks => AppIcons.newWorksFilled,
+      HomeDestination.search => AppIcons.searchFilled,
+      HomeDestination.me => AppIcons.userFilled,
     };
 
 String homeDestinationLabel(
@@ -48,6 +58,7 @@ List<FuncBottomNavDestination> homeDestinations(
   for (final destination in destinations)
     FuncBottomNavDestination(
       icon: homeDestinationIcon(destination),
+      selectedIcon: homeDestinationSelectedIcon(destination),
       label: homeDestinationLabel(context, destination),
     ),
 ];
@@ -82,11 +93,8 @@ class FuncBottomNav extends StatelessWidget {
 
   static const double _height = 56;
 
-  /// Rendered height the bar occupies at rest: the fixed row plus the
-  /// bottom safe-area inset [SafeArea] adds underneath it. The shell's
-  /// chrome slot, branch-page spacers and the Hero landing clip all derive
-  /// from this one formula, so they agree on the first frame without
-  /// measuring the laid-out bar.
+  /// Rendered height the bar occupies at rest: a fixed row plus the bottom
+  /// safe-area inset.
   static double restingExtent(double bottomSafeInset) =>
       _height + bottomSafeInset;
 
@@ -100,7 +108,7 @@ class FuncBottomNav extends StatelessWidget {
   /// label, and the gap between the two.
   static const double _rowInset = 16.0;
   static const double _rowGap = 8.0;
-  static const double _iconSize = 24.0;
+  static const double _iconSize = 22.0;
 
   /// Room for a side-by-side label: its share of the bar less the icon,
   /// the gap and the padding, so the centred group never outgrows the bar.
@@ -111,16 +119,18 @@ class FuncBottomNav extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final navTheme = NavigationBarTheme.of(context);
+    final tokens = FuncSemanticTokens.of(context);
     return LiftableBar(
-      child: LiftableShadow(
-        shadows: FuncSemanticTokens.of(context).barShadow,
-        child: Material(
+      child: DecoratedBox(
+        decoration: BoxDecoration(
           color: navTheme.backgroundColor ?? colors.surface,
+          border: Border(top: BorderSide(color: tokens.brandHairline)),
+          boxShadow: tokens.barShadow,
+        ),
+        child: Material(
+          color: FuncTokens.transparent,
           child: SafeArea(
             top: false,
-            // The labels are exempt from the user's text scale past
-            // NavigationBar's own 1.3 ceiling — measurement and drawing read
-            // the same clamped scaler inside.
             child: MediaQuery.withClampedTextScaling(
               maxScaleFactor: 1.3,
               child: SizedBox(
@@ -131,13 +141,7 @@ class FuncBottomNav extends StatelessWidget {
                   container: true,
                   child: LayoutBuilder(
                     builder: (context, constraints) {
-                      // The ambient default lives below this widget's Material —
-                      // read it here so labels inherit the app font, not whatever
-                      // style floats above the shell.
                       final ambient = DefaultTextStyle.of(context).style;
-                      // The theme's label style merged over the ambient keeps the
-                      // inherited font family. The selected weight is the wider
-                      // one, so the fit measured in it holds for every label.
                       final measureStyle = ambient.merge(
                         navTheme.labelTextStyle?.resolve(const {
                           WidgetState.selected,
@@ -145,10 +149,6 @@ class FuncBottomNav extends StatelessWidget {
                       );
                       final itemWidth =
                           constraints.maxWidth / destinations.length;
-                      // Uniform label scale: every destination shares one
-                      // size, shrunk until the widest translation fits its
-                      // slot, down to LabelFit.minScale; past that the labels
-                      // ellipsize.
                       LabelFit fitIn(double slotWidth) => LabelFit.group(
                         labels: [for (final d in destinations) d.label],
                         style: LabelFit.paintedStyle(context, measureStyle),
@@ -157,9 +157,6 @@ class FuncBottomNav extends StatelessWidget {
                         slotWidth: slotWidth,
                         locale: Localizations.maybeLocaleOf(context),
                       );
-                      // A wide bar puts each label beside its icon unless a
-                      // label would not fit there; then the items stack, as
-                      // on a narrow bar, and the labels get the cell's width.
                       var sideBySide =
                           constraints.maxWidth >= AppBreakpoints.medium;
                       var labelSlot = _rowLabelSlot(itemWidth);
@@ -213,9 +210,14 @@ class FuncBottomNav extends StatelessWidget {
 }
 
 class FuncBottomNavDestination {
-  const FuncBottomNavDestination({required this.icon, required this.label});
+  const FuncBottomNavDestination({
+    required this.icon,
+    this.selectedIcon,
+    required this.label,
+  });
 
   final IconData icon;
+  final IconData? selectedIcon;
   final String label;
 }
 
@@ -350,8 +352,12 @@ class _FuncBottomNavItemState extends State<_FuncBottomNavItem>
       animation: _selection,
       builder: (context, _) {
         final t = _curve.transform(_selection.value);
+        final activeIcon = widget.destination.selectedIcon;
+        final resolvedIcon = t >= 0.5 && activeIcon != null
+            ? activeIcon
+            : widget.destination.icon;
         final icon = Icon(
-          widget.destination.icon,
+          resolvedIcon,
           size: FuncBottomNav._iconSize,
           color: Color.lerp(idleIcon, selectedIcon, t),
         );
@@ -628,7 +634,10 @@ class _BranchRootScaffoldState extends ConsumerState<BranchRootScaffold>
 
   /// Popped routes still animating out over the root: a popup does not
   /// drive [_cover], and the root is current again from the pop's start.
-  final _leaving = <Animation<double>>{};
+  /// Tracked by route so entries whose controller never reaches `dismissed`
+  /// (removed or disposed mid-exit) are pruned cleanly instead of locking
+  /// [_covered] true forever.
+  final _leaving = <TransitionRoute<dynamic>, Animation<double>>{};
   bool _covered = false;
   bool _syncScheduled = false;
 
@@ -650,10 +659,21 @@ class _BranchRootScaffoldState extends ConsumerState<BranchRootScaffold>
   void _unsubscribe() {
     if (_observer != null && _route != null) _observer!.unsubscribe(this);
     _cover?.removeStatusListener(_onCoverStatus);
-    for (final leaving in _leaving) {
+    for (final leaving in _leaving.values) {
       leaving.removeStatusListener(_onLeavingStatus);
     }
     _leaving.clear();
+  }
+
+  void _pruneLeaving() {
+    _leaving.removeWhere((route, animation) {
+      final gone =
+          animation.isDismissed ||
+          (!route.isActive && route.overlayEntries.isEmpty);
+      if (!gone) return false;
+      animation.removeStatusListener(_onLeavingStatus);
+      return true;
+    });
   }
 
   /// Fires once on subscribe. A branch stack built in one go — a deep-link
@@ -664,27 +684,32 @@ class _BranchRootScaffoldState extends ConsumerState<BranchRootScaffold>
 
   /// RouteObserver notifies at push and pop start.
   @override
-  void didPushNext() => _scheduleSync();
+  void didPushNext() {
+    _pruneLeaving();
+    _scheduleSync();
+  }
 
   @override
   void didPopNext() {
+    _pruneLeaving();
     final observer = _observer;
     final popping = observer is ExitAwareRouteObserver
         ? observer.popping
         : null;
-    final leaving = popping is TransitionRoute ? popping.animation : null;
-    if (leaving != null && !leaving.isDismissed && _leaving.add(leaving)) {
-      leaving.addStatusListener(_onLeavingStatus);
+    if (popping is TransitionRoute) {
+      final leaving = popping.animation;
+      if (leaving != null &&
+          !leaving.isDismissed &&
+          !_leaving.containsKey(popping)) {
+        _leaving[popping] = leaving;
+        leaving.addStatusListener(_onLeavingStatus);
+      }
     }
     _scheduleSync();
   }
 
   void _onLeavingStatus(AnimationStatus status) {
-    _leaving.removeWhere((leaving) {
-      if (!leaving.isDismissed) return false;
-      leaving.removeStatusListener(_onLeavingStatus);
-      return true;
-    });
+    _pruneLeaving();
     _scheduleSync();
   }
 
@@ -711,6 +736,7 @@ class _BranchRootScaffoldState extends ConsumerState<BranchRootScaffold>
 
   void _sync() {
     if (!mounted) return;
+    _pruneLeaving();
     final route = _route;
     final covered =
         route != null &&

@@ -20,6 +20,7 @@ import '../../l10n/context.dart';
 import 'ranking_tabs.dart';
 import '../../app/layout/card_columns.dart';
 import '../../app/widgets/feed/load_more_listener.dart';
+import '../../app/icons/app_icons.dart';
 
 /// The novel ranking, pushed from the illust ranking: [RankingTabs] over
 /// the novel categories, each a list of ranked novels.
@@ -46,7 +47,7 @@ class NovelRankingPage extends StatelessWidget {
       date: date,
       onRouteChanged: onRouteChanged,
       switchLabel: context.l10n.rankingIllust,
-      switchIcon: Icons.image_outlined,
+      switchIcon: AppIcons.illust,
       onSwitch: openIllustRanking,
       bodyBuilder: (mode, date, scrollController) => _NovelRankingModeBody(
         feedKey: (mode: mode, date: date),

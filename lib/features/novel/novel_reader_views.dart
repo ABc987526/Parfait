@@ -340,56 +340,182 @@ class _NovelScrollPosition extends ScrollPositionWithSingleContext {
   }
 }
 
-/// Paints [child] only between the page's top and bottom margins, as a page
-/// shows its text: lines scroll out of sight there instead of under the
-/// status bar and the progress hint. Touches still land anywhere, so a
-/// drag can start in a margin.
+/// Paints [child] only between the page's top and bottom safe margins, fading
+/// lines smoothly across [fadeExtent] once scrolling begins so glyphs never
+/// slice into raw half-lines or spill under the status bar and progress hint.
+/// Touches still land anywhere, so a drag can start in a margin.
 class _TextAreaClip extends SingleChildRenderObjectWidget {
-  const _TextAreaClip({required this.inset, required super.child});
+  const _TextAreaClip({
+    required this.bottomInset,
+    required super.child,
+    this.cleanBottom,
+    this.controller,
+  });
 
-  final double inset;
+  static const double topSafe = FuncSpacing.xs;
+  static const double fadeHeight = FuncSpacing.lg;
+
+  final double bottomInset;
+  final double? cleanBottom;
+  final ScrollController? controller;
 
   @override
   _RenderTextAreaClip createRenderObject(BuildContext context) =>
-      _RenderTextAreaClip(inset);
+      _RenderTextAreaClip(
+        bottomInset: bottomInset,
+        cleanBottom: cleanBottom,
+        controller: controller,
+      );
 
   @override
   void updateRenderObject(
     BuildContext context,
     _RenderTextAreaClip renderObject,
   ) {
-    renderObject.inset = inset;
+    renderObject
+      ..bottomInset = bottomInset
+      ..cleanBottom = cleanBottom
+      ..controller = controller;
   }
 }
 
 class _RenderTextAreaClip extends RenderProxyBox {
-  _RenderTextAreaClip(this._inset);
+  _RenderTextAreaClip({
+    required double bottomInset,
+    required double? cleanBottom,
+    required ScrollController? controller,
+  }) : _bottomInset = bottomInset,
+       _cleanBottom = cleanBottom,
+       _controller = controller;
 
-  double _inset;
-  set inset(double value) {
-    if (value == _inset) return;
-    _inset = value;
+  double _bottomInset;
+  set bottomInset(double value) {
+    if (value == _bottomInset) return;
+    _bottomInset = value;
+    markNeedsPaint();
+  }
+
+  double? _cleanBottom;
+  set cleanBottom(double? value) {
+    if (value == _cleanBottom) return;
+    _cleanBottom = value;
+    markNeedsPaint();
+  }
+
+  ScrollController? _controller;
+  set controller(ScrollController? value) {
+    if (identical(value, _controller)) return;
+    if (attached) _controller?.removeListener(markNeedsPaint);
+    _controller = value;
+    if (attached) _controller?.addListener(markNeedsPaint);
     markNeedsPaint();
   }
 
   final _clip = LayerHandle<ClipRectLayer>();
+  final _shader = LayerHandle<ShaderMaskLayer>();
+
+  @override
+  bool get alwaysNeedsCompositing => child != null;
+
+  @override
+  void attach(PipelineOwner owner) {
+    super.attach(owner);
+    _controller?.addListener(markNeedsPaint);
+  }
+
+  @override
+  void detach() {
+    _controller?.removeListener(markNeedsPaint);
+    super.detach();
+  }
 
   @override
   void paint(PaintingContext context, Offset offset) {
     final child = this.child;
-    if (child == null) return;
-    _clip.layer = context.pushClipRect(
-      needsCompositing,
-      offset,
-      Rect.fromLTRB(0, _inset, size.width, size.height - _inset),
-      (context, offset) => context.paintChild(child, offset),
-      oldLayer: _clip.layer,
+    if (child == null || size.isEmpty) {
+      _clip.layer = null;
+      _shader.layer = null;
+      return;
+    }
+    var pixels = 0.0;
+    var extentAfter = double.infinity;
+    final controller = _controller;
+    if (controller != null && controller.hasClients) {
+      final position = controller.position;
+      if (position.hasPixels) pixels = math.max(0.0, position.pixels);
+      if (position.hasContentDimensions) {
+        extentAfter = math.max(0.0, position.extentAfter);
+      }
+    }
+    const fadeExtent = _TextAreaClip.fadeHeight;
+    final scrollIn = (pixels / fadeExtent).clamp(0.0, 1.0);
+    final scrollRemain = extentAfter.isFinite
+        ? (extentAfter / fadeExtent).clamp(0.0, 1.0)
+        : 1.0;
+    final topEdge = (pixels > 0 ? _TextAreaClip.topSafe : 0.0).clamp(
+      0.0,
+      size.height,
     );
+    final maxBottom = (size.height - _bottomInset).clamp(topEdge, size.height);
+    final cleanBottom = _cleanBottom?.clamp(topEdge, maxBottom) ?? maxBottom;
+    final bottomEdge = ui.lerpDouble(cleanBottom, maxBottom, scrollIn)!;
+    final visibleHeight = bottomEdge - topEdge;
+    if (visibleHeight <= 0) {
+      _clip.layer = null;
+      _shader.layer = null;
+      return;
+    }
+    final maxFade = visibleHeight / 2;
+    final topFade = (fadeExtent * scrollIn).clamp(0.0, maxFade);
+    final bottomFade = (fadeExtent * scrollIn * scrollRemain).clamp(
+      0.0,
+      maxFade,
+    );
+    final clipRect = Rect.fromLTRB(0, topEdge, size.width, bottomEdge);
+    _clip.layer = context.pushClipRect(needsCompositing, offset, clipRect, (
+      context,
+      innerOffset,
+    ) {
+      if (topFade <= 0.5 && bottomFade <= 0.5) {
+        _shader.layer = null;
+        context.paintChild(child, innerOffset);
+        return;
+      }
+      final topStop = (topFade / visibleHeight).clamp(0.0, 0.5);
+      final bottomStop = (1.0 - bottomFade / visibleHeight).clamp(0.5, 1.0);
+      final shaderLayer = (_shader.layer ??= ShaderMaskLayer())
+        ..shader = ui.Gradient.linear(
+          Offset.zero,
+          Offset(0, visibleHeight),
+          [
+            topFade > 0.5 ? const Color(0x00FFFFFF) : const Color(0xFFFFFFFF),
+            const Color(0xFFFFFFFF),
+            const Color(0xFFFFFFFF),
+            bottomFade > 0.5
+                ? const Color(0x00FFFFFF)
+                : const Color(0xFFFFFFFF),
+          ],
+          [0.0, topStop, bottomStop, 1.0],
+        )
+        ..maskRect = Rect.fromLTWH(
+          innerOffset.dx,
+          innerOffset.dy + topEdge,
+          size.width,
+          visibleHeight,
+        )
+        ..blendMode = BlendMode.dstIn;
+      context.pushLayer(
+        shaderLayer,
+        (context, childOffset) => context.paintChild(child, childOffset),
+        innerOffset,
+      );
+    }, oldLayer: _clip.layer);
   }
 
   @override
   void dispose() {
     _clip.layer = null;
+    _shader.layer = null;
     super.dispose();
   }
 }

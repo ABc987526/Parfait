@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:parfait/core/search/search_autocomplete_controller.dart';
 
 import 'review_support.dart';
+import 'package:parfait/app/icons/app_icons.dart';
 
 /// Search input, results for the three targets, the filter sheet and the
 /// reverse-image page.
@@ -58,7 +59,7 @@ void main() {
     state: 'filter sheet',
     variants: {ShotVariant.dark, ...overflowVariants, ShotVariant.largeText},
     before: (tester, router) async {
-      await tester.tap(find.byIcon(Icons.tune_outlined).first);
+      await tester.tap(find.byIcon(AppIcons.filter).first);
     },
   );
   testShot('reverse-image/page', location: '/reverse-image');

@@ -9,6 +9,7 @@ import '../../core/settings/app_settings.dart';
 import '../../core/settings/settings_controller.dart';
 import '../../l10n/context.dart';
 import 'novel_reader_stage.dart' show novelReaderHintAlpha;
+import '../../app/icons/app_icons.dart';
 
 /// A novel's image on its page, at the novel image quality. An uploaded
 /// image comes from the novel's payload; a Pixiv work's page from the
@@ -115,7 +116,7 @@ class NovelIllustration extends ConsumerWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.image_not_supported_outlined, color: faint),
+          Icon(AppIcons.illustOff, color: faint),
           const SizedBox(height: FuncSpacing.sm),
           Text(
             text,

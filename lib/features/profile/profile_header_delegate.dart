@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 
@@ -13,6 +14,7 @@ import '../../app/pixiv_image.dart';
 import '../../app/motion/hero_transition.dart' show LiftableBar;
 import '../../app/system_ui.dart';
 import '../../app/theme/func_semantic_tokens.dart';
+import '../../app/window/desktop_command_bar.dart';
 import '../../core/user/user_entity.dart';
 import '../../app/widgets/ambient_wash.dart';
 import '../../app/widgets/app_menu_button.dart';
@@ -24,6 +26,8 @@ import '../../core/log.dart';
 import '../../l10n/context.dart';
 import 'banner_sample.dart';
 import 'profile_statistics.dart';
+import '../../app/icons/app_icons.dart';
+import '../../app/icons/ui_icons.dart';
 
 /// Pure geometry snapshot used by [ReplicaProfileHeaderDelegate] and tests.
 @immutable
@@ -178,14 +182,14 @@ class ReplicaProfileHeaderDelegate extends SliverPersistentHeaderDelegate {
     _ProfileHeaderAction(
       value: 'share',
       label: context.l10n.profileShare,
-      icon: Icons.share_outlined,
+      icon: AppIcons.share,
       primary: true,
       onSelected: onShare,
       buildInline: (context) => Builder(
         builder: (buttonContext) => IconButton(
           tooltip: context.l10n.profileShare,
           onPressed: () => onShare(buttonContext),
-          icon: const Icon(Icons.share_outlined),
+          icon: const Icon(AppIcons.share),
         ),
       ),
     ),
@@ -193,21 +197,32 @@ class ReplicaProfileHeaderDelegate extends SliverPersistentHeaderDelegate {
       _ProfileHeaderAction(
         value: 'editProfile',
         label: context.l10n.profileEditTitle,
-        icon: Icons.edit_outlined,
+        icon: AppIcons.edit,
         primary: true,
         onSelected: (_) => onEditProfile!(),
         // Text sits on the page surface now, so the neutral tonal style is
         // enough — no filled pink or on-artwork white variant.
         buildInline: (context) => FilledButton.tonal(
+          style: FilledButton.styleFrom(
+            padding: const EdgeInsets.symmetric(
+              horizontal: FuncSpacing.md,
+              vertical: FuncSpacing.xs,
+            ),
+            minimumSize: const Size(0, 42),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
           onPressed: onEditProfile,
-          child: Text(context.l10n.profileEditTitle),
+          child: Text(
+            context.l10n.profileEditTitle,
+            textAlign: TextAlign.center,
+          ),
         ),
       ),
     if (!isMe && onToggleFollow != null)
       _ProfileHeaderAction(
         value: 'toggleFollow',
         label: isFollowed ? context.l10n.unfollow : context.l10n.follow,
-        icon: Icons.person_add_alt_1_outlined,
+        icon: AppIcons.follow,
         primary: true,
         onSelected: (_) => onToggleFollow!(),
         buildInline: (_) => FollowSwitchButton(
@@ -242,28 +257,28 @@ class ReplicaProfileHeaderDelegate extends SliverPersistentHeaderDelegate {
       _ProfileHeaderAction(
         value: 'followPrivately',
         label: context.l10n.followPrivately,
-        icon: Icons.lock_outline,
+        icon: AppIcons.lock,
         onSelected: (_) => onFollowPrivately(),
       ),
     if (onDownloadAll != null)
       _ProfileHeaderAction(
         value: 'downloadAll',
         label: context.l10n.downloadAuthorWorks,
-        icon: Icons.download_outlined,
+        icon: AppIcons.download,
         onSelected: (_) => onDownloadAll(),
       ),
     if (onCopyLink != null)
       _ProfileHeaderAction(
         value: 'copyLink',
         label: context.l10n.copyLink,
-        icon: Icons.copy_outlined,
+        icon: AppIcons.copy,
         onSelected: (_) => onCopyLink(),
       ),
     if (!isMe && onToggleMute != null)
       _ProfileHeaderAction(
         value: 'toggleMute',
         label: isMuted ? context.l10n.unmuteAuthor : context.l10n.muteAuthor,
-        icon: isMuted ? Icons.person_off : Icons.person_off_outlined,
+        icon: isMuted ? AppIcons.userOffFilled : AppIcons.userOff,
         onSelected: (_) => onToggleMute(),
       ),
   ];
@@ -654,7 +669,7 @@ class _ProfileBackground extends StatelessWidget {
             image: PixivImage.providerFor(context, avatar, decodeWidth: 96),
           ),
           // Nothing to light the band: a lighter opaque container
-          // separates it from the page colour.
+          // separates it from the page colour (THEME-07, THEME-19).
           (null, null) => ColoredBox(color: colors.surfaceContainerHigh),
         },
         Positioned(
@@ -700,7 +715,7 @@ class _ExpandedIdentity extends StatelessWidget {
   /// The main action never takes more than this share of the name row; a
   /// long name ellipsizes first, and the button's own label fitting
   /// handles anything wider.
-  static const mainActionMaxShare = 0.45;
+  static const mainActionMaxShare = 0.50;
 
   final UserEntity user;
   final double bannerHeight;
@@ -988,7 +1003,7 @@ class _ProfileHeaderMoreButton extends StatelessWidget {
           ? (context, toggle) => ArtworkControls(
               child: IconButton(
                 tooltip: MaterialLocalizations.of(context).showMenuTooltip,
-                icon: const Icon(Icons.more_vert),
+                icon: const Icon(UiIcons.more),
                 onPressed: toggle,
               ),
             )
@@ -1061,7 +1076,11 @@ class _HeaderBackButtonState extends State<_HeaderBackButton> {
 
   @override
   Widget build(BuildContext context) {
-    if (!_canPop) return const SizedBox.shrink();
+    if (!_canPop ||
+        (DesktopCommandBarScope.isActiveOf(context) &&
+            !EmbeddedHeaderScope.isActiveOf(context))) {
+      return const SizedBox.shrink();
+    }
     final tooltip = MaterialLocalizations.of(context).backButtonTooltip;
     // The platform's back glyph, as every BackButton (U1); over artwork
     // only the colours change.
@@ -1120,18 +1139,47 @@ class ReplicaProfileTabsDelegate extends SliverPersistentHeaderDelegate {
     double shrinkOffset,
     bool overlapsContent,
   ) {
+    final theme = Theme.of(context);
+    final tokens = theme.extension<FuncSemanticTokens>();
+    final scrollBehavior = ScrollConfiguration.of(context);
+    final tabDragBehavior = scrollBehavior.copyWith(
+      dragDevices: {
+        ...scrollBehavior.dragDevices,
+        PointerDeviceKind.touch,
+        PointerDeviceKind.mouse,
+        PointerDeviceKind.trackpad,
+      },
+    );
     return LiftableBar(
       child: ScrollEdgeShadow(
         visible: scrolled,
         child: Material(
           key: const ValueKey('profile-tabs'),
-          color: Theme.of(context).scaffoldBackgroundColor,
-          child: SizedBox(
-            height: kToolbarHeight,
-            child: AppTabBar(
-              controller: controller,
-              onTap: onTabTap,
-              labels: labels,
+          color: theme.scaffoldBackgroundColor,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              border: scrolled
+                  ? null
+                  : Border(
+                      bottom: BorderSide(
+                        color: tokens?.brandHairline ?? theme.dividerColor,
+                      ),
+                    ),
+            ),
+            child: SafeArea(
+              top: false,
+              bottom: false,
+              child: SizedBox(
+                height: kToolbarHeight,
+                child: ScrollConfiguration(
+                  behavior: tabDragBehavior,
+                  child: AppTabBar(
+                    controller: controller,
+                    onTap: onTabTap,
+                    labels: labels,
+                  ),
+                ),
+              ),
             ),
           ),
         ),

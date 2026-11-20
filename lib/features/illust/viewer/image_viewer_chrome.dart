@@ -98,7 +98,7 @@ class _PageScrubberState extends State<_PageScrubber> {
                   ),
                   // No label: the bubble above is the page indicator, so the
                   // slider's own value indicator would be a second one.
-                  child: AppSlider(
+                  child: AppSlider.scrubber(
                     min: 0,
                     max: (widget.count - 1).toDouble(),
                     divisions: widget.count - 1,
@@ -222,6 +222,8 @@ class _ViewerInfoPanel extends StatelessWidget {
         builder: (context) {
           final colorScheme = Theme.of(context).colorScheme;
           final textTheme = Theme.of(context).textTheme;
+          final showCaptionDivider =
+              DesktopChromeMetrics.maybeOf(context)?.showCustomButtons ?? false;
           return SizedBox(
             key: const Key('viewer-info-panel'),
             width: width,
@@ -238,6 +240,13 @@ class _ViewerInfoPanel extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      if (showCaptionDivider)
+                        Divider(
+                          height: 1,
+                          color: colorScheme.outlineVariant.withValues(
+                            alpha: 0.5,
+                          ),
+                        ),
                       Padding(
                         padding: const EdgeInsetsDirectional.fromSTEB(
                           FuncSpacing.md,
@@ -258,7 +267,7 @@ class _ViewerInfoPanel extends StatelessWidget {
                                 context,
                               ).closeButtonTooltip,
                               onPressed: onClose,
-                              icon: const Icon(Icons.close),
+                              icon: const Icon(UiIcons.chevronRight),
                             ),
                           ],
                         ),
@@ -332,12 +341,12 @@ class _ViewerInfoPanel extends StatelessWidget {
                       ),
                       const Divider(height: 1),
                       ListTile(
-                        leading: const Icon(Icons.download_outlined),
+                        leading: const Icon(AppIcons.download),
                         title: Text(l10n.downloadAll),
                         onTap: onSaveAll,
                       ),
                       ListTile(
-                        leading: const Icon(Icons.open_in_new),
+                        leading: const Icon(AppIcons.externalLink),
                         title: Text(l10n.viewerOpenDetail),
                         onTap: onOpenDetail,
                       ),

@@ -17,6 +17,7 @@ import '../../app/widgets/follow_switch_button.dart';
 import '../../app/theme/func_semantic_tokens.dart';
 import '../../app/layout/card_columns.dart';
 import '../../app/widgets/feed/load_more_listener.dart';
+import '../../app/icons/ui_icons.dart';
 
 class ProfileUserFeed extends ConsumerWidget {
   const ProfileUserFeed({super.key, required this.feedKey});
@@ -77,7 +78,7 @@ class ProfileUserFeed extends ConsumerWidget {
                   SliverFillRemaining(
                     hasScrollBody: false,
                     child: FeedEmpty(
-                      icon: Icons.inbox_outlined,
+                      icon: UiIcons.inbox,
                       title: context.l10n.profileItemsEmpty,
                     ),
                   )

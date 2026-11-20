@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/motion/app_overlays.dart';
 import '../../../app/theme/func_semantic_tokens.dart';
+import '../../../app/widgets/app_dialog.dart';
 import '../../../app/widgets/app_snack_bar.dart';
 import '../../../app/widgets/app_top_bar.dart';
 import '../../../app/widgets/errors/error_details.dart';
@@ -16,6 +17,7 @@ import '../../../l10n/context.dart';
 import '../settings_helpers.dart';
 import '../settings_catalog.dart';
 import '../../../app/layout/content_widths.dart';
+import '../../../app/icons/app_icons.dart';
 
 /// Platform file open for backup import. Behind a provider so widget tests
 /// can inject bytes without a platform file picker.
@@ -168,7 +170,7 @@ class _BackupSettingsPageState extends ConsumerState<BackupSettingsPage> {
     final l10n = context.l10n;
     return showAppDialog<BackupImportStrategy>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
+      builder: (dialogContext) => AppAlertDialog(
         // Landscape/大字号下标题+说明+按钮可能超过弹窗高度——可滚动避免溢出。
         scrollable: true,
         title: Text(switch (strategy) {
@@ -220,13 +222,13 @@ class _BackupSettingsPageState extends ConsumerState<BackupSettingsPage> {
             SettingsGroup(
               children: [
                 SettingsActionTile(
-                  icon: Icons.file_upload_outlined,
+                  icon: AppIcons.fileImport,
                   setting: Setting.backupExport,
                   enabled: !_busy,
                   onTap: _export,
                 ),
                 SettingsActionTile(
-                  icon: Icons.file_open_outlined,
+                  icon: AppIcons.folderOpen,
                   setting: Setting.backupImport,
                   enabled: !_busy,
                   onTap: _import,
@@ -275,7 +277,7 @@ class _BackupStrategyChoiceDialogState
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    return AlertDialog(
+    return AppAlertDialog(
       // Same landscape/大字号 overflow guard as the confirm step.
       scrollable: true,
       title: Text(l10n.backupImportStrategyTitle),

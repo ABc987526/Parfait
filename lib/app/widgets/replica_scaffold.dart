@@ -1,6 +1,7 @@
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../window/desktop_command_bar.dart' show DesktopCommandBarScope;
 import 'app_top_bar.dart';
 
 class ReplicaScaffold extends StatelessWidget {
@@ -34,6 +35,10 @@ class ReplicaScaffold extends StatelessWidget {
   Widget build(BuildContext context) {
     final canPop = Navigator.of(context).canPop();
     final up = canPop ? null : upLocation;
+    final desktopOwned =
+        DesktopCommandBarScope.isActiveOf(context) &&
+        !EmbeddedHeaderScope.isActiveOf(context);
+    final showBack = (!desktopOwned && canPop) || up != null;
     final scaffold = Scaffold(
       appBar: AppTopBar(
         title: title,
@@ -41,7 +46,7 @@ class ReplicaScaffold extends StatelessWidget {
         actions: actions,
         bottom: bottom,
         contentWidth: contentWidth,
-        leading: canPop || up != null
+        leading: showBack
             ? IconButton(
                 tooltip: MaterialLocalizations.of(context).backButtonTooltip,
                 onPressed: up == null

@@ -49,9 +49,24 @@ class ScrollHideTracker {
         if (scrolling) {
           _dragged = false;
           _lastDelta = 0;
+          // If the scrollable shrank to zero scroll range while chrome was
+          // hidden, reveal it on the first user scroll so it can never be
+          // trapped off screen.
+          if (metrics.maxScrollExtent <= metrics.minScrollExtent &&
+              visibility.value < 1.0) {
+            return false;
+          }
           return null;
         }
         return _settle(visibility);
+      case OverscrollNotification(:final overscroll, :final dragDetails)
+          when _userScroll &&
+              dragDetails != null &&
+              overscroll < 0 &&
+              metrics.pixels <= metrics.minScrollExtent + 0.5 &&
+              visibility.value < 1.0:
+        // Pulling down while already at the top edge reveals hidden chrome.
+        return false;
       case ScrollUpdateNotification(:final scrollDelta?, :final dragDetails)
           when _userScroll && travel > 0:
         if (dragDetails != null) _dragged = true;
@@ -81,6 +96,23 @@ class ScrollHideTracker {
     if (_lastDelta == 0 || visibility.isAnimating) return null;
     return _dragged ? visibility.value < 0.5 : _lastDelta > 0;
   }
+}
+
+/// Dispatches a synthetic [UserScrollNotification] for discrete mouse-wheel
+/// scrolling driven through `jumpTo` / `animateTo` (`SmoothWheelScroll`),
+/// which otherwise leaves `ScrollPosition.userScrollDirection` idle and never
+/// wakes [ScrollHideTracker].
+void dispatchWheelUserScroll(
+  ScrollPosition position,
+  ScrollDirection direction,
+) {
+  final context = position.context.notificationContext;
+  if (context == null || !context.mounted) return;
+  UserScrollNotification(
+    metrics: position.copyWith(),
+    context: context,
+    direction: direction,
+  ).dispatch(context);
 }
 
 /// Settles chrome driven by [visibility] (1 shown, 0 hidden) at the end

@@ -2,15 +2,19 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:material_ui/material_ui.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../app/layout/app_breakpoints.dart';
+import '../../app/layout/content_widths.dart';
 import '../../app/motion/app_overlays.dart';
+import '../../app/motion/hero_transition.dart' show LiftableBar;
 import '../../app/motion/motion_tokens.dart';
 import '../../app/motion/reveal.dart';
 import '../../app/motion/state_fade.dart';
 import '../../app/format/app_format.dart';
-import '../../app/layout/app_breakpoints.dart';
 import '../../app/navigation/home_shell_metrics.dart';
 import '../../app/navigation/routes.dart';
 import '../../app/person_avatar.dart';
@@ -19,9 +23,12 @@ import '../../app/icons/app_icons.dart';
 import '../../app/widgets/app_snack_bar.dart';
 import '../../app/widgets/app_tab_bar.dart';
 import '../../app/widgets/app_top_bar.dart';
+import '../../app/widgets/edge_icon_buttons.dart';
+import '../../app/widgets/feed/desktop_gallery_controls.dart';
 import '../../app/widgets/feed/feed_states.dart';
 import '../../app/widgets/replica_scaffold.dart';
 import '../../app/widgets/follow_switch_button.dart';
+import '../../app/window/desktop_command_bar.dart';
 import '../../core/auth/account_store.dart';
 import '../../core/download/author_works_enumerator.dart';
 import '../../core/network/api_error.dart';
@@ -41,7 +48,11 @@ import 'profile_header_delegate.dart';
 import 'profile_statistics.dart';
 import 'user_series_feed.dart';
 import '../../core/bookmark/bookmark_models.dart';
+import '../../core/novel/novel_feed_controller.dart';
+import '../../core/novel/novel_store.dart';
 import '../../core/profile/profile_models.dart';
+import '../../core/series/series_feed_controller.dart';
+import '../../core/series/series_store.dart';
 import '../../core/share/share_service.dart';
 import '../../core/user/user_detail_controller.dart';
 import '../../l10n/context.dart';
@@ -49,6 +60,7 @@ import '../../app/theme/func_semantic_tokens.dart';
 import '../../app/clipboard.dart';
 
 import 'profile_about_tab.dart';
+import '../../app/icons/ui_icons.dart';
 
 part 'profile_tab_body.dart';
 
@@ -94,7 +106,7 @@ class MePage extends ConsumerWidget {
     return accounts.when(
       loading: () => const Scaffold(body: FeedLoading()),
       error: (error, _) => _ProfileStatusPage(
-        icon: Icons.cloud_off,
+        icon: AppIcons.cloudOff,
         title: context.l10n.profileLoadFailed,
         error: error,
         onRetry: () => ref.read(accountStoreProvider.notifier).reload(),
@@ -102,7 +114,7 @@ class MePage extends ConsumerWidget {
       data: (state) {
         if (state.status == AccountStatus.failure) {
           return _ProfileStatusPage(
-            icon: Icons.cloud_off,
+            icon: AppIcons.cloudOff,
             title: context.l10n.accountReadFailed,
             error: state.error ?? StateError('account state unavailable'),
             onRetry: () => ref.read(accountStoreProvider.notifier).reload(),
@@ -111,7 +123,7 @@ class MePage extends ConsumerWidget {
         final account = state.usableCurrent;
         if (account == null) {
           return _ProfileStatusPage(
-            icon: Icons.person_off_outlined,
+            icon: AppIcons.userOff,
             title: context.l10n.signedOut,
             detail: context.l10n.noAccounts,
           );
@@ -387,6 +399,12 @@ class _UserPageState extends ConsumerState<UserPage>
     });
   }
 
+  bool _showsIllustGallery(_ProfileTab? tab) =>
+      tab == _ProfileTab.illust ||
+      tab == _ProfileTab.manga ||
+      (tab == _ProfileTab.bookmarks &&
+          _bookmarkKind != BookmarkEntityType.novel);
+
   /// The filters above the bookmarks and follows lists: on someone else's
   /// bookmarks (public ones only) the kind alone.
   Widget? _filterBarFor(_ProfileTab tab) {
@@ -415,8 +433,8 @@ class _UserPageState extends ConsumerState<UserPage>
     };
   }
 
-  /// A work tab's total, above its list. A preview snapshot has no
-  /// counters, so it shows none rather than zero.
+  /// A work tab's total, above its list while loaded items are present. A
+  /// preview snapshot has no counters, so it shows none rather than zero.
   Widget? _worksTotalFor(_ProfileTab tab, UserEntity user) {
     if (!user.hasDetail) return null;
     final count = switch (tab) {
@@ -426,7 +444,9 @@ class _UserPageState extends ConsumerState<UserPage>
       _ProfileTab.series => user.totalIllustSeries,
       _ => null,
     };
-    return count == null ? null : _WorksTotal(count: count);
+    return count == null || count <= 0
+        ? null
+        : _LiveWorksTotal(userId: widget.userId, tab: tab, count: count);
   }
 
   /// Opens [tab] — or, when it is already open, scrolls it to the top. Null
@@ -481,28 +501,28 @@ class _UserPageState extends ConsumerState<UserPage>
     ),
     ProfileStatisticData(
       id: 'illust',
-      icon: Icons.palette_outlined,
+      icon: AppIcons.palette,
       label: context.l10n.profileIllust,
       value: user.totalIllusts,
       onTap: _openTab(_ProfileTab.illust),
     ),
     ProfileStatisticData(
       id: 'manga',
-      icon: Icons.menu_book_outlined,
+      icon: AppIcons.novel,
       label: context.l10n.profileManga,
       value: user.totalManga,
       onTap: _openTab(_ProfileTab.manga),
     ),
     ProfileStatisticData(
       id: 'novel',
-      icon: Icons.auto_stories_outlined,
+      icon: AppIcons.localNovel,
       label: context.l10n.profileNovel,
       value: user.totalNovels,
       onTap: _openTab(_ProfileTab.novel),
     ),
     ProfileStatisticData(
       id: 'series',
-      icon: Icons.collections_bookmark_outlined,
+      icon: AppIcons.series,
       label: context.l10n.profileSeries,
       // The series tab hosts illust series only, so the count mirrors what
       // the destination lists (W3 D4: novel series stays unlisted).
@@ -517,7 +537,7 @@ class _UserPageState extends ConsumerState<UserPage>
     final body = async.when(
       loading: () => const ProfileSkeleton(),
       error: (error, _) => _ProfileStatusPage(
-        icon: Icons.cloud_off,
+        icon: AppIcons.cloudOff,
         title: context.l10n.profileLoadFailed,
         error: error,
         onRetry: () => ref
@@ -537,18 +557,18 @@ class _UserPageState extends ConsumerState<UserPage>
     return switch (state) {
       UserDetailLoading() => const ProfileSkeleton(),
       UserDetailNotFound() => _ProfileStatusPage(
-        icon: Icons.person_off_outlined,
+        icon: AppIcons.userOff,
         title: context.l10n.profileNotFound,
       ),
       UserDetailBlocked() => _ProfileStatusPage(
-        icon: Icons.block_outlined,
+        icon: AppIcons.ban,
         title: context.l10n.profileBlocked,
       ),
       UserDetailReady(:final user) => _buildProfile(user),
       UserDetailError(:final error, :final snapshot) when snapshot != null =>
         _buildProfile(snapshot, staleError: error),
       UserDetailError(:final error) => _ProfileStatusPage(
-        icon: Icons.cloud_off,
+        icon: AppIcons.cloudOff,
         title: context.l10n.profileLoadFailed,
         error: error,
         onRetry: () => ref
@@ -636,7 +656,7 @@ class _UserPageState extends ConsumerState<UserPage>
                   key: const ValueKey('profile-stale-error-dismiss'),
                   tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
                   onPressed: () => setState(() => _staleBannerVisible = false),
-                  icon: const Icon(Icons.close),
+                  icon: const Icon(UiIcons.close),
                 ),
               ],
             ),
@@ -664,76 +684,81 @@ class _UserPageState extends ConsumerState<UserPage>
       children: [
         staleBanner,
         Expanded(
-          child: NestedScrollView(
-            key: const ValueKey('profile-nested-scroll'),
-            controller: _outerScrollController,
-            // The outer position must share the inner feeds' physics family:
-            // the coordinator runs one ballistic simulation per position over
-            // the combined metrics, and the feeds fling with the app's
-            // FuncScrollPhysics (PullToRefresh keeps it under EasyRefresh's
-            // nested physics). The widget default would pin the outer to
-            // Clamping, whose simulation diverges from it at low release
-            // speeds — the header then stops short while the feed is
-            // already rolling ("dip"), and a light pull-down dies on the
-            // edge ("stuck"). On top, the outer scroll holds while a feed's
-            // refresh header is pulled out, so a reversed pull retracts it.
-            physics: NestedRefreshOuterPhysics(
-              parent: ScrollConfiguration.of(context).getScrollPhysics(context),
-            ),
-            headerSliverBuilder: (context, innerBoxIsScrolled) => [
-              SliverPersistentHeader(
-                pinned: true,
-                delegate: ReplicaProfileHeaderDelegate(
-                  user: user,
-                  isMe: widget.isMe,
-                  // The expanded height is measured from the real identity
-                  // content (R1): the delegate reports it after every
-                  // layout, so font scale, language and stat-count changes
-                  // all land without any hard-coded extent.
-                  expandedExtent: _headerExtent,
-                  onExpandedExtentMeasured: (extent) {
-                    if (!mounted) return;
-                    if (_headerExtent == null ||
-                        (extent - _headerExtent!).abs() > 0.5) {
-                      setState(() => _headerExtent = extent);
-                    }
-                  },
-                  selectedTabIndex: _selectedIndex,
-                  onShare: (originContext) =>
-                      unawaited(_shareProfile(originContext, ref, user)),
-                  isFollowed: followed,
-                  onToggleFollow: widget.isMe
-                      ? null
-                      : () => toggleFollowWithUndo(context, user.id),
-                  onFollowPrivately: onFollowPrivately,
-                  onCopyLink: onCopyLink,
-                  stats: _headerStats(user),
-                  onEditProfile: widget.isMe ? widget.onEditProfile : null,
-                  onDownloadAll: onDownloadAll,
-                  isMuted: muted,
-                  onToggleMute: onToggleMute,
-                  topInset: MediaQuery.viewPaddingOf(context).top,
-                ),
+          child: DesktopInspectableGallery(
+            active: _showsIllustGallery(selectedTab),
+            child: NestedScrollView(
+              key: const ValueKey('profile-nested-scroll'),
+              controller: _outerScrollController,
+              // The outer position must share the inner feeds' physics family:
+              // the coordinator runs one ballistic simulation per position over
+              // the combined metrics, and the feeds fling with the app's
+              // FuncScrollPhysics (PullToRefresh keeps it under EasyRefresh's
+              // nested physics). The widget default would pin the outer to
+              // Clamping, whose simulation diverges from it at low release
+              // speeds — the header then stops short while the feed is
+              // already rolling ("dip"), and a light pull-down dies on the
+              // edge ("stuck"). On top, the outer scroll holds while a feed's
+              // refresh header is pulled out, so a reversed pull retracts it.
+              physics: NestedRefreshOuterPhysics(
+                parent: ScrollConfiguration.of(
+                  context,
+                ).getScrollPhysics(context),
               ),
-              SliverPersistentHeader(
-                pinned: true,
-                delegate: ReplicaProfileTabsDelegate(
-                  controller: tabController,
-                  labels: [for (final tab in _tabs) _tabLabel(tab)],
-                  onTabTap: _onTabTap,
-                  scrolled: innerBoxIsScrolled,
-                ),
-              ),
-            ],
-            body: TabBarView(
-              controller: tabController,
-              children: [
-                for (final (index, tab) in _tabs.indexed)
-                  _SelectedTabScroll(
-                    selected: index == _selectedIndex,
-                    child: _buildTabBody(tab, user, statistics),
+              headerSliverBuilder: (context, innerBoxIsScrolled) => [
+                SliverPersistentHeader(
+                  pinned: true,
+                  delegate: ReplicaProfileHeaderDelegate(
+                    user: user,
+                    isMe: widget.isMe,
+                    // The expanded height is measured from the real identity
+                    // content (R1): the delegate reports it after every
+                    // layout, so font scale, language and stat-count changes
+                    // all land without any hard-coded extent.
+                    expandedExtent: _headerExtent,
+                    onExpandedExtentMeasured: (extent) {
+                      if (!mounted) return;
+                      if (_headerExtent == null ||
+                          (extent - _headerExtent!).abs() > 0.5) {
+                        setState(() => _headerExtent = extent);
+                      }
+                    },
+                    selectedTabIndex: _selectedIndex,
+                    onShare: (originContext) =>
+                        unawaited(_shareProfile(originContext, ref, user)),
+                    isFollowed: followed,
+                    onToggleFollow: widget.isMe
+                        ? null
+                        : () => toggleFollowWithUndo(context, user.id),
+                    onFollowPrivately: onFollowPrivately,
+                    onCopyLink: onCopyLink,
+                    stats: _headerStats(user),
+                    onEditProfile: widget.isMe ? widget.onEditProfile : null,
+                    onDownloadAll: onDownloadAll,
+                    isMuted: muted,
+                    onToggleMute: onToggleMute,
+                    topInset: MediaQuery.viewPaddingOf(context).top,
                   ),
+                ),
+                SliverPersistentHeader(
+                  pinned: true,
+                  delegate: ReplicaProfileTabsDelegate(
+                    controller: tabController,
+                    labels: [for (final tab in _tabs) _tabLabel(tab)],
+                    onTabTap: _onTabTap,
+                    scrolled: innerBoxIsScrolled,
+                  ),
+                ),
               ],
+              body: TabBarView(
+                controller: tabController,
+                children: [
+                  for (final (index, tab) in _tabs.indexed)
+                    _SelectedTabScroll(
+                      selected: index == _selectedIndex,
+                      child: _buildTabBody(tab, user, statistics),
+                    ),
+                ],
+              ),
             ),
           ),
         ),
@@ -770,177 +795,517 @@ class _UserPageState extends ConsumerState<UserPage>
   }) {
     final l10n = context.l10n;
     final theme = Theme.of(context);
+    final tokens = theme.extension<FuncSemanticTokens>();
+    final hairline = tokens?.brandHairline ?? theme.colorScheme.outlineVariant;
+    final useDesktopChrome = DesktopCommandBarScope.isActiveOf(context);
     final bio = user.comment?.trim();
     final stats = _headerStats(user);
+    final overflowMenu = ProfileSecondaryMenuButton(
+      isMe: widget.isMe,
+      isFollowed: followed,
+      onFollowPrivately: onFollowPrivately,
+      onDownloadAll: onDownloadAll,
+      onCopyLink: onCopyLink,
+      isMuted: muted,
+      onToggleMute: onToggleMute,
+    );
+    final hasEditAction = widget.isMe && widget.onEditProfile != null;
+    final hasFollowAction = !widget.isMe;
+    final shareButton = Builder(
+      builder: (buttonContext) => IconButton(
+        tooltip: l10n.profileShare,
+        onPressed: () => unawaited(_shareProfile(buttonContext, ref, user)),
+        icon: const Icon(AppIcons.share),
+      ),
+    );
+    final Widget? primaryAction = hasEditAction
+        ? FilledButton.tonal(
+            style: FilledButton.styleFrom(
+              padding: const EdgeInsets.symmetric(
+                horizontal: FuncSpacing.md,
+                vertical: FuncSpacing.xs,
+              ),
+              minimumSize: const Size(0, 42),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            onPressed: widget.onEditProfile,
+            child: Text(l10n.profileEditTitle, textAlign: TextAlign.center),
+          )
+        : (hasFollowAction
+              ? FollowSwitchButton(
+                  userId: user.id,
+                  userName: user.name,
+                  userAccount: user.account,
+                )
+              : null);
+    final scrollBehavior = ScrollConfiguration.of(context);
+    final tabDragBehavior = scrollBehavior.copyWith(
+      dragDevices: {
+        ...scrollBehavior.dragDevices,
+        PointerDeviceKind.touch,
+        PointerDeviceKind.mouse,
+        PointerDeviceKind.trackpad,
+      },
+    );
     return KeyedSubtree(
       key: const ValueKey('profile-wide-split'),
       child: Column(
         children: [
-          AppTopBar(
-            title: Text(
-              user.name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            actions: [
-              ProfileSecondaryMenuButton(
-                isMe: widget.isMe,
-                isFollowed: followed,
-                onFollowPrivately: onFollowPrivately,
-                onDownloadAll: onDownloadAll,
-                onCopyLink: onCopyLink,
-                isMuted: muted,
-                onToggleMute: onToggleMute,
+          if (!useDesktopChrome)
+            AppTopBar(
+              title: Text(
+                user.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
-            ],
-          ),
+              actions: [overflowMenu],
+            ),
           staleBanner,
           Expanded(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                SizedBox(
-                  width: 332,
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(FuncSpacing.lg),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        SizedBox(
-                          height: 108 + 28,
-                          child: Stack(
-                            clipBehavior: Clip.none,
-                            children: [
-                              Positioned(
-                                top: 0,
-                                left: 0,
-                                right: 0,
-                                height: 108,
-                                child: ClipRRect(
-                                  borderRadius: FuncShape.card,
-                                  child: ProfileBannerBackground(user: user),
-                                ),
-                              ),
-                              PositionedDirectional(
-                                start: FuncSpacing.sm,
-                                bottom: 0,
-                                child: KeyedSubtree(
-                                  key: const ValueKey(
-                                    'profile-expanded-avatar',
-                                  ),
-                                  child: PersonAvatar(
-                                    imageUrl: user.profileImageUrl,
-                                    radius: 36,
-                                    ring: true,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: FuncSpacing.md),
-                        Row(
-                          children: [
-                            Flexible(
-                              fit: FlexFit.loose,
-                              child: Text(
-                                key: const ValueKey('profile-expanded-name'),
-                                user.name,
-                                style: theme.textTheme.titleLarge?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            Builder(
-                              builder: (buttonContext) => IconButton(
-                                tooltip: l10n.profileShare,
-                                onPressed: () => unawaited(
-                                  _shareProfile(buttonContext, ref, user),
-                                ),
-                                icon: const Icon(Icons.share_outlined),
-                              ),
-                            ),
-                            const SizedBox(width: FuncSpacing.xs),
-                            if (widget.isMe && widget.onEditProfile != null)
-                              FilledButton.tonal(
-                                onPressed: widget.onEditProfile,
-                                child: Text(l10n.profileEditTitle),
-                              )
-                            else if (!widget.isMe)
-                              FollowSwitchButton(
-                                userId: user.id,
-                                userName: user.name,
-                                userAccount: user.account,
-                              ),
-                          ],
-                        ),
-                        if (user.account.isNotEmpty) ...[
-                          const SizedBox(height: FuncSpacing.xxs),
-                          Text(
-                            '@${user.account}',
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                        if (stats.isNotEmpty) ...[
-                          const SizedBox(height: FuncSpacing.sm),
-                          ProfileStatRow(stats: stats),
-                        ],
-                        if (bio != null && bio.isNotEmpty) ...[
-                          const SizedBox(height: FuncSpacing.md),
-                          const Divider(),
-                          const SizedBox(height: FuncSpacing.sm),
-                          SelectableText(
-                            bio,
-                            style: theme.textTheme.bodyMedium,
-                          ),
-                        ],
-                      ],
+            child: DesktopInspectableGallery(
+              active: _showsIllustGallery(_selectedTab),
+              child: NestedScrollView(
+                key: const ValueKey('profile-wide-scroll'),
+                controller: _outerScrollController,
+                physics: NestedRefreshOuterPhysics(
+                  parent: ScrollConfiguration.of(
+                    context,
+                  ).getScrollPhysics(context),
+                ),
+                headerSliverBuilder: (context, innerBoxIsScrolled) => [
+                  SliverToBoxAdapter(
+                    child: _WideProfileBannerHeader(
+                      user: user,
+                      bio: bio,
+                      stats: stats,
+                      primaryAction: primaryAction,
+                      shareButton: shareButton,
                     ),
                   ),
-                ),
-                const VerticalDivider(width: 1),
-                Expanded(
-                  child: Column(
-                    children: [
-                      Material(
-                        key: const ValueKey('profile-tabs'),
-                        color: theme.scaffoldBackgroundColor,
-                        child: SizedBox(
-                          height: kToolbarHeight,
-                          child: AppTabBar(
-                            controller: tabController,
-                            onTap: _onTabTap,
-                            labels: [for (final tab in _tabs) _tabLabel(tab)],
-                          ),
-                        ),
-                      ),
-                      const Divider(height: 1),
-                      Expanded(
-                        child: TabBarView(
-                          controller: tabController,
-                          children: [
-                            for (final tab in _tabs)
-                              PrimaryScrollController.none(
-                                child: _buildTabBody(tab, user, statistics),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ],
+                  SliverPersistentHeader(
+                    pinned: true,
+                    delegate: _WideProfileTabsDelegate(
+                      controller: tabController,
+                      labels: [for (final tab in _tabs) _tabLabel(tab)],
+                      onTabTap: _onTabTap,
+                      dragBehavior: tabDragBehavior,
+                      scrolled: innerBoxIsScrolled,
+                      useDesktopChrome: useDesktopChrome,
+                      showsGalleryControls: _showsIllustGallery(_selectedTab),
+                      followed: followed,
+                      muted: muted,
+                      selectedTab: _selectedTab,
+                      hairline: hairline,
+                      trailing: useDesktopChrome
+                          ? Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                DesktopGalleryControls(
+                                  visible: _showsIllustGallery(_selectedTab),
+                                ),
+                                overflowMenu,
+                                const SizedBox(width: FuncSpacing.xs),
+                              ],
+                            )
+                          : null,
+                    ),
                   ),
+                ],
+                body: TabBarView(
+                  controller: tabController,
+                  children: [
+                    for (final (index, tab) in _tabs.indexed)
+                      _SelectedTabScroll(
+                        selected: index == _selectedIndex,
+                        child: _buildTabBody(tab, user, statistics),
+                      ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ],
       ),
     );
+  }
+}
+
+class _WideProfileBannerHeader extends StatelessWidget {
+  const _WideProfileBannerHeader({
+    required this.user,
+    required this.bio,
+    required this.stats,
+    required this.primaryAction,
+    required this.shareButton,
+  });
+
+  static const double _bannerHeight = 164.0;
+  static const double _avatarDiameter = 88.0;
+
+  final UserEntity user;
+  final String? bio;
+  final List<ProfileHeaderStat> stats;
+  final Widget? primaryAction;
+  final Widget shareButton;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isRtl = Directionality.of(context) == TextDirection.rtl;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SizedBox(
+              height: _bannerHeight,
+              child: ProfileBannerBackground(user: user),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(bottom: FuncSpacing.lg),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Band 1: Full header width framing name/@handle beside the
+                  // avatar's lower half and actions flush to the right margin.
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(
+                      minHeight: _avatarDiameter / 2 + FuncSpacing.md,
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsetsDirectional.fromSTEB(
+                        FuncSpacing.lg + _avatarDiameter + FuncSpacing.lg,
+                        FuncSpacing.sm,
+                        FuncSpacing.lg - EdgeIconButtons.glyphInset,
+                        0,
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  key: const ValueKey('profile-expanded-name'),
+                                  user.name,
+                                  style: theme.textTheme.headlineSmall
+                                      ?.copyWith(fontWeight: FontWeight.w700),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                if (user.account.isNotEmpty) ...[
+                                  const SizedBox(height: FuncSpacing.xxs),
+                                  Text(
+                                    '@${user.account}',
+                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                      color: theme.colorScheme.onSurfaceVariant,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: FuncSpacing.lg),
+                          if (primaryAction != null) ...[
+                            primaryAction!,
+                            const SizedBox(width: FuncSpacing.xs),
+                          ],
+                          shareButton,
+                        ],
+                      ),
+                    ),
+                  ),
+                  // Band 2: Single-line inline stats and bio flush-left with
+                  // the 16dp avatar margin, capped for readable bio measure.
+                  if (stats.isNotEmpty || (bio != null && bio!.isNotEmpty))
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: FuncSpacing.lg,
+                      ),
+                      child: Align(
+                        alignment: AlignmentDirectional.topStart,
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(
+                            maxWidth: ContentWidths.management,
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (stats.isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.only(
+                                    top: FuncSpacing.xs,
+                                  ),
+                                  child: Transform.translate(
+                                    offset: Offset(
+                                      isRtl ? FuncSpacing.xs : -FuncSpacing.xs,
+                                      0,
+                                    ),
+                                    child: _WideProfileInlineStats(
+                                      stats: stats,
+                                    ),
+                                  ),
+                                ),
+                              if (bio != null && bio!.isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.only(
+                                    top: FuncSpacing.xs,
+                                  ),
+                                  child: Text(
+                                    key: const ValueKey('profile-wide-bio'),
+                                    bio!,
+                                    maxLines: 3,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                      height: 1.45,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        PositionedDirectional(
+          start: FuncSpacing.lg,
+          top: _bannerHeight - _avatarDiameter / 2,
+          child: KeyedSubtree(
+            key: const ValueKey('profile-expanded-avatar'),
+            child: PersonAvatar(
+              imageUrl: user.profileImageUrl,
+              radius: _avatarDiameter / 2,
+              ring: true,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Horizontal inline counters for the wide panoramic profile header (`50 关注`),
+/// preserving per-stat semantics keys and tap navigation.
+class _WideProfileInlineStats extends StatelessWidget {
+  const _WideProfileInlineStats({required this.stats});
+
+  final List<ProfileHeaderStat> stats;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final figureStyle = theme.textTheme.titleMedium
+        ?.copyWith(fontWeight: FontWeight.w700)
+        .tabular;
+    final labelStyle = theme.textTheme.bodyMedium?.copyWith(
+      color: colors.onSurfaceVariant,
+    );
+
+    return Wrap(
+      spacing: FuncSpacing.md,
+      runSpacing: FuncSpacing.xxs,
+      children: [
+        for (final stat in stats)
+          Builder(
+            builder: (context) {
+              final figure = AppFormat.count(context, stat.value);
+              return Semantics(
+                key: ValueKey('profile-stat-${stat.id}-header'),
+                container: true,
+                button: stat.onTap != null,
+                label: '${stat.label}, $figure',
+                onTap: stat.onTap,
+                child: ExcludeSemantics(
+                  child: InkWell(
+                    borderRadius: FuncShape.control,
+                    onTap: stat.onTap,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(minHeight: 36),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: FuncSpacing.xs,
+                          vertical: FuncSpacing.xxs,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.baseline,
+                          textBaseline: TextBaseline.alphabetic,
+                          children: [
+                            Text(figure, style: figureStyle),
+                            const SizedBox(width: FuncSpacing.xs),
+                            Text(stat.label, style: labelStyle),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+      ],
+    );
+  }
+}
+
+class _WideProfileTabsDelegate extends SliverPersistentHeaderDelegate {
+  const _WideProfileTabsDelegate({
+    required this.controller,
+    required this.labels,
+    required this.onTabTap,
+    required this.dragBehavior,
+    required this.scrolled,
+    required this.useDesktopChrome,
+    required this.showsGalleryControls,
+    required this.followed,
+    required this.muted,
+    required this.selectedTab,
+    required this.hairline,
+    required this.trailing,
+  });
+
+  final TabController controller;
+  final List<String> labels;
+  final ValueChanged<int> onTabTap;
+  final ScrollBehavior dragBehavior;
+  final bool scrolled;
+  final bool useDesktopChrome;
+  final bool showsGalleryControls;
+  final bool followed;
+  final bool muted;
+  final _ProfileTab? selectedTab;
+  final Color hairline;
+  final Widget? trailing;
+
+  @override
+  double get minExtent =>
+      useDesktopChrome ? kDesktopPageHeaderHeight : kToolbarHeight;
+
+  @override
+  double get maxExtent => minExtent;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    final theme = Theme.of(context);
+    return LiftableBar(
+      child: ScrollEdgeShadow(
+        visible: scrolled,
+        child: Material(
+          key: const ValueKey('profile-tabs'),
+          color: theme.scaffoldBackgroundColor,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              border: scrolled
+                  ? null
+                  : Border(bottom: BorderSide(color: hairline)),
+            ),
+            child: SizedBox(
+              height: minExtent,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsetsDirectional.only(
+                        start: FuncSpacing.xxs,
+                      ),
+                      child: ScrollConfiguration(
+                        behavior: dragBehavior,
+                        child: AppTabBar(
+                          controller: controller,
+                          onTap: onTabTap,
+                          labels: labels,
+                          maxEqualSlotWidth: 76,
+                        ),
+                      ),
+                    ),
+                  ),
+                  ?trailing,
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  bool shouldRebuild(covariant _WideProfileTabsDelegate oldDelegate) =>
+      oldDelegate.controller != controller ||
+      !listEquals(oldDelegate.labels, labels) ||
+      oldDelegate.onTabTap != onTabTap ||
+      oldDelegate.dragBehavior != dragBehavior ||
+      oldDelegate.scrolled != scrolled ||
+      oldDelegate.useDesktopChrome != useDesktopChrome ||
+      oldDelegate.showsGalleryControls != showsGalleryControls ||
+      oldDelegate.followed != followed ||
+      oldDelegate.muted != muted ||
+      oldDelegate.selectedTab != selectedTab ||
+      oldDelegate.hairline != hairline;
+}
+
+class _LiveWorksTotal extends ConsumerWidget {
+  const _LiveWorksTotal({
+    required this.userId,
+    required this.tab,
+    required this.count,
+  });
+
+  final int userId;
+  final _ProfileTab tab;
+  final int count;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final hasVisibleItems = switch (tab) {
+      _ProfileTab.illust || _ProfileTab.manga => hasVisibleProfileIllusts(
+        ref,
+        ProfileFeedKey(
+          userId: userId,
+          kind: ProfileFeedKind.work,
+          workType: tab.section!.wireWorkType,
+        ),
+      ),
+      _ProfileTab.novel => () {
+        final feed = ref.watch(userNovelFeedProvider(userId)).value;
+        if (feed == null || feed.showInitialError || feed.ids.isEmpty) {
+          return false;
+        }
+        return ref.watch(
+          novelStoreProvider.select((store) => feed.ids.any(store.containsKey)),
+        );
+      }(),
+      _ProfileTab.series => () {
+        final feed = ref.watch(userSeriesFeedProvider(userId)).value;
+        if (feed == null || feed.showInitialError || feed.ids.isEmpty) {
+          return false;
+        }
+        return ref.watch(
+          illustSeriesStoreProvider.select(
+            (store) => feed.ids.any(store.containsKey),
+          ),
+        );
+      }(),
+      _ => false,
+    };
+    if (!hasVisibleItems) return const SizedBox.shrink();
+    return _WorksTotal(count: count);
   }
 }
 

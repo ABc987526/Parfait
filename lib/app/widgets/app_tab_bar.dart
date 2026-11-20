@@ -25,6 +25,7 @@ class AppTabBar extends StatelessWidget implements PreferredSizeWidget {
     this.controller,
     this.onTap,
     this.labelWrapper,
+    this.maxEqualSlotWidth,
   });
 
   /// The labels, in tab order.
@@ -40,7 +41,15 @@ class AppTabBar extends StatelessWidget implements PreferredSizeWidget {
   /// Wraps the label of the tab at an index, e.g. in a long-press menu.
   final Widget Function(int index, Widget label)? labelWrapper;
 
+  /// Optional override for the wide-row equal slot ceiling (`maxSlotWidth`
+  /// when null); longer labels still expand every slot equally (`NAV-14`).
+  final double? maxEqualSlotWidth;
+
   static const _labelPadding = EdgeInsets.symmetric(horizontal: FuncSpacing.md);
+  static const _compactScrollableLabelPadding = EdgeInsets.symmetric(
+    horizontal: FuncSpacing.sm,
+  );
+  static const double _compactScrollableBreakpoint = 420;
 
   /// Widest equal slot on a medium or wider row: past it the labels drift
   /// apart. A longer label widens every slot to its own width, never cut.
@@ -99,24 +108,28 @@ class AppTabBar extends StatelessWidget implements PreferredSizeWidget {
         final fits =
             widest + _labelPadding.horizontal <=
             constraints.maxWidth / labels.length;
+        final labelPadding =
+            !fits && constraints.maxWidth < _compactScrollableBreakpoint
+            ? _compactScrollableLabelPadding
+            : _labelPadding;
         final bar = TabBar(
           controller: controller,
           isScrollable: !fits,
           tabAlignment: fits ? TabAlignment.fill : TabAlignment.start,
           indicatorSize: TabBarIndicatorSize.label,
           indicatorPadding: const EdgeInsets.only(bottom: FuncSpacing.xs),
-          labelPadding: _labelPadding,
+          labelPadding: labelPadding,
           onTap: onTap,
           tabs: [
             for (final (index, label) in labels.indexed)
               Tab(child: _label(index, label)),
           ],
         );
-        if (!fits) return ScrollEdgeFade(child: bar);
+        if (!fits) return ScrollEdgeFade(initialAfter: true, child: bar);
         // Rounded up: a slot of exactly the measured width can fall a
         // fraction short of the laid-out label and fade its last glyph.
         final slot = math.max(
-          maxSlotWidth,
+          maxEqualSlotWidth ?? maxSlotWidth,
           (widest + _labelPadding.horizontal).ceilToDouble(),
         );
         final width = slot * labels.length;

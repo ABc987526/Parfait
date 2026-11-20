@@ -29,12 +29,13 @@ import '../../core/spotlight/spotlight_store.dart';
 import '../../l10n/context.dart';
 import 'spotlight_challenge_view.dart';
 import '../../app/theme/func_semantic_tokens.dart';
+import '../../app/icons/app_icons.dart';
 
 /// In-app pixivision article reader: renders the parsed [SpotlightBlock]s —
 /// headings, link-aware paragraphs, images and `.am__work` artwork cards —
 /// instead of a full webview. Pixiv artwork/user links route natively;
 /// everything else opens externally.
-class SpotlightArticlePage extends ConsumerWidget {
+class SpotlightArticlePage extends ConsumerStatefulWidget {
   const SpotlightArticlePage({
     super.key,
     required this.articleId,
@@ -46,13 +47,51 @@ class SpotlightArticlePage extends ConsumerWidget {
   /// `?url=` override; falls back to the canonical pixivision URL.
   final String? articleUrl;
 
-  String get _url => articleUrl ?? 'https://www.pixivision.net/a/$articleId';
+  /// The cover takes at most this share of the page's height, so a landscape
+  /// window still opens on the article's first lines instead of a
+  /// full-screen image. It is the page body's viewport, bar excluded.
+  static const coverViewportShare = 0.5;
+
+  @override
+  ConsumerState<SpotlightArticlePage> createState() =>
+      _SpotlightArticlePageState();
+}
+
+class _SpotlightArticlePageState extends ConsumerState<SpotlightArticlePage> {
+  // Latch the cover source the first time the parsed body actually renders:
+  // when opened from a feed or search card the store entry is already loaded
+  // (`PAGE-06`), whereas a deep link renders the article's `og:image` first
+  // and must not later unmount that loaded image if a background branch warms
+  // `spotlightFeedProvider`.
+  bool _coverLocked = false;
+  String? _coverUrl;
+
+  String get _url =>
+      widget.articleUrl ?? 'https://www.pixivision.net/a/${widget.articleId}';
+
+  @override
+  void didUpdateWidget(covariant SpotlightArticlePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.articleId != widget.articleId ||
+        oldWidget.articleUrl != widget.articleUrl) {
+      _coverLocked = false;
+      _coverUrl = null;
+    }
+  }
+
+  String? _resolveCoverUrl(SpotlightArticle? entry) {
+    if (!_coverLocked) {
+      _coverLocked = true;
+      _coverUrl = entry?.thumbnailUrl;
+    }
+    return _coverUrl;
+  }
 
   /// Shares the resolved article link. Platforms without a sharesheet fall
   /// back to the clipboard inside the service — surface that copy outcome.
-  Future<void> _share(BuildContext context, WidgetRef ref) async {
+  Future<void> _share(BuildContext context) async {
     final title =
-        ref.read(spotlightArticleStoreProvider)[articleId]?.title ??
+        ref.read(spotlightArticleStoreProvider)[widget.articleId]?.title ??
         context.l10n.spotlightTitle;
     final outcome = await ref
         .read(shareServiceProvider)
@@ -66,13 +105,16 @@ class SpotlightArticlePage extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final entry = ref.watch(spotlightArticleStoreProvider)[articleId];
+  Widget build(BuildContext context) {
+    final entry = ref.watch(
+      spotlightArticleStoreProvider.select((s) => s[widget.articleId]),
+    );
     final async = ref.watch(
-      spotlightArticleBodyProvider((id: articleId, url: _url)),
+      spotlightArticleBodyProvider((id: widget.articleId, url: _url)),
     );
     return Scaffold(
       appBar: AppTopBar(
+        contentWidth: ContentWidths.article,
         title: Text(
           entry?.title ?? context.l10n.spotlightTitle,
           maxLines: 1,
@@ -80,12 +122,12 @@ class SpotlightArticlePage extends ConsumerWidget {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.share_outlined),
+            icon: const Icon(AppIcons.share),
             tooltip: context.l10n.share,
-            onPressed: () => unawaited(_share(context, ref)),
+            onPressed: () => unawaited(_share(context)),
           ),
           IconButton(
-            icon: const Icon(Icons.open_in_new),
+            icon: const Icon(AppIcons.externalLink),
             tooltip: context.l10n.openInBrowser,
             onPressed: () => unawaited(
               launchUrl(Uri.parse(_url), mode: LaunchMode.externalApplication),
@@ -94,33 +136,37 @@ class SpotlightArticlePage extends ConsumerWidget {
         ],
       ),
       body: async.when(
-        loading: () => const FeedLoading(),
+        loading: () => const ContentWidthCap(
+          maxWidth: ContentWidths.article,
+          child: FeedLoading(),
+        ),
         error: (error, _) => error is ApiChallengeRequired
             ? SpotlightChallengeView(
                 uri: PixivSpotlightRepository.articleUri(_url),
                 contentBuilder: (body) =>
-                    _articleBody(context, body, entry?.thumbnailUrl),
+                    _articleBody(context, body, _resolveCoverUrl(entry)),
               )
-            : FeedError(
-                title: context.l10n.spotlightArticleLoadFailed,
-                error: error,
-                retryLabel: context.l10n.retry,
-                onRetry: () => ref.invalidate(
-                  spotlightArticleBodyProvider((id: articleId, url: _url)),
+            : ContentWidthCap(
+                maxWidth: ContentWidths.article,
+                child: FeedError(
+                  title: context.l10n.spotlightArticleLoadFailed,
+                  error: error,
+                  retryLabel: context.l10n.retry,
+                  onRetry: () => ref.invalidate(
+                    spotlightArticleBodyProvider((
+                      id: widget.articleId,
+                      url: _url,
+                    )),
+                  ),
                 ),
               ),
         // Article-width cap (a ContentWidths role, not a breakpoint): the
         // column stays top-centered and readable on wide surfaces while
         // narrow phones keep full width.
-        data: (body) => _articleBody(context, body, entry?.thumbnailUrl),
+        data: (body) => _articleBody(context, body, _resolveCoverUrl(entry)),
       ),
     );
   }
-
-  /// The cover takes at most this share of the page's height, so a landscape
-  /// window still opens on the article's first lines instead of a
-  /// full-screen image. It is the page body's viewport, bar excluded.
-  static const coverViewportShare = 0.5;
 
   Widget _articleBody(
     BuildContext context,
@@ -132,7 +178,7 @@ class SpotlightArticlePage extends ConsumerWidget {
       // desktop surfaces cap it in either orientation so the first lines
       // remain on the opening screen.
       final coverMaxHeight = constraints.maxWidth >= AppBreakpoints.medium
-          ? constraints.maxHeight * coverViewportShare
+          ? constraints.maxHeight * SpotlightArticlePage.coverViewportShare
           : null;
       return Align(
         alignment: Alignment.topCenter,
@@ -144,7 +190,7 @@ class SpotlightArticlePage extends ConsumerWidget {
           child: SelectionArea(
             child: SmoothWheelScroll(
               builder: (context, controller, physics) => ListView(
-                key: PageStorageKey('spotlight-article-$articleId'),
+                key: PageStorageKey('spotlight-article-${widget.articleId}'),
                 controller: controller,
                 physics: physics,
                 padding: const EdgeInsets.fromLTRB(
@@ -249,13 +295,13 @@ class _SpotlightBlockViewState extends State<_SpotlightBlockView> {
       ),
       SpotlightImage(:final url, :final cover) => Padding(
         padding: const EdgeInsets.symmetric(vertical: FuncSpacing.sm),
-        // Rounded like the work images further down.
-        child: ClipRRect(
+        // Rounded like the work images further down; pass the radius into
+        // `_ArticleImage` so desktop height-capped covers clip tightly around
+        // the image bounds rather than the full-width `Center`.
+        child: _ArticleImage(
+          url: cover ? widget.coverUrl ?? url : url,
+          maxHeight: cover ? widget.coverMaxHeight : null,
           borderRadius: FuncShape.card,
-          child: _ArticleImage(
-            url: cover ? widget.coverUrl ?? url : url,
-            maxHeight: cover ? widget.coverMaxHeight : null,
-          ),
         ),
       ),
       final SpotlightIllustCard card => _SpotlightIllustCardView(card: card),
@@ -308,7 +354,7 @@ class _SpotlightBlockViewState extends State<_SpotlightBlockView> {
 /// crossfade: the placeholder dissolving over an image of another height
 /// read as the image loading in bands.
 class _ArticleImage extends ConsumerWidget {
-  const _ArticleImage({required this.url, this.maxHeight});
+  const _ArticleImage({required this.url, this.maxHeight, this.borderRadius});
 
   final String url;
 
@@ -316,6 +362,8 @@ class _ArticleImage extends ConsumerWidget {
   /// height cap. The image keeps its ratio at that height and centres in
   /// the column; null draws it at its own ratio, full column width.
   final double? maxHeight;
+
+  final BorderRadius? borderRadius;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -343,21 +391,23 @@ class _ArticleImage extends ConsumerWidget {
               fit: BoxFit.contain,
               imageBuilder: (_, child) => AspectFitBox(child: child),
               placeholderBuilder: (_) => placeholder,
-              errorBuilder: (_, _, _) =>
-                  const Icon(Icons.broken_image_outlined),
+              errorBuilder: (_, _, _) => const Icon(AppIcons.illustBroken),
               fadeInDuration: Duration.zero,
               fadeOutDuration: Duration.zero,
             ),
     );
+    final clipped = borderRadius == null
+        ? image
+        : ClipRRect(borderRadius: borderRadius!, child: image);
     final maxHeight = this.maxHeight;
-    if (maxHeight == null) return image;
+    if (maxHeight == null) return clipped;
     // Both paths size themselves within a bounded height (AspectFitBox for
     // the pixels, AspectRatio for the placeholder), so the same cap holds
     // the loading box; centring keeps the narrower image in the column.
     return Center(
       child: ConstrainedBox(
         constraints: BoxConstraints(maxHeight: maxHeight),
-        child: image,
+        child: clipped,
       ),
     );
   }

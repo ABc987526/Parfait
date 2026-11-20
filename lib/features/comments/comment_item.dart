@@ -17,6 +17,7 @@ import '../../app/navigation/routes.dart';
 import '../../app/widgets/comment_text.dart';
 import '../../app/widgets/inline_translation.dart';
 import '../../l10n/context.dart';
+import '../../app/icons/app_icons.dart';
 
 /// One comment row. The work's author is marked beside the name. Reply,
 /// the replies link and translate are pill buttons under the body, a
@@ -187,7 +188,7 @@ class _CommentBody extends StatelessWidget {
   Widget build(BuildContext context) {
     if (comment.stampId != null) {
       final stamp = comment.stampUrl == null
-          ? const Icon(Icons.image_not_supported_outlined)
+          ? const Icon(AppIcons.illustOff)
           : PixivImage.feed(
               comment.stampUrl!,
               layoutWidth: 180,
@@ -309,7 +310,7 @@ class _Actions extends StatelessWidget {
             entries: [
               AppMenuEntry(
                 value: onDelete,
-                icon: Icons.delete_outline,
+                icon: AppIcons.trash,
                 label: l10n.commentDelete,
                 destructive: true,
               ),

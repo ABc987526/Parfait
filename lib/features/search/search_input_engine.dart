@@ -8,6 +8,7 @@ import '../../app/motion/app_overlays.dart';
 import '../../app/navigation/routes.dart';
 import '../../app/theme/func_semantic_tokens.dart';
 import '../../app/theme/func_tokens.dart';
+import '../../app/widgets/app_dialog.dart';
 import '../../app/widgets/app_snack_bar.dart';
 import '../../app/widgets/app_tab_bar.dart';
 import '../../app/widgets/display_actions.dart';
@@ -30,6 +31,8 @@ import 'search_filter_labels.dart';
 import 'search_filter_sheet.dart';
 import 'search_section_header.dart';
 import 'search_text.dart';
+import '../../app/icons/app_icons.dart';
+import '../../app/icons/ui_icons.dart';
 
 /// Search input with the three beta56 result tabs and cancellable
 /// suggestions, shared by the full input page and the docked panel (R10).
@@ -49,6 +52,7 @@ class SearchInputEngine extends ConsumerStatefulWidget {
     this.initialNovelFilters,
     this.onTypeChanged,
     this.onShortcut,
+    this.workspaceField = false,
   });
 
   final String initialKeyword;
@@ -70,6 +74,10 @@ class SearchInputEngine extends ConsumerStatefulWidget {
   /// What an id or a link in the draft opens; the docked panel handles it
   /// itself so the panel can close first (R10).
   final ValueChanged<SearchShortcut>? onShortcut;
+
+  /// Whether the field sits inline inside a desktop workspace column rather
+  /// than inside a mobile/docked stadium header bar.
+  final bool workspaceField;
 
   final SearchInputEngineBuilder builder;
 
@@ -274,10 +282,12 @@ class SearchInputEngineState extends ConsumerState<SearchInputEngine>
       valueListenable: _textController,
       builder: (context, value, _) {
         if (value.text.isEmpty) return const SizedBox.shrink();
+        final iconColor = Theme.of(context).colorScheme.onSurfaceVariant;
         return IconButton(
           tooltip: context.l10n.searchClear,
+          style: IconButton.styleFrom(foregroundColor: iconColor),
           onPressed: _clear,
-          icon: const Icon(Icons.clear),
+          icon: Icon(UiIcons.close, color: iconColor),
         );
       },
     );
@@ -291,28 +301,46 @@ class SearchInputEngineState extends ConsumerState<SearchInputEngine>
   /// pills lie between the field's fill and its text, so the bar paints
   /// no fill of its own.
   Widget _buildSearchBar(BuildContext context) {
-    final bar = SearchBar(
-      controller: _textController,
-      focusNode: _focusNode,
-      // The theme's flat field, sized like [SearchFieldButton] on the
-      // guide and the result page: the field reads as one across both
-      // pushes.
-      constraints: const BoxConstraints(
-        minHeight: SearchFieldButton.height,
-        maxWidth: SearchFieldButton.maxWidth,
+    final scheme = Theme.of(context).colorScheme;
+    final iconColor = scheme.onSurfaceVariant;
+    final bar = IconTheme.merge(
+      data: IconThemeData(color: iconColor),
+      child: SearchBar(
+        controller: _textController,
+        focusNode: _focusNode,
+        // The theme's flat field, sized like [SearchFieldButton] on the
+        // guide and the result page: the field reads as one across both
+        // pushes.
+        constraints: const BoxConstraints(
+          minHeight: SearchFieldButton.height,
+          maxWidth: SearchFieldButton.maxWidth,
+        ),
+        backgroundColor: const WidgetStatePropertyAll(FuncTokens.transparent),
+        hintText: context.l10n.searchBarHint,
+        leading: Icon(AppIcons.search, color: iconColor),
+        trailing: [_clearSearchAction()],
+        onSubmitted: (_) => _submit(),
+        textInputAction: TextInputAction.search,
       ),
-      backgroundColor: const WidgetStatePropertyAll(FuncTokens.transparent),
-      hintText: context.l10n.searchBarHint,
-      leading: const Icon(Icons.search),
-      trailing: [_clearSearchAction()],
-      onSubmitted: (_) => _submit(),
-      textInputAction: TextInputAction.search,
     );
+    final decoration = widget.workspaceField
+        ? ShapeDecoration(
+            color: scheme.surfaceContainerLow,
+            shape: RoundedRectangleBorder(
+              borderRadius: FuncShape.control,
+              side: BorderSide(
+                color: FuncSemanticTokens.of(context).brandHairline,
+              ),
+            ),
+          )
+        : ShapeDecoration(
+            color: SearchBarTheme.of(
+              context,
+            ).backgroundColor?.resolve(const {}),
+            shape: const StadiumBorder(),
+          );
     return DecoratedBox(
-      decoration: ShapeDecoration(
-        color: SearchBarTheme.of(context).backgroundColor?.resolve(const {}),
-        shape: const StadiumBorder(),
-      ),
+      decoration: decoration,
       child: ValueListenableBuilder<TextEditingValue>(
         valueListenable: _textController,
         builder: (context, value, bar) => SearchKeywordPills(
@@ -408,7 +436,7 @@ class _SearchInputBody extends ConsumerWidget {
         padding: const EdgeInsets.symmetric(vertical: FuncSpacing.sm),
         children: [
           ListTile(
-            leading: const Icon(Icons.open_in_new),
+            leading: const Icon(AppIcons.externalLink),
             title: Text(_shortcutLabel(context, shortcut)),
             onTap: () {
               if (onShortcut case final open?) {
@@ -460,7 +488,7 @@ class _SearchInputBody extends ConsumerWidget {
         return Semantics(
           onLongPressHint: context.l10n.searchSuggestionFill,
           child: ListTile(
-            leading: const Icon(Icons.search),
+            leading: const Icon(AppIcons.search),
             title: Text(suggestion.displayName),
             subtitle: suggestion.translatedName == null
                 ? null
@@ -477,7 +505,7 @@ class _SearchInputBody extends ConsumerWidget {
                 IconButton(
                   tooltip: context.l10n.searchSuggestionFill,
                   onPressed: () => complete(suggestion.keyword),
-                  icon: const Icon(Icons.north_west),
+                  icon: const Icon(UiIcons.fillSuggestion),
                 ),
               ],
             ),
@@ -587,7 +615,7 @@ class _SearchStart extends ConsumerWidget {
                         onLongPress: () => fillWithHaptic(tag.name),
                         actions: [
                           DisplayAction(
-                            icon: Icons.north_west,
+                            icon: UiIcons.fillSuggestion,
                             label: l10n.searchSuggestionFill,
                             onSelected: () => fillWithHaptic(tag.name),
                           ),
@@ -626,7 +654,7 @@ class _SearchStart extends ConsumerWidget {
     final l10n = context.l10n;
     final confirmed = await showAppDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (context) => AppAlertDialog(
         content: Text(l10n.searchHistoryClearConfirm),
         actions: [
           TextButton(
@@ -672,7 +700,7 @@ class _HistoryChip extends StatelessWidget {
           onLongPress: onLongPress,
           actions: [
             DisplayAction(
-              icon: Icons.north_west,
+              icon: UiIcons.fillSuggestion,
               label: context.l10n.searchSuggestionFill,
               onSelected: onLongPress,
             ),
@@ -680,7 +708,7 @@ class _HistoryChip extends StatelessWidget {
         ),
       ),
       child: InputChip(
-        avatar: const Icon(Icons.history),
+        avatar: const Icon(AppIcons.history),
         label: Text(keyword),
         onPressed: onTap,
         onDeleted: onDeleted,

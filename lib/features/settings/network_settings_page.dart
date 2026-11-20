@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/format/app_format.dart';
 import '../../app/motion/app_overlays.dart';
 import '../../app/theme/func_semantic_tokens.dart';
+import '../../app/widgets/app_dialog.dart';
 import '../../app/widgets/app_top_bar.dart';
 import '../../app/widgets/feed/feed_states.dart';
 import '../../app/widgets/settings/settings_action_tile.dart';
@@ -33,6 +34,8 @@ import '../../l10n/lookup.dart';
 import 'settings_helpers.dart';
 import 'settings_catalog.dart';
 import '../../app/layout/content_widths.dart';
+import '../../app/icons/app_icons.dart';
+import '../../app/icons/ui_icons.dart';
 
 String _networkText(BuildContext context, String key) {
   return l10nLookup(context.l10n, key);
@@ -87,7 +90,7 @@ class NetworkSettingsPage extends ConsumerWidget {
         ListView(
           padding: const EdgeInsets.only(
             top: FuncSpacing.sm,
-            bottom: FuncSpacing.xl,
+            bottom: FuncSpacing.xxxl,
           ),
           children: [
             SettingsGroup(
@@ -124,7 +127,7 @@ class NetworkSettingsPage extends ConsumerWidget {
             SettingsGroup(
               children: [
                 SettingsTile(
-                  icon: Icons.network_check,
+                  icon: AppIcons.network,
                   setting: SettingsPageRef.networkProbe,
                   onTap: () =>
                       openSettingsPage(context, '/settings/network/probe'),
@@ -136,7 +139,7 @@ class NetworkSettingsPage extends ConsumerWidget {
             SettingsGroup(
               children: [
                 SettingsTile(
-                  icon: Icons.tune_outlined,
+                  icon: AppIcons.filter,
                   setting: SettingsPageRef.networkAdvanced,
                   onTap: () =>
                       openSettingsPage(context, '/settings/network/advanced'),
@@ -317,40 +320,47 @@ class _ImageSourceSectionState extends ConsumerState<_ImageSourceSection> {
             },
           ),
           SettingsGroupContent(
-            child: TextField(
-              controller: _customController,
-              focusNode: _customFocusNode,
-              decoration: InputDecoration(
-                labelText: context.l10n.imageSourceCustom,
-                helperText: context.l10n.imageSourceCustomHint,
-                helperMaxLines: 3,
-              ),
-              onChanged: (_) => setState(() => _customDirty = true),
-            ),
-          ),
-          SettingsGroupContent(
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: Wrap(
-                spacing: 8,
-                children: [
-                  FilledButton(
-                    onPressed: _testingMirror ? null : _saveCustomSource,
-                    child: Text(context.l10n.save),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TextField(
+                  controller: _customController,
+                  focusNode: _customFocusNode,
+                  decoration: InputDecoration(
+                    labelText: context.l10n.imageSourceCustom,
+                    helperText: context.l10n.imageSourceCustomHint,
+                    helperMaxLines: 3,
                   ),
-                  FilledButton.tonalIcon(
-                    onPressed: _testingMirror ? null : _testMirror,
-                    icon: _testingMirror
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.network_check, size: 18),
-                    label: Text(context.l10n.imageSourceApplyAndTest),
+                  onChanged: (_) => setState(() => _customDirty = true),
+                ),
+                const SizedBox(height: FuncSpacing.md),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      FilledButton(
+                        onPressed: _testingMirror ? null : _saveCustomSource,
+                        child: Text(context.l10n.save),
+                      ),
+                      FilledButton.tonalIcon(
+                        onPressed: _testingMirror ? null : _testMirror,
+                        icon: _testingMirror
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(AppIcons.network, size: 18),
+                        label: Text(context.l10n.imageSourceApplyAndTest),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ],
@@ -490,7 +500,7 @@ class _NetworkAdvancedSettingsPageState
   Future<void> _resetDefaults() async {
     final confirmed = await showAppDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
+      builder: (dialogContext) => AppAlertDialog(
         title: Text(context.l10n.networkAdvancedReset),
         content: Text(context.l10n.networkAdvancedResetConfirm),
         actions: [
@@ -555,7 +565,7 @@ class _NetworkAdvancedSettingsPageState
           ListView(
             padding: const EdgeInsets.only(
               top: FuncSpacing.sm,
-              bottom: FuncSpacing.xl,
+              bottom: FuncSpacing.xxxl,
             ),
             children: [
               // One card: Save commits both fields, so they share it.
@@ -570,11 +580,12 @@ class _NetworkAdvancedSettingsPageState
                           TextField(
                             controller: _dohController,
                             focusNode: _dohFocusNode,
-                            maxLines: 2,
+                            minLines: 2,
+                            maxLines: null,
                             decoration: InputDecoration(
                               labelText: context.l10n.networkDohEndpoints,
                               helperText: context.l10n.networkDohEndpointsHint,
-                              helperMaxLines: 3,
+                              helperMaxLines: 5,
                             ),
                             onChanged: (_) => setState(() => _dohDirty = true),
                           ),
@@ -607,7 +618,7 @@ class _NetworkAdvancedSettingsPageState
               SettingsGroup(
                 children: [
                   SettingsActionTile(
-                    icon: Icons.restart_alt,
+                    icon: UiIcons.reset,
                     setting: Setting.networkAdvancedReset,
                     onTap: _resetDefaults,
                   ),
@@ -738,7 +749,7 @@ class _EffectiveRoutesSectionState
         children: [
           Expanded(child: Text(context.l10n.networkEffectiveRoutes)),
           IconButton(
-            icon: const Icon(Icons.refresh, size: 20),
+            icon: const Icon(UiIcons.refresh, size: 20),
             tooltip: context.l10n.refresh,
             onPressed: _refresh,
           ),
@@ -823,7 +834,7 @@ class _ThirdPartyReachabilitySectionState
         children: [
           Expanded(child: Text(context.l10n.networkThirdParty)),
           IconButton(
-            icon: const Icon(Icons.refresh, size: 20),
+            icon: const Icon(UiIcons.refresh, size: 20),
             tooltip: context.l10n.refresh,
             onPressed: _check,
           ),

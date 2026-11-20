@@ -1,6 +1,8 @@
 import 'package:material_ui/material_ui.dart';
 
 import '../../haptics/app_haptics.dart';
+import '../../icons/ui_icons.dart';
+import '../../theme/func_semantic_tokens.dart';
 import '../app_menu_button.dart';
 import 'settings_anchor.dart';
 
@@ -102,7 +104,8 @@ class SettingsMenuTile<T> extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                const Icon(Icons.arrow_drop_down),
+                const SizedBox(width: FuncSpacing.xs),
+                const Icon(UiIcons.dropdown, size: 16),
               ],
             ),
           ),

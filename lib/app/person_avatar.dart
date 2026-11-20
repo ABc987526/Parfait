@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 
 import 'pixiv_image.dart';
 import 'theme/func_semantic_tokens.dart';
+import 'icons/app_icons.dart';
 
 /// Shared profile avatar: soft neutral placeholder (never the blue
 /// CircleAvatar fallback), explicit crossfade on load, and an optional white
@@ -27,7 +28,7 @@ class PersonAvatar extends StatelessWidget {
       decoration: BoxDecoration(color: colors.surfaceContainerHighest),
       child: Center(
         child: Icon(
-          Icons.person_outline,
+          AppIcons.user,
           size: radius,
           color: colors.onSurfaceVariant.withValues(alpha: 0.55),
         ),

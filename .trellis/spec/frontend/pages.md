@@ -31,7 +31,7 @@ applies_to:
   - lib/app/scroll_behavior.dart
   - lib/features/illust/detail/**
   - lib/features/novel/novel_page.dart
-reviewed: 2026-11-15
+reviewed: 2026-11-18
 ---
 
 # Page-specific rules
@@ -49,18 +49,33 @@ reviewed: 2026-11-15
 ### PAGE-01 Profile tabs list only the work types a user has
 - **Rule:** The profile has one tab per work type with a count above zero
   (illust, manga, novel, illust series), labelled with the name alone.
-  Each work list starts with its total. A preview snapshot without counters
+  Each work list shows its total (`_LiveWorksTotal`) only while loaded works
+  are visible (hidden during empty, initial loading, and initial error states).
+  A preview snapshot without counters
   keeps all four tabs; a tab that disappears on refresh falls back to the
   first. When `HomeShellChrome.contentSizeOf` is at least `840×480`,
-  `UserPage` splits into a 332dp left identity sidebar (banner, avatar, name,
-  actions, stats, bio) beside a dedicated right tab bar and `TabBarView`
-  (`ValueKey('profile-wide-split')`).
+  `UserPage` switches to a wide panoramic top header (`164dp` full-width banner,
+  `88dp` overlapping avatar aligned to the `16dp` `LAYOUT-14` margin, full-width
+  Band 1 putting name/`@account` beside the avatar and follow/share actions
+  anchored to the `16dp` right margin via `EdgeIconButtons.glyphInset` `LAYOUT-15`,
+  followed by `ContentWidths.management`-capped flush-left Band 2 single-line
+  inline stats and bio below the avatar) above a pinned full-width compact-slot
+  (`maxEqualSlotWidth: 76`) tab and gallery controls strip
+  (`ValueKey('profile-wide-split')`, `NestedScrollView`) so the works
+  `TabBarView` uses the full desktop/tablet canvas width, and `ProfileSkeleton`
+  mirrors the two-band panoramic header while omitting duplicate desktop back
+  arrows.
 - **Why:** Counts in labels widened the row past an equal share and
-  flipped it to scrolling once the detail loaded; on wide tablets and
-  desktops, a persistent sidebar keeps artist context visible without
-  stretching the banner across wide viewports.
-- **Check:** `test/user_profile_test.dart` "work tabs follow the types a user has; each list shows its" "a profile without works opens on its first other tab" "a tab that disappears on refresh falls back to the first"
-- **Code:** `lib/features/profile/user_page.dart`, `lib/features/profile/profile_header_delegate.dart`
+  flipped it to scrolling once the detail loaded, showing a stale total over an
+  empty feed read as broken, and on wide tablets/desktops a narrow left sidebar
+  cramped short bios with dead whitespace while pinching the gallery next to an
+  existing navigation rail; aligning the wide header to the 16dp `LAYOUT-14`
+  plumb line with right-anchored actions, capped Band 2 bio measure, and compact
+  76dp equal tabs removes L-shaped dead space, aligns actions above gallery
+  controls, and gives full canvas width to artworks with a matching skeleton
+  before detail resolves.
+- **Check:** `test/user_profile_test.dart` "work tabs follow the types a user has; each list shows its" "a profile without works opens on its first other tab" "a tab that disappears on refresh falls back to the first"; `test/user_profile_wide_test.dart` "wide profile aligns two-band header margins with right actions and bio cap" "wide profile skeleton avoids duplicate back button and empty works hide total"
+- **Code:** `lib/features/profile/user_page.dart`, `lib/features/profile/profile_header_delegate.dart`, `lib/features/profile/profile_skeleton.dart`, `lib/features/profile/profile_illust_feed.dart`
 
 ### PAGE-22 Bookmarks list illustrations or novels by a kind menu
 - **Rule:** The profile's bookmarks tab starts its filter row with a kind
@@ -103,11 +118,14 @@ reviewed: 2026-11-15
 ### PAGE-04 Search result types keep their own filters
 - **Rule:** A result type switch replaces the route with the new type's
   query. The page holds one filter draft per work type for the search,
-  seeded from the saved defaults; a user query carries no filters.
+  seeded from the saved defaults; a user query carries no filters and hides
+  the filter button while reserving the compact slot so search field width
+  stays constant across tabs.
 - **Why:** Switching illustration → user → illustration lost the
-  illustration filters.
-- **Check:** `test/search_result_page_test.dart` "each type switches to its own session filter set" "a user result route ignores stray filter params"
-- **Code:** `lib/features/search/search_result_page.dart`
+  illustration filters, and exposing an inapplicable filter button on the
+  user tab misled users or shifted the search pill.
+- **Check:** `test/search_result_page_test.dart` "each type switches to its own session filter set" "a user result route ignores stray filter params" "the user tab hides the filter button while keeping search field width constant"
+- **Code:** `lib/features/search/search_result_page.dart`, `lib/features/search/search_input_page.dart`, `lib/features/search/search_filter_sheet.dart`
 
 ### PAGE-21 Search input completes the keyword at the caret
 - **Rule:** Half- and full-width spaces split a query into keywords.
@@ -152,7 +170,9 @@ reviewed: 2026-11-15
   the local R-18 (with R-18G) and AI blocks, through one `RankingTabs`. A
   route to a hidden category shows it first for that visit without saving
   it; an edit keeps the category on screen or lands on its neighbour, and
-  the category sheet lists the page's live tabs. A page off screen writes
+  the `640dp` `showRankingCategorySheet` lists the page's live tabs in a
+  2–3 column `_CategoryGrid` (`columns` capped at 3 across locales while
+  keeping scrollable content clipped above the footer divider). A page off screen writes
   the new category into its route only once it shows again. The last
   category viewed is saved when the app is hidden or the page closes,
   never on each switch.
@@ -161,8 +181,8 @@ reviewed: 2026-11-15
   the background page replace the route and pulled the user back to the
   ranking. Every settings write rebuilds the app root and its theme, so a
   write per tab switch costs a frame on every switch.
-- **Check:** `test/ranking_categories_test.dart` "a hidden route category goes first; a blocked one does not" `test/ranking_feed_test.dart` "an edit updates the tabs, keeps the category and saves" "an edit made from another branch waits to write the route" "a ranking opened without a mode lands on the last one" `test/tab_swipe_switcher_test.dart` "a new tab list drops the spring-back of the old one"
-- **Code:** `lib/features/ranking/ranking_tabs.dart`, `lib/core/ranking`
+- **Check:** `test/ranking_categories_test.dart` "a hidden route category goes first; a blocked one does not" "showRankingCategorySheet keeps 3 columns and stays above the footer divider across locales at 1280x800" `test/ranking_feed_test.dart` "an edit updates the tabs, keeps the category and saves" "an edit made from another branch waits to write the route" "a ranking opened without a mode lands on the last one" `test/tab_swipe_switcher_test.dart` "a new tab list drops the spring-back of the old one"
+- **Code:** `lib/features/ranking/ranking_tabs.dart`, `lib/app/widgets/ranking_category_sheet.dart`, `lib/core/ranking`
 
 ## Shared page pieces
 
@@ -337,12 +357,14 @@ reviewed: 2026-11-15
 - **Rule:** Lists of novel, user and series-episode cards lay out through
   `SliverCardList` (or `CardRow` in a `ListView`): a column per 400dp of
   the list's own width, at most three. In a several-column list each
-  card's row uses its whole cell: the title takes the cell's width and
+  card's row uses its whole cell: the title takes the cell's width,
   the author, meta and tags spread across it (author from the inner left
-  edge, the tag line ending on the inner right edge) instead of stacking
-  in the narrow leading text column; `CardCellScope` tells the row how
+  edge, the tag line ending on the inner right edge), and `EntityRow`
+  wraps each cell as a flat `surfaceContainerLow` tonal card (`FuncShape.card`,
+  with outer cell inset and capped inner padding) instead of an unbounded
+  transparent strip; `CardCellScope` tells the row how
   many columns its cell is in, and a single-column list keeps the stacked
-  row. Text lists (comments and their
+  full-bleed row. Text lists (comments and their
   composer, search suggestions, bookmark tags, a profile's About tab) sit
   in `ContentWidthCap` at `ContentWidths.management`; the search field
   stops at the same width; the reverse image search flow at
@@ -384,12 +406,14 @@ reviewed: 2026-11-15
   that width to `AppTopBar` (`contentWidth`, through `ReplicaScaffold`):
   the settings and download-settings pages at `ContentWidths.settings`, the
   download-tasks page at `ContentWidths.management`, comments
-  and bookmark tags at `ContentWidths.management`, the welcome and login
-  forms at `ContentWidths.form`. The toolbar's back target then starts on the
-  column's left edge, its title just past the back control, and its
-  actions end on the column's right edge; the bookmark tags page's
-  public/private switch in the title row follows the same edges. The
-  bar's surface and shadow still span the whole window, and below the
+  and bookmark tags at `ContentWidths.management`, and welcome/login
+  forms at `ContentWidths.form` (reverse-image search keeps its `AppTopBar`
+  left-aligned and groups its picker button under the engine chips). The
+  toolbar's back target then starts on the column's left edge, its title just
+  past the back control, and its actions end on the column's right edge; the
+  bookmark tags page's public/private switch and tag-feed subtitle inherit the
+  `AppTopBar` `DefaultTextStyle` foreground across branded and flat headers.
+  The bar's surface and shadow still span the whole window, and below the
   column width the bar keeps its page-edge layout.
 - **Why:** On a wide window the back button and the page's actions sat at
   the window's edges while the page content was a 600–840dp column in
@@ -432,18 +456,19 @@ reviewed: 2026-11-15
 - **Check:** `test/card_action_test.dart` "a PC opens the card actions as a menu beside the pointer" "the PC menu reads the state when it opens, outside build" "a mouse lights the card on hover and opens it on right-click" "a card takes focus, opens on Enter and shows its actions on the menu keys"; `test/illust_detail_actions_test.dart` "a PC opens the tag entries as a menu beside the chip"; `test/history_page_test.dart` "a PC right-click on a card offers Manage, then enters"; `test/illust_detail_download_test.dart` "a PC right-click offers the selection mode, then toggles"; `test/scroll_behavior_test.dart` "a mouse brings a scrollbar and keeps the list as it was"
 - **Code:** `lib/app/widgets/display_actions.dart`, `lib/app/motion/app_overlays.dart`, `lib/app/widgets/card_actions/card_action_sheet.dart`, `lib/app/widgets/tag_actions_sheet.dart`, `lib/app/widgets/bookmark_switch_button.dart`, `lib/app/widgets/feed/illust_card.dart`, `lib/app/scroll_behavior.dart`, `lib/app/pull_to_refresh.dart`
 
-### PAGE-24 Pointer work card hover pills and selectable comment lists
-- **Rule:** Under `InputModality.pointer`, `IllustCard` omits `PressScale` shrink
-  and touch long-press gestures (retaining secondary-click context menus and
-  keyboard menu keys), reveals 28dp author avatar and bookmark quick-action
-  hover pills along the card overlay footer, and wraps card content in
-  `SelectionContainer.disabled` to prevent stray drag selections. `CommentsPage`
-  wraps comment lists in `SelectionArea` while excluding the bottom
-  `CommentComposer`.
-- **Why:** Pointer cards benefit from single-click hover shortcuts instead of
-  touch scaling and hidden long presses, while comment threads should allow
-  direct text copying without interfering with card gestures.
-- **Check:** `test/desktop_ux_phase2_test.dart` "Pointer IllustCard omits PressScale and long-press and reveals quick author and bookmark hover pills" "SelectionArea wraps detail and comments text while excluding IllustCard, collapsed fade, and touch tags"
+### PAGE-24 Pointer work card hover feedback and selectable comment lists
+- **Rule:** Under `InputModality.pointer`, `IllustCard` keeps immediate
+  `PressScale` feedback (MOTION-23) while omitting touch long-press gestures
+  (retaining silent secondary-click context menus and keyboard menu keys),
+  shows a subtle `hoverColor` wash without duplicating card-surface author or
+  bookmark hover pills (while top-start R-18 badges still shift past multi-select
+  checkboxes), and wraps card content in `SelectionContainer.disabled` to
+  prevent stray drag selections. `CommentsPage` wraps comment lists in
+  `SelectionArea` while excluding `CommentComposer`.
+- **Why:** Pointer cards pair crisp click scaling and quiet hover feedback
+  without occluding artwork corners with redundant pills, while comment threads
+  allow direct text copying without interfering with card gestures.
+- **Check:** `test/desktop_ux_phase2_test.dart` "Pointer IllustCard keeps immediate PressScale, omits touch long-press, and uses subtle hover highlight without duplicate pills" "SelectionArea wraps detail and comments text while excluding IllustCard, collapsed fade, and touch tags"
 - **Code:** `lib/app/widgets/feed/illust_card.dart`, `lib/features/comments/comments_page.dart`
 
 ### PAGE-25 Five-scenario responsive and input-modality verification matrix

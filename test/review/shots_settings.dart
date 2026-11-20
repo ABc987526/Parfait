@@ -81,8 +81,8 @@ void main() {
     variants: {ShotVariant.dark, ShotVariant.ru},
     before: rearrange,
   );
-  // A blue system accent: actions and selection turn blue, the category
-  // circles keep their hues (bookmarks stays pink).
+  // A blue system accent: actions, selection pills, and active controls turn blue
+  // while monochrome Me/Settings icons follow surface/selection tokens cleanly.
   testShot(
     'settings/me-system-colors',
     location: '/settings',

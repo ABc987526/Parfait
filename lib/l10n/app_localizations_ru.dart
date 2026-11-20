@@ -908,6 +908,15 @@ class AppLocalizationsRu extends AppLocalizations {
   String get feedDensityComfortable => 'Свободная';
 
   @override
+  String get desktopDetailMode => 'Просмотр работы на ПК';
+
+  @override
+  String get desktopDetailModeModal => 'Большое окно';
+
+  @override
+  String get desktopDetailModeInspector => 'Боковая панель';
+
+  @override
   String get qualityMedium => 'Среднее';
 
   @override
@@ -1049,6 +1058,26 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get saveLocationUriCopied => 'URI папки скопирован';
+
+  @override
+  String get saveLocationDesktopFolder => 'Папка по умолчанию';
+
+  @override
+  String get saveLocationDesktopDefaultFolder => 'Папка Parfait (по умолчанию)';
+
+  @override
+  String get saveLocationDesktopCustomSubfolder => 'Имя подпапки';
+
+  @override
+  String get saveLocationDesktopCustomFolder =>
+      'Выбранная папка (системный выбор)';
+
+  @override
+  String get saveLocationMacosBookmarkLabel =>
+      'Разрешённая папка (закладка песочницы macOS)';
+
+  @override
+  String get saveLocationPathCopied => 'Путь к папке скопирован';
 
   @override
   String get namingPreset => 'Пресет имени файла';
@@ -1776,10 +1805,10 @@ class AppLocalizationsRu extends AppLocalizations {
   String get novelRankingCategories => 'Категории рейтинга новелл';
 
   @override
-  String get bottomBarItems => 'Пункты нижней панели';
+  String get bottomBarItems => 'Пункты навигации';
 
   @override
-  String get navigationBottomBar => 'Нижняя панель';
+  String get navigationBottomBar => 'Панель навигации';
 
   @override
   String get navigationRanking => 'Категории рейтинга';
@@ -1815,7 +1844,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get railDownloads => 'Загрузки';
 
   @override
-  String get homeStartFirstVisible => 'Первый пункт панели';
+  String get homeStartFirstVisible => 'Первый пункт навигации';
 
   @override
   String get homeStartLastUsed => 'Последняя открытая';
@@ -3045,6 +3074,10 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get spotlightChallengeFailed =>
       'pixivision сейчас требует проверки или прокси';
+
+  @override
+  String get spotlightExternalBrowserHint =>
+      'Встроенная проверка браузера недоступна на этой платформе. Откройте статью во внешнем браузере.';
 
   @override
   String get spotlightCategoryAll => 'Все';

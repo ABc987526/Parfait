@@ -26,6 +26,8 @@ import '../../../../core/settings/settings_controller.dart';
 import '../../../../l10n/context.dart';
 import '../../../../app/navigation/routes.dart';
 import '../../../../app/theme/func_semantic_tokens.dart';
+import '../../../../app/icons/app_icons.dart';
+import '../../../../app/icons/ui_icons.dart';
 
 class DetailPageImage extends ConsumerStatefulWidget {
   const DetailPageImage({
@@ -286,7 +288,7 @@ class _DetailPageImageState extends ConsumerState<DetailPageImage> {
                 onLongPress: widget.onLongPress,
                 actions: [
                   DisplayAction(
-                    icon: Icons.checklist_outlined,
+                    icon: UiIcons.checklist,
                     label: context.l10n.downloadSelectPages,
                     onSelected: widget.onLongPress,
                   ),
@@ -355,7 +357,10 @@ class _DetailPageImageState extends ConsumerState<DetailPageImage> {
                       : PixivImage.detail(
                           previewUrl,
                           fit: BoxFit.contain,
-                          transitionKey: widget.heroTag,
+                          transitionKey:
+                              widget.index == 0 && widget.heroImageUrl == null
+                              ? (#detailNoHero, widget.heroTag)
+                              : widget.heroTag,
                           tierKey: entity.imageTierKeyAt(widget.index),
                           tier: entity.imageTierOf(previewUrl),
                           tierUpgrade: !onHeroPhase,
@@ -903,7 +908,7 @@ class _DetailImageFallback extends StatelessWidget {
       color: colors.surfaceContainer,
       child: Center(
         child: Icon(
-          Icons.image_outlined,
+          AppIcons.illust,
           size: 36,
           color: colors.onSurfaceVariant.withValues(alpha: 0.55),
         ),
@@ -947,20 +952,20 @@ class _HoverQuickActionsBadge extends StatelessWidget {
                 child: CircularProgressIndicator(strokeWidth: 2),
               ),
               IllustPageSaveState.exist => Icon(
-                Icons.check_circle,
+                UiIcons.checkCircle,
                 color: colors.primary,
               ),
               IllustPageSaveState.error => Icon(
-                Icons.error_outline,
+                UiIcons.errorOutline,
                 color: colors.error,
               ),
-              IllustPageSaveState.none => const Icon(Icons.download_outlined),
+              IllustPageSaveState.none => const Icon(AppIcons.download),
             },
           ),
           IconButton(
             tooltip: l10n.downloadSelectPages,
             onPressed: onSelectPages,
-            icon: const Icon(Icons.checklist_outlined),
+            icon: const Icon(UiIcons.checklist),
           ),
         ],
       ),
@@ -996,22 +1001,22 @@ class _DownloadBadge extends StatelessWidget {
         child: CircularProgressIndicator(),
       ),
       (_, true) => Icon(
-        Icons.check_circle,
+        UiIcons.checkCircle,
         color: theme.colorScheme.primary,
         size: 30,
       ),
       (IllustPageSaveState.error, false) => Icon(
-        Icons.error_outline,
+        UiIcons.errorOutline,
         color: theme.colorScheme.error,
         size: 30,
       ),
       (IllustPageSaveState.exist, false) => Icon(
-        Icons.check,
+        UiIcons.check,
         color: theme.colorScheme.primary,
         size: 30,
       ),
       _ => Icon(
-        Icons.radio_button_unchecked,
+        UiIcons.circleUnchecked,
         color: theme.colorScheme.onSurfaceVariant,
         size: 30,
       ),

@@ -36,7 +36,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get system => '跟随系统';
 
   @override
-  String get loginTitle => '注册 或 登录';
+  String get loginTitle => '注册或登录';
 
   @override
   String get loginProxyNoticeTitle => '提示';
@@ -871,6 +871,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get feedDensityComfortable => '宽松';
 
   @override
+  String get desktopDetailMode => '桌面端详情样式';
+
+  @override
+  String get desktopDetailModeModal => '大图弹窗';
+
+  @override
+  String get desktopDetailModeInspector => '侧栏预览';
+
+  @override
   String get qualityMedium => '中图';
 
   @override
@@ -1009,6 +1018,24 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get saveLocationUriCopied => '已复制目录 URI';
+
+  @override
+  String get saveLocationDesktopFolder => '默认文件夹';
+
+  @override
+  String get saveLocationDesktopDefaultFolder => 'Parfait 文件夹（默认）';
+
+  @override
+  String get saveLocationDesktopCustomSubfolder => '自定义子文件夹名称';
+
+  @override
+  String get saveLocationDesktopCustomFolder => '自定义目录（系统目录选择）';
+
+  @override
+  String get saveLocationMacosBookmarkLabel => '已授权目录（macOS 沙盒书签）';
+
+  @override
+  String get saveLocationPathCopied => '已复制目录路径';
 
   @override
   String get namingPreset => '文件命名预设';
@@ -1715,10 +1742,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get novelRankingCategories => '小说排行分类';
 
   @override
-  String get bottomBarItems => '底栏项目';
+  String get bottomBarItems => '导航栏项目';
 
   @override
-  String get navigationBottomBar => '底栏';
+  String get navigationBottomBar => '导航栏';
 
   @override
   String get navigationRanking => '排行分类';
@@ -1754,7 +1781,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get railDownloads => '下载';
 
   @override
-  String get homeStartFirstVisible => '底栏第一项';
+  String get homeStartFirstVisible => '导航栏第一项';
 
   @override
   String get homeStartLastUsed => '上次停留的页';
@@ -2954,6 +2981,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get spotlightChallengeFailed => 'pixivision 当前需要验证或代理';
+
+  @override
+  String get spotlightExternalBrowserHint => '当前平台不支持内置浏览器验证，请在系统浏览器中查看。';
 
   @override
   String get spotlightCategoryAll => '全部';

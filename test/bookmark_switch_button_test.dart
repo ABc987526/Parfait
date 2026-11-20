@@ -14,9 +14,13 @@ import 'package:parfait/core/auth/account.dart';
 import 'package:parfait/core/auth/account_store.dart';
 import 'package:parfait/core/bookmark/bookmark_models.dart';
 import 'package:parfait/core/bookmark/bookmark_store.dart';
+import 'package:parfait/app/motion/app_overlays.dart';
 import 'package:parfait/app/widgets/bookmark_switch_button.dart';
+import 'package:parfait/app/widgets/settings/settings_control.dart';
 import 'helpers/prompt_host.dart';
 import 'helpers/localized_app.dart';
+import 'helpers/view_size.dart';
+import 'package:parfait/app/icons/app_icons.dart';
 
 Future<(ProviderContainer, BookmarkApi)> _pump(
   WidgetTester tester, {
@@ -42,8 +46,8 @@ Future<(ProviderContainer, BookmarkApi)> _pump(
 }
 
 /// The edit sheet's "private" switch row.
-SwitchListTile _privateSwitch(WidgetTester tester) =>
-    tester.widget<SwitchListTile>(find.widgetWithText(SwitchListTile, '私密'));
+SettingsControl _privateSwitch(WidgetTester tester) =>
+    tester.widget<SettingsControl>(find.widgetWithText(SettingsControl, '私密'));
 
 void main() {
   testWidgets('unknown state shows outline heart; tap sends public add (R3)', (
@@ -51,7 +55,7 @@ void main() {
   ) async {
     final (container, repository) = await _pump(tester);
 
-    expect(find.byIcon(Icons.favorite_outline_sharp), findsOneWidget);
+    expect(find.byIcon(AppIcons.heart), findsOneWidget);
     expect(find.bySemanticsLabel('收藏插画：work 1'), findsOneWidget);
     expect(
       tester.getSemantics(find.bySemanticsLabel('收藏插画：work 1')),
@@ -80,7 +84,7 @@ void main() {
       isTrue,
     );
     await tester.pump();
-    expect(find.byIcon(Icons.favorite_sharp), findsOneWidget);
+    expect(find.byIcon(AppIcons.heartFilled), findsOneWidget);
     expect(
       tester.getSemantics(find.bySemanticsLabel('收藏插画：work 1')),
       isSemantics(
@@ -125,7 +129,7 @@ void main() {
       HapticRole.success,
       HapticRole.error,
     ]);
-    expect(find.byIcon(Icons.favorite_outline_sharp), findsOneWidget);
+    expect(find.byIcon(AppIcons.heart), findsOneWidget);
   });
 
   testWidgets('an unconfirmed add already shows the filled heart', (
@@ -137,7 +141,7 @@ void main() {
     await tester.tap(find.byType(BookmarkSwitchButton));
     await tester.pump();
 
-    expect(find.byIcon(Icons.favorite_sharp), findsOneWidget);
+    expect(find.byIcon(AppIcons.heartFilled), findsOneWidget);
     expect(find.byType(CupertinoActivityIndicator), findsNothing);
     expect(
       tester.getSemantics(find.bySemanticsLabel('收藏插画：work 1')),
@@ -376,6 +380,35 @@ void main() {
     expect(repository.adds, isEmpty);
   });
 
+  testWidgets('dirty mobile sheet drag-down asks before discarding', (
+    tester,
+  ) async {
+    setViewSize(tester, const Size(390, 844));
+    await _pump(tester);
+    await tester.longPress(find.byType(BookmarkSwitchButton));
+    await tester.pumpAndSettle();
+    expect(find.byType(AppBottomSheet), findsOneWidget);
+
+    await tester.tap(find.text('私密'));
+    await tester.pumpAndSettle();
+
+    await tester.drag(find.text('收藏插画'), const Offset(0, 350));
+    await tester.pumpAndSettle();
+    expect(find.text('放弃未保存的修改？'), findsOneWidget);
+    expect(find.byType(AppBottomSheet), findsOneWidget);
+
+    await tester.tap(find.text('取消').last);
+    await tester.pumpAndSettle();
+    expect(find.byType(AppBottomSheet), findsOneWidget);
+    expect(_privateSwitch(tester).value, isTrue);
+
+    await tester.drag(find.text('收藏插画'), const Offset(0, 350));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('放弃修改'));
+    await tester.pumpAndSettle();
+    expect(find.byType(AppBottomSheet), findsNothing);
+  });
+
   testWidgets('turning the draft dirty keeps the sheet scrolled', (
     tester,
   ) async {
@@ -558,7 +591,7 @@ void main() {
           .read(bookmarkStoreProvider.notifier)
           .observeRemote(key, bookmarked: true, snapshotRevision: 0);
       expect(await peakScale(tester), 1);
-      expect(find.byIcon(Icons.favorite_sharp), findsOneWidget);
+      expect(find.byIcon(AppIcons.heartFilled), findsOneWidget);
 
       await tester.tap(find.byType(BookmarkSwitchButton));
       final (low, high) = await scaleRange(tester);

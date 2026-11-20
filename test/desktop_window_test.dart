@@ -651,6 +651,129 @@ void main() {
     );
 
     testWidgets(
+      'DesktopFallbackWindowChrome omits dragZone when disabled and yields to child buttons on macOS',
+      (tester) async {
+        tester.view.physicalSize = const Size(1280, 800);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.reset);
+
+        var backTaps = 0;
+        var drags = 0;
+        var doubleClicks = 0;
+        final enabled = ValueNotifier<bool>(false);
+        addTearDown(enabled.dispose);
+
+        final actions = DesktopWindowActions(
+          onMinimize: () {},
+          onToggleMaximize: () {},
+          onClose: () {},
+          onToggleFullScreen: () {},
+          onStartDragging: () => drags += 1,
+          onTitleBarDoubleClick: () => doubleClicks += 1,
+          onRegionsChanged: (_) {},
+        );
+        final chrome =
+            DesktopChromeMetrics.resolveData(
+              platform: TargetPlatform.macOS,
+              hostMetrics: const DesktopWindowPlatformMetrics(
+                usesSystemTitleBar: false,
+                trafficLightWidth: 78,
+                trafficLightHeight: 16,
+              ),
+              child: const SizedBox(),
+            ).copyWith(
+              actions: actions,
+              showSimulatedTrafficLights: true,
+              child: const SizedBox(),
+            );
+
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: replicaTheme(
+              Brightness.light,
+            ).copyWith(platform: TargetPlatform.macOS),
+            localizationsDelegates: appLocalizationsDelegates,
+            supportedLocales: const [Locale('en', 'US')],
+            home: ValueListenableBuilder<bool>(
+              valueListenable: enabled,
+              builder: (context, isEnabled, _) => DesktopFallbackWindowChrome(
+                enabled: isEnabled,
+                chrome: chrome,
+                child: Scaffold(
+                  body: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      const Positioned.fill(
+                        child: ColoredBox(color: Colors.black),
+                      ),
+                      Positioned(
+                        top: 0,
+                        left: chrome.leadingInset,
+                        child: BackButton(onPressed: () => backTaps += 1),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+
+        expect(
+          find.descendant(
+            of: find.byType(DesktopFallbackWindowChrome),
+            matching: find.byWidgetPredicate(
+              (w) =>
+                  w is GestureDetector &&
+                  w.behavior == HitTestBehavior.translucent,
+            ),
+          ),
+          findsNothing,
+        );
+        expect(
+          find.descendant(
+            of: find.byType(DesktopFallbackWindowChrome),
+            matching: find.byType(SimulatedMacTrafficLights),
+          ),
+          findsNothing,
+        );
+
+        enabled.value = true;
+        await tester.pump();
+        expect(
+          find.descendant(
+            of: find.byType(DesktopFallbackWindowChrome),
+            matching: find.byType(SimulatedMacTrafficLights),
+          ),
+          findsOneWidget,
+        );
+
+        // Tapping BackButton inside the top 32dp strip beside traffic lights
+        // must fire immediately without waiting for kDoubleTapTimeout.
+        await tester.tap(find.byType(BackButton));
+        await tester.pump();
+        expect(backTaps, 1);
+        expect(doubleClicks, 0);
+        expect(drags, 0);
+
+        // Empty title-bar area still drags and double-taps normally.
+        await tester.tapAt(const Offset(400, 16));
+        await tester.pump(kDoubleTapMinTime);
+        await tester.tapAt(const Offset(400, 16));
+        await tester.pump();
+        expect(doubleClicks, 1);
+
+        final dragGesture = await tester.startGesture(const Offset(400, 16));
+        await dragGesture.moveBy(const Offset(40, 0));
+        await dragGesture.up();
+        await tester.pump();
+        await tester.pump(kDoubleTapTimeout);
+        expect(drags, 1);
+      },
+    );
+
+    testWidgets(
       'openDownloadsFromRouter skips pre-home routes, deduplicates downloads, and keeps rail',
       (tester) async {
         final rootKey = GlobalKey<NavigatorState>();

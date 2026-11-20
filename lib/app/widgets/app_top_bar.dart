@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:material_ui/material_ui.dart';
 
 import 'package:flutter/foundation.dart';
@@ -9,9 +7,13 @@ import '../motion/hero_transition.dart'
 import '../motion/motion_tokens.dart';
 import '../system_ui.dart';
 import '../theme/func_semantic_tokens.dart';
-import '../window/desktop_title_bar.dart';
+import '../window/desktop_command_bar.dart' show DesktopCommandBarScope;
 import 'app_tab_bar.dart';
 import 'artwork_controls.dart';
+
+/// Fixed height of a flat desktop or embedded workspace header bar (`NAV-20`
+/// / `MasterDetailWorkspace`).
+const double kDesktopPageHeaderHeight = 52.0;
 
 /// The single entry point for page top bars: an [AppBar] that keeps the
 /// page colour in both states and casts a [ScrollEdgeShadow] over content
@@ -177,26 +179,46 @@ class _AppTopBarState extends State<AppTopBar> {
   Widget _buildBarWithInset(BuildContext context, double drawn) =>
       LayoutBuilder(
         builder: (context, constraints) {
+          final embedded = EmbeddedHeaderScope.isActiveOf(context);
           final width = widget.contentWidth;
-          final inset = width == null
+          final free = width == null
               ? 0.0
-              : ((constraints.maxWidth - width) / 2).clamp(
-                  0.0,
-                  double.infinity,
-                );
-          return _buildBar(context, drawn, inset);
+              : (constraints.maxWidth - width).clamp(0.0, double.infinity);
+          // Embedded detail headers sit in a left-aligned workspace column:
+          // keep the title flush on the left while stopping trailing actions
+          // on `contentWidth`.
+          final startInset = embedded ? 0.0 : free / 2;
+          final endInset = embedded ? free : free / 2;
+          return _buildBar(
+            context,
+            drawn,
+            startInset: startInset,
+            endInset: endInset,
+            embedded: embedded,
+          );
         },
       );
 
   /// [drawn] is the bar's presence: 1 the normal bar, 0 fully immersed.
-  /// [inset] is the space between the page's edge and the content column.
-  Widget _buildBar(BuildContext context, double drawn, double inset) {
+  /// [startInset] / [endInset] frame the toolbar over a capped content column.
+  Widget _buildBar(
+    BuildContext context,
+    double drawn, {
+    required double startInset,
+    required double endInset,
+    bool embedded = false,
+  }) {
     final theme = Theme.of(context);
     final barTheme = theme.appBarTheme;
-    final surface =
-        widget.backgroundColor ??
-        barTheme.backgroundColor ??
-        theme.colorScheme.surface;
+    final tokens = theme.extension<FuncSemanticTokens>();
+    final desktopOwned = DesktopCommandBarScope.isActiveOf(context);
+    final flatWorkspace =
+        (embedded || desktopOwned) && widget.immersion == null;
+    final surface = widget.backgroundColor != null
+        ? widget.backgroundColor!
+        : flatWorkspace
+        ? theme.scaffoldBackgroundColor
+        : barTheme.backgroundColor ?? theme.colorScheme.surface;
     final foreground = barTheme.foregroundColor ?? theme.colorScheme.onSurface;
     final immersed = drawn < 1;
     // Over artwork the controls take the shared artwork look; it fades
@@ -211,14 +233,18 @@ class _AppTopBarState extends State<AppTopBar> {
           );
     final bottom = widget.bottom;
     final title = widget.title;
-    // A content column centres the toolbar: the back target starts on the
-    // column's left edge, the actions end on its right edge, and the
-    // surface and shadow still span the page.
+    // A content column centres (or left-caps, when embedded) the toolbar:
+    // the back target starts on the column's left edge, the actions end on
+    // its right edge, and the surface and hairline still span the page.
+    // On desktop windows owned by DesktopCommandBar, top-level navigation
+    // back lives in the command bar rather than duplicating a page arrow
+    // (embedded detail panes keep their nested-stack back affordance).
     Widget? leading = widget.leading;
-    var automaticallyImplyLeading = widget.automaticallyImplyLeading;
+    var automaticallyImplyLeading =
+        widget.automaticallyImplyLeading && !(desktopOwned && !embedded);
     List<Widget>? actions = widget.actions;
     EdgeInsetsGeometry? actionsPadding;
-    if (inset > 0) {
+    if (startInset > 0) {
       if (leading == null && automaticallyImplyLeading) {
         // Build the implied back button here so it can take the inset;
         // the AppBar's own would sit on the page's edge.
@@ -229,17 +255,19 @@ class _AppTopBarState extends State<AppTopBar> {
       }
       if (leading != null) {
         leading = Padding(
-          padding: EdgeInsetsDirectional.only(start: inset),
+          padding: EdgeInsetsDirectional.only(start: startInset),
           child: leading,
         );
       }
+    }
+    if (endInset > 0) {
       if (actions == null || actions.isEmpty) {
         if (widget.tabsBesideTitle) {
           // No glyphs to inset; an empty trailing gutter stops the tabs
           // (the title row's expanded share) on the column's right edge.
           actions = [
             SizedBox(
-              width: (inset - NavigationToolbar.kMiddleSpacing).clamp(
+              width: (endInset - NavigationToolbar.kMiddleSpacing).clamp(
                 0.0,
                 double.infinity,
               ),
@@ -247,8 +275,28 @@ class _AppTopBarState extends State<AppTopBar> {
           ];
         }
       } else {
-        actionsPadding = EdgeInsetsDirectional.only(end: inset);
+        actionsPadding = EdgeInsetsDirectional.only(end: endInset);
       }
+    }
+    // AppBar wraps leading and actions in its own IconButtonTheme derived from
+    // iconTheme/actionsIconTheme (dropping disabledForegroundColor), so apply
+    // explicit 0.48 disabled alpha inside those slots without touching the
+    // global IconButtonTheme (which would override IconTheme.merge elsewhere).
+    final barIconColor = liftedIcons?.color ?? foreground;
+    final barIconButtonTheme = IconButtonThemeData(
+      style: IconButton.styleFrom(
+        foregroundColor: barIconColor,
+        disabledForegroundColor: barIconColor.withValues(alpha: 0.48),
+      ).merge(theme.iconButtonTheme.style),
+    );
+    if (leading != null) {
+      leading = IconButtonTheme(data: barIconButtonTheme, child: leading);
+    }
+    if (actions != null) {
+      actions = [
+        for (final action in actions)
+          IconButtonTheme(data: barIconButtonTheme, child: action),
+      ];
     }
     // A tab row standing in the title is the bar's leading content, not a
     // heading: there is no title text to mark, and the tabs stay tabs.
@@ -278,60 +326,86 @@ class _AppTopBarState extends State<AppTopBar> {
               Expanded(child: bottom!),
             ],
           );
-    final chromeTop =
-        DesktopChromeMetrics.maybeOf(context)?.effectiveTopInset ?? 0;
-    final statusInset = math.max(MediaQuery.paddingOf(context).top, chromeTop);
+    final bottomHeight = widget.tabsBesideTitle
+        ? 0.0
+        : (bottom?.preferredSize.height ?? 0.0);
+    final topPadding = MediaQuery.paddingOf(context).top;
     final toolbar = ValueListenableBuilder(
       valueListenable: _scrolledUnder,
-      builder: (context, scrolledUnder, bar) =>
-          ScrollEdgeShadow(visible: scrolledUnder && !immersed, child: bar!),
+      builder: (context, scrolledUnder, bar) => ScrollEdgeShadow(
+        visible: scrolledUnder && !immersed && !flatWorkspace,
+        child: bar!,
+      ),
       child: AppBar(
         leading: leading,
         automaticallyImplyLeading: automaticallyImplyLeading,
-        leadingWidth: inset > 0 ? inset + kToolbarHeight : null,
+        leadingWidth: startInset > 0 ? startInset + kToolbarHeight : null,
+        toolbarHeight: flatWorkspace ? kDesktopPageHeaderHeight : null,
         title: toolbarTitle == null || !immersed
             ? toolbarTitle
             : Opacity(opacity: drawn, child: toolbarTitle),
         excludeHeaderSemantics: widget.tabsBesideTitle || titleIsTabs,
-        titleSpacing: inset > 0 && leading == null
-            ? inset + (widget.titleSpacing ?? NavigationToolbar.kMiddleSpacing)
+        titleSpacing: embedded && leading == null
+            ? (widget.titleSpacing ?? FuncSpacing.xl)
+            : startInset > 0 && leading == null
+            ? startInset +
+                  (widget.titleSpacing ?? NavigationToolbar.kMiddleSpacing)
             : widget.titleSpacing,
         actions: actions,
         actionsPadding: actionsPadding,
         bottom: widget.tabsBesideTitle ? null : bottom,
-        backgroundColor: immersed
-            ? surface.withValues(alpha: surface.a * drawn)
-            : widget.backgroundColor,
-        foregroundColor: immersed ? foreground : null,
+        backgroundColor:
+            widget.backgroundColor ??
+            (flatWorkspace
+                ? theme.scaffoldBackgroundColor
+                : immersed
+                ? surface.withValues(alpha: surface.a * drawn)
+                : null),
+        foregroundColor: flatWorkspace && widget.backgroundColor == null
+            ? theme.colorScheme.onSurface
+            : immersed
+            ? foreground
+            : null,
+        titleTextStyle: flatWorkspace && widget.backgroundColor == null
+            ? theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: theme.colorScheme.onSurface,
+              )
+            : null,
         iconTheme: liftedIcons,
         actionsIconTheme: liftedIcons,
-        // The status strip is the page surface, so its icons follow the
-        // theme like the navigation bar's.
-        systemOverlayStyle: immersed
-            ? funcSystemBarsStyle(theme.brightness)
+        shape: tokens != null && flatWorkspace
+            ? Border(bottom: BorderSide(color: tokens.brandHairline))
+            : null,
+        // Decouple status-bar icon contrast (estimated from the actual top
+        // header fill so dynamic colors stay legible) from the bottom system
+        // navigation bar, which always follows the page brightness.
+        systemOverlayStyle: immersed || widget.backgroundColor != null
+            ? funcSystemBarsStyle(
+                immersed
+                    ? theme.brightness
+                    : ThemeData.estimateBrightnessForColor(surface),
+                navBarBackground: theme.brightness,
+              )
             : null,
         notificationPredicate: widget.notificationPredicate,
       ),
     );
-    return Stack(
-      fit: StackFit.passthrough,
-      children: [
-        if (immersed)
-          Positioned(
-            left: 0,
-            top: 0,
-            right: 0,
-            height: statusInset,
-            child: _entering(ColoredBox(color: surface)),
-          ),
-        if (widget.entrance == null)
-          toolbar
-        else
-          HeroChrome(
-            holdable: () => !widget.occludesContent,
-            child: _entering(toolbar),
-          ),
-      ],
+    final sizedToolbar = !flatWorkspace
+        ? toolbar
+        : Align(
+            alignment: Alignment.topCenter,
+            child: SizedBox(
+              height: kDesktopPageHeaderHeight + bottomHeight + topPadding,
+              child: toolbar,
+            ),
+          );
+    if (widget.entrance == null) {
+      return sizedToolbar;
+    }
+    return HeroChrome(
+      holdable: () => !widget.occludesContent,
+      child: _entering(sizedToolbar),
     );
   }
 }
@@ -359,6 +433,7 @@ class ScrollEdgeShadow extends StatelessWidget {
       context,
       MotionSpring.effectsFast,
     );
+    final tokens = FuncSemanticTokens.of(context);
     return Stack(
       fit: StackFit.passthrough,
       clipBehavior: Clip.none,
@@ -369,9 +444,22 @@ class ScrollEdgeShadow extends StatelessWidget {
               opacity: visible ? 1 : 0,
               duration: duration,
               curve: curve,
-              child: LiftableShadow(
-                shadows: FuncSemanticTokens.of(context).topBarShadow,
-                visible: visible,
+              child: Stack(
+                fit: StackFit.expand,
+                clipBehavior: Clip.none,
+                children: [
+                  LiftableShadow(
+                    shadows: tokens.topBarShadow,
+                    visible: visible,
+                  ),
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: -1,
+                    height: 1,
+                    child: ColoredBox(color: tokens.brandHairline),
+                  ),
+                ],
               ),
             ),
           ),
@@ -380,4 +468,27 @@ class ScrollEdgeShadow extends StatelessWidget {
       ],
     );
   }
+}
+
+/// Marks top bars hosted inside an embedded desktop detail pane (such as the
+/// right navigator of master-detail settings) so they render as flat,
+/// left-aligned workspace headers rather than mobile colored bars.
+class EmbeddedHeaderScope extends InheritedWidget {
+  const EmbeddedHeaderScope({
+    super.key,
+    this.active = true,
+    required super.child,
+  });
+
+  final bool active;
+
+  static bool isActiveOf(BuildContext context) =>
+      context
+          .dependOnInheritedWidgetOfExactType<EmbeddedHeaderScope>()
+          ?.active ??
+      false;
+
+  @override
+  bool updateShouldNotify(EmbeddedHeaderScope oldWidget) =>
+      active != oldWidget.active;
 }

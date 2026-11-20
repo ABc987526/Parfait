@@ -221,6 +221,15 @@ tasks.configureEach {
     }
 }
 
+// Parfait locks Forui typography to the platform font (THEME-02,
+// `forui_theme_bridge.dart`), so Forui's bundled Inter variable fonts
+// (~953 KB compressed / 1.78 MB raw per ABI) are never loaded at runtime.
+tasks.withType<Copy>().configureEach {
+    if (name.startsWith("copyFlutterAssets")) {
+        exclude("**/packages/forui/assets/fonts/inter/**")
+    }
+}
+
 kotlin {
     compilerOptions {
         jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17

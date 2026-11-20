@@ -4,7 +4,7 @@ applies_to:
   - lib/app/theme/**
   - lib/app/widgets/**
   - lib/app/app.dart
-reviewed: 2026-11-15
+reviewed: 2026-11-18
 ---
 
 # Theme, color and type
@@ -20,15 +20,20 @@ reviewed: 2026-11-15
 ## Sources
 
 ### THEME-01 One theme, read from context
-- **Rule:** `replicaTheme` builds the only light and dark `ThemeData`.
-  Feature code reads colors, text styles and component defaults from
-  `Theme.of(context)`; it never builds a second palette or copies a
-  component theme locally. `MaterialUiCompatibilityBridge` is installed
-  once in the app builder.
+- **Rule:** `replicaTheme` builds the only light and dark `ThemeData` (with
+  `NoSplash.splashFactory` and visible `onSurface` `highlightColor`,
+  `hoverColor` and `focusColor` state layers so `InkWell`, `ListTile` and
+  buttons keep crisp press/hover/focus feedback; tinted pills put their fill on
+  the outer `Material` rather than inside `InkWell.child`). Feature code reads
+  colors, text styles and component defaults from `Theme.of(context)`; it never
+  builds a second palette or copies a component theme locally.
+  `MaterialUiCompatibilityBridge` and `ForuiThemeHost` (`foruiThemeFrom` + `_ForuiDelegate` for the four shipped locales, defaulting to `FHapticFeedback.none()`) are installed inside the app builder so Forui widgets read the resolved `ColorScheme`, `FuncSemanticTokens`, `MotionScope`, and platform typography one-way without bundled fonts.
 - **Why:** Local palettes drifted from the theme and broke dark mode and
-  system colors.
-- **Check:** manual
-- **Code:** `lib/app/theme/replica_theme.dart`, `lib/app/app.dart`
+  system colors; a transparent `highlightColor` under `NoSplash` left rows and
+  buttons with zero press feedback, and opaque child boxes hid `InkWell` state
+  layers.
+- **Check:** `test/replica_theme_test.dart` "replicaTheme provides visible pressed state feedback for InkWell, ListTile, and buttons"; `test/phase3_forui_bridge_test.dart` "foruiThemeFrom bridges colors, hairlines, haptics, and keeps platform font" "ForuiThemeHost forwards MotionScope reduce to FAccessibilityMotion.disabled"
+- **Code:** `lib/app/theme/replica_theme.dart`, `lib/app/theme/forui_theme_bridge.dart`, `lib/l10n/app_localizations_delegates.dart`, `lib/app/app.dart`
 
 ### THEME-02 No bundled font
 - **Rule:** Text renders in the platform font with the engine's fallback
@@ -61,24 +66,25 @@ reviewed: 2026-11-15
 - **Check:** `test/architecture/format_and_font_test.dart` "the accent comes from the theme, not the brand constant"
 - **Code:** `lib/app/theme/func_tokens.dart`
 
-### THEME-05 System colors replace only the accent roles
-- **Rule:** A system palette supplies `primary`, `onPrimary`,
-  `primaryContainer`, `onPrimaryContainer`, `inversePrimary` and
-  `surfaceTint`; `brand` / `onBrand` become its `primary` / `onPrimary`.
-  Neutrals and the surface ladder stay on `FuncTokens`: text, dividers
-  and the inverse surfaces are warm grays that carry the brand hue at a
-  very low chroma; the page and container ladder carries the brand pink
-  at a little more, rising with the tier (OKLCH chroma about 0.009 on the
-  light page and 0.011 on the dark one, up to 0.020 on the highest
-  container; hue about 345° light, 350° dark), at the grays' lightness. Status colors and the bookmarked heart stay
-  fixed too.
-- **Why:** The surface ladder and text contrast are tuned and tested on the
-  app's own neutrals; a wallpaper palette would break them. User decision:
-  the cold grays read as foreign next to the pink. User decision (11-09):
-  the pages and cards carry the pink in both themes; a hue-only shift of
-  the grays changed nothing visible.
-- **Check:** `test/replica_theme_test.dart` "a system palette replaces only the accent roles"
-- **Code:** `lib/app/theme/system_colors.dart`, `lib/app/theme/replica_theme.dart`
+### THEME-05 System colors drive accents and the full surface ladder
+- **Rule:** When a system palette (`systemColors`) is supplied, it drives both
+  accent roles (`primary`, `onPrimary`, `primaryContainer`, `onPrimaryContainer`,
+  `inversePrimary`, `surfaceTint`, `brand`, `onBrand`) and the full M3 surface,
+  container, and neutral ladder (`surface`, `surfaceContainerLowest..Highest`,
+  `secondary`, `secondaryContainer`, `onSurface`, `onSurfaceVariant`,
+  `outline`, `outlineVariant`, `inverseSurface`, `onInverseSurface`, plus
+  `FuncSemanticTokens.canvas`, `surface`, `surfaceRaised`, `contentPrimary`,
+  `contentSecondary`, `divider`). Without a system palette, neutrals and the
+  page/container ladder stay on Mika's `FuncTokens` warm-sakura ramp; status
+  colors and the bookmarked heart always stay fixed.
+- **Why:** User decision (11-19): after moving top bars to the clean canvas
+  surface, limiting system colors to accent slots left ~90% of the viewport on
+  hardcoded pink-tinted neutrals so wallpaper color appeared inactive. Driving
+  the full M3 tonal surface ladder makes wallpaper tinting coherent across
+  canvases, bars, cards, and Forui controls while keeping the default Mika
+  palette untouched when system colors are off.
+- **Check:** `test/replica_theme_test.dart` "a system palette drives accent, surface ladder, and semantic tokens"
+- **Code:** `lib/app/theme/system_colors.dart`, `lib/app/theme/replica_theme.dart`, `lib/app/theme/func_semantic_tokens.dart`
 
 ### THEME-21 No system palette is a fallback, not an error
 - **Rule:** `systemColorSchemesProvider` reads `MissingPluginException`
@@ -112,10 +118,9 @@ reviewed: 2026-11-15
   tonal buttons and progress tracks take the ladder's highest tier
   (faintly pink with it, THEME-05), never the accent. Group titles use
   `onSurfaceVariant`, never `primary`. Selected controls use
-  `primaryContainer` / `onPrimaryContainer`. Category tones
-  (`categoryTone`) are not the accent: they color only the icon circles
-  of top-level entries, by the kind of place each opens, and stay fixed
-  under system colors. Tag
+  `primaryContainer` / `onPrimaryContainer`. Top-level Settings and Me
+  entries use monochrome `AppIcons` on neutral surfaces (no multi-hue
+  category color discs; SET-08). Tag
   chips are neutral pills; only keyboard focus rings them in the accent.
   A disabled control takes M3's disabled colors (`onSurface` at 0.38 for
   content, 0.12 for containers), never the accent, even when it is on.
@@ -129,15 +134,14 @@ reviewed: 2026-11-15
   `DangerFilledButton` in `error` / `onError`; a reversible confirm keeps
   the brand fill.
 - **Why:** User decision: the accent loses its meaning when it decorates.
-  A system accent that recolored bookmarks collided with whichever
-  category shared its hue. A locked switch drawn in the accent read as
-  tappable. A red filter count read as an error; a pink description read
-  as a second selected item; removing an account in the same pink as
-  saving a setting gave no pause.
+  Removing multi-hue category discs prevents system colors and bookmarks
+  from competing with rainbow chrome, while a locked switch drawn in the
+  accent read as tappable, a red filter count read as an error, and removing
+  an account in the same pink as saving a setting gave no pause.
 - **Check:** `test/replica_theme_test.dart` "a disabled switch that is on takes no accent", "text on the error fill reads at 4.5:1 in both themes"
-- **Code:** `lib/app/theme/replica_theme.dart`, `lib/app/theme/category_colors.dart`, `lib/app/widgets/tag_chips.dart`, `lib/app/widgets/danger_filled_button.dart`, `lib/app/widgets/settings/settings_choice_tile.dart`
+- **Code:** `lib/app/theme/replica_theme.dart`, `lib/app/widgets/settings/settings_tile.dart`, `lib/app/widgets/tag_chips.dart`, `lib/app/widgets/danger_filled_button.dart`, `lib/app/widgets/settings/settings_choice_tile.dart`
 
-### THEME-18 The accent is two colors: text and fill
+### THEME-18 The accent is two colors: text and fill, plus canvas top bars
 - **Rule:** With the default palette, `colorScheme.primary` paints text,
   small icons, indicators and outlines: #B44673 on the light theme,
   #EBA6C6 on the dark. `FuncSemanticTokens.brand` (#E077A6 in both) under
@@ -145,18 +149,26 @@ reviewed: 2026-11-15
   `filledButtonTheme`, the follow button, the solid `ReplicaButton`.
   Selection is a pale container under dark text on the light theme
   (#F5D6E4 / #6D3047) and a deep one under light text on the dark
-  (#5C3443 / #FEE8F3); it is never the fill. These, and
-  `inversePrimary`, are tokens, not M3's generated tones. A system
-  palette paints all of them from its own roles.
+  (#5C3443 / #FEE8F3); it is never the fill. Top bars (`AppTopBar`) use the
+  unified clean page canvas (`FuncSemanticTokens.canvas`) across all five
+  platforms (`brandedHeaderSurface == canvas`, `brandedHeaderForeground == text`,
+  `brandedHeaderTabUnselected == textSecondary`), revealing `topBarShadow` and
+  a `1dp` `brandHairline` edge in `ScrollEdgeShadow` when content scrolls under
+  the bar (while `FuncBottomNav` draws a continuous `1dp` top `brandHairline`).
+  `replicaTheme` keeps `TextButtonThemeData` disabled alpha at `0.48` and sets
+  `ProgressIndicatorThemeData` (`primary` / `brandHairline` track /
+  `StrokeCap.round`); `AppTopBar` wraps `leading` and `actions` in
+  `IconButtonTheme` with `0.48` disabled alpha so disabled controls stay
+  `>= 0.45` without breaking `IconTheme.merge` elsewhere. A system palette
+  drives both accent roles and the M3 surface/neutral ladder (THEME-05).
 - **Why:** The brand pink measured about 2.9:1 as text on the light page.
-  User decision: fills keep the brand pink with white text
-  (2.85:1, accepted); M3's own deeper tones read as berry red, and a pink
-  container under dark text was rejected. User decision (11-09): the pink
-  is a soft cherry-blossom pink taken from an illustration's hair, the
-  text tier deepened along its shading, which warms as it darkens; M3's
-  generated selection tones drifted toward purple.
-- **Check:** `test/replica_theme_test.dart` "fills are the brand pink under white; selection stays tonal"
-- **Code:** `lib/app/theme/replica_theme.dart`, `lib/app/theme/func_tokens.dart`
+  User decision: fills keep the brand pink with white text (2.85:1, accepted),
+  cherry-blossom text/selection tokens avoid M3's purple drift, and unifying
+  compact phone top bars onto the clean canvas eliminates harsh light-mode
+  blocks and brings cross-platform visual parity with a whisper-thin hairline on
+  scroll.
+- **Check:** `test/replica_theme_test.dart` "fills are the brand pink under white; selection stays tonal" "header tokens use clean canvas and keep >= 4.5:1 contrast"; `test/shared_widgets_test.dart` "AppTopBar keeps disabled IconButton and TextButton foreground alpha >= 0.45"
+- **Code:** `lib/app/theme/replica_theme.dart`, `lib/app/theme/func_tokens.dart`, `lib/app/theme/func_semantic_tokens.dart`, `lib/app/widgets/app_top_bar.dart`, `lib/app/widgets/func_bottom_nav.dart`
 
 ### THEME-08 Status color goes on the icon, not the text
 - **Rule:** In status rows the icon carries the semantic color (success,
@@ -174,11 +186,15 @@ reviewed: 2026-11-15
 - **Check:** manual
 - **Code:** `lib/app/widgets/tag_chips.dart`
 
-### THEME-10 Prompts are inverted chrome
-- **Rule:** Prompts use `inverseSurface` / `onInverseSurface` with
-  `inversePrimary` actions, and float at the layer elevation like the
-  other layers (THEME-20). Do not restyle them to a container tier.
-- **Why:** A container-tier prompt blends into sheets and cards.
+### THEME-10 Prompts follow inverted light / elevated dark chrome
+- **Rule:** On light themes, prompts (`PromptHost`) use `inverseSurface` /
+  `onInverseSurface` with `inversePrimary` actions; on dark themes, prompts use
+  `surfaceContainerHigh` with `onSurface` text, `primary` actions, and a
+  `outlineVariant` border (`FuncShape.card`), floating at the layer elevation
+  (THEME-20).
+- **Why:** Light themes need high-contrast dark banners, whereas dark themes
+  avoid harsh white slabs by elevating onto `surfaceContainerHigh` with a crisp
+  hairline border so toasts stay legible above sheets and cards.
 - **Check:** manual
 - **Code:** `lib/app/widgets/prompt_host.dart`
 
@@ -196,13 +212,14 @@ reviewed: 2026-11-15
 ### THEME-12 Spacing and radii use tokens
 - **Rule:** In `lib/app/**` and `lib/features/**` (outside
   `lib/app/theme/**`), numeric `EdgeInsets` and `Radius.circular` values,
-  and `SizedBox` gaps between children, use `FuncSpacing` and `FuncShape`.
-  Pick the nearest token (6 → `sm`, 10 → `md` for card text indent else
-  `sm`, 20 → `xl` for page margins else `lg`, 28 → `xxl`). Exceptions are
-  allow-listed per file with a reason and a count.
+  and `SizedBox` gaps between children, use `FuncSpacing` and `FuncShape`
+  (`badge` 6, `control` 10, `card` 12, `panel` 16, `dialog` 18, `sheet` top-22,
+  `pill` 999). Pick the nearest spacing token (6 → `sm`, 10 → `md` for card text
+  indent else `sm`, 20 → `xl` for page margins else `lg`, 28 → `xxl`).
+  Exceptions are allow-listed per file with a reason and a count.
 - **Why:** Hand-picked values drifted page by page.
 - **Check:** `test/architecture/spacing_tokens_test.dart`
-- **Code:** `lib/app/theme/func_tokens.dart`
+- **Code:** `lib/app/theme/func_semantic_tokens.dart`, `lib/app/theme/func_tokens.dart`
 
 ### THEME-13 Text fields share one look
 - **Rule:** Text fields use the theme's outlined decoration with a
@@ -249,20 +266,36 @@ reviewed: 2026-11-15
 - **Check:** `test/illust_card_badges_test.dart`
 - **Code:** `lib/app/widgets/entity_row.dart`
 
-### THEME-16 Icons are outlined; filled marks a state
-- **Rule:** An action, a destination or a placeholder uses the outlined
-  icon. The filled twin only marks a state: a toggle that is on (a
-  muted work or author, a work in watch-later) or a status (a download
-  task's). One glyph, one meaning: the bookmark is watch-later, the heart
-  is a pixiv bookmark, `collections_bookmark` is a series, the library
-  stack is following series (`library_books`, toggled with `library_add`
-  / `library_add_check`), the circled minus removes from a list,
-  `manage_accounts` opens account management. Unmuting is a text
-  button: no icon says it.
-- **Why:** The same action showed filled on one page and outlined on the
-  next; one bookmark glyph meant two features, and an eye read as "view".
-- **Check:** `test/architecture/icon_style_test.dart` "a filled icon with an outlined twin marks a state"
-- **Code:** `lib/app/widgets/card_actions/illust_card_actions.dart`, `lib/app/widgets/watchlist_toggle.dart`
+### THEME-16 Icons are unified outlined vector glyphs; filled marks selection or state
+- **Rule:** App UI icons come from two unified fine-stroke vector families:
+  custom `24×24` MingCute / Pixiv glyphs compiled deterministically into
+  `assets/icon.ttf` (`AppIcons` in `lib/app/icons/app_icons.dart`, built via
+  `tool/build_icons.py`), and `forui`'s bundled Lucide icons bridged through
+  `UiIcons` (`lib/app/icons/ui_icons.dart` -> `FLucideIcons`, including
+  automatic `matchTextDirection` mirroring on directional arrows/chevrons,
+  horizontal `UiIcons.more` ellipsis for overflow menus, and `UiIcons.dropdown`
+  `chevronsUpDown` for menu triggers). No raw Material `Icons.*` or unbridged
+  `FLucideIcons.*` appears in `lib/` outside `lib/app/icons/` (platform-native
+  `BackButtonIcon` remains system-supplied). An action, an unselected
+  destination or a placeholder uses the outlined glyph. The `*Filled` twin marks
+  a state: a selected primary navigation or workspace rail destination
+  (`FuncBottomNav`, `ShellRail`, `SettingsPage`, `MeDashboardPage`), a toggle
+  that is on (a muted work `AppIcons.eyeOffFilled`, muted user
+  `AppIcons.userOffFilled`, bookmarked heart `AppIcons.heartFilled`,
+  watch-later `AppIcons.watchLaterFilled`), or a download task status.
+  One glyph, one meaning: `AppIcons.watchLater` is watch-later,
+  `AppIcons.heart` is a pixiv bookmark, `AppIcons.series` is a series,
+  `AppIcons.watchlistAdd` / `AppIcons.watchlistAdded` toggles following
+  series, `AppIcons.motion` badges Ugoira works while `AppIcons.playCircle`
+  overlays the playable preview, and `AppIcons.accountManage` opens
+  account management. Unmuting is a text button: no icon says it.
+- **Why:** Mixing stock Material outlines and uneven icon sets broke
+  stroke weight consistency and muddled meanings across pages; unifying
+  every glyph under `AppIcons` and `UiIcons` keeps optical geometry and stroke
+  weight consistent while preserving distinct outlined vs `*Filled` state
+  contrast across light, dark, mobile, and desktop shells.
+- **Check:** `test/architecture/icon_style_test.dart` "a filled icon with an outlined twin marks a state", `test/icon_font_test.dart` "pubspec registers the iconFont family pointing at assets/icon.ttf"
+- **Code:** `lib/app/icons/app_icons.dart`, `lib/app/icons/ui_icons.dart`, `tool/build_icons.py`, `lib/app/widgets/card_actions/illust_card_actions.dart`, `lib/app/widgets/watchlist_toggle.dart`
 
 ### THEME-17 Every icon button names its action
 - **Rule:** Every `IconButton` has a localized tooltip saying what it
@@ -313,17 +346,23 @@ reviewed: 2026-11-15
   layer elevation. Lifts and `colorScheme.shadow` are the cocoa ink on the
   light theme, not black; the bar shadow stays neutral. A translucent
   layer frosts what passes under it and draws its lift outside its own
-  shape. Work cards take no shadow and no outline. The shadows:
+  shape. Work cards and feed artwork thumbnails take no shadow or inner
+  border (pure `ClipRRect` at `FuncShape.card` in both light and dark themes;
+  desktop hover and keyboard focus rings remain in `IllustCard`). The shadows:
   - `barShadow` and `topBarShadow` where content scrolls under a bar;
   - `layerLift` under a layer resting above the page (the detail capsule);
   - `cardLift` under a card that is an object of its own (the detail
     author card);
-  - elevation 6 in `colorScheme.shadow` for menus, dialogs, modal sheets
-    and prompts.
+  - elevation 6 in `colorScheme.shadow` and a `1dp` `brandHairline` border
+    for menus, dialogs (`AppAlertDialog` backed by `FDialog` with an inner
+    transparent `Material`), linear bars (`AppProgressBar` backed by
+    `FDeterminateProgress` / `FProgress`), modal sheets, adaptive
+    popovers/side-sheets, and prompts in both light and dark themes.
 - **Why:** User decision: depth may grow richer, but a shadow says above
   or under and never decorates. Through the unfrosted 85% capsule, passing
   captions and badges smeared; a whole-shape shadow under a translucent
   surface darkened the surface itself. Flat menus, dialogs and prompts
-  read as part of the page.
-- **Check:** manual (review shots of the overlays, light and dark)
-- **Code:** `lib/app/theme/func_tokens.dart`, `lib/app/theme/func_semantic_tokens.dart`, `lib/app/theme/replica_theme.dart`, `lib/features/illust/detail/widgets/detail_action_bar.dart`
+  read as part of the page, while a 1dp `brandHairline` keeps light and dark
+  overlays separated on every backdrop.
+- **Check:** `test/replica_theme_test.dart` "overlays and progress indicators share brandHairline across themes"
+- **Code:** `lib/app/theme/func_tokens.dart`, `lib/app/theme/func_semantic_tokens.dart`, `lib/app/theme/replica_theme.dart`, `lib/app/theme/forui_theme_bridge.dart`, `lib/app/widgets/app_dialog.dart`, `lib/app/widgets/app_progress_bar.dart`, `lib/app/motion/app_overlays.dart`, `lib/app/widgets/app_spinner.dart`, `lib/features/illust/detail/widgets/detail_action_bar.dart`

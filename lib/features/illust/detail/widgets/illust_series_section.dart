@@ -15,6 +15,7 @@ import '../../../../core/series/series_store.dart';
 import '../../../../l10n/context.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../../app/theme/func_semantic_tokens.dart';
+import '../../../../app/icons/ui_icons.dart';
 
 /// Detail-page sliver between the image pages and [InfoBlock]: the series
 /// card when this work belongs to a series (prev/next navigation included).
@@ -147,14 +148,14 @@ class _SeriesCardView extends ConsumerWidget {
                   onPressed: context.prevIllustId == null
                       ? null
                       : () => openNeighbour(context.prevIllustId),
-                  icon: const Icon(Icons.chevron_left),
+                  icon: const Icon(UiIcons.chevronLeft),
                 ),
                 IconButton(
                   tooltip: buildContext.l10n.seriesNext,
                   onPressed: context.nextIllustId == null
                       ? null
                       : () => openNeighbour(context.nextIllustId),
-                  icon: const Icon(Icons.chevron_right),
+                  icon: const Icon(UiIcons.chevronRight),
                 ),
               ],
             ),

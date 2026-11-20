@@ -7,6 +7,7 @@ import 'package:parfait/app/theme/func_semantic_tokens.dart';
 import 'package:parfait/app/theme/replica_theme.dart';
 import 'package:parfait/app/widgets/app_tab_bar.dart';
 import 'package:parfait/app/widgets/app_top_bar.dart';
+import 'package:parfait/app/widgets/scroll_edge_fade.dart';
 import 'helpers/localized_app.dart';
 import 'helpers/view_size.dart';
 
@@ -91,6 +92,21 @@ void main() {
     ]) {
       await _pumpBar(tester, labels, textScale: textScale);
       expect(tester.takeException(), isNull);
+      final fadeFinder = find.descendant(
+        of: find.byType(AppTabBar),
+        matching: find.byType(ScrollEdgeFade),
+      );
+      expect(fadeFinder, findsOneWidget);
+      expect(
+        find.descendant(of: fadeFinder, matching: find.byType(ShaderMask)),
+        findsOneWidget,
+      );
+      if (labels.length > 4) {
+        expect(tester.state<ScrollEdgeFadeState>(fadeFinder).fades, (
+          false,
+          true,
+        ));
+      }
       for (final label in labels) {
         final paragraph = _label(tester, label);
         expect((paragraph.text as TextSpan).style!.fontSize, 14, reason: label);
@@ -264,6 +280,18 @@ void main() {
       expect(opacity(), 1);
       final cast = tester.widget<LiftableShadow>(
         find.descendant(of: shadow, matching: find.byType(LiftableShadow)),
+      );
+      expect(
+        find.descendant(
+          of: shadow,
+          matching: find.byWidgetPredicate(
+            (w) =>
+                w is ColoredBox &&
+                w.color ==
+                    FuncSemanticTokens.of(tester.element(shadow)).brandHairline,
+          ),
+        ),
+        findsOneWidget,
       );
       // Cast down, over the content under the bar, as the bottom bar's goes up.
       expect(

@@ -1,6 +1,15 @@
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/rendering.dart'
+    show
+        BoxHitTestResult,
+        HitTestEntry,
+        RenderBox,
+        RenderMouseRegion,
+        RenderSemanticsAnnotations,
+        RenderStack,
+        StackParentData;
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
@@ -323,7 +332,7 @@ class _DesktopWindowFrameState extends State<DesktopWindowFrame> {
   ) {
     _lastActions = actions;
     _lastChrome = chrome;
-    if (widget.suppressOverlayBar) {
+    if (widget.suppressOverlayBar && !chrome.isFullScreen) {
       _lastRegionSignature = null;
       return;
     }
@@ -947,5 +956,304 @@ class SimulatedMacTrafficLights extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// Floating window chrome (caption drag zone, native/simulated traffic lights,
+/// and custom minimize/maximize/close buttons) mounted when `DesktopCommandBar`
+/// hides itself on desktop (e.g. inside `ImageViewerPage`).
+class DesktopFallbackWindowChrome extends StatefulWidget {
+  const DesktopFallbackWindowChrome({
+    super.key,
+    this.enabled = true,
+    required this.chrome,
+    required this.child,
+  });
+
+  final bool enabled;
+  final DesktopChromeMetrics chrome;
+  final Widget child;
+
+  @override
+  State<DesktopFallbackWindowChrome> createState() =>
+      _DesktopFallbackWindowChromeState();
+}
+
+class _DesktopFallbackWindowChromeState
+    extends State<DesktopFallbackWindowChrome> {
+  final GlobalKey _dragKey = GlobalKey();
+  final GlobalKey _maximizeKey = GlobalKey();
+  final GlobalKey _captionButtonsKey = GlobalKey();
+
+  bool _regionMeasurePending = false;
+  String? _lastRegionSignature;
+  DesktopChromeMetrics? _lastChrome;
+
+  bool get _isActive => widget.enabled && widget.chrome.hasCustomChrome;
+
+  void _clearPublishedRegions() {
+    if (_lastRegionSignature == null) return;
+    _lastRegionSignature = null;
+    final actions = _lastChrome?.actions;
+    if (actions == null) return;
+    final publishWithHeight = actions.onRegionsWithHeightChanged;
+    if (publishWithHeight != null) {
+      publishWithHeight(const [], 0);
+    } else {
+      actions.onRegionsChanged(const []);
+    }
+  }
+
+  @override
+  void didUpdateWidget(DesktopFallbackWindowChrome oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _lastChrome = widget.chrome;
+    if (!_isActive) {
+      _clearPublishedRegions();
+    }
+  }
+
+  @override
+  void dispose() {
+    _clearPublishedRegions();
+    super.dispose();
+  }
+
+  void _scheduleRegionPublish(DesktopChromeMetrics chrome) {
+    _lastChrome = chrome;
+    final actions = chrome.actions;
+    if (actions == null || _regionMeasurePending) return;
+    _regionMeasurePending = true;
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      _regionMeasurePending = false;
+      if (!mounted || !_isActive) return;
+      final currentChrome = _lastChrome;
+      final currentActions = currentChrome?.actions;
+      if (currentActions == null || currentChrome == null) return;
+      final regions = <DesktopTitleBarRegion>[];
+      if (currentChrome.hasCustomChrome) {
+        final dragRect = _globalRectOf(_dragKey);
+        if (dragRect != null && !dragRect.isEmpty) {
+          regions.add(DesktopTitleBarRegion(rect: dragRect, kind: 'caption'));
+        }
+        if (currentChrome.showCustomButtons) {
+          final maxRect = _globalRectOf(_maximizeKey);
+          if (maxRect != null && !maxRect.isEmpty) {
+            regions.add(DesktopTitleBarRegion(rect: maxRect, kind: 'maximize'));
+          }
+          final buttonsRect = _globalRectOf(_captionButtonsKey);
+          if (buttonsRect != null && !buttonsRect.isEmpty) {
+            regions.add(
+              DesktopTitleBarRegion(rect: buttonsRect, kind: 'buttons'),
+            );
+          }
+        }
+      }
+      final signature = [
+        for (final r in regions)
+          '${r.kind}:${r.rect.left.toStringAsFixed(1)},'
+              '${r.rect.top.toStringAsFixed(1)},'
+              '${r.rect.right.toStringAsFixed(1)},'
+              '${r.rect.bottom.toStringAsFixed(1)}',
+      ].join(';');
+      if (signature == _lastRegionSignature) return;
+      _lastRegionSignature = signature;
+      final publishWithHeight = currentActions.onRegionsWithHeightChanged;
+      if (publishWithHeight != null && currentChrome.hasCustomChrome) {
+        publishWithHeight(regions, currentChrome.titleBarHeight);
+      } else {
+        currentActions.onRegionsChanged(regions);
+      }
+    });
+  }
+
+  Rect? _globalRectOf(GlobalKey key) {
+    final renderObject = key.currentContext?.findRenderObject();
+    if (renderObject is! RenderBox ||
+        !renderObject.attached ||
+        !renderObject.hasSize) {
+      return null;
+    }
+    return renderObject.localToGlobal(Offset.zero) & renderObject.size;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final chrome = widget.chrome;
+    _lastChrome = chrome;
+    if (!widget.enabled || !chrome.hasCustomChrome) {
+      _clearPublishedRegions();
+      return _DesktopFallbackChromeStack(
+        hasDragZone: false,
+        children: [widget.child],
+      );
+    }
+    _scheduleRegionPublish(chrome);
+    final platform = Theme.of(context).platform;
+    final actions = chrome.actions;
+    final showMacLights =
+        platform == TargetPlatform.macOS && chrome.showSimulatedTrafficLights;
+    final dragZone = Positioned(
+      top: 0,
+      left: chrome.showCustomButtons ? 0 : chrome.leadingInset,
+      right: chrome.trailingInset,
+      height: chrome.titleBarHeight,
+      child: KeyedSubtree(
+        key: _dragKey,
+        child: platform == TargetPlatform.windows
+            ? const IgnorePointer(child: SizedBox.expand())
+            : GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onPanStart: actions == null
+                    ? null
+                    : (_) => actions.onStartDragging(),
+                onDoubleTap: actions?.onTitleBarDoubleClick,
+                child: const SizedBox.expand(),
+              ),
+      ),
+    );
+    return _DesktopFallbackChromeStack(
+      hasDragZone: true,
+      children: [
+        widget.child,
+        dragZone,
+        if (showMacLights)
+          PositionedDirectional(
+            top: 0,
+            start: 0,
+            width: chrome.leadingInset > 0
+                ? chrome.leadingInset
+                : _macFallbackTrafficLightWidth,
+            height: chrome.titleBarHeight,
+            child: SimulatedMacTrafficLights(height: chrome.titleBarHeight),
+          ),
+        if (chrome.showCustomButtons)
+          Positioned(
+            top: 0,
+            right: 0,
+            height: chrome.titleBarHeight,
+            child: KeyedSubtree(
+              key: _captionButtonsKey,
+              child: DesktopWindowCaptionButtons(
+                height: chrome.titleBarHeight,
+                isMaximized: chrome.isMaximized,
+                isActive: chrome.isActive,
+                nativeHoveredButton: chrome.hostMetrics?.hoveredButton ?? '',
+                nativePressedButton: chrome.hostMetrics?.pressedButton ?? '',
+                maximizeKey: _maximizeKey,
+                actions: actions,
+                brightnessListenable: chrome.brightnessListenable,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _DesktopFallbackChromeStack extends Stack {
+  const _DesktopFallbackChromeStack({required this.hasDragZone, super.children})
+    : super(fit: StackFit.expand);
+
+  final bool hasDragZone;
+
+  @override
+  RenderStack createRenderObject(BuildContext context) =>
+      _RenderDesktopFallbackChromeStack(
+        hasDragZone: hasDragZone,
+        alignment: alignment,
+        textDirection: textDirection ?? Directionality.maybeOf(context),
+        fit: fit,
+        clipBehavior: clipBehavior,
+      );
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderDesktopFallbackChromeStack renderObject,
+  ) {
+    renderObject
+      ..hasDragZone = hasDragZone
+      ..alignment = alignment
+      ..textDirection = textDirection ?? Directionality.maybeOf(context)
+      ..fit = fit
+      ..clipBehavior = clipBehavior;
+  }
+}
+
+class _RenderDesktopFallbackChromeStack extends RenderStack {
+  _RenderDesktopFallbackChromeStack({
+    required bool hasDragZone,
+    super.alignment,
+    super.textDirection,
+    super.fit,
+    super.clipBehavior,
+  }) : _hasDragZone = hasDragZone;
+
+  bool _hasDragZone;
+  bool get hasDragZone => _hasDragZone;
+  set hasDragZone(bool value) {
+    if (_hasDragZone == value) return;
+    _hasDragZone = value;
+  }
+
+  @override
+  bool hitTestChildren(BoxHitTestResult result, {required Offset position}) {
+    if (!hasDragZone) {
+      return defaultHitTestChildren(result, position: position);
+    }
+    final content = firstChild;
+    final dragZone = content == null ? null : childAfter(content);
+    var child = lastChild;
+    while (child != null) {
+      final parentData = child.parentData! as StackParentData;
+      // Yield the translucent top drag/double-tap zone to interactive controls
+      // (such as ImageViewerPage's BackButton beside macOS traffic lights) so
+      // DoubleTapGestureRecognizer never delays or intercepts clicks.
+      final skipDrag =
+          identical(child, dragZone) &&
+          content != null &&
+          child.hasSize &&
+          (parentData.offset & child.size).contains(position) &&
+          _hitsInteractiveChild(content, position);
+      if (!skipDrag) {
+        final isHit = result.addWithPaintOffset(
+          offset: parentData.offset,
+          position: position,
+          hitTest: (hitResult, transformed) =>
+              child!.hitTest(hitResult, position: transformed),
+        );
+        if (isHit) return true;
+      }
+      child = parentData.previousSibling;
+    }
+    return false;
+  }
+
+  static bool _hitsInteractiveChild(RenderBox content, Offset position) {
+    final contentOffset = (content.parentData! as StackParentData).offset;
+    final probe = BoxHitTestResult();
+    content.hitTest(probe, position: position - contentOffset);
+    for (final HitTestEntry entry in probe.path) {
+      final target = entry.target;
+      if (target is RenderSemanticsAnnotations) {
+        final props = target.properties;
+        if (props.enabled != false &&
+            (props.button == true ||
+                props.link == true ||
+                props.textField == true ||
+                props.slider == true ||
+                props.toggled != null ||
+                props.checked != null ||
+                props.selected != null)) {
+          return true;
+        }
+      }
+      if (target is RenderMouseRegion &&
+          target.cursor == SystemMouseCursors.click) {
+        return true;
+      }
+    }
+    return false;
   }
 }

@@ -3,15 +3,25 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'package:parfait/app/layout/content_widths.dart';
+import 'package:parfait/app/motion/removal.dart';
+import 'package:parfait/app/pull_to_refresh.dart';
 import 'package:parfait/app/scroll_behavior.dart';
+import 'package:parfait/app/theme/func_semantic_tokens.dart';
 import 'package:parfait/app/theme/replica_theme.dart';
+import 'package:parfait/app/widgets/app_spinner.dart';
 import 'package:parfait/app/widgets/app_tab_bar.dart';
 import 'package:parfait/app/widgets/app_top_bar.dart';
 import 'package:parfait/app/widgets/feed/feed_states.dart';
+import 'package:parfait/app/widgets/func_bottom_nav.dart';
+import 'package:parfait/app/widgets/master_detail_workspace.dart';
+import 'package:parfait/app/widgets/scroll_edge_fade.dart';
+import 'package:parfait/app/widgets/settings/settings_anchor.dart';
+import 'package:parfait/app/widgets/settings/settings_group.dart';
 import 'package:parfait/app/widgets/skeleton/func_skeleton.dart';
 import 'package:parfait/core/network/api_error.dart';
 import 'package:parfait/core/network/network_restore_signal.dart';
 import 'package:parfait/core/paging/paged_feed_controller.dart';
+import 'package:parfait/features/settings/settings_catalog.dart';
 import 'helpers/localized_app.dart';
 import 'helpers/view_size.dart';
 
@@ -343,4 +353,177 @@ void main() {
     await drag.up();
     await tester.pumpAndSettle();
   });
+
+  testWidgets(
+    'AppTopBar keeps disabled IconButton and TextButton foreground alpha >= 0.45',
+    (tester) async {
+      setViewSize(tester, const Size(390, 800));
+      for (final brightness in Brightness.values) {
+        final theme = replicaTheme(brightness);
+        final tokens = theme.extension<FuncSemanticTokens>()!;
+        await tester.pumpWidget(
+          localizedApp(
+            theme: theme,
+            home: Scaffold(
+              appBar: AppTopBar(
+                title: const Text('History'),
+                actions: [
+                  TextButton(onPressed: null, child: const Text('Manage')),
+                  IconButton(
+                    tooltip: 'Clear',
+                    onPressed: null,
+                    icon: const Icon(Icons.delete_outline),
+                  ),
+                ],
+              ),
+              body: const SizedBox.shrink(),
+            ),
+          ),
+        );
+        await tester.pump();
+
+        final bar = tester.widget<AppBar>(find.byType(AppBar));
+        expect(bar.backgroundColor, isNull);
+        expect(theme.appBarTheme.backgroundColor, tokens.canvas);
+        final textColor = DefaultTextStyle.of(
+          tester.element(find.text('Manage')),
+        ).style.color!;
+        final iconColor = IconTheme.of(
+          tester.element(find.byIcon(Icons.delete_outline)),
+        ).color!;
+        expect(textColor.a, greaterThanOrEqualTo(0.45), reason: '$brightness');
+        expect(iconColor.a, greaterThanOrEqualTo(0.45), reason: '$brightness');
+      }
+    },
+  );
+
+  testWidgets(
+    'MasterDetailWorkspace wraps scrollable masterBody in vertical ScrollEdgeFade',
+    (tester) async {
+      setViewSize(tester, const Size(1280, 800));
+      await tester.pumpWidget(
+        localizedApp(
+          theme: replicaTheme(Brightness.light),
+          home: MasterDetailWorkspace(
+            title: const Text('Settings'),
+            masterBody: ListView.builder(
+              itemCount: 30,
+              itemBuilder: (_, index) =>
+                  SizedBox(height: 56, child: Text('Section $index')),
+            ),
+            detail: const SizedBox.expand(),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+
+      final fadeFinder = find.descendant(
+        of: find.byType(MasterDetailWorkspace),
+        matching: find.byType(ScrollEdgeFade),
+      );
+      expect(fadeFinder, findsOneWidget);
+      expect(tester.widget<ScrollEdgeFade>(fadeFinder).axis, Axis.vertical);
+      expect(tester.state<ScrollEdgeFadeState>(fadeFinder).fades, (
+        false,
+        true,
+      ));
+    },
+  );
+
+  testWidgets(
+    'unified SettingsGroup card, FuncBottomNav hairline, SakuraRefreshIndicator, and AppSpinner',
+    (tester) async {
+      setViewSize(tester, const Size(390, 800));
+      final theme = replicaTheme(Brightness.light);
+      final tokens = theme.extension<FuncSemanticTokens>()!;
+      final removals = RemovalController();
+      addTearDown(removals.dispose);
+      bool isHairline(Widget w) =>
+          w is ColoredBox && w.color == tokens.brandHairline;
+
+      await tester.pumpWidget(
+        localizedApp(
+          theme: theme,
+          home: Scaffold(
+            body: SettingsFocusScope(
+              target: SettingsPageRef.theme.id,
+              child: RemovalScope(
+                controller: removals,
+                child: ListView(
+                  children: [
+                    SettingsGroup(
+                      setting: SettingsPageRef.theme,
+                      children: const [
+                        Removable(
+                          id: 'a',
+                          child: ListTile(title: Text('A')),
+                        ),
+                        Removable(
+                          id: 'b',
+                          child: ListTile(title: Text('B')),
+                        ),
+                      ],
+                    ),
+                    MediaQuery(
+                      data: const MediaQueryData(disableAnimations: true),
+                      child: SakuraRefreshIndicator(
+                        progress: 0.6,
+                        spinning: true,
+                        color: theme.colorScheme.primary,
+                        trackColor: tokens.brandHairline,
+                      ),
+                    ),
+                    const AppSpinner(value: 0.5),
+                  ],
+                ),
+              ),
+            ),
+            bottomNavigationBar: FuncBottomNav(
+              destinations: const [
+                FuncBottomNavDestination(icon: Icons.home, label: 'Home'),
+                FuncBottomNavDestination(icon: Icons.person, label: 'Me'),
+              ],
+              selectedIndex: 0,
+              onSelected: (_) {},
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.byType(SettingsCard), findsOneWidget);
+      Finder in_(Type p, Finder m) =>
+          find.descendant(of: find.byType(p), matching: m);
+      final card = tester.widget<Material>(
+        in_(SettingsCard, find.byType(Material)).first,
+      );
+      expect(
+        (card.shape! as RoundedRectangleBorder).side.color,
+        tokens.brandHairline,
+      );
+      expect(in_(SettingsGroup, find.byType(SettingMarkOverlay)), findsOne);
+      final divider = in_(SettingsGroup, find.byWidgetPredicate(isHairline));
+      expect(divider, findsOneWidget);
+
+      final exitFuture = removals.playExit(const ['b']);
+      await tester.pumpAndSettle();
+      await exitFuture;
+      expect(divider, findsNothing);
+
+      expect(find.byType(SakuraRefreshIndicator), findsOneWidget);
+      final spinner = tester.widget<CircularProgressIndicator>(
+        in_(AppSpinner, find.byType(CircularProgressIndicator)),
+      );
+      expect(spinner.backgroundColor, tokens.brandHairline);
+      expect(spinner.strokeCap, StrokeCap.round);
+      final navBox = tester.widget<DecoratedBox>(
+        in_(FuncBottomNav, find.byType(DecoratedBox)).first,
+      );
+      expect(
+        (navBox.decoration as BoxDecoration).border,
+        Border(top: BorderSide(color: tokens.brandHairline)),
+      );
+    },
+  );
 }

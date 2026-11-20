@@ -44,9 +44,17 @@ import '../../../app/widgets/artwork_controls.dart';
 import '../../../app/widgets/entity_row.dart' show EntityBadge;
 import '../../../app/widgets/feed/feed_states.dart' show FeedLoading;
 import '../../../app/widgets/errors/error_details.dart';
+import '../../../app/window/desktop_command_bar.dart';
+import '../../../app/window/desktop_title_bar.dart';
 import '../../../l10n/context.dart';
 import '../../../app/theme/func_semantic_tokens.dart';
 import '../detail/widgets/detail_page_counter.dart' show PageCountPill;
+import '../../../app/icons/app_icons.dart';
+import '../../../app/icons/ui_icons.dart';
+
+export '../../../app/window/desktop_command_bar.dart'
+    show DesktopCommandBarScope;
+
 part 'image_viewer_chrome.dart';
 
 /// Whether the viewer chrome (top bar + bottom bar) is visible. This is
@@ -197,6 +205,9 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
   bool _scrubberHovered = false;
   bool _infoPanelOpen = false;
   Timer? _chromeHideTimer;
+  DesktopCommandBarController? _commandBarController;
+  ModalRoute<dynamic>? _observedRoute;
+  Animation<double>? _observedAnimation;
 
   int get _pageCount => _pagesOf(widget);
 
@@ -230,6 +241,46 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
       (_) => _prefetchNeighbours(_activePage),
     );
     if (!_viewerSessionChromeVisible) _setSystemChrome(visible: false);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final nextController = DesktopCommandBarScope.controllerOf(context);
+    if (!identical(_commandBarController, nextController)) {
+      _commandBarController?.setHidden(this, false);
+      _commandBarController = nextController;
+    }
+    final nextRoute = ModalRoute.of(context);
+    final nextAnimation =
+        RouteAnimationScope.of(context) ?? nextRoute?.animation;
+    _observedRoute = nextRoute;
+    if (!identical(_observedAnimation, nextAnimation)) {
+      _observedAnimation?.removeStatusListener(_onRouteAnimationStatus);
+      _observedAnimation = nextAnimation;
+      _observedAnimation?.addStatusListener(_onRouteAnimationStatus);
+    }
+    _syncCommandBarHidden();
+  }
+
+  void _onRouteAnimationStatus(AnimationStatus status) {
+    _syncCommandBarHidden();
+  }
+
+  void _syncCommandBarHidden() {
+    final controller = _commandBarController;
+    if (controller == null) return;
+    final anim = _observedAnimation;
+    final route = _observedRoute;
+    // Keep the command bar hidden throughout reverse playback until the
+    // transition fully dismisses (Route.isActive flips false as soon as pop
+    // starts, which would push the fading dark stage down by 48px).
+    final active =
+        mounted &&
+        (anim != null
+            ? anim.status != AnimationStatus.dismissed
+            : (route == null || route.isActive));
+    controller.setHidden(this, active);
   }
 
   @override
@@ -272,6 +323,11 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
 
   @override
   void dispose() {
+    _observedAnimation?.removeStatusListener(_onRouteAnimationStatus);
+    _observedAnimation = null;
+    _observedRoute = null;
+    _commandBarController?.setHidden(this, false);
+    _commandBarController = null;
     _chromeHideTimer?.cancel();
     _prefetchDemand?.clearPrefetchWindow(this);
     unawaited(_downloadEvents?.cancel());
@@ -649,6 +705,9 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
   bool _isWideInfoLayout(BuildContext context) =>
       MediaQuery.sizeOf(context).width >= AppBreakpoints.expanded;
 
+  bool _wideInfoPanelOpen(BuildContext context) =>
+      _infoPanelOpen && widget.entity != null && _isWideInfoLayout(context);
+
   void _openFromInfoPanel(Future<void> Function(BuildContext context) open) {
     final navContext = Navigator.of(context).context;
     final hasRouter = GoRouter.maybeOf(context) != null;
@@ -664,11 +723,14 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
       setState(() => _infoPanelOpen = !_infoPanelOpen);
       return;
     }
+    final darkTheme = Theme.of(context).brightness == Brightness.dark
+        ? Theme.of(context)
+        : replicaTheme(Brightness.dark);
     unawaited(
       showAppAdaptiveSideSheet<void>(
         context: context,
         width: 380,
-        showDragHandle: true,
+        backgroundColor: darkTheme.colorScheme.surfaceContainerLow,
         builder: (sheetContext) {
           final l10n = context.l10n;
           // Same date treatment as the detail page's InfoBlock: the ISO
@@ -678,40 +740,61 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
           final dateText = createDate == null
               ? null
               : AppFormat.date(context, createDate);
-          return SafeArea(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ListTile(
-                  title: Text(entity.title),
-                  subtitle: Text(
-                    '${entity.user.name}'
-                    '${dateText == null ? '' : ' · $dateText'}'
-                    ' · #${entity.id} · '
-                    '${l10n.illustPagesTotal(entity.pageCount)}',
+          return Theme(
+            data: darkTheme,
+            child: SafeArea(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (!useWideOverlay(sheetContext))
+                    Padding(
+                      padding: const EdgeInsets.only(
+                        top: FuncSpacing.md,
+                        bottom: FuncSpacing.xs,
+                      ),
+                      child: Center(
+                        child: Container(
+                          width: 32,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: darkTheme.colorScheme.onSurfaceVariant
+                                .withValues(alpha: 0.4),
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ListTile(
+                    title: Text(entity.title),
+                    subtitle: Text(
+                      '${entity.user.name}'
+                      '${dateText == null ? '' : ' · $dateText'}'
+                      ' · #${entity.id} · '
+                      '${l10n.illustPagesTotal(entity.pageCount)}',
+                    ),
                   ),
-                ),
-                const Divider(height: 1),
-                ListTile(
-                  leading: const Icon(Icons.download_outlined),
-                  title: Text(l10n.downloadAll),
-                  onTap: () {
-                    Navigator.of(sheetContext).pop();
-                    unawaited(_downloadAll(entity));
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.open_in_new),
-                  title: Text(l10n.viewerOpenDetail),
-                  onTap: () {
-                    Navigator.of(sheetContext).pop();
-                    // The viewer is opened from this work's detail page;
-                    // closing it reveals the existing detail route below.
-                    Navigator.of(context).pop();
-                  },
-                ),
-              ],
+                  const Divider(height: 1),
+                  ListTile(
+                    leading: const Icon(AppIcons.download),
+                    title: Text(l10n.downloadAll),
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      unawaited(_downloadAll(entity));
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(AppIcons.externalLink),
+                    title: Text(l10n.viewerOpenDetail),
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      // The viewer is opened from this work's detail page;
+                      // closing it reveals the existing detail route below.
+                      Navigator.of(context).pop();
+                    },
+                  ),
+                ],
+              ),
             ),
           );
         },
@@ -732,7 +815,7 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
         actions: [
           if (entity != null)
             DisplayAction(
-              icon: Icons.download_outlined,
+              icon: AppIcons.download,
               label: l10n.viewerSavePage,
               enabled:
                   saveState != IllustPageSaveState.downloading &&
@@ -741,14 +824,14 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
             ),
           if (entity != null && _pageCount > 1)
             DisplayAction(
-              icon: Icons.download_for_offline_outlined,
+              icon: AppIcons.downloading,
               label: l10n.downloadAll,
               onSelected: () => unawaited(_downloadAll(entity)),
             ),
           if (entity != null) ...[
             if (isDesktopImageClipboardSupported)
               DisplayAction(
-                icon: Icons.copy_outlined,
+                icon: AppIcons.copy,
                 label: l10n.copyOriginalImage,
                 onSelected: () => unawaited(
                   copyIllustOriginalImageToClipboard(
@@ -760,12 +843,12 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
                 ),
               ),
             DisplayAction(
-              icon: Icons.share_outlined,
+              icon: AppIcons.share,
               label: l10n.share,
               onSelected: () => unawaited(_share(entity)),
             ),
             DisplayAction(
-              icon: Icons.link_outlined,
+              icon: AppIcons.link,
               label: l10n.copyLink,
               onSelected: () => unawaited(
                 copyToClipboard(
@@ -777,7 +860,7 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
             ),
           ],
           DisplayAction(
-            icon: zoomed ? Icons.fit_screen : Icons.zoom_in,
+            icon: zoomed ? AppIcons.fitScreen : AppIcons.zoomIn,
             label: zoomed ? l10n.viewerFitScreen : '100%',
             onSelected: () {
               if (zoomed) {
@@ -791,7 +874,7 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
             },
           ),
           DisplayAction(
-            icon: Icons.arrow_back,
+            icon: UiIcons.arrowBack,
             label: MaterialLocalizations.of(context).backButtonTooltip,
             onSelected: _imperativePop,
           ),
@@ -831,16 +914,19 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
         : ref
               .watch(illustDownloadControllerProvider)
               .stateFor(entity.id, _activePage);
+    final wideInfoOpen = _wideInfoPanelOpen(context);
     // The fullscreen viewer deliberately keeps an opaque black canvas so
     // artwork and its white chrome match the replica surface.
     return PopScope<void>(
-      // canPop carries only the zoom leg (revision ②): hidden chrome is a
-      // view state, not a gate — with chrome hidden the system back leaves
-      // the route directly. Sheets/menus pushed on top still intercept back
-      // themselves, and explicit exits pop imperatively below.
-      canPop: !_activeZoomed,
+      // Close an open wide info panel first, then unzoom, before popping the
+      // viewer route. Hidden chrome remains a view state, not a back gate.
+      canPop: !wideInfoOpen && !_activeZoomed,
       onPopInvokedWithResult: (didPop, _) {
         if (didPop || !mounted) return;
+        if (_wideInfoPanelOpen(context)) {
+          setState(() => _infoPanelOpen = false);
+          return;
+        }
         // System back while zoomed: reset to fit and stay on the route.
         _resetZoom();
       },
@@ -954,7 +1040,7 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
                                       (_stageHovered || _chromeVisible) &&
                                       _activePage > 0,
                                   alignment: AlignmentDirectional.centerStart,
-                                  icon: Icons.chevron_left,
+                                  icon: UiIcons.chevronLeft,
                                   tooltip: MaterialLocalizations.of(
                                     context,
                                   ).previousPageTooltip,
@@ -966,7 +1052,7 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
                                       (_stageHovered || _chromeVisible) &&
                                       _activePage + 1 < _pageCount,
                                   alignment: AlignmentDirectional.centerEnd,
-                                  icon: Icons.chevron_right,
+                                  icon: UiIcons.chevronRight,
                                   tooltip: MaterialLocalizations.of(
                                     context,
                                   ).nextPageTooltip,
@@ -987,19 +1073,22 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
                           ),
                         ),
                       ),
-                      if (_isWideInfoLayout(context) &&
-                          _infoPanelOpen &&
-                          entity != null)
-                        _ViewerInfoPanel(
-                          entity: entity,
-                          onClose: () => setState(() => _infoPanelOpen = false),
-                          onSaveAll: () => unawaited(_downloadAll(entity)),
-                          onOpenDetail: () => Navigator.of(context).pop<void>(),
-                          onOpenAuthor: () => _openFromInfoPanel(
-                            (ctx) => openUser(ctx, entity.user.id),
-                          ),
-                          onOpenTag: (tag) => _openFromInfoPanel(
-                            (ctx) => openTagSearch(ctx, tag),
+                      if (_isWideInfoLayout(context) && entity != null)
+                        _ViewerInfoPanelSlot(
+                          open: _infoPanelOpen,
+                          child: _ViewerInfoPanel(
+                            entity: entity,
+                            onClose: () =>
+                                setState(() => _infoPanelOpen = false),
+                            onSaveAll: () => unawaited(_downloadAll(entity)),
+                            onOpenDetail: () =>
+                                Navigator.of(context).pop<void>(),
+                            onOpenAuthor: () => _openFromInfoPanel(
+                              (ctx) => openUser(ctx, entity.user.id),
+                            ),
+                            onOpenTag: (tag) => _openFromInfoPanel(
+                              (ctx) => openTagSearch(ctx, tag),
+                            ),
                           ),
                         ),
                     ],
@@ -1029,8 +1118,8 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
     const SingleActivator(LogicalKeyboardKey.digit0): _resetZoom,
     const SingleActivator(LogicalKeyboardKey.numpad0): _resetZoom,
     const SingleActivator(LogicalKeyboardKey.keyF): _toggleChrome,
-    const SingleActivator(LogicalKeyboardKey.escape): _imperativePop,
-    const SingleActivator(LogicalKeyboardKey.backspace): _imperativePop,
+    const SingleActivator(LogicalKeyboardKey.escape): _handleBackShortcut,
+    const SingleActivator(LogicalKeyboardKey.backspace): _handleBackShortcut,
     const SingleActivator(LogicalKeyboardKey.keyS): _saveActivePageIfAny,
     const SingleActivator(LogicalKeyboardKey.keyI): _showInfoIfAny,
   };
@@ -1077,6 +1166,14 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
       end.setEntry(1, 3, end.entry(1, 3).clamp(minTy, 0.0));
     }
     _animateZoom(target, end);
+  }
+
+  void _handleBackShortcut() {
+    if (_wideInfoPanelOpen(context)) {
+      setState(() => _infoPanelOpen = false);
+      return;
+    }
+    _imperativePop();
   }
 
   /// Imperative pop — explicit exits (back button, Esc/Backspace) always
@@ -1241,36 +1338,45 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
   /// Top chrome: back affordance + the `n / total` counter, the viewer's
   /// only page counter. Tapping it opens the thumbnail jump sheet.
   Widget _buildTopBar(BuildContext context) {
+    final leadingInset =
+        DesktopChromeMetrics.maybeOf(context)?.leadingInset ?? 0;
     return Material(
-      color: Colors.transparent,
+      color: FuncTokens.transparent,
       child: SafeArea(
         bottom: false,
-        child: Row(
-          children: [
-            // Imperative pop: explicit exits never route through the
-            // system-back intercept chain (W1 split).
-            BackButton(onPressed: _imperativePop),
-            const Spacer(),
-            // Empty state honesty: no misleading "1 / 0" counter.
-            if (_pageCount > 0)
-              TextButton(
-                key: const Key('viewer-page-counter'),
-                style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: FuncSpacing.sm,
+        child: Padding(
+          padding: EdgeInsetsDirectional.only(
+            start: leadingInset > 0 ? 0 : FuncSpacing.sm,
+            end: FuncSpacing.sm,
+          ),
+          child: Row(
+            children: [
+              if (leadingInset > 0) SizedBox(width: leadingInset),
+              // Imperative pop: explicit exits never route through the
+              // system-back intercept chain (W1 split).
+              BackButton(onPressed: _imperativePop),
+              const Spacer(),
+              // Empty state honesty: no misleading "1 / 0" counter.
+              if (_pageCount > 0)
+                TextButton(
+                  key: const Key('viewer-page-counter'),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: FuncSpacing.sm,
+                    ),
+                    minimumSize: const Size.square(kMinInteractiveDimension),
                   ),
-                  minimumSize: const Size.square(kMinInteractiveDimension),
+                  onPressed: _openPageSheet,
+                  // Inside the button, so its one node carries both the
+                  // count and what tapping it does. The detail page's pill,
+                  // so the position reads the same on both sides of the Hero.
+                  child: Tooltip(
+                    message: context.l10n.viewerJumpToPage,
+                    child: PageCountPill(page: _activePage, count: _pageCount),
+                  ),
                 ),
-                onPressed: _openPageSheet,
-                // Inside the button, so its one node carries both the
-                // count and what tapping it does. The detail page's pill,
-                // so the position reads the same on both sides of the Hero.
-                child: Tooltip(
-                  message: context.l10n.viewerJumpToPage,
-                  child: PageCountPill(page: _activePage, count: _pageCount),
-                ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -1291,7 +1397,7 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
         _pageCount >= 4 ||
         (modality == InputModality.pointer && _pageCount >= 2);
     return Material(
-      color: Colors.transparent,
+      color: FuncTokens.transparent,
       child: SafeArea(
         top: false,
         child: Column(
@@ -1313,53 +1419,60 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
                   thumbnailUrl: (page) => widget.entity?.squareUrlAt(page),
                 ),
               ),
-            Row(
-              children: [
-                const Spacer(),
-                IconButton(
-                  tooltip: l10n.viewerFitScreen,
-                  onPressed: hasPages ? _resetZoom : null,
-                  icon: const Icon(Icons.fit_screen),
-                ),
-                if (entity != null) ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: FuncSpacing.sm),
+              child: Row(
+                children: [
+                  const Spacer(),
                   IconButton(
-                    tooltip: l10n.viewerSavePage,
-                    onPressed: !hasPages
-                        ? null
-                        : switch (saveState) {
-                            IllustPageSaveState.downloading ||
-                            IllustPageSaveState.exist => null,
-                            _ => () => unawaited(_saveActivePage(entity)),
-                          },
-                    icon: switch (saveState) {
-                      IllustPageSaveState.downloading => const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                      IllustPageSaveState.exist => const Icon(
-                        Icons.check_circle,
-                      ),
-                      IllustPageSaveState.error => const Icon(
-                        Icons.error_outline,
-                      ),
-                      _ => const Icon(Icons.download_outlined),
-                    },
+                    tooltip: l10n.viewerFitScreen,
+                    onPressed: hasPages ? _resetZoom : null,
+                    icon: const Icon(AppIcons.fitScreen),
                   ),
-                  IconButton(
-                    tooltip: l10n.cardActionShare,
-                    onPressed: hasPages
-                        ? () => unawaited(_share(entity))
-                        : null,
-                    icon: const Icon(Icons.share_outlined),
-                  ),
-                  IconButton(
-                    tooltip: l10n.viewerInfo,
-                    onPressed: hasPages ? () => _showInfo(entity) : null,
-                    icon: const Icon(Icons.info_outline),
-                  ),
+                  if (entity != null) ...[
+                    IconButton(
+                      tooltip: l10n.viewerSavePage,
+                      onPressed: !hasPages
+                          ? null
+                          : switch (saveState) {
+                              IllustPageSaveState.downloading ||
+                              IllustPageSaveState.exist => null,
+                              _ => () => unawaited(_saveActivePage(entity)),
+                            },
+                      icon: switch (saveState) {
+                        IllustPageSaveState.downloading => const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                        IllustPageSaveState.exist => const Icon(
+                          UiIcons.checkCircle,
+                        ),
+                        IllustPageSaveState.error => const Icon(
+                          UiIcons.errorOutline,
+                        ),
+                        _ => const Icon(AppIcons.download),
+                      },
+                    ),
+                    IconButton(
+                      tooltip: l10n.cardActionShare,
+                      onPressed: hasPages
+                          ? () => unawaited(_share(entity))
+                          : null,
+                      icon: const Icon(AppIcons.share),
+                    ),
+                    IconButton(
+                      tooltip: l10n.viewerInfo,
+                      onPressed: hasPages ? () => _showInfo(entity) : null,
+                      icon: Icon(
+                        _wideInfoPanelOpen(context)
+                            ? AppIcons.infoFilled
+                            : AppIcons.info,
+                      ),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ],
         ),
@@ -1370,4 +1483,108 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
   bool _isZoomed(int page) =>
       _transformationFor(page).value.getMaxScaleOnAxis() >
       1.0 + precisionErrorTolerance;
+}
+
+class _ViewerInfoPanelSlot extends StatefulWidget {
+  const _ViewerInfoPanelSlot({required this.open, required this.child});
+
+  final bool open;
+  final Widget child;
+
+  @override
+  State<_ViewerInfoPanelSlot> createState() => _ViewerInfoPanelSlotState();
+}
+
+class _ViewerInfoPanelSlotState extends State<_ViewerInfoPanelSlot>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final CurvedAnimation _curve;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(vsync: this, value: widget.open ? 1 : 0)
+      ..addStatusListener(_onStatus);
+    _curve = CurvedAnimation(
+      parent: _controller,
+      curve: MotionTokens.chromeCurve,
+      reverseCurve: MotionTokens.chromeCurve.flipped,
+    );
+  }
+
+  void _onStatus(AnimationStatus status) {
+    if (status == AnimationStatus.dismissed && mounted) {
+      setState(() {});
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final duration = MotionTokens.resolve(context, MotionTokens.chrome);
+    _controller.duration = duration;
+    _controller.reverseDuration = duration;
+    if (duration == Duration.zero) {
+      _controller.value = widget.open ? 1 : 0;
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _ViewerInfoPanelSlot oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.open == widget.open) return;
+    final duration = MotionTokens.resolve(context, MotionTokens.chrome);
+    _controller.duration = duration;
+    _controller.reverseDuration = duration;
+    if (duration == Duration.zero) {
+      _controller.value = widget.open ? 1 : 0;
+      return;
+    }
+    if (widget.open) {
+      unawaited(_controller.forward());
+    } else {
+      unawaited(_controller.reverse());
+    }
+  }
+
+  @override
+  void dispose() {
+    _curve.dispose();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!widget.open && _controller.isDismissed) {
+      return const SizedBox.shrink();
+    }
+    return ExcludeSemantics(
+      excluding: !widget.open,
+      child: ExcludeFocus(
+        excluding: !widget.open,
+        child: IgnorePointer(
+          ignoring: !widget.open,
+          child: ClipRect(
+            child: AnimatedBuilder(
+              animation: _curve,
+              builder: (context, child) {
+                final t = _curve.value.clamp(0.0, 1.0);
+                return Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  widthFactor: t,
+                  child: Opacity(
+                    opacity: t,
+                    alwaysIncludeSemantics: true,
+                    child: child,
+                  ),
+                );
+              },
+              child: widget.child,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

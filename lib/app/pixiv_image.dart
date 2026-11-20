@@ -23,6 +23,8 @@ import '../core/log.dart';
 import '../core/network/network_restore_signal.dart';
 import '../l10n/app_localizations.dart';
 import 'widgets/image_load_progress.dart';
+import 'icons/app_icons.dart';
+import 'icons/ui_icons.dart';
 
 export '../core/image/lane_permit_gate.dart' show ImageFetchPriority;
 export 'widgets/image_load_progress.dart';
@@ -937,7 +939,7 @@ class _PixivImageState extends ConsumerState<PixivImage> with TickerModeWatch {
     ImageWorker worker, {
     required double? blurPerWidth,
   }) {
-    const broken = Icon(Icons.broken_image_outlined);
+    const broken = Icon(AppIcons.illustBroken);
     return LayoutBuilder(
       builder: (context, constraints) {
         if (constraints.maxWidth < _retryButtonMinSize ||
@@ -946,7 +948,7 @@ class _PixivImageState extends ConsumerState<PixivImage> with TickerModeWatch {
         }
         return Center(
           child: IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(UiIcons.refresh),
             tooltip: Localizations.of<AppLocalizations>(
               context,
               AppLocalizations,

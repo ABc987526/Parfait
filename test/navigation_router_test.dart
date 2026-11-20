@@ -16,7 +16,6 @@ import 'package:parfait/core/user/user_repository.dart';
 import 'package:parfait/core/search/search_models.dart';
 import 'package:parfait/features/novel/novel_page.dart';
 import 'package:parfait/features/bookmark/bookmark_tags_page.dart';
-import 'package:parfait/features/history/history_page.dart';
 import 'package:parfait/features/home/recommended/recommended_home_page.dart';
 import 'package:parfait/features/new/new_page.dart';
 import 'package:parfait/features/ranking/ranking_page.dart';
@@ -30,6 +29,7 @@ import 'package:parfait/features/settings/settings_page.dart';
 import 'package:parfait/app/widgets/app_tab_bar.dart';
 import 'package:parfait/app/widgets/app_top_bar.dart';
 import 'package:parfait/app/widgets/func_bottom_nav.dart';
+import 'package:parfait/app/widgets/settings/settings_control.dart';
 import 'package:parfait/app/widgets/search_field_button.dart';
 import 'package:parfait/features/settings/me_dashboard_page.dart';
 import 'package:parfait/core/navigation/home_destination.dart';
@@ -42,6 +42,7 @@ import 'helpers/settings_world.dart';
 import 'helpers/view_size.dart';
 import 'helpers/pixiv_router.dart';
 import 'helpers/prompt_host.dart';
+import 'package:parfait/app/icons/ui_icons.dart';
 
 /// The shell's own bar, while it is on stage.
 final _shellBar = find.descendant(
@@ -335,7 +336,7 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.descendant(of: bar, matching: find.byIcon(AppIcons.search)),
+      find.descendant(of: bar, matching: find.byTooltip('搜索')),
       findsNothing,
     );
 
@@ -781,11 +782,19 @@ void main() {
       expect(onBar(AppIcons.search), findsNothing);
       final xs = [
         for (final d in shown)
-          tester.getCenter(onBar(homeDestinationIcon(d))).dx,
+          tester
+              .getCenter(
+                onBar(
+                  d == HomeDestination.newWorks
+                      ? homeDestinationSelectedIcon(d)
+                      : homeDestinationIcon(d),
+                ),
+              )
+              .dx,
       ];
       expect(xs, orderedEquals([...xs]..sort()));
 
-      await tester.tap(onBar(Icons.person_outline));
+      await tester.tap(onBar(AppIcons.user));
       await settle(tester);
       final recommended = find.descendant(
         of: find.byType(MeDashboardPage),
@@ -827,10 +836,10 @@ void main() {
       await settle(tester);
       Finder row(HomeDestination d) => find.ancestor(
         of: find.byIcon(homeDestinationIcon(d)),
-        matching: find.byType(SwitchListTile),
+        matching: find.byType(SettingsControl),
       );
-      SwitchListTile tile(HomeDestination d) =>
-          tester.widget<SwitchListTile>(row(d));
+      SettingsControl tile(HomeDestination d) =>
+          tester.widget<SettingsControl>(row(d));
 
       expect(tile(HomeDestination.me).onChanged, isNull, reason: 'locked');
       await tester.tap(row(HomeDestination.ranking));
@@ -848,7 +857,7 @@ void main() {
         HomeDestination.search,
       );
 
-      await tester.tap(find.byIcon(Icons.restart_alt));
+      await tester.tap(find.byIcon(UiIcons.reset));
       await settle(tester);
       expect((await stored()).homeArrangement, isNull);
       expect(tile(HomeDestination.recommended).value, isTrue);

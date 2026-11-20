@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 
+import 'package:parfait/app/widgets/app_progress_bar.dart';
 import 'package:parfait/app/widgets/entity_row.dart';
 
 Widget _host(Widget child) {
@@ -34,7 +35,7 @@ void main() {
         const EntityRow(leading: SizedBox(width: 48), title: 'No progress'),
       ),
     );
-    expect(find.byType(LinearProgressIndicator), findsNothing);
+    expect(find.byType(AppProgressBar), findsNothing);
 
     await tester.pumpWidget(
       _host(
@@ -45,8 +46,8 @@ void main() {
         ),
       ),
     );
-    final indicator = tester.widget<LinearProgressIndicator>(
-      find.byType(LinearProgressIndicator),
+    final indicator = tester.widget<AppProgressBar>(
+      find.byType(AppProgressBar),
     );
     expect(indicator.value, 0);
   });

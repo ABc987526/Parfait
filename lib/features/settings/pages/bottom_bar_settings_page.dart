@@ -8,12 +8,16 @@ import '../../../app/widgets/app_top_bar.dart';
 import '../../../app/widgets/func_bottom_nav.dart';
 import '../../../app/widgets/settings/settings_control.dart';
 import '../../../app/widgets/settings/settings_group.dart';
+import '../../../app/window/desktop_command_bar.dart'
+    show DesktopCommandBarScope;
 import '../../../core/navigation/home_destination.dart';
 import '../../../core/settings/arrangement.dart';
 import '../../../core/settings/settings_controller.dart';
 import '../../../l10n/context.dart';
 import '../settings_helpers.dart';
 import '../../../app/layout/content_widths.dart';
+import '../../../app/icons/app_icons.dart';
+import '../../../app/icons/ui_icons.dart';
 
 /// Which destinations sit on the bottom bar, in what order. Those on the
 /// bar come first and move by their handle (screen readers get move
@@ -123,7 +127,7 @@ class _BottomBarEditorState extends ConsumerState<_BottomBarEditor> {
                 onPressed: draft == HomeDestination.defaultArrangement
                     ? null
                     : () => _save(HomeDestination.defaultArrangement),
-                icon: const Icon(Icons.restart_alt),
+                icon: const Icon(UiIcons.reset),
                 label: Text(l10n.restoreDefault),
               ),
             ),
@@ -215,7 +219,7 @@ class _ShownRow extends StatelessWidget {
             child: SizedBox.square(
               dimension: handleExtent,
               child: Icon(
-                Icons.drag_handle,
+                UiIcons.dragHandle,
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
@@ -239,14 +243,17 @@ class _DestinationSwitch extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final desktopOwned = DesktopCommandBarScope.isActiveOf(context);
     return SettingsControl(
       title: Text(homeDestinationLabel(context, destination)),
-      subtitle: destination.hideable
+      subtitle: destination.hideable || desktopOwned
           ? null
           : Text(context.l10n.bottomBarMeLocked),
       secondary: Icon(homeDestinationIcon(destination)),
       value: shown,
       onChanged: onChanged,
+      locked: shown && onChanged == null,
+      lockedIcon: destination.hideable ? UiIcons.check : AppIcons.lock,
     );
   }
 }

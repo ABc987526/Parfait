@@ -153,11 +153,16 @@ class _FollowSwitchButtonState extends ConsumerState<FollowSwitchButton> {
             child: ExcludeSemantics(
               child: OutlinedButton(
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: followed ? colors.onSurface : tokens.onBrand,
-                  backgroundColor: followed ? colors.surface : tokens.brand,
+                  foregroundColor: followed ? colors.primary : tokens.onBrand,
+                  backgroundColor: followed
+                      ? tokens.brandTintWeak
+                      : tokens.brand,
                   side: BorderSide(
-                    color: followed ? colors.onSurface : tokens.brand,
+                    color: followed
+                        ? tokens.brandTintStroke
+                        : FuncTokens.transparent,
                   ),
+                  shape: const StadiumBorder(),
                   padding: const EdgeInsets.symmetric(
                     horizontal: _labelPadding,
                   ),

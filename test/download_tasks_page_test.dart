@@ -16,6 +16,8 @@ import 'package:parfait/core/download/download_task.dart';
 import 'package:parfait/features/settings/pages/download_task_presentation.dart';
 import 'package:parfait/features/settings/pages/download_tasks_page.dart';
 import 'package:parfait/l10n/app_localizations_delegates.dart';
+import 'package:parfait/app/widgets/app_dialog.dart';
+import 'package:parfait/app/widgets/app_progress_bar.dart';
 import 'package:parfait/app/widgets/prompt_host.dart';
 import 'package:parfait/app/widgets/sliver_surface_list.dart';
 
@@ -24,6 +26,8 @@ import 'helpers/recording_haptics.dart';
 import 'helpers/prompt_host.dart';
 import 'helpers/localized_app.dart';
 import 'helpers/waits.dart';
+import 'package:parfait/app/icons/app_icons.dart';
+import 'package:parfait/app/icons/ui_icons.dart';
 
 /// Cancels end when [cancels] completes, as dropping kept bytes on disk
 /// does.
@@ -154,18 +158,18 @@ void main() {
     // Collapsed by default (D1) — children stay out of the list entirely.
     expect(_taskRows(skipOffstage: false), findsNothing);
     expect(
-      find.descendant(of: header, matching: find.byIcon(Icons.expand_more)),
+      find.descendant(of: header, matching: find.byIcon(UiIcons.expandMore)),
       findsOneWidget,
     );
     expect(
-      find.descendant(of: header, matching: find.byIcon(Icons.pause)),
+      find.descendant(of: header, matching: find.byIcon(UiIcons.pause)),
       findsOneWidget,
     );
 
     // Pause the whole group without expanding it; the running children
     // unwind once their gated chunk completes, queued ones flip directly.
     await tester.tap(
-      find.descendant(of: header, matching: find.byIcon(Icons.pause)),
+      find.descendant(of: header, matching: find.byIcon(UiIcons.pause)),
     );
     for (final gate in gates) {
       gate.complete();
@@ -180,13 +184,13 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.descendant(of: header, matching: find.byIcon(Icons.play_arrow)),
+      find.descendant(of: header, matching: find.byIcon(UiIcons.play)),
       findsOneWidget,
     );
 
     // Resume re-submits every child; the group tracks the new job ids.
     await tester.tap(
-      find.descendant(of: header, matching: find.byIcon(Icons.play_arrow)),
+      find.descendant(of: header, matching: find.byIcon(UiIcons.play)),
     );
     await pumpUntil(
       tester,
@@ -196,7 +200,7 @@ void main() {
 
     // Cancel lands every child in canceled — preserved output is dropped.
     await tester.tap(
-      find.descendant(of: header, matching: find.byIcon(Icons.close)),
+      find.descendant(of: header, matching: find.byIcon(UiIcons.close)),
     );
     for (final gate in resumeGates) {
       gate.complete();
@@ -209,11 +213,11 @@ void main() {
     // A canceled group offers 重试 (refresh) — retry accepts canceled
     // work; 继续 (play_arrow) is reserved for the paused state.
     expect(
-      find.descendant(of: header, matching: find.byIcon(Icons.refresh)),
+      find.descendant(of: header, matching: find.byIcon(UiIcons.refresh)),
       findsOneWidget,
     );
     expect(
-      find.descendant(of: header, matching: find.byIcon(Icons.play_arrow)),
+      find.descendant(of: header, matching: find.byIcon(UiIcons.play)),
       findsNothing,
     );
   });
@@ -253,27 +257,21 @@ void main() {
       findsNothing,
     );
     expect(
-      find.descendant(of: row, matching: find.byType(LinearProgressIndicator)),
+      find.descendant(of: row, matching: find.byType(AppProgressBar)),
       findsNothing,
     );
     expect(
-      find.descendant(of: row, matching: find.byIcon(Icons.refresh)),
+      find.descendant(of: row, matching: find.byIcon(UiIcons.refresh)),
       findsOneWidget,
     );
     expect(
-      find.descendant(
-        of: row,
-        matching: find.byIcon(Icons.remove_circle_outline),
-      ),
+      find.descendant(of: row, matching: find.byIcon(UiIcons.removeCircle)),
       findsOneWidget,
     );
 
     // Remove dismisses the failed record.
     await tester.tap(
-      find.descendant(
-        of: row,
-        matching: find.byIcon(Icons.remove_circle_outline),
-      ),
+      find.descendant(of: row, matching: find.byIcon(UiIcons.removeCircle)),
     );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
@@ -307,7 +305,7 @@ void main() {
     final row = _taskRow(task.id);
     final remove = find.descendant(
       of: row,
-      matching: find.byIcon(Icons.remove_circle_outline),
+      matching: find.byIcon(UiIcons.removeCircle),
     );
     // Beside the 56dp thumbnail, not on a line of its own under it.
     expect(
@@ -465,7 +463,7 @@ void main() {
     final fullHeight = tester.getSize(firstChild).height;
     expect(_taskRows(), findsNWidgets(2));
     expect(
-      find.descendant(of: header, matching: find.byIcon(Icons.expand_less)),
+      find.descendant(of: header, matching: find.byIcon(UiIcons.expandLess)),
       findsOneWidget,
     );
     _expectSurfaceSpans(tester, header, lastChild);
@@ -505,7 +503,7 @@ void main() {
     _expectSurfaceSpans(tester, header, header);
     expect(tester.getRect(headerInk), collapsedRect);
     expect(
-      find.descendant(of: header, matching: find.byIcon(Icons.expand_more)),
+      find.descendant(of: header, matching: find.byIcon(UiIcons.expandMore)),
       findsOneWidget,
     );
     expect(tester.element(headerInk), same(headerElement));
@@ -570,7 +568,7 @@ void main() {
       // The manage entry spells itself out as a text button (R5) — the
       // bare checklist icon is gone.
       expect(find.widgetWithText(TextButton, '管理'), findsOneWidget);
-      expect(find.byIcon(Icons.checklist_outlined), findsNothing);
+      expect(find.byIcon(UiIcons.checklist), findsNothing);
 
       // Entering selection mode fires the explicit vibration; the AppBar
       // swaps to the count surface.
@@ -581,7 +579,7 @@ void main() {
 
       // Select-all is the light tick; selected rows drop their nested
       // action row for the check affordance.
-      await tester.tap(find.byIcon(Icons.select_all));
+      await tester.tap(find.byIcon(UiIcons.selectAll));
       await tester.pump();
       expect(_selectionTitle('已选 2 项'), findsOneWidget);
       expect(haptics.roles.last, HapticRole.select);
@@ -589,22 +587,22 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
       for (final task in manager.tasks) {
         final mark = find.byKey(ValueKey('download-select-${task.id}'));
-        expect(tester.widget<Icon>(mark).icon, Icons.check_circle);
+        expect(tester.widget<Icon>(mark).icon, UiIcons.checkCircle);
         expect(
           find.ancestor(of: mark, matching: find.byType(StateIconSwitcher)),
           findsOneWidget,
         );
       }
-      expect(find.byIcon(Icons.open_in_new), findsNothing);
+      expect(find.byIcon(AppIcons.externalLink), findsNothing);
 
       // Batch remove qualifies only the terminal task and asks for no
       // confirmation — Undo brings the record back instead (D5).
       final finished = manager.tasks.firstWhere(
         (t) => t.status == DownloadStatus.succeeded,
       );
-      await tester.tap(find.byIcon(Icons.remove_circle_outline));
+      await tester.tap(find.byIcon(UiIcons.removeCircle));
       await tester.pump();
-      expect(find.byType(AlertDialog), findsNothing);
+      expect(find.byType(AppAlertDialog), findsNothing);
       await tester.pump(const Duration(milliseconds: 300));
       expect(manager.tasks.single.status, DownloadStatus.running);
       expect(_selectionTitle('已选 0 项'), findsNothing);
@@ -629,12 +627,12 @@ void main() {
       );
       await tester.tap(find.widgetWithText(TextButton, '管理'));
       await tester.pump();
-      await tester.tap(find.byIcon(Icons.select_all));
+      await tester.tap(find.byIcon(UiIcons.selectAll));
       await tester.pump();
-      await tester.tap(find.byIcon(Icons.cancel_outlined));
+      await tester.tap(find.byIcon(UiIcons.cancelCircle));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
-      expect(find.byType(AlertDialog), findsOneWidget);
+      expect(find.byType(AppAlertDialog), findsOneWidget);
       await tester.tap(find.widgetWithText(FilledButton, '取消'));
       gate.complete();
       await pumpUntil(
@@ -642,7 +640,7 @@ void main() {
         () => manager.taskById(running.id)!.status == DownloadStatus.canceled,
       );
       await tester.pump();
-      expect(find.byType(LinearProgressIndicator), findsNothing);
+      expect(find.byType(AppProgressBar), findsNothing);
       expect(manager.taskById(finished.id)!.status, DownloadStatus.succeeded);
     },
   );
@@ -660,9 +658,9 @@ void main() {
     await _pumpPage(tester, container);
     await tester.tap(find.widgetWithText(TextButton, '管理'));
     await tester.pump();
-    await tester.tap(find.byIcon(Icons.select_all));
+    await tester.tap(find.byIcon(UiIcons.selectAll));
     await tester.pump();
-    await tester.tap(find.byIcon(Icons.cancel_outlined));
+    await tester.tap(find.byIcon(UiIcons.cancelCircle));
     await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(find.widgetWithText(FilledButton, '取消'));
     await tester.pump();
@@ -781,7 +779,7 @@ void main() {
       // A named entry in the overflow, not a bare icon.
       final clear = find.widgetWithText(MenuItemButton, '清除已完成');
       Future<void> toggleMenu() async {
-        await tester.tap(find.byIcon(Icons.more_vert));
+        await tester.tap(find.byIcon(UiIcons.more));
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 300));
       }
@@ -832,7 +830,7 @@ void main() {
       await tester.tap(
         find.descendant(
           of: _groupHeader(group.id),
-          matching: find.byIcon(Icons.remove_circle_outline),
+          matching: find.byIcon(UiIcons.removeCircle),
         ),
       );
       await tester.pump();

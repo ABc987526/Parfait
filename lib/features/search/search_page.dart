@@ -8,6 +8,7 @@ import '../../app/haptics/app_haptics.dart';
 import '../../app/layout/sliver_width_builder.dart';
 import '../../app/motion/press_scale.dart';
 import '../../app/motion/state_fade.dart';
+import '../../app/navigation/home_shell_metrics.dart';
 import '../../app/navigation/routes.dart';
 import '../../app/pixiv_image.dart';
 import '../../app/theme/func_semantic_tokens.dart';
@@ -18,6 +19,7 @@ import '../../app/widgets/app_top_bar.dart';
 import '../../app/widgets/display_actions.dart';
 import '../../app/widgets/edge_icon_buttons.dart';
 import '../../app/widgets/feed/feed_states.dart';
+import '../../app/widgets/feed/illust_card.dart';
 import '../../app/widgets/feed/spotlight_article_card.dart';
 import '../../app/widgets/func_bottom_nav.dart';
 import '../../app/widgets/home_branch_stack.dart';
@@ -36,6 +38,7 @@ import '../../core/spotlight/spotlight_store.dart';
 import '../../l10n/context.dart';
 import 'search_section_header.dart';
 import 'search_text.dart';
+import '../../app/icons/app_icons.dart';
 
 export 'search_input_engine.dart';
 export 'search_input_page.dart';
@@ -172,7 +175,7 @@ class _SearchHomePageState extends ConsumerState<SearchHomePage>
     final camera = IconButton(
       tooltip: l10n.searchReverseImage,
       onPressed: () => openReverseImageSearch(context),
-      icon: const Icon(Icons.photo_camera_outlined),
+      icon: const Icon(AppIcons.imageSearch),
     );
     // The wide header puts the kind tabs on the title row and the shared
     // search field next to the camera (R7); a phone keeps the field over
@@ -191,7 +194,7 @@ class _SearchHomePageState extends ConsumerState<SearchHomePage>
               title: tabs,
               actions: hasCommandBar
                   ? const []
-                  : [camera, HeaderSearch(type: _active)],
+                  : [camera, _GuideHeaderSearch(type: _active)],
             )
           : AppTopBar(
               title: SearchFieldButton(
@@ -234,6 +237,55 @@ class _SearchHomePageState extends ConsumerState<SearchHomePage>
 /// the feature's root page.
 class SearchPage extends SearchHomePage {
   const SearchPage({super.key});
+}
+
+/// The search guide's wide-bar search field: unlike feed pages' [HeaderSearch],
+/// the dedicated search tab always keeps a visible, tappable search capsule
+/// across 600–840dp medium/foldable touch viewports as well as expanded ones
+/// whenever [DesktopCommandBarScope] is inactive.
+class _GuideHeaderSearch extends StatelessWidget {
+  const _GuideHeaderSearch({required this.type});
+
+  final SearchResultType type;
+
+  static const EdgeInsetsGeometry _padding = EdgeInsetsDirectional.only(
+    start: FuncSpacing.sm,
+    end: FuncSpacing.lg,
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final contentWidth = HomeShellChrome.contentSizeOf(context).width;
+    final width = PageHeader.fitsSearchField(context)
+        ? PageHeader.searchFieldWidth(context)
+        : math.min(240.0, math.max(176.0, contentWidth * 0.42));
+    return Padding(
+      padding: _padding,
+      child: Builder(
+        builder: (entryContext) {
+          void open() => unawaited(
+            openSearchInput(
+              entryContext,
+              type: type,
+              anchor: () => PageHeader.anchorOf(entryContext),
+            ),
+          );
+          return SizedBox(
+            width: width,
+            child: Tooltip(
+              message: l10n.searchTitle,
+              child: SearchFieldButton(
+                text: l10n.searchBarHint,
+                isHint: true,
+                onTap: open,
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
 }
 
 /// One tab of the search guide: the Spotlight section (illust tab only),
@@ -302,7 +354,19 @@ class _SpotlightSection extends ConsumerWidget {
   const _SpotlightSection();
 
   static const int maxArticles = 5;
-  static const double cardWidth = 200;
+  static const double minCardWidth = 200;
+  static const double maxCardWidth = 320;
+  static const double _spacing = FuncSpacing.sm;
+
+  static double _resolvedCardWidth(double innerWidth, int count) {
+    if (count <= 0) return minCardWidth;
+    final natural = count * minCardWidth + (count - 1) * _spacing;
+    if (innerWidth <= natural) return minCardWidth;
+    return math.min(
+      maxCardWidth,
+      (innerWidth - (count - 1) * _spacing) / count,
+    );
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -319,50 +383,78 @@ class _SpotlightSection extends ConsumerWidget {
         articles.isEmpty &&
         !failed &&
         (feed == null || feed.showInitialSpinner);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        SearchSectionHeader(
-          title: l10n.spotlightTitle,
-          action: l10n.detailViewAll,
-          onTap: () => openSpotlight(context),
-        ),
-        StateFade(
-          kind: loading,
-          child: loading
-              ? const _SpotlightStripSkeleton()
-              : articles.isNotEmpty
-              ? _strip(articles)
-              : failed
-              ? _failure(context, ref, async.error ?? feed?.initialError)
-              : const SizedBox.shrink(),
-        ),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final innerWidth = math.max(
+          0.0,
+          constraints.maxWidth - 2 * FuncSpacing.lg,
+        );
+        final count = articles.length;
+        final cardWidth = _resolvedCardWidth(innerWidth, count);
+        final stripSpan = count > 0
+            ? count * cardWidth + (count - 1) * _spacing
+            : innerWidth;
+        final maxSectionWidth = articles.isNotEmpty && innerWidth > stripSpan
+            ? math.max(stripSpan, math.min(innerWidth, 480.0)) +
+                  2 * FuncSpacing.lg
+            : constraints.maxWidth;
+        return Align(
+          alignment: AlignmentDirectional.topStart,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: maxSectionWidth),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SearchSectionHeader(
+                  title: l10n.spotlightTitle,
+                  action: l10n.detailViewAll,
+                  onTap: () => openSpotlight(context),
+                ),
+                StateFade(
+                  kind: loading,
+                  child: loading
+                      ? _SpotlightStripSkeleton(innerWidth: innerWidth)
+                      : articles.isNotEmpty
+                      ? _strip(articles, cardWidth)
+                      : failed
+                      ? _failure(
+                          context,
+                          ref,
+                          async.error ?? feed?.initialError,
+                        )
+                      : const SizedBox.shrink(),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
-  Widget _strip(List<SpotlightArticle> articles) => SingleChildScrollView(
-    scrollDirection: Axis.horizontal,
-    padding: const EdgeInsets.symmetric(horizontal: FuncSpacing.lg),
-    // Equal card heights whatever the title length.
-    child: IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          for (final (index, article) in articles.indexed) ...[
-            if (index > 0) const SizedBox(width: FuncSpacing.sm),
-            SizedBox(
-              width: cardWidth,
-              child: SpotlightArticleCard(
-                article: article,
-                imageWidth: cardWidth,
-              ),
-            ),
-          ],
-        ],
-      ),
-    ),
-  );
+  Widget _strip(List<SpotlightArticle> articles, double cardWidth) =>
+      SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: FuncSpacing.lg),
+        // Equal card heights whatever the title length.
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (final (index, article) in articles.indexed) ...[
+                if (index > 0) const SizedBox(width: _spacing),
+                SizedBox(
+                  width: cardWidth,
+                  child: SpotlightArticleCard(
+                    article: article,
+                    imageWidth: cardWidth,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      );
 
   Widget _failure(BuildContext context, WidgetRef ref, Object? error) {
     final l10n = context.l10n;
@@ -392,13 +484,15 @@ class _SpotlightSection extends ConsumerWidget {
 /// [_SpotlightSection]'s strip while the first page loads: cards of the
 /// same width, 16:9 image and two title lines plus the date.
 class _SpotlightStripSkeleton extends StatelessWidget {
-  const _SpotlightStripSkeleton();
+  const _SpotlightStripSkeleton({required this.innerWidth});
 
-  static const _cards = 3;
+  final double innerWidth;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final cards = innerWidth >= 840 ? 4 : 3;
+    final cardWidth = _SpotlightSection._resolvedCardWidth(innerWidth, cards);
     return FuncSkeleton(
       label: context.l10n.contentLoading,
       child: SingleChildScrollView(
@@ -408,46 +502,48 @@ class _SpotlightStripSkeleton extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            for (var i = 0; i < _cards; i++) ...[
+            for (var i = 0; i < cards; i++) ...[
               if (i > 0) const SizedBox(width: FuncSpacing.sm),
               SizedBox(
-                width: _SpotlightSection.cardWidth,
-                child: Card(
-                  margin: EdgeInsets.zero,
-                  clipBehavior: Clip.antiAlias,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const AspectRatio(
+                width: cardWidth,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    ClipRRect(
+                      borderRadius: FuncShape.card,
+                      child: const AspectRatio(
                         aspectRatio: SpotlightArticleCard.imageAspectRatio,
                         child: SkeletonBone(borderRadius: BorderRadius.zero),
                       ),
-                      Padding(
-                        padding: const EdgeInsets.all(FuncSpacing.md),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            SkeletonBone.text(
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        IllustCard.textIndent,
+                        FuncSpacing.xs,
+                        IllustCard.textIndent,
+                        FuncSpacing.sm,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SkeletonBone.text(style: theme.textTheme.titleSmall),
+                          FractionallySizedBox(
+                            widthFactor: 0.6,
+                            child: SkeletonBone.text(
                               style: theme.textTheme.titleSmall,
                             ),
-                            FractionallySizedBox(
-                              widthFactor: 0.6,
-                              child: SkeletonBone.text(
-                                style: theme.textTheme.titleSmall,
-                              ),
+                          ),
+                          const SizedBox(height: FuncSpacing.xs),
+                          FractionallySizedBox(
+                            widthFactor: 0.4,
+                            child: SkeletonBone.text(
+                              style: theme.textTheme.bodySmall,
                             ),
-                            const SizedBox(height: FuncSpacing.xs),
-                            FractionallySizedBox(
-                              widthFactor: 0.4,
-                              child: SkeletonBone.text(
-                                style: theme.textTheme.bodySmall,
-                              ),
-                            ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -647,7 +743,7 @@ class _TrendingTagTile extends ConsumerWidget {
                     onLongPress: openWork,
                     actions: [
                       DisplayAction(
-                        icon: Icons.open_in_new,
+                        icon: AppIcons.externalLink,
                         label: context.l10n.downloadOpenWork,
                         onSelected: openWork,
                       ),

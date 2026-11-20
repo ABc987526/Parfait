@@ -6,8 +6,11 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/layout/content_widths.dart';
 import '../../app/motion/app_overlays.dart';
+import '../../app/theme/func_semantic_tokens.dart';
+import '../../app/widgets/app_dialog.dart';
 import '../../app/widgets/app_top_bar.dart';
 import '../../app/widgets/feed/feed_states.dart';
+import '../../app/widgets/scroll_edge_fade.dart';
 import '../../app/widgets/settings_load_error.dart';
 import '../../core/download/download_destination.dart';
 import '../../core/download/naming_rule.dart';
@@ -19,15 +22,38 @@ import 'saf_tree_name.dart';
 
 export '../../app/widgets/settings/persist_settings.dart';
 
-/// The settings column cap (D1): on wide surfaces the page body is centered
-/// at [ContentWidths.settings]; below the cap the constraint is a no-op, so
-/// there is no breakpoint branch.
-Widget settingsNarrowBody(Widget child) => Center(
-  child: ConstrainedBox(
-    constraints: const BoxConstraints(maxWidth: ContentWidths.settings),
-    child: child,
-  ),
-);
+/// The settings column cap (D1): centered at [ContentWidths.settings] on
+/// standalone pages, or left-aligned and comfortably wider (780dp) inside the
+/// wide master-detail settings pane so forms use the desktop space cleanly.
+Widget settingsNarrowBody(Widget child) => _SettingsNarrowBody(child: child);
+
+class _SettingsNarrowBody extends StatelessWidget {
+  const _SettingsNarrowBody({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final embedded = SettingsDetailScope.maybeOf(context) != null;
+    Widget body = Align(
+      alignment: embedded ? AlignmentDirectional.topStart : Alignment.topCenter,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: embedded ? 780 : ContentWidths.settings,
+        ),
+        child: child,
+      ),
+    );
+    if (embedded) {
+      body = ScrollEdgeFade(
+        axis: Axis.vertical,
+        fadeExtent: FuncSpacing.lg,
+        child: body,
+      );
+    }
+    return body;
+  }
+}
 
 /// Draft-form leave guard (same PopScope contract as ProfileEditPage):
 /// a clean form pops directly; a dirty one asks via [confirmDiscardDraft]
@@ -64,7 +90,7 @@ class _DraftGuard extends StatelessWidget {
 Future<bool> confirmDiscardDraft(BuildContext context) async {
   final leave = await showAppDialog<bool>(
     context: context,
-    builder: (dialogContext) => AlertDialog(
+    builder: (dialogContext) => AppAlertDialog(
       title: Text(context.l10n.profileEditLeaveTitle),
       content: Text(context.l10n.profileEditLeaveDetail),
       actions: [
@@ -219,14 +245,26 @@ String downloadDestinationLabel(
   BuildContext context,
   DownloadDestination destination,
 ) {
+  final platform = Theme.of(context).platform;
+  final isDesktop =
+      platform == TargetPlatform.windows ||
+      platform == TargetPlatform.macOS ||
+      platform == TargetPlatform.linux;
   return switch (destination.kind) {
-    DownloadDestinationKind.pixivAlbum => context.l10n.saveLocationPixivAlbum,
+    DownloadDestinationKind.pixivAlbum =>
+      (isDesktop
+              ? context.l10n.saveLocationDesktopDefaultFolder
+              : context.l10n.saveLocationPixivAlbum)
+          .replaceFirst('（默认）', '（\u2060默\u2060认\u2060）'),
     DownloadDestinationKind.customAlbum =>
-      '${context.l10n.saveLocationCustomAlbum} '
+      '${isDesktop ? context.l10n.saveLocationDesktopCustomSubfolder : context.l10n.saveLocationCustomAlbum} '
           '(${destination.customAlbumName})',
     DownloadDestinationKind.safFolder => switch (destination.safTreeUri) {
       final uri? when uri.isNotEmpty => safTreeDisplayName(context.l10n, uri),
-      _ => context.l10n.saveLocationSafFolder,
+      _ =>
+        isDesktop
+            ? context.l10n.saveLocationDesktopCustomFolder
+            : context.l10n.saveLocationSafFolder,
     },
   };
 }

@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:parfait/app/layout/input_modality.dart';
 import 'package:parfait/app/pixiv_image.dart';
+import 'package:parfait/app/widgets/feed/desktop_inspector_scope.dart';
 import 'package:parfait/app/widgets/feed/feed_selection.dart';
 import 'package:parfait/app/widgets/feed/illust_card.dart';
 import 'package:parfait/core/novel/reader_settings.dart';
@@ -13,8 +14,10 @@ import 'package:parfait/core/settings/shared_preferences.dart';
 import 'package:parfait/features/illust/viewer/image_viewer_page.dart'
     show beginImageViewerSession;
 import 'package:parfait/features/search/search_filter_labels.dart';
+import 'package:parfait/l10n/app_localizations.dart';
 
 import 'review_support.dart';
+import 'package:parfait/app/icons/app_icons.dart';
 
 class _SpreadNovelSettingsStore extends NovelReaderSettingsStore {
   _SpreadNovelSettingsStore(super.preferences);
@@ -46,6 +49,31 @@ void main() {
     before: (tester, router) async {
       unawaited(router.push('/recommended/illust/1000'));
       await tester.pump();
+    },
+  );
+
+  testShot(
+    'mp/desktop-detail-inspector',
+    location: '/recommended',
+    before: (tester, router) async {
+      final modeMenu = find.byKey(const Key('desktop-detail-mode-menu'));
+      if (modeMenu.evaluate().isNotEmpty) {
+        final inspectorLabel = AppLocalizations.of(
+          tester.element(modeMenu.first),
+        ).desktopDetailModeInspector;
+        await tester.tap(modeMenu.first);
+        await settleReview(tester);
+        final item = find.text(inspectorLabel);
+        if (item.evaluate().isNotEmpty) {
+          await tester.tap(item.last);
+          await settleReview(tester);
+        }
+      }
+      final card = find.byType(IllustCard);
+      if (card.evaluate().isNotEmpty &&
+          DesktopInspectorScope.maybeOf(tester.element(card.first)) != null) {
+        await tester.tap(card.first);
+      }
     },
   );
 
@@ -103,6 +131,8 @@ void main() {
     },
   );
 
+  testShot('mp/desktop-settings', location: '/settings/all');
+
   testShot(
     'mp/progressive-detail',
     location: '/recommended/illust/1000',
@@ -129,7 +159,7 @@ void main() {
     location: '/recommended/illust/1000/viewer/0',
     before: (tester, router) async {
       beginImageViewerSession();
-      final info = find.byIcon(Icons.info_outline);
+      final info = find.byIcon(AppIcons.info);
       if (info.evaluate().isNotEmpty) {
         await tester.tap(info.first);
       }

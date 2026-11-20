@@ -14,6 +14,7 @@ import 'package:parfait/features/spotlight/spotlight_feed_page.dart';
 
 import 'helpers/spotlight_world.dart';
 import 'helpers/localized_app.dart';
+import 'package:parfait/app/icons/ui_icons.dart';
 
 void main() {
   test('spotlight feed loads page one and commits the article store', () async {
@@ -116,7 +117,7 @@ void main() {
         findsOneWidget,
       );
       expect(
-        find.descendant(of: card, matching: find.byIcon(Icons.chevron_right)),
+        find.descendant(of: card, matching: find.byIcon(UiIcons.chevronRight)),
         findsNothing,
       );
       final image = find.descendant(

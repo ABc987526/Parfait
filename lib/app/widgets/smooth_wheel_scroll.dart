@@ -9,6 +9,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../core/platform/platform_caps.dart';
 import '../motion/motion_tokens.dart';
+import '../motion/scroll_hide.dart' show dispatchWheelUserScroll;
 
 /// Turns discrete mouse-wheel ticks into an animated scroll instead of the
 /// default fixed-step jump while keeping touch drags, Shift+wheel, and
@@ -73,15 +74,31 @@ class _SmoothWheelScrollState extends State<SmoothWheelScroll> {
   ScrollController? _activeController;
   double? _futurePosition;
   int _scrollGeneration = 0;
+  bool _wheelUserScrolling = false;
 
   ScrollController _resolveController(BuildContext context) =>
       widget.controller ??
       PrimaryScrollController.maybeOf(context) ??
       (_fallbackController ??= ScrollController());
 
+  void _endWheelUserScroll([ScrollPosition? pos]) {
+    if (!_wheelUserScrolling) return;
+    _wheelUserScrolling = false;
+    final controller = _activeController;
+    final position =
+        pos ??
+        (controller != null && controller.hasClients
+            ? controller.position
+            : null);
+    if (position != null) {
+      dispatchWheelUserScroll(position, ScrollDirection.idle);
+    }
+  }
+
   void _interruptWheelScroll() {
     _scrollGeneration++;
     _futurePosition = null;
+    _endWheelUserScroll();
   }
 
   @override
@@ -170,10 +187,20 @@ class _SmoothWheelScrollState extends State<SmoothWheelScroll> {
 
     event.respond(allowPlatformDefault: false);
 
+    final forward = axisDirectionIsReversed(position.axisDirection)
+        ? target > current
+        : target < current;
+    final direction = forward
+        ? ScrollDirection.forward
+        : ScrollDirection.reverse;
+
     var duration = MotionTokens.resolve(context, MotionTokens.wheelScroll);
     if (duration == Duration.zero) {
+      _wheelUserScrolling = true;
+      dispatchWheelUserScroll(position, direction);
       controller.jumpTo(target);
       _futurePosition = null;
+      _endWheelUserScroll(position);
       return;
     }
 
@@ -187,15 +214,21 @@ class _SmoothWheelScrollState extends State<SmoothWheelScroll> {
       }
     }
 
+    if (!_wheelUserScrolling) {
+      _wheelUserScrolling = true;
+      dispatchWheelUserScroll(position, direction);
+    }
+
     unawaited(
       controller
           .animateTo(target, duration: duration, curve: Curves.easeOutCubic)
-          .then((_) {
+          .whenComplete(() {
             // Clear only when no newer wheel tick superseded this animation,
             // so trackpad/scrollbar interruptions clear stale state while
             // older cancelled wheel ticks cannot wipe newer queued targets.
             if (mounted && _scrollGeneration == generation) {
               _futurePosition = null;
+              _endWheelUserScroll();
             }
           }),
     );

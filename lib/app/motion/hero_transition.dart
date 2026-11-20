@@ -13,6 +13,8 @@ import '../../core/debug/hero_anomaly_log.dart';
 import '../../core/log.dart';
 import '../../core/settings/shared_preferences.dart';
 import '../../l10n/context.dart';
+import '../layout/app_breakpoints.dart';
+import '../navigation/func_page.dart' show FuncPage;
 import '../navigation/home_shell_metrics.dart';
 import '../navigation/route_animation.dart';
 import '../theme/func_semantic_tokens.dart';
@@ -92,9 +94,8 @@ class IllustHeroCardFrame extends StatelessWidget {
   final bool topSquare;
 
   @override
-  Widget build(BuildContext context) {
-    return ClipRRect(borderRadius: FuncShape.card, child: child);
-  }
+  Widget build(BuildContext context) =>
+      ClipRRect(borderRadius: FuncShape.card, child: child);
 }
 
 /// Chrome drawn over a Hero image: a card's badges, the detail page's top
@@ -173,6 +174,7 @@ class _HeroChromeState extends State<HeroChrome>
 
   /// Whether the chrome overlaps [rect], in global coordinates.
   bool _over(Rect rect) {
+    if (!mounted) return false;
     final box = context.findRenderObject();
     if (box is! RenderBox || !box.attached || !box.hasSize) return false;
     return MatrixUtils.transformRect(
@@ -426,9 +428,25 @@ Widget illustHeroFlightShuttleBuilder(
   final fromBox = _heroScreenRect(fromHeroContext)?.size;
   final toBox = _heroScreenRect(toHeroContext)?.size;
   final cardIsFrom = identical(cardContext, fromHeroContext);
-  // A card's flight to and from its page lifts the card page's bars over
-  // the image ([_LiftedBars]).
-  final liftBars = cardFrame == null || size.isEmpty
+  final otherContext = cardIsFrom ? toHeroContext : fromHeroContext;
+  final otherRoute = ModalRoute.of(otherContext);
+  final otherSettings = otherRoute?.settings;
+  final toBoundedOverlay =
+      FuncPage.isBoundedOverlayRoute(otherRoute) ||
+      (otherSettings is FuncPage &&
+          otherSettings.boundedOverlayOnWide &&
+          !(otherRoute?.isFirst ?? true) &&
+          AppBreakpoints.useBoundedDetailOverlayOf(
+            cardContext,
+            HomeShellChrome.contentSizeOf(cardContext),
+          ));
+  // A card's flight to and from a full-screen page lifts the card page's bars
+  // over the image ([_LiftedBars]); a wide bounded modal overlay or an iOS
+  // shared-element canvas drag dismiss already exposed the underlying feed and
+  // its bars in place behind a partial backdrop.
+  final fromDraggedCanvas = FuncPage.hasCanvasDragOffset(otherRoute);
+  final liftBars =
+      cardFrame == null || size.isEmpty || toBoundedOverlay || fromDraggedCanvas
       ? null
       : () => _LiftedBars.capture(
           card: cardContext,
@@ -500,10 +518,16 @@ Widget illustHeroFlightShuttleBuilder(
         // the clip follows the page over the card, where one shows.
         final bars = lifted?._bars;
         final cover = lifted?._cover();
-        final clipProgress = bars != null || cover == null
+        // From a dragged shared-element canvas (iOS canvas dismiss), the outer
+        // backdrop is already faded and the detail viewport is scaled down: open
+        // the departure clip to full screen and converge smoothly with flight
+        // progress instead of jumping to `1 - cover` (which would slice the
+        // artwork on frame 1).
+        final clipProgress = bars != null || cover == null || fromDraggedCanvas
             ? progress
             : (cardIsFrom ? cover : 1 - cover);
-        final openFrom = bars != null && cardIsFrom;
+        final openFrom =
+            (bars != null && cardIsFrom) || (fromDraggedCanvas && !cardIsFrom);
         final openTo = bars != null && !cardIsFrom;
         final clipped = HeroRectClip(
           globalRect: _heroFlightClipRect(
@@ -592,7 +616,14 @@ class _LiftedEndpointsState extends State<_LiftedEndpoints> {
   _LiftedBars? _bars;
 
   void _lift() {
+    if (!mounted ||
+        !widget.card.mounted ||
+        !widget.from.mounted ||
+        !widget.to.mounted) {
+      return;
+    }
     final page = identical(widget.card, widget.from) ? widget.to : widget.from;
+    if (!page.mounted) return;
     _cardAncestors = {};
     widget.card.visitAncestorElements((element) {
       _cardAncestors[element] = _cardAncestors.length;
@@ -628,6 +659,14 @@ class _LiftedEndpointsState extends State<_LiftedEndpoints> {
   /// new page without rebuilding it: that page's chrome is found here,
   /// where the old page had the image.
   void _holdPages() {
+    if (!mounted ||
+        !widget.card.mounted ||
+        !widget.from.mounted ||
+        !widget.to.mounted) {
+      return;
+    }
+    final page = identical(widget.card, widget.from) ? widget.to : widget.from;
+    if (!page.mounted) return;
     for (final cover in HeroPageCover._over(_cardAncestors)) {
       _holdOver(cover.page, _pageRect);
     }
@@ -636,9 +675,10 @@ class _LiftedEndpointsState extends State<_LiftedEndpoints> {
   double? _cover() => HeroPageCover._of(_cardAncestors);
 
   void _holdOver(Route<dynamic>? route, Rect? rect) {
-    if (route == null || rect == null) return;
+    if (!mounted || route == null || rect == null) return;
     for (final chrome in HeroChrome._on(route)) {
-      if (_held.contains(chrome) ||
+      if (!chrome.mounted ||
+          _held.contains(chrome) ||
           !(chrome.widget.holdable?.call() ?? true) ||
           !chrome._over(rect)) {
         continue;
@@ -670,8 +710,11 @@ class _LiftedEndpointsState extends State<_LiftedEndpoints> {
   void didUpdateWidget(_LiftedEndpoints oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (!identical(oldWidget.from, widget.from) ||
-        !identical(oldWidget.to, widget.to)) {
+        !identical(oldWidget.to, widget.to) ||
+        !identical(oldWidget.card, widget.card)) {
       _release();
+      _bars?.dispose();
+      _bars = widget.liftBars?.call();
       _lift();
     }
   }
@@ -701,7 +744,12 @@ class _LiftedEndpointsState extends State<_LiftedEndpoints> {
 
   @override
   void dispose() {
+    // Guarantee LiftableShadow._lifted and HeroBarsCover._covered are always
+    // released even if a post-frame activate callback re-lifted right before
+    // teardown, so FuncBottomNav's LiftableBar can never stay permanently hidden.
+    _release();
     _bars?.dispose();
+    _bars = null;
     super.dispose();
   }
 
@@ -732,6 +780,7 @@ class HeroLiftHole extends SingleChildRenderObjectWidget {
   /// returned callback runs. Null when the endpoint is in no such page or
   /// contains its image.
   static VoidCallback? lift(BuildContext heroContext) {
+    if (!heroContext.mounted) return null;
     final page = heroContext
         .findAncestorRenderObjectOfType<_RenderHeroLiftHole>();
     final box = heroContext.findRenderObject();
@@ -1114,13 +1163,13 @@ Rect _capHeroBottom(Rect rect, Size size, ValueListenable<double>? extent) {
 double _heroBottomEdge(BuildContext heroContext, Size size) {
   if (!_heroIsHomeSide(heroContext)) return size.height;
 
-  // The shell publishes the bar's resting extent through HomeShellChrome —
-  // the same computed value the spacer and SnackBar margin use. Outside
-  // the shell (a plain MaterialApp in tests) fall back to the conservative
-  // constant, matching pre-scope behaviour.
-  final extent = HomeShellChrome.maybeOf(heroContext)?.bottomBarExtent;
-  if (extent != null) {
-    return size.height - extent;
+  // The shell publishes the bar's live visible extent through HomeShellChrome:
+  // when scrolled away (visibleExtent == 0), reserve no bottom bar band.
+  final chrome = HomeShellChrome.maybeOf(heroContext);
+  if (chrome != null) {
+    return (size.height - chrome.bottomBarVisibleExtent.value)
+        .clamp(0.0, size.height)
+        .toDouble();
   }
   return (size.height - _kHomeBottomNavHeight)
       .clamp(0.0, size.height)
@@ -1196,6 +1245,7 @@ double _routeProgress(double value, HeroFlightDirection direction) {
 /// card is scaled down), as the Hero measures its flight rect; null
 /// before layout.
 Rect? _heroScreenRect(BuildContext context) {
+  if (!context.mounted) return null;
   final box = context.findRenderObject();
   if (box is! RenderBox || !box.attached || !box.hasSize) return null;
   return MatrixUtils.transformRect(

@@ -40,6 +40,9 @@ final class HapticsCapability {
   /// The system "touch feedback" switch is off; app haptics stay silent.
   final bool systemOff;
 
+  /// Whether the device exposes hardware tactile feedback ([tier] != `none`).
+  bool get supported => tier != HapticsTier.none;
+
   @override
   bool operator ==(Object other) =>
       other is HapticsCapability &&
@@ -189,7 +192,7 @@ final class NoHapticsDriver implements HapticsDriver {
   Future<HapticsCapability> capability() async => HapticsCapability.none;
 }
 
-final hapticsDriverProvider = Provider<HapticsDriver>((ref) {
+final _rawHapticsDriverProvider = Provider<HapticsDriver>((ref) {
   final caps = ref.watch(platformCapsProvider);
   if (caps.isAndroid) return const AndroidHapticsDriver();
   if (caps.isIOS) return const IosHapticsDriver();
@@ -197,5 +200,18 @@ final hapticsDriverProvider = Provider<HapticsDriver>((ref) {
 });
 
 final hapticsCapabilityProvider = FutureProvider<HapticsCapability>(
-  (ref) => ref.watch(hapticsDriverProvider).capability(),
+  (ref) => ref.watch(_rawHapticsDriverProvider).capability(),
 );
+
+/// Active haptics driver: watches [hapticsCapabilityProvider] and degrades to
+/// [NoHapticsDriver] once a device reports no haptic hardware (`FB-17`, e.g.
+/// hardwareless iPads), avoiding redundant platform channel calls.
+final hapticsDriverProvider = Provider<HapticsDriver>((ref) {
+  final raw = ref.watch(_rawHapticsDriverProvider);
+  if (raw is NoHapticsDriver) return raw;
+  final capability = ref.watch(hapticsCapabilityProvider);
+  if (capability.value?.supported == false) {
+    return const NoHapticsDriver();
+  }
+  return raw;
+});

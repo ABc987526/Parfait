@@ -8,6 +8,7 @@ import '../../l10n/context.dart';
 import '../haptics/app_haptics.dart';
 import '../motion/state_icon_switcher.dart';
 import 'errors/error_details.dart';
+import '../icons/app_icons.dart';
 
 /// Shared 追更/取消追更 toggle for series surfaces (illust series header and
 /// the novel series bar). The watchlist store shadows the series payload's
@@ -57,7 +58,7 @@ class WatchlistToggle extends ConsumerWidget {
       },
     );
     final icon = Icon(
-      added ? Icons.library_add_check : Icons.library_add_outlined,
+      added ? AppIcons.watchlistAdded : AppIcons.watchlistAdd,
       size: iconOnly ? null : 18,
     );
 

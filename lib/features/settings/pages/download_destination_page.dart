@@ -16,6 +16,7 @@ import '../settings_helpers.dart';
 import '../../../app/clipboard.dart';
 import '../settings_catalog.dart';
 import '../../../app/layout/content_widths.dart';
+import '../../../app/icons/ui_icons.dart';
 
 /// Single-entry save location chooser (D5): album vs SAF folder. Album
 /// defaults to the built-in Parfait album with an optional custom name;
@@ -88,6 +89,15 @@ class _DownloadDestinationPageState
         _albumController.text != (destination.customAlbumName ?? '')) {
       _albumController.text = destination.customAlbumName ?? '';
     }
+    final trimmedAlbum = _albumController.text.trim();
+    final savedAlbum = destination.customAlbumName?.trim() ?? '';
+    final canSaveAlbum = trimmedAlbum.isNotEmpty && trimmedAlbum != savedAlbum;
+    final platform = Theme.of(context).platform;
+    final isIOS = platform == TargetPlatform.iOS;
+    final isDesktop =
+        platform == TargetPlatform.windows ||
+        platform == TargetPlatform.macOS ||
+        platform == TargetPlatform.linux;
     return guardDraft(
       dirty: _albumDirty,
       child: Scaffold(
@@ -106,7 +116,11 @@ class _DownloadDestinationPageState
                 setting: Setting.saveLocationAlbum,
                 children: [
                   SettingsChoiceTile(
-                    title: Text(context.l10n.saveLocationAlbum),
+                    title: Text(
+                      isDesktop
+                          ? context.l10n.saveLocationDesktopFolder
+                          : context.l10n.saveLocationAlbum,
+                    ),
                     selected: !destination.isSafFolder,
                     onTap: () => persistSettings(
                       context,
@@ -123,18 +137,25 @@ class _DownloadDestinationPageState
                         TextField(
                           controller: _albumController,
                           decoration: InputDecoration(
-                            labelText: context.l10n.saveLocationCustomAlbum,
+                            labelText: isDesktop
+                                ? context
+                                      .l10n
+                                      .saveLocationDesktopCustomSubfolder
+                                : context.l10n.saveLocationCustomAlbum,
                             helperText:
                                 context.l10n.saveLocationCustomAlbumHint,
                             helperMaxLines: 3,
                           ),
                           maxLength: 64,
-                          onChanged: (_) => setState(() => _albumDirty = true),
+                          onChanged: (value) => setState(
+                            () => _albumDirty =
+                                value != (destination.customAlbumName ?? ''),
+                          ),
                         ),
                         Align(
                           alignment: Alignment.centerRight,
                           child: FilledButton(
-                            onPressed: _saveAlbum,
+                            onPressed: canSaveAlbum ? _saveAlbum : null,
                             child: Text(context.l10n.save),
                           ),
                         ),
@@ -143,39 +164,56 @@ class _DownloadDestinationPageState
                   ),
                 ],
               ),
-              SettingsGroup(
-                setting: Setting.saveLocationSafFolder,
-                children: [
-                  SettingsChoiceTile(
-                    title: Text(context.l10n.saveLocationSafFolder),
-                    selected: destination.isSafFolder,
-                    onTap: () => _pickSafFolder(),
-                  ),
-                  if (destination.isSafFolder)
-                    ListTile(
-                      leading: const Icon(Icons.check_circle),
-                      selected: true,
-                      // Headline is the human-readable tree name; the raw
-                      // `content://` URI drops to a truncated subtitle and
-                      // stays reachable through long-press copy (R6).
+              if (!isIOS)
+                SettingsGroup(
+                  setting: Setting.saveLocationSafFolder,
+                  children: [
+                    SettingsChoiceTile(
                       title: Text(
-                        safTreeDisplayName(
-                          context.l10n,
-                          destination.safTreeUri ?? '',
-                        ),
+                        isDesktop
+                            ? context.l10n.saveLocationDesktopCustomFolder
+                            : context.l10n.saveLocationSafFolder,
                       ),
-                      subtitle: Text(
-                        destination.safTreeUri ?? '',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      onLongPress: () => _copySafUri(destination.safTreeUri),
-                      // The copy's success haptic confirms the long press;
-                      // the tile's own vibration would double it.
-                      enableFeedback: false,
+                      selected: destination.isSafFolder,
+                      onTap: () => _pickSafFolder(),
                     ),
-                ],
-              ),
+                    if (destination.isSafFolder)
+                      Builder(
+                        builder: (context) {
+                          final rawUri = destination.safTreeUri ?? '';
+                          final isBookmark = isMacosSecurityBookmark(rawUri);
+                          return ListTile(
+                            leading: const Icon(UiIcons.checkCircle),
+                            selected: true,
+                            // Headline is the human-readable tree name (or macOS
+                            // bookmark label); raw URIs/paths drop to a truncated
+                            // subtitle and stay reachable through long-press copy.
+                            title: Text(
+                              safTreeDisplayName(context.l10n, rawUri),
+                            ),
+                            subtitle: isBookmark
+                                ? null
+                                : Text(
+                                    rawUri,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                            onLongPress: isBookmark
+                                ? null
+                                : () => _copySafUri(
+                                    rawUri,
+                                    copiedMessage: isDesktop
+                                        ? context.l10n.saveLocationPathCopied
+                                        : context.l10n.saveLocationUriCopied,
+                                  ),
+                            // The copy's success haptic confirms the long press;
+                            // the tile's own vibration would double it.
+                            enableFeedback: false,
+                          );
+                        },
+                      ),
+                  ],
+                ),
             ],
           ),
         ),
@@ -197,15 +235,15 @@ class _DownloadDestinationPageState
     }
   }
 
-  /// Long-press on the picked SAF tile copies the raw tree URI — the
-  /// truncated subtitle is enough to recognize the pick, copying keeps
+  /// Long-press on the picked SAF/folder tile copies the raw tree URI or path —
+  /// the truncated subtitle is enough to recognize the pick, copying keeps
   /// the technical identifier reachable for support/debugging.
-  Future<void> _copySafUri(String? uri) async {
+  Future<void> _copySafUri(String? uri, {String? copiedMessage}) async {
     if (uri == null || uri.isEmpty) return;
     await copyToClipboard(
       context,
       uri,
-      message: context.l10n.saveLocationUriCopied,
+      message: copiedMessage ?? context.l10n.saveLocationUriCopied,
     );
   }
 }

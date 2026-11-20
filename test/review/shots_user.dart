@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'review_support.dart';
+import 'package:parfait/app/icons/app_icons.dart';
 
 /// Artist profile, profile edit and the /me page.
 void main() {
@@ -48,7 +49,7 @@ void main() {
     await tester.tap(
       find.descendant(
         of: find.byType(MenuItemButton),
-        matching: find.byIcon(Icons.menu_book_outlined),
+        matching: find.byIcon(AppIcons.novel),
       ),
     );
   }

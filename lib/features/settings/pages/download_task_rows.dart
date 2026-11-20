@@ -223,7 +223,7 @@ class _DownloadThumbnail extends StatelessWidget {
         child: ColoredBox(
           color: colorScheme.surfaceContainerHighest,
           child: url == null
-              ? Icon(Icons.image_outlined, color: colorScheme.onSurfaceVariant)
+              ? Icon(AppIcons.illust, color: colorScheme.onSurfaceVariant)
               : PixivImage.feed(url, layoutWidth: size, fit: BoxFit.cover),
         ),
       ),
@@ -367,7 +367,7 @@ class _DownloadTaskRow extends StatelessWidget {
                     onLongPress: onEnterManaging,
                     actions: [
                       DisplayAction(
-                        icon: Icons.checklist_outlined,
+                        icon: UiIcons.checklist,
                         label: l10n.manage,
                         onSelected: onEnterManaging,
                       ),
@@ -385,9 +385,8 @@ class _DownloadTaskRow extends StatelessWidget {
             subtitle: downloadTaskSubtitle(task),
             status: _DownloadStatusLine(state: state, text: statusText),
             progress: downloadVisualShowsProgress(state)
-                ? LinearProgressIndicator(
+                ? AppProgressBar(
                     value: downloadProgressValue(state, task.progress),
-                    borderRadius: FuncShape.pill,
                   )
                 : null,
             detail: _failureReason(context, task),
@@ -396,9 +395,7 @@ class _DownloadTaskRow extends StatelessWidget {
                     value: selected,
                     child: Icon(
                       key: ValueKey('download-select-${task.id}'),
-                      selected
-                          ? Icons.check_circle
-                          : Icons.radio_button_unchecked,
+                      selected ? UiIcons.checkCircle : UiIcons.circleUnchecked,
                       color: selected ? colorScheme.primary : null,
                     ),
                   )
@@ -423,19 +420,19 @@ class _DownloadTaskRow extends StatelessWidget {
       DownloadStatus.queued => [
         _DownloadAction(
           label: l10n.cancelDownload,
-          icon: Icons.close,
+          icon: UiIcons.close,
           onPressed: () => unawaited(manager.cancel(task.id)),
         ),
       ],
       DownloadStatus.running => [
         _DownloadAction(
           label: l10n.pauseDownload,
-          icon: Icons.pause,
+          icon: UiIcons.pause,
           onPressed: () => unawaited(manager.pause(task.id)),
         ),
         _DownloadAction(
           label: l10n.cancelDownload,
-          icon: Icons.close,
+          icon: UiIcons.close,
           onPressed: () => unawaited(manager.cancel(task.id)),
         ),
       ],
@@ -447,31 +444,31 @@ class _DownloadTaskRow extends StatelessWidget {
           // A paused task continues from its preserved resume anchor —
           // semantically 继续, not 重试.
           label: pausedRetryable ? l10n.resumeDownload : l10n.retryDownload,
-          icon: pausedRetryable ? Icons.play_arrow : Icons.refresh,
+          icon: pausedRetryable ? UiIcons.play : UiIcons.refresh,
           onPressed: () => manager.retry(task.id),
         ),
         _DownloadAction(
           label: l10n.cancelDownload,
-          icon: Icons.close,
+          icon: UiIcons.close,
           onPressed: () => unawaited(manager.cancel(task.id)),
         ),
       ],
       DownloadStatus.failed || DownloadStatus.canceled => [
         _DownloadAction(
           label: l10n.retryDownload,
-          icon: Icons.refresh,
+          icon: UiIcons.refresh,
           onPressed: () => manager.retry(task.id),
         ),
         _DownloadAction(
           label: l10n.downloadRemoveRecord,
-          icon: Icons.remove_circle_outline,
+          icon: UiIcons.removeCircle,
           onPressed: onRemove,
         ),
       ],
       DownloadStatus.succeeded || DownloadStatus.orphaned => [
         _DownloadAction(
           label: l10n.downloadRemoveRecord,
-          icon: Icons.remove_circle_outline,
+          icon: UiIcons.removeCircle,
           onPressed: onRemove,
         ),
       ],
@@ -544,13 +541,12 @@ class _DownloadGroupHeader extends StatelessWidget {
               text: downloadGroupStatusLine(l10n, state, group),
             ),
             progress: downloadVisualShowsProgress(state)
-                ? LinearProgressIndicator(
+                ? AppProgressBar(
                     value: downloadProgressValue(state, group.progress),
-                    borderRadius: FuncShape.pill,
                   )
                 : null,
             titleAction: Icon(
-              expanded ? Icons.expand_less : Icons.expand_more,
+              expanded ? UiIcons.expandLess : UiIcons.expandMore,
               color: colorScheme.onSurfaceVariant,
             ),
             actions: _groupActions(context, children),
@@ -579,12 +575,12 @@ class _DownloadGroupHeader extends StatelessWidget {
       DownloadGroupStatus.queued || DownloadGroupStatus.running => [
         _DownloadAction(
           label: l10n.pauseDownload,
-          icon: Icons.pause,
+          icon: UiIcons.pause,
           onPressed: () => unawaited(manager.pauseGroup(group.id)),
         ),
         _DownloadAction(
           label: l10n.cancelDownload,
-          icon: Icons.close,
+          icon: UiIcons.close,
           onPressed: () => unawaited(manager.cancelGroup(group.id)),
         ),
       ],
@@ -599,13 +595,13 @@ class _DownloadGroupHeader extends StatelessWidget {
               ? l10n.resumeDownload
               : l10n.retryDownload,
           icon: group.status == DownloadGroupStatus.retryable
-              ? Icons.play_arrow
-              : Icons.refresh,
+              ? UiIcons.play
+              : UiIcons.refresh,
           onPressed: () => manager.resumeGroup(group.id),
         ),
         _DownloadAction(
           label: l10n.cancelDownload,
-          icon: Icons.close,
+          icon: UiIcons.close,
           onPressed: () => unawaited(manager.cancelGroup(group.id)),
         ),
       ],
@@ -613,19 +609,19 @@ class _DownloadGroupHeader extends StatelessWidget {
         if (works.length == 1)
           _DownloadAction(
             label: l10n.downloadViewResult,
-            icon: Icons.open_in_new,
+            icon: AppIcons.externalLink,
             onPressed: () => unawaited(openIllust(context, works.single)),
           ),
         _DownloadAction(
           label: l10n.downloadRemoveRecord,
-          icon: Icons.remove_circle_outline,
+          icon: UiIcons.removeCircle,
           onPressed: dismissChildren,
         ),
       ],
       DownloadGroupStatus.orphaned => [
         _DownloadAction(
           label: l10n.downloadRemoveRecord,
-          icon: Icons.remove_circle_outline,
+          icon: UiIcons.removeCircle,
           onPressed: dismissChildren,
         ),
       ],

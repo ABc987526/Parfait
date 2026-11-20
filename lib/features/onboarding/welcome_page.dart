@@ -22,6 +22,7 @@ class WelcomePage extends StatelessWidget {
     final theme = Theme.of(context);
     return ScrollableFormShell(
       brandGlow: true,
+      primaryActionMaxWidth: 320,
       // Long translations wrap rather than shrink.
       header: Column(
         mainAxisSize: MainAxisSize.min,

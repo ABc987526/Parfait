@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:parfait/app/theme/forui_theme_bridge.dart';
 import 'package:parfait/app/theme/replica_theme.dart';
 import 'package:parfait/app/widgets/fit_label.dart';
 import 'package:parfait/l10n/app_localizations.dart';
@@ -72,6 +73,7 @@ Widget localeLayoutApp({
       Brightness.light,
       fontFamilyFallback: layoutFontFallback,
     ),
+    builder: (_, child) => ForuiThemeHost(child: child!),
     locale: locale,
     supportedLocales: AppLocalizations.supportedLocales,
     localizationsDelegates: appLocalizationsDelegates,

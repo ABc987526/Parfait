@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart'
     show TargetPlatform, debugDefaultTargetPlatformOverride;
 import 'package:flutter/gestures.dart';
-import 'package:flutter/rendering.dart' show SelectionRegistrar;
+import 'package:flutter/rendering.dart' show SelectionRegistrar, SemanticsNode;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -11,13 +11,17 @@ import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:parfait/app/app.dart' show AppChrome;
 import 'package:parfait/app/clipboard.dart';
 import 'package:parfait/app/layout/form_factor.dart';
 import 'package:parfait/app/layout/input_modality.dart';
+import 'package:parfait/app/layout/window_layout_spec.dart'
+    show WindowEnvironmentOverride;
 import 'package:parfait/app/motion/motion_tokens.dart';
 import 'package:parfait/app/motion/press_scale.dart';
 import 'package:parfait/app/navigation/forward_history.dart';
 import 'package:parfait/app/navigation/keyboard_back.dart';
+import 'package:parfait/app/navigation/routes.dart' show IllustRouteExtra;
 import 'package:parfait/app/person_avatar.dart';
 import 'package:parfait/app/touch_exploration_scope.dart';
 import 'package:parfait/app/widgets/bookmark_switch_button.dart';
@@ -39,6 +43,7 @@ import 'package:parfait/core/actionqueue/action_store.dart';
 import 'package:parfait/core/auth/account.dart';
 import 'package:parfait/core/auth/credential.dart';
 import 'package:parfait/core/entity/illust_entity.dart';
+import 'package:parfait/core/entity/illust_store.dart';
 import 'package:parfait/core/image/image_worker_providers.dart';
 import 'package:parfait/core/navigation/home_destination.dart';
 import 'package:parfait/core/platform/accessibility.dart';
@@ -47,14 +52,19 @@ import 'package:parfait/core/platform/image_clipboard.dart';
 import 'package:parfait/core/search/search_models.dart';
 import 'package:parfait/core/settings/app_settings.dart';
 import 'package:parfait/features/comments/comments_page.dart';
+import 'package:parfait/features/home/home_page.dart';
+import 'package:parfait/features/illust/detail/widgets/page_image.dart'
+    show DetailPageImage;
 import 'package:parfait/features/illust/viewer/image_viewer_page.dart';
 import 'package:parfait/features/ranking/ranking_page.dart';
 import 'package:parfait/l10n/app_localizations.dart';
+import 'package:visibility_detector/visibility_detector.dart';
 
 import 'helpers/api_responses.dart';
 import 'helpers/bookmark_world.dart';
 import 'helpers/card_world.dart';
 import 'helpers/comment_world.dart';
+import 'helpers/connectivity_channels.dart';
 import 'helpers/detail_world.dart';
 import 'helpers/fake_account.dart';
 import 'helpers/fake_settings.dart';
@@ -66,6 +76,7 @@ import 'helpers/pixiv_router.dart';
 import 'helpers/prompt_host.dart';
 import 'helpers/view_size.dart';
 import 'helpers/waits.dart';
+import 'package:parfait/app/icons/app_icons.dart';
 
 void _collectMenuItems(
   List<PlatformMenuItem> items,
@@ -245,7 +256,7 @@ void main() {
         expect(
           find.descendant(
             of: find.byType(ShellRail),
-            matching: find.byIcon(Icons.menu),
+            matching: find.byIcon(AppIcons.sidebarExpand),
           ),
           findsNothing,
         );
@@ -303,7 +314,7 @@ void main() {
         expect(
           find.descendant(
             of: find.byType(ShellRail),
-            matching: find.byIcon(Icons.menu),
+            matching: find.byIcon(AppIcons.sidebarExpand),
           ),
           findsOneWidget,
         );
@@ -728,7 +739,7 @@ void main() {
         expect(stageScale(), closeTo(1.0, 0.001));
 
         // Open docked 320dp info panel and pop-before-navigate via author link.
-        await tester.tap(find.byIcon(Icons.info_outline));
+        await tester.tap(find.byIcon(AppIcons.info));
         await tester.pumpAndSettle();
         final panel = find.byKey(const Key('viewer-info-panel'));
         expect(panel, findsOneWidget);
@@ -936,11 +947,6 @@ void main() {
                           sel.syncItems(items);
                           return CustomScrollView(
                             slivers: [
-                              SliverToBoxAdapter(
-                                child: FeedSelectionHeaderStrip(
-                                  controller: sel,
-                                ),
-                              ),
                               SliverGrid.count(
                                 crossAxisCount: 3,
                                 childAspectRatio: 0.72,
@@ -1080,7 +1086,7 @@ void main() {
   );
 
   testWidgets(
-    'Pointer IllustCard omits PressScale and long-press and reveals quick author and bookmark hover pills',
+    'Pointer IllustCard keeps immediate PressScale, omits touch long-press, and uses subtle hover highlight without duplicate pills',
     (tester) async {
       debugDefaultTargetPlatformOverride = TargetPlatform.windows;
       try {
@@ -1103,7 +1109,7 @@ void main() {
             of: find.byType(IllustCard),
             matching: find.byType(PressScale),
           ),
-          findsNothing,
+          findsOneWidget,
         );
         final detector = tester.widget<GestureDetector>(
           find
@@ -1115,7 +1121,7 @@ void main() {
         );
         expect(detector.onLongPress, isNull);
 
-        // Mouse hover reveals quick author + bookmark hover pills.
+        // Hover highlights the card border/overlay without duplicating footer controls.
         expect(
           find.descendant(
             of: find.byType(IllustCard),
@@ -1147,21 +1153,21 @@ void main() {
             of: find.byType(IllustCard),
             matching: find.byType(PersonAvatar),
           ),
-          findsOneWidget,
+          findsNothing,
         );
         expect(
           find.descendant(
             of: find.byType(IllustCard),
             matching: find.text(entity.user.name),
           ),
-          findsNWidgets(2),
+          findsOneWidget,
         );
         expect(
           find.descendant(
             of: find.byType(IllustCard),
             matching: find.byType(BookmarkSwitchButton),
           ),
-          findsNWidgets(2),
+          findsOneWidget,
         );
       } finally {
         debugDefaultTargetPlatformOverride = null;
@@ -1285,6 +1291,175 @@ void main() {
         await tester.pump();
       } finally {
         debugDefaultTargetPlatformOverride = null;
+      }
+    },
+  );
+
+  testWidgets(
+    'AppChrome isolates Router BlockSemantics so DesktopCommandBar remains reachable in semantics',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+      try {
+        await seedSettings(AppSettings.defaults());
+        await seedAccounts([testerAccount], currentId: testerAccount.id);
+        final credStore = FakeCredentialStore(
+          values: {
+            testerAccount.id: const Credential(
+              accessToken: 't',
+              refreshToken: 'r',
+            ),
+          },
+        );
+        final router = GoRouter(
+          initialLocation: '/recommended',
+          routes: [
+            GoRoute(
+              path: '/recommended',
+              builder: (_, _) => const Scaffold(body: Text('home body')),
+            ),
+          ],
+        );
+        addTearDown(router.dispose);
+
+        await tester.pumpWidget(
+          localizedRouterApp(
+            router,
+            overrides: accountProviderOverrides(credentialStore: credStore),
+            builder: (context, child) => AppChrome(
+              settings: AppSettings.defaults(),
+              router: router,
+              child: child!,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final refresh = find.byKey(const Key('desktop-command-refresh'));
+        expect(refresh, findsOneWidget);
+        final node = tester.getSemantics(refresh);
+        expect(node.flagsCollection.isButton, isTrue);
+        final rootNode = tester
+            .binding
+            .renderViews
+            .first
+            .owner!
+            .semanticsOwner!
+            .rootSemanticsNode!;
+        var reachedButtonFromRoot = false;
+        var foundRefreshTooltip = false;
+        bool visit(SemanticsNode current) {
+          if (current.id == node.id) {
+            reachedButtonFromRoot = true;
+          }
+          if (current.tooltip.isNotEmpty) {
+            foundRefreshTooltip = true;
+          }
+          current.visitChildren(visit);
+          return true;
+        }
+
+        visit(rootNode);
+        expect(reachedButtonFromRoot, isTrue);
+        expect(foundRefreshTooltip, isTrue);
+      } finally {
+        semantics.dispose();
+        debugDefaultTargetPlatformOverride = null;
+      }
+    },
+  );
+
+  testWidgets(
+    'wide AppChrome keeps HomePage element and state mounted across ImageViewerPage push and pop',
+    (tester) async {
+      answerConnectivityChannels();
+      for (final platform in const [
+        TargetPlatform.windows,
+        TargetPlatform.macOS,
+      ]) {
+        debugDefaultTargetPlatformOverride = platform;
+        try {
+          setViewSize(tester, const Size(1280, 800));
+          VisibilityDetectorController.instance.updateInterval = Duration.zero;
+          await seedSettings(AppSettings.defaults());
+          final (container, _, _) = await makeWorld();
+          final entity = parseIllust(illustJson(42));
+          container.read(illustStoreProvider).mergeAll([entity]);
+          final router = pixivRouter('/recommended');
+          final metrics = platform == TargetPlatform.macOS
+              ? const DesktopWindowPlatformMetrics(
+                  usesSystemTitleBar: false,
+                  trafficLightWidth: 78,
+                  trafficLightHeight: 16,
+                )
+              : const DesktopWindowPlatformMetrics(usesSystemTitleBar: false);
+
+          await tester.pumpWidget(
+            localizedRouterApp(
+              router,
+              container: container,
+              builder: (context, child) => WindowEnvironmentOverride(
+                displaySize: const Size(1280, 800),
+                targetPlatform: platform,
+                desktopMetrics: metrics,
+                desktopActions: DesktopWindowActions.noop,
+                showSimulatedTrafficLights: platform == TargetPlatform.macOS,
+                child: AppChrome(
+                  settings: AppSettings.defaults(),
+                  router: router,
+                  child: child!,
+                ),
+              ),
+            ),
+          );
+          await tester.pumpAndSettle();
+
+          final homeElement = tester.element(find.byType(HomePage));
+          final homeState = tester.state(find.byType(HomePage));
+          expect(find.byKey(const Key('desktop-command-bar')), findsOneWidget);
+
+          unawaited(
+            router.push<void>(
+              '/recommended/illust/42',
+              extra: IllustRouteExtra(entity: entity, heroScope: 'feed'),
+            ),
+          );
+          await tester.pumpAndSettle();
+
+          await tester.tap(find.byType(DetailPageImage).first);
+          await tester.pumpAndSettle();
+          expect(find.byType(ImageViewerPage), findsOneWidget);
+          expect(find.byKey(const Key('desktop-command-bar')), findsNothing);
+          expect(
+            tester.element(find.byType(HomePage, skipOffstage: false)),
+            same(homeElement),
+            reason: '$platform HomePage element identity while viewer open',
+          );
+          expect(
+            tester.state(find.byType(HomePage, skipOffstage: false)),
+            same(homeState),
+            reason: '$platform HomePage state identity while viewer open',
+          );
+
+          await tester.tap(find.byType(BackButton).last);
+          await tester.pumpAndSettle();
+          expect(find.byType(ImageViewerPage), findsNothing);
+          expect(find.byKey(const Key('desktop-command-bar')), findsOneWidget);
+          expect(
+            tester.element(find.byType(HomePage)),
+            same(homeElement),
+            reason: '$platform HomePage element identity after viewer close',
+          );
+          expect(
+            tester.state(find.byType(HomePage)),
+            same(homeState),
+            reason: '$platform HomePage state identity after viewer close',
+          );
+          await tester.pumpWidget(const SizedBox());
+          await tester.pump();
+        } finally {
+          debugDefaultTargetPlatformOverride = null;
+        }
       }
     },
   );

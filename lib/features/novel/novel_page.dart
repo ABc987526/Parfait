@@ -40,6 +40,8 @@ import 'novel_layout.dart';
 import 'novel_reader.dart';
 import 'novel_reader_stage.dart';
 import '../../app/theme/func_semantic_tokens.dart';
+import '../../app/icons/app_icons.dart';
+import '../../app/icons/ui_icons.dart';
 
 final _novelDetailProvider = FutureProvider.autoDispose
     .family<NovelEntity, int>((ref, novelId) async {
@@ -93,7 +95,7 @@ class NovelPage extends ConsumerWidget {
           if (novel.isRestricted) {
             return NovelStatusScaffold(
               child: FeedEmpty(
-                icon: Icons.lock_outline,
+                icon: AppIcons.lock,
                 title: context.l10n.novelRestricted,
               ),
             );
@@ -101,7 +103,7 @@ class NovelPage extends ConsumerWidget {
           if (!novel.contentAvailable) {
             return NovelStatusScaffold(
               child: FeedEmpty(
-                icon: Icons.text_snippet_outlined,
+                icon: AppIcons.toc,
                 title: context.l10n.novelContentUnavailable,
               ),
             );
@@ -129,7 +131,7 @@ class NovelPage extends ConsumerWidget {
         IconButton(
           tooltip: context.l10n.cardActionShare,
           onPressed: () => _shareNovel(context, ref, novel),
-          icon: const Icon(Icons.share_outlined),
+          icon: const Icon(AppIcons.share),
         ),
         BookmarkSwitchButton(
           illustId: novel.id,
@@ -318,7 +320,7 @@ class NovelPage extends ConsumerWidget {
               Navigator.of(sheetContext).pop();
               unawaited(openNovelComments(listContext, novel.id));
             },
-            icon: const Icon(Icons.comment_outlined),
+            icon: const Icon(AppIcons.comment),
             label: Text(
               novel.totalComments > 0
                   ? listContext.l10n.commentTitleCount(
@@ -585,7 +587,7 @@ class _SeriesLink extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Icon(Icons.library_books_outlined, size: 20, color: variant),
+              Icon(AppIcons.watchlist, size: 20, color: variant),
               const SizedBox(width: FuncSpacing.sm),
               Flexible(
                 child: Text(
@@ -595,7 +597,7 @@ class _SeriesLink extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              Icon(Icons.chevron_right, size: 20, color: variant),
+              Icon(UiIcons.chevronRight, size: 20, color: variant),
             ],
           ),
         ),
@@ -630,7 +632,7 @@ class _NovelFacts extends StatelessWidget {
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
           MetaFact(
-            icon: Icons.notes,
+            icon: AppIcons.toc,
             text:
                 '${AppFormat.count(context, novel.textLength)} '
                 '${l10n.novelWords}',
@@ -641,16 +643,12 @@ class _NovelFacts extends StatelessWidget {
                 ? l10n.detailMetaCountsSemantics(views, bookmarks)
                 : l10n.detailStatsSemantics(views, bookmarks, date),
             child: ExcludeSemantics(
-              child: MetaFact(
-                icon: Icons.visibility_outlined,
-                text: views,
-                style: style,
-              ),
+              child: MetaFact(icon: AppIcons.eye, text: views, style: style),
             ),
           ),
           ExcludeSemantics(
             child: MetaFact(
-              icon: Icons.favorite_outline,
+              icon: AppIcons.heart,
               text: bookmarks,
               style: style,
             ),

@@ -61,10 +61,10 @@ final _selectionControlOwners = <RegExp, Set<String>>{
   RegExp(r'(?<![A-Za-z])(?:ChoiceChip|FilterChip)\('): {
     'lib/app/widgets/app_choice_chip.dart',
   },
-  RegExp(r'(?<![A-Za-z])Slider(?:\.adaptive)?\('): {
+  RegExp(r'(?<![A-Za-z])(?:Slider|FSlider)(?:\.adaptive)?\('): {
     'lib/app/widgets/app_slider.dart',
   },
-  RegExp(r'(?<![A-Za-z])(?:Switch|SwitchListTile)(?:\.adaptive)?\('): {
+  RegExp(r'(?<![A-Za-z])(?:Switch|SwitchListTile|FSwitch)(?:\.adaptive)?\('): {
     'lib/app/widgets/settings/settings_control.dart',
     'lib/app/widgets/replica_switch_tile.dart',
   },
@@ -96,13 +96,9 @@ const _overlaysOwner = 'lib/app/motion/app_overlays.dart';
 const _systemUiOwner = 'lib/app/system_ui.dart';
 
 /// Raw overlay entries that are intentional framework pickers, not app
-/// overlay surfaces — the app overlay contract (sheet spring, dialog token +
-/// reduced-motion gate) does not restyle them.
-const _overlayAllowList = <String, Set<String>>{
-  'lib/features/settings/pages/about_settings_page.dart': {'showLicensePage'},
-  'lib/features/search/search_filter_sheet.dart': {'showDatePicker'},
-  'lib/features/ranking/ranking_date.dart': {'showDatePicker'},
-};
+/// overlay surfaces — empty now that date pickers also funnel through
+/// `app_overlays.dart` (`showAppDatePicker`).
+const _overlayAllowList = <String, Set<String>>{};
 
 /// Files allowed to contain `Hero(` — the members of the shared
 /// `illustHeroTag(scope, id)` tag family. A new file here means a second
@@ -120,7 +116,7 @@ const _heroFiles = <String>{
 /// throttle, wheel floor clamp, ugoira frame delay, debug probe poll).
 /// Counts are pinned so a new hard-coded animation duration fails here.
 const _durationCensus = <String, int>{
-  'lib/app/motion/motion_tokens.dart': 20,
+  'lib/app/motion/motion_tokens.dart': 21,
   // Press-feedback settle window before a covered page may be snapshotted:
   // a throttle on capture timing, not an animation.
   'lib/app/motion/page_transitions.dart': 1,
@@ -228,7 +224,9 @@ void main() {
   test('haptics have exactly one owner', () {
     final files = _matches(
       ['lib'],
-      RegExp(r"HapticFeedback\.|MethodChannel\('parfait/haptics'\)"),
+      RegExp(
+        r"(?<![A-Za-z0-9_])HapticFeedback\.|FHapticFeedback\.(?!none\b)|MethodChannel\('parfait/haptics'\)",
+      ),
     ).keys.where((f) => !f.startsWith(_hapticsOwnerDir));
     expect(
       files,
@@ -313,7 +311,8 @@ void main() {
         '(?<![A-Za-z])'
         '(showDialog|showModalBottomSheet|showCupertinoDialog|'
         'showCupertinoModalPopup|showGeneralDialog|showMenu|'
-        'showLicensePage|showDatePicker|showTimePicker|showSearch)'
+        'showLicensePage|showDatePicker|showTimePicker|showSearch|'
+        'ModalSheetRoute|ModalSheetPage|CupertinoModalSheetRoute)'
         r'\s*[<(]',
       ),
     );

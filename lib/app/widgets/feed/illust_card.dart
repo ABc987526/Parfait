@@ -14,9 +14,7 @@ import '../../../core/settings/app_settings.dart';
 import '../../../core/settings/settings_controller.dart';
 import '../../../l10n/context.dart';
 import '../../layout/input_modality.dart';
-import '../../person_avatar.dart';
 import '../../theme/func_semantic_tokens.dart';
-import '../../theme/func_tokens.dart';
 import '../../motion/hero_transition.dart';
 import '../../motion/motion_tokens.dart';
 import '../smooth_wheel_scroll.dart';
@@ -28,12 +26,15 @@ import '../../widgets/bookmark_switch_button.dart';
 import '../card_actions/card_action_sheet.dart';
 import '../display_actions.dart';
 import '../entity_row.dart';
+import 'desktop_inspector_scope.dart';
 import 'feed_grid.dart';
 import 'feed_selection.dart';
 import 'feed_text_warmup.dart';
 import 'illust_card_layout.dart';
 import 'muted_cover.dart';
 import '../../haptics/app_haptics.dart';
+import '../../icons/app_icons.dart';
+import '../../icons/ui_icons.dart';
 
 /// Illust preview card replicating beta56 IllustPreviewer semantics:
 /// R-18 top-left, ugoira gif bottom-left, page count top-right, AI
@@ -262,6 +263,7 @@ class _IllustCardBody extends ConsumerWidget {
       );
     }
 
+    final inspector = DesktopInspectorScope.watchOf(context);
     final previewHeight = cardWidth * preview.heightRatio;
     final image = _buildImage(
       preview,
@@ -288,7 +290,6 @@ class _IllustCardBody extends ConsumerWidget {
     void secondaryTap(TapUpDetails details) {
       final own = onLongPress;
       if (own == null) {
-        AppHaptics.longPress();
         unawaited(
           showCardActionsMenu(
             context,
@@ -307,7 +308,7 @@ class _IllustCardBody extends ConsumerWidget {
           onLongPress: own,
           actions: [
             DisplayAction(
-              icon: Icons.checklist_outlined,
+              icon: UiIcons.checklist,
               label: context.l10n.manage,
               onSelected: own,
             ),
@@ -332,6 +333,24 @@ class _IllustCardBody extends ConsumerWidget {
       }
       if (muted) {
         reveal();
+      } else if (inspector != null) {
+        pressWarmup.stop();
+        _preloadTransitionImages(
+          context,
+          ref,
+          preview,
+          cardDecodeWidth,
+          standInUrl: standInUrl,
+        );
+        inspector.onInspect(
+          DesktopInspectorTarget(
+            entity: entity,
+            heroScope: heroScope,
+            heroImageUrl: hasHero ? preview.url : null,
+            heroImageDecodeWidth: hasHero ? cardDecodeWidth : null,
+            pagerSource: IllustPagerScope.maybeOf(context),
+          ),
+        );
       } else {
         openDetail();
       }
@@ -353,6 +372,11 @@ class _IllustCardBody extends ConsumerWidget {
               if (rank case final rank?) context.l10n.rankLabel(rank),
               entity.title,
               entity.user.name,
+              if (entity.isR18) 'R-18',
+              if (entity.isUgoira) context.l10n.badgeUgoira,
+              if (entity.pageCount > 1)
+                context.l10n.illustPagesTotal(entity.pageCount),
+              if (entity.isAi) context.l10n.badgeAi,
             ].join(', '),
       onTap: primaryTap,
       onLongPress: longPress,
@@ -379,7 +403,6 @@ class _IllustCardBody extends ConsumerWidget {
         // bounds, so the extra clip only cost a saveLayer per card per
         // frame while scrolling.
         child: _HoverLayer(
-          entity: entity,
           isPointer: isPointer,
           muted: muted,
           child: SizedBox(
@@ -394,21 +417,45 @@ class _IllustCardBody extends ConsumerWidget {
                         _StandInPrefetch(url: url, child: image)
                       else
                         image,
-                      HeroChrome(
-                        child: Stack(
-                          fit: StackFit.expand,
-                          children: _buildBadges(context),
+                      ExcludeSemantics(
+                        child: HeroChrome(
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: _buildBadges(context),
+                          ),
                         ),
                       ),
+                      if (inspector != null)
+                        ValueListenableBuilder<int?>(
+                          valueListenable: inspector.selectedId,
+                          builder: (context, selectedId, _) {
+                            if (selectedId != entity.id) {
+                              return const SizedBox.shrink();
+                            }
+                            return Positioned.fill(
+                              child: IgnorePointer(
+                                child: DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    borderRadius: FuncShape.card,
+                                    border: Border.all(
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.primary,
+                                      width: 2.2,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
                     ],
                   ),
           ),
         ),
       ),
     );
-    if (!isPointer) {
-      card = PressScale(child: card);
-    }
+    card = PressScale(child: card);
 
     return _CardFocus(onActivate: primaryTap, onMenu: longPress, child: card);
   }
@@ -466,6 +513,7 @@ class _IllustCardBody extends ConsumerWidget {
       curve: MotionTokens.spatialCurve,
       createRectTween: illustHeroRectTween,
       flightShuttleBuilder: illustHeroFlightShuttleBuilder,
+      transitionOnUserGestures: true,
       child: framed,
     );
   }
@@ -476,13 +524,30 @@ class _IllustCardBody extends ConsumerWidget {
     // is not a badge — it leads the title line.
     return [
       if (entity.isR18)
-        const Positioned(left: 7, top: 7, child: EntityBadge(label: 'R-18')),
+        Builder(
+          builder: (context) {
+            final occupied = FeedSelectionCornerScope.topStartOccupiedOf(
+              context,
+            );
+            final (duration, curve) = MotionTokens.springCurve(
+              context,
+              MotionSpring.spatialFast,
+            );
+            return AnimatedPositionedDirectional(
+              start: occupied ? 38 : 7,
+              top: 7,
+              duration: duration,
+              curve: curve,
+              child: const EntityBadge(label: 'R-18'),
+            );
+          },
+        ),
       if (entity.isUgoira)
         Positioned(
           left: 7,
           bottom: 7,
           child: EntityBadge(
-            icon: Icons.gif_box_outlined,
+            icon: AppIcons.ugoira,
             semanticsLabel: l10n.badgeUgoira,
           ),
         ),
@@ -491,7 +556,7 @@ class _IllustCardBody extends ConsumerWidget {
           right: 7,
           top: 7,
           child: EntityBadge(
-            icon: Icons.photo_library_outlined,
+            icon: AppIcons.multiPage,
             label: AppFormat.count(context, entity.pageCount),
             semanticsLabel: l10n.illustPagesTotal(entity.pageCount),
           ),
@@ -506,8 +571,8 @@ class _IllustCardBody extends ConsumerWidget {
   }
 
   Widget _buildTitle(BuildContext context) {
-    // Beta56 title row: 10px indent, title/user block, bookmark heart on the
-    // right (BookmarkSwitchButton isButton variant).
+    // Clean metadata row below the artwork: 12px indent, title/author stack,
+    // bookmark heart on the right so the image itself stays completely unoccluded.
     return Row(
       children: [
         const SizedBox(width: IllustCard.textIndent),
@@ -675,19 +740,17 @@ class _StandInPrefetchState extends ConsumerState<_StandInPrefetch> {
   Widget build(BuildContext context) => widget.child;
 }
 
-/// The M3 hover state layer over the preview, subtle border highlight, quick
-/// author/bookmark hover pills and link cursor: with a mouse the card otherwise
-/// gave no sign it opens. Touch never hovers, so on a phone this is an empty
-/// decoration and the card body never rebuilds for it.
+/// The M3 hover state layer over the preview, subtle border highlight, and
+/// link cursor: with a mouse the card otherwise gave no sign it opens. Touch
+/// never hovers, so on a phone this is an empty decoration and the card body
+/// never rebuilds for it.
 class _HoverLayer extends StatefulWidget {
   const _HoverLayer({
-    required this.entity,
     required this.isPointer,
     required this.muted,
     required this.child,
   });
 
-  final IllustEntity entity;
   final bool isPointer;
   final bool muted;
   final Widget child;
@@ -708,87 +771,7 @@ class _HoverLayerState extends State<_HoverLayer> {
 
   @override
   Widget build(BuildContext context) {
-    final showPointerChrome = _hovered && widget.isPointer && !widget.muted;
     final colorScheme = Theme.of(context).colorScheme;
-    final child = showPointerChrome
-        ? Stack(
-            fit: StackFit.passthrough,
-            children: [
-              widget.child,
-              PositionedDirectional(
-                start: 7,
-                end: 46,
-                bottom: 7,
-                child: Align(
-                  alignment: AlignmentDirectional.bottomStart,
-                  child: Material(
-                    color: FuncTokens.imageControl,
-                    borderRadius: FuncShape.badge,
-                    clipBehavior: Clip.antiAlias,
-                    child: InkWell(
-                      onTap: widget.entity.user.id > 0
-                          ? () => unawaited(
-                              openUser(context, widget.entity.user.id),
-                            )
-                          : null,
-                      child: Padding(
-                        padding: const EdgeInsetsDirectional.fromSTEB(
-                          4,
-                          3,
-                          8,
-                          3,
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            PersonAvatar(
-                              imageUrl: widget.entity.user.profileImageUrl,
-                              radius: 10,
-                            ),
-                            const SizedBox(width: FuncSpacing.xs),
-                            Flexible(
-                              child: Text(
-                                widget.entity.user.name,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: Theme.of(context).textTheme.labelSmall
-                                    ?.copyWith(color: FuncTokens.white),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              PositionedDirectional(
-                end: 7,
-                bottom: 7,
-                child: Theme(
-                  data: Theme.of(context).copyWith(
-                    iconButtonTheme: IconButtonThemeData(
-                      style: IconButton.styleFrom(
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        visualDensity: VisualDensity.compact,
-                      ),
-                    ),
-                  ),
-                  child: Material(
-                    color: FuncTokens.imageControl,
-                    shape: const CircleBorder(),
-                    clipBehavior: Clip.antiAlias,
-                    child: BookmarkSwitchButton(
-                      illustId: widget.entity.id,
-                      title: widget.entity.title,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          )
-        : widget.child;
-
     return ScrollAwareHoverRegion(
       cursor: SystemMouseCursors.click,
       onHover: _setHovered,
@@ -806,7 +789,7 @@ class _HoverLayerState extends State<_HoverLayer> {
                 borderRadius: FuncShape.card,
               )
             : const BoxDecoration(),
-        child: child,
+        child: widget.child,
       ),
     );
   }

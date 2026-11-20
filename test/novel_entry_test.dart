@@ -13,6 +13,7 @@ import 'helpers/card_world.dart';
 import 'helpers/fake_account.dart';
 import 'helpers/localized_app.dart';
 import 'helpers/pixiv_router.dart';
+import 'package:parfait/app/icons/app_icons.dart';
 
 NovelEntity _novel(
   int id, {
@@ -70,7 +71,7 @@ void main() {
       tester.getBottomLeft(badge).dy,
       lessThanOrEqualTo(tester.getBottomLeft(find.byType(ClipRRect)).dy),
     );
-    expect(find.byIcon(Icons.favorite), findsOneWidget);
+    expect(find.byIcon(AppIcons.heartFilled), findsOneWidget);
     expect(
       find.bySemanticsLabel(RegExp(r'^novel 6, author, .+ 次收藏$')),
       findsOneWidget,

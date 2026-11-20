@@ -9,6 +9,7 @@ import 'package:parfait/core/settings/app_settings.dart';
 import 'package:parfait/core/settings/settings_controller.dart';
 
 import 'review_support.dart';
+import 'package:parfait/app/icons/app_icons.dart';
 
 /// The five home destinations, their in-page tabs and feed states.
 void main() {
@@ -18,16 +19,24 @@ void main() {
     variants: {...ShotVariant.values},
   );
   // The PC shell: the rail collapsed under its menu button, then opened
-  // into the labelled panel. A phone keeps its bottom bar. The review
-  // device is Android, where the interface form ignores the setting, so
-  // these scenes replace both the framework platform and the platform
-  // caps with Windows before the app builds.
+  // into the labelled panel. A phone keeps its bottom bar. When the review
+  // device is mobile (Android/iOS), these scenes replace both the framework
+  // platform and the platform caps with Windows before the app builds; desktop
+  // presets keep their native chrome.
+  final isDesktopDevice = switch (reviewDevice.targetPlatform) {
+    TargetPlatform.windows ||
+    TargetPlatform.macOS ||
+    TargetPlatform.linux => true,
+    _ => false,
+  };
   for (final open in [false, true]) {
     testShot(
       'home/recommended-pc${open ? '-open' : ''}',
       location: '/recommended',
-      platform: TargetPlatform.windows,
-      setup: const ReviewSetup(platformCaps: PlatformCaps(isWindows: true)),
+      platform: isDesktopDevice ? null : TargetPlatform.windows,
+      setup: isDesktopDevice
+          ? const ReviewSetup()
+          : const ReviewSetup(platformCaps: PlatformCaps(isWindows: true)),
       variants: {ShotVariant.dark, ...overflowVariants, ShotVariant.largeText},
       before: (tester, router) async {
         final container = ProviderScope.containerOf(
@@ -91,7 +100,7 @@ void main() {
   testShot('home/ranking-male', location: '/ranking?mode=dayMale');
   // The category sheet, browsing and editing.
   Future<void> openCategories(WidgetTester tester, _) async {
-    await tester.tap(find.byIcon(Icons.grid_view_outlined));
+    await tester.tap(find.byIcon(AppIcons.categoryGrid));
     await tester.pumpAndSettle();
   }
 
@@ -107,12 +116,7 @@ void main() {
     variants: {ShotVariant.dark, ...overflowVariants, ShotVariant.largeText},
     before: (tester, router) async {
       await openCategories(tester, router);
-      await tester.tap(
-        find.descendant(
-          of: find.byType(BottomSheet),
-          matching: find.byIcon(Icons.edit_outlined),
-        ),
-      );
+      await tester.tap(find.byIcon(AppIcons.edit).last);
       await tester.pumpAndSettle();
     },
   );

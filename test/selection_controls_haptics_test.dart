@@ -201,13 +201,13 @@ void main() {
         (value, set) =>
             AppSlider(value: value, max: 10, divisions: 10, onChanged: set),
       );
-      await tester.tap(find.byType(Slider));
+      await tester.tap(find.byType(AppSlider));
       await tester.pump();
       expect(haptics.roles, [HapticRole.tick]);
 
       // Same step again: no tick even after the lane re-arms.
       await _rearm(tester);
-      await tester.tap(find.byType(Slider));
+      await tester.tap(find.byType(AppSlider));
       await tester.pump();
       expect(haptics.roles, [HapticRole.tick]);
     });

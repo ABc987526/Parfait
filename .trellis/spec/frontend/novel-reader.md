@@ -3,7 +3,7 @@ prefix: NOVEL
 applies_to:
   - lib/features/novel/**
   - lib/core/novel/**
-reviewed: 2026-11-15
+reviewed: 2026-11-18
 ---
 
 # Novel markup and reader
@@ -113,9 +113,15 @@ reviewed: 2026-11-15
   `InputModality.pointer`, the stage renders a lightweight translucent
   pill (`ValueKey('novel-pointer-cue')`) at the top-end corner to reveal the
   chrome on click without changing `PopScope` or center-tap semantics.
-- **Why:** The hint painted under the exiting bottom bar. Text showing
-  through see-through bars read as a smudge behind the controls, and desktop
-  mouse users had no visible affordance to summon hidden chrome.
+  `_ReaderRailSuppression` hides `ShellRail` from the very first loading/error
+  frame (`NovelStatusScaffold` uses `AppTopBar` respecting
+  `DesktopCommandBarScope` and leaves no top-bar hairline over the stage),
+  and wide modal `SideSheet`s hide the background floating reader bars while
+  open.
+- **Why:** The hint painted under the exiting bottom bar, text showing
+  through see-through bars smeared behind controls, mouse users needed a
+  visible chrome affordance, loading-state rail transitions jumped by 200dp,
+  and an open side sheet previously cut across the floating bottom bar.
 - **Check:** `test/novel_reader_chrome_test.dart` "the progress hint never overlaps the sliding bottom bar"
 - **Code:** `lib/features/novel/novel_reader_stage.dart`, `lib/features/novel/novel_reader_stage_widgets.dart`
 
@@ -178,8 +184,10 @@ reviewed: 2026-11-15
   page's lines fill — centred, at `ContentWidths.article` and the
   layout's horizontal padding — not on the window's left edge, and on
   `FoldPosture.book` with a valid hinge it stays constrained to the left
-  pane (`width: hingeBounds.left`) so text never crosses the crease. In the
-  chrome's bottom bar the
+  pane (`width: hingeBounds.left`) so text never crosses the crease; it splits
+  into an ellipsizing `Flexible` title and a fixed `page/total · percent%`
+  suffix inside `MergeSemantics` so long titles never truncate reading progress
+  or translation status. In the chrome's bottom bar the
   progress readout is an outlined pill ending in an expand glyph, which
   opens the progress sheet; its outline is the text color at
   `novelReaderPillOutlineAlpha`, no fainter than keeps 3:1 on every
@@ -199,24 +207,28 @@ reviewed: 2026-11-15
   is exposed via `AppChoiceChip` in the settings sheet (`NAV-17`) and
   controls two-page spreads in paginated mode (selecting a non-`off` mode
   switches scroll mode to `pages`). In `FoldPosture.book`, left and right
-  spread pages align strictly to the local hinge edges without crossing the
-  gap; elsewhere `auto` spreads wide landscape viewports (`>= 960dp` and
-  aspect `> 1.15`). Scroll mode shows the paginated layout's lines as one
-  `ListView` column (`NovelScrollColumn`), each line at its measured extent, so
-  pages stay the unit of progress, chapters, jumps and bilingual batches. A
-  page that ran on continues the column; a chapter starts after `chapterGap`,
-  an author's `[newpage]` after a short faint rule (`pageBreakGap`); an image
-  keeps its page-tall slot. Lines paint only between the page margins and
-  touches land anywhere. A tap anywhere toggles the chrome or opens the
-  image under it, unless it caught the column moving: then it only stops it.
-  A scroll that settles reports the line at the top and its page; `goToPage`
-  scrolls that page's first line to the top. Switching modes opens the page
-  holding the top line, or the column at the page's first line.
-- **Why:** Pages turned left and right were the only way to read; long
-  novels and phones read by scrolling (user request, 11-01). Foldables in
-  book posture and wide landscape tablets gain natural two-page spreads when
-  aligned clear of the physical hinge.
-- **Check:** `test/novel_reader_settings_test.dart` "theme falls back to system, page turn to scroll"; `test/novel_reader_test.dart` "the scroll column runs pages on, with a rule at a new page and a gap" "scroll mode: a tap toggles the chrome or opens an image; one"; `test/novel_reader_stage_test.dart` "scroll mode: open writes nothing, a settle writes once;"
+  spread pages align strictly to each pane around the hinge gap; elsewhere
+  `auto` spreads wide landscape viewports (`>= 960dp`, aspect `> 1.15`).
+  `NovelLayoutStyle.spreadContentWidth` clamps each leaf column to `380–540dp`
+  across a `44dp` spine hairline (`_spreadGap`), and flat spreads center the
+  whole two-page spread under `FittedBox(BoxFit.scaleDown, topCenter)` while
+  centering the immersive bottom progress readout on the spine axis. Scroll
+  mode shows the paginated layout's lines as one `ListView` column
+  (`NovelScrollColumn`), each line at its measured extent, so pages stay the
+  unit of progress, chapters, jumps and bilingual batches. A page that ran on
+  continues the column; a chapter starts after `chapterGap`, `[newpage]`
+  after a short faint rule (`pageBreakGap`); images keep their page-tall slot.
+  Lines paint only between the page margins and touches land anywhere; a tap
+  toggles chrome or opens an image unless it stops a moving column. Scroll mode
+  reserves `kToolbarHeight + FuncSpacing.sm` top padding so expanded top
+  chrome never occludes line 1 of the title, and `_TextAreaClip` pairs
+  `16dp` `ShaderMaskLayer` top/bottom edge fades with initial whole-line
+  bottom alignment (`cleanBottom`) to avoid half-cut lines. Switching
+  modes preserves the top line's page.
+- **Why:** Long novels and phones favor scrolling, while foldables in book
+  posture and wide tablets/desktops read best as balanced, centered pocketbook
+  spreads with aligned spine rhythm.
+- **Check:** `test/novel_reader_settings_test.dart` "theme falls back to system, page turn to scroll"; `test/novel_reader_test.dart` "the scroll column runs pages on, with a rule at a new page and a gap" "scroll mode: a tap toggles the chrome or opens an image; one" "wide landscape spread shows two pages and steps by two"; `test/novel_reader_stage_test.dart` "scroll mode: open writes nothing, a settle writes once;"
 - **Code:** `lib/core/novel/reader_settings.dart`, `lib/features/novel/novel_layout.dart`, `lib/features/novel/novel_reader.dart`, `lib/features/novel/novel_reader_views.dart`, `lib/features/novel/novel_reader_stage.dart`, `lib/features/novel/novel_reader_stage_widgets.dart`
 
 ### NOVEL-14 An author's links lead where they say
@@ -251,7 +263,10 @@ reviewed: 2026-11-15
   in, opens scrolled to it, and grows to half the screen. The slider and
   its buttons stay put; below them the bookmark and the chapters scroll
   inside what is left of the sheet, and on a window under 480dp tall the
-  list may shrink to two rows. The settings sheet scrolls the same way.
+  list may shrink to two rows. The settings sheet scrolls the same way, and
+  reader panels use `showAppAdaptiveSideSheet` (`maxWidth: 380`) with a
+  `_ReaderSheetHeader` close button (`Icons.close`, `closeButtonTooltip`) on
+  wide viewports.
 - **Why:** Pixiv's bookmark, kept with the account, was unreachable;
   a long table of contents showed four rows and no place in it (user
   request, 11-02). On a turned phone both sheets overflowed.
@@ -295,7 +310,8 @@ reviewed: 2026-11-15
   bar title and the watchlist novel entry's contents item. It reads
   `/v2/novel/series`, paged by `last_order`; a malformed entry is a
   parse error, and a restricted entry (`visible: false`) needs only its
-  id, title and order, and stays closed whatever the novel store kept. The header holds the title, the author, the
+  id, title and order, and stays closed whatever the novel store kept (as in
+  `IllustSeriesPage`, manga series share this clean series scaffold). The header holds the title, the author, the
   works count with the completed and original labels, the actions and
   the caption collapsed to three lines; opening it marks the watchlist
   cursor at the latest novel. Rows are novel cards under their
@@ -316,4 +332,4 @@ reviewed: 2026-11-15
   series had no contents; no other client continues a novel series, and
   novels are read over days (user request, 11-02).
 - **Check:** `test/novel_series_test.dart` "a series page: its facts, numbered novels past the first "; `test/watchlist_page_test.dart` "watchlist page lists entries under both type tabs; a novel "
-- **Code:** `lib/features/novel/novel_series_page.dart`, `lib/core/novel/novel_feed_controller.dart`, `lib/core/novel/novel_repository.dart`, `lib/core/novel/reader_settings.dart`, `lib/features/novel/novel_page.dart`, `lib/features/novel/novel_reader_stage.dart`, `lib/features/novel/novel_reader_stage_widgets.dart`, `lib/features/watchlist/watchlist_page.dart`, `lib/app/navigation/routes.dart`
+- **Code:** `lib/features/novel/novel_series_page.dart`, `lib/features/series/illust_series_page.dart`, `lib/core/novel/novel_feed_controller.dart`, `lib/core/novel/novel_repository.dart`, `lib/core/novel/reader_settings.dart`, `lib/features/novel/novel_page.dart`, `lib/features/novel/novel_reader_stage.dart`, `lib/features/novel/novel_reader_stage_widgets.dart`, `lib/features/watchlist/watchlist_page.dart`, `lib/app/navigation/routes.dart`

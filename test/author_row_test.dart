@@ -8,6 +8,7 @@ import 'package:parfait/core/auth/account.dart';
 import 'helpers/fake_account.dart';
 import 'helpers/localized_app.dart';
 import 'helpers/pixiv_router.dart';
+import 'package:parfait/app/icons/ui_icons.dart';
 
 /// The real router with [row] on a plain pushed route, so a tap goes
 /// through the `openUser` facade.
@@ -54,7 +55,7 @@ void main() {
     // The chevron follows the name, inside the one target.
     final chevron = find.descendant(
       of: target,
-      matching: find.byIcon(Icons.chevron_right),
+      matching: find.byIcon(UiIcons.chevronRight),
     );
     expect(
       tester.getTopLeft(chevron).dx,

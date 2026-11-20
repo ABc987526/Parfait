@@ -1,7 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:material_ui/material_ui.dart';
 
 import 'review_support.dart';
+import 'package:parfait/app/icons/app_icons.dart';
+import 'package:parfait/app/icons/ui_icons.dart';
 
 /// Inserting and deleting with prompts: bookmark undo on a branch home and
 /// on a secondary page, removing a download, unmuting.
@@ -10,13 +11,12 @@ void main() {
     'edit/unbookmark-undo-home',
     location: '/recommended',
     notes:
-        'Tap the heart of a bookmarked card: the heart empties, the prompt '
-        'with Undo slides in above the bottom bar; Undo fills the heart '
-        'again and the prompt leaves.',
+        'Tap the heart of a bookmarked card: the heart empties quietly with a '
+        'dip (no Undo snackbar); tapping the empty heart again fills it back.',
     script: (film, router) async {
-      await film.tap(find.byIcon(Icons.favorite_sharp).first);
+      await film.tap(find.byIcon(AppIcons.heartFilled).first);
       await film.frames(20);
-      await film.tap(find.text('撤销'));
+      await film.tap(find.byIcon(AppIcons.heart).first);
     },
   );
 
@@ -28,8 +28,8 @@ void main() {
         'prompt with Undo enters on a secondary page, above the content and '
         'clear of the system navigation bar.',
     script: (film, router) async {
-      await film.tap(find.byIcon(Icons.favorite_outline_sharp));
-      await film.tap(find.byIcon(Icons.favorite_sharp));
+      await film.tap(find.byIcon(AppIcons.heart));
+      await film.tap(find.byIcon(AppIcons.heartFilled));
       await film.frames(30);
     },
   );
@@ -43,7 +43,7 @@ void main() {
         'action; the row itself opens the work): the row collapses and the '
         'rows below move up.',
     script: (film, router) async {
-      await film.tap(find.byIcon(Icons.remove_circle_outline).first);
+      await film.tap(find.byIcon(UiIcons.removeCircle).first);
     },
   );
 
@@ -57,7 +57,7 @@ void main() {
         'every frame (ux3 #8).',
     script: (film, router) async {
       await film.tap(find.textContaining('批量下载'));
-      await film.tap(find.byIcon(Icons.remove_circle_outline).last);
+      await film.tap(find.byIcon(UiIcons.removeCircle).last);
     },
   );
 
@@ -71,8 +71,8 @@ void main() {
         'row\'s bottom corners round and the gap between them closes — no '
         'square corner and no 2dp step when the row is gone.',
     script: (film, router) async {
-      await film.tap(find.byIcon(Icons.delete_outline).last);
-      await film.tap(find.text('确定'));
+      await film.tap(find.byIcon(AppIcons.trash).last);
+      await film.tap(find.text('移除'));
       await film.frames(10);
     },
   );
@@ -84,7 +84,7 @@ void main() {
         'Unmuting a tag: the row leaves, the prompt with Undo enters; Undo '
         'puts the row back in place.',
     script: (film, router) async {
-      await film.tap(find.byIcon(Icons.visibility_outlined));
+      await film.tap(find.text('解除屏蔽'));
       await film.frames(20);
       await film.tap(find.text('撤销'));
     },

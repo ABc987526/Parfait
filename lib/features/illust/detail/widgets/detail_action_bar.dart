@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
@@ -12,18 +13,13 @@ import '../../../../core/download/download_providers.dart';
 import '../../../../core/entity/illust_entity.dart';
 import '../../../../core/illust/illust_download_controller.dart';
 import '../../../../l10n/context.dart';
+import '../../../../app/icons/app_icons.dart';
+import '../../../../app/icons/ui_icons.dart';
 
-/// The detail page's floating actions, in thumb reach at the bottom:
-/// download (with its progress and saved state) and bookmark, which wears
-/// a tonal circle as the page's main action. Comments open from the
-/// page's own comment preview.
-///
-/// One opaque surface on a layer lift with separate buttons — no
-/// dividers, no segments.
-/// [visibility] (1 shown, 0 hidden) slides it below the screen edge as
-/// [ScrollHiddenChrome] slides the shell's bar; the page drives it from
-/// scrolling. It is the page's prompt anchor, so a snackbar rests above it
-/// and moves with it.
+/// The detail page's compact floating actions in thumb reach, centered at the
+/// bottom edge: download and bookmark on an opaque lifted capsule
+/// (`DETAIL-09`), avoiding frosted text smearing while sitting cleanly below
+/// the author card.
 class DetailActionBar extends StatefulWidget {
   const DetailActionBar({
     super.key,
@@ -32,11 +28,11 @@ class DetailActionBar extends StatefulWidget {
     required this.onDownload,
   });
 
-  /// Height of the toolbar surface itself: a 48dp button and its padding.
+  /// Height of the compact capsule itself: a 48dp button and its padding.
   static const double height = 56;
 
-  /// Gap between the toolbar and the bottom safe edge.
-  static const double margin = FuncSpacing.lg;
+  /// Gap between the capsule and the bottom safe edge.
+  static const double margin = FuncSpacing.sm;
 
   /// What the bar covers at the screen bottom while shown; the page pads
   /// its scroll end by this so the last content can clear it.
@@ -78,8 +74,8 @@ class _DetailActionBarState extends State<DetailActionBar> {
     super.dispose();
   }
 
-  void _publish() =>
-      _visibleExtent.value = _restingExtent * widget.visibility.value;
+  void _publish() => _visibleExtent.value =
+      math.max(0.0, _restingExtent - FuncSpacing.sm) * widget.visibility.value;
 
   @override
   Widget build(BuildContext context) {
@@ -87,24 +83,21 @@ class _DetailActionBarState extends State<DetailActionBar> {
     final bottomInset = MediaQuery.paddingOf(context).bottom;
     // Written during build: the anchor only relayouts on it.
     _publish();
-    final colors = Theme.of(context).colorScheme;
-    // A layer over the page (THEME-20): opaque, so what passes under it
-    // never smears through, on a warm lift. A frosted capsule cost a
-    // backdrop pass per page, two a frame in a side swipe.
+    final tokens = FuncSemanticTokens.of(context);
     final capsule = DecoratedBox(
       decoration: ShapeDecoration(
         shape: const StadiumBorder(),
-        shadows: FuncSemanticTokens.of(context).layerLift,
+        shadows: tokens.layerLift,
       ),
-      child: _toolbar(colors),
+      child: _toolbar(tokens),
     );
     return _host(context, bottomInset, capsule);
   }
 
-  Widget _toolbar(ColorScheme colors) {
+  Widget _toolbar(FuncSemanticTokens tokens) {
     return Material(
-      color: colors.surfaceContainerHigh,
-      shape: StadiumBorder(side: BorderSide(color: colors.outlineVariant)),
+      color: tokens.surface,
+      shape: StadiumBorder(side: BorderSide(color: tokens.brandHairline)),
       child: Padding(
         padding: const EdgeInsets.all(FuncSpacing.xs),
         child: Row(
@@ -117,8 +110,10 @@ class _DetailActionBarState extends State<DetailActionBar> {
             const SizedBox(width: FuncSpacing.xs),
             DecoratedBox(
               decoration: ShapeDecoration(
-                color: colors.secondaryContainer,
-                shape: const CircleBorder(),
+                color: tokens.brandTint,
+                shape: CircleBorder(
+                  side: BorderSide(color: tokens.brandTintStroke),
+                ),
               ),
               child: BookmarkSwitchButton(
                 illustId: widget.entity.id,
@@ -158,7 +153,7 @@ class _DetailActionBarState extends State<DetailActionBar> {
               bottom: bottomInset + DetailActionBar.margin,
             ),
             child: Align(
-              alignment: AlignmentDirectional.bottomEnd,
+              alignment: Alignment.bottomCenter,
               heightFactor: 1,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: FuncSpacing.lg),
@@ -236,14 +231,14 @@ class _DetailDownloadButtonState extends ConsumerState<DetailDownloadButton> {
             ),
           ),
           IllustPageSaveState.exist => Icon(
-            Icons.download_done,
+            AppIcons.downloadDone,
             color: colors.primary,
           ),
           IllustPageSaveState.error => Icon(
-            Icons.error_outline,
+            UiIcons.errorOutline,
             color: colors.error,
           ),
-          IllustPageSaveState.none => const Icon(Icons.download_outlined),
+          IllustPageSaveState.none => const Icon(AppIcons.download),
         },
       ),
     );

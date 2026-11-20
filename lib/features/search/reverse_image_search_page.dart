@@ -27,6 +27,7 @@ import '../../core/errors/error_category.dart';
 import '../../core/settings/settings_controller.dart';
 import '../../app/navigation/routes.dart';
 import '../../app/widgets/app_menu_button.dart';
+import '../../app/widgets/app_progress_bar.dart';
 import '../../app/widgets/app_snack_bar.dart';
 import '../../app/widgets/errors/error_details.dart';
 import '../../app/widgets/settings/persist_settings.dart';
@@ -36,6 +37,9 @@ import '../../app/motion/reveal.dart';
 import '../../app/theme/func_semantic_tokens.dart';
 import '../../app/widgets/app_choice_chip.dart';
 import '../../app/layout/content_widths.dart';
+import '../../app/window/desktop_command_bar.dart';
+import '../../app/icons/app_icons.dart';
+import '../../app/icons/ui_icons.dart';
 
 part 'reverse_image_search_widgets.dart';
 
@@ -150,7 +154,7 @@ class _ReverseImageSearchPageState
             label: Text(spec.displayName),
             selected: state.engine == spec.engine,
             avatar: state.engineFailures.containsKey(spec.engine)
-                ? const Icon(Icons.error_outline, size: 18)
+                ? const Icon(UiIcons.errorOutline, size: 18)
                 : null,
             tooltip: input != null && !spec.supportsInput(input)
                 ? context.l10n.searchReverseEngineUnsupported
@@ -190,14 +194,20 @@ class _ReverseImageSearchPageState
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(reverseImageSearchControllerProvider(_session));
+    final suppressBack =
+        DesktopCommandBarScope.isActiveOf(context) &&
+        !EmbeddedHeaderScope.isActiveOf(context);
     return Scaffold(
       appBar: AppTopBar(
         title: Text(context.l10n.searchReverseImage),
-        leading: IconButton(
-          tooltip: MaterialLocalizations.of(context).backButtonTooltip,
-          onPressed: _cancelAndPop,
-          icon: const Icon(Icons.arrow_back),
-        ),
+        automaticallyImplyLeading: false,
+        leading: suppressBack
+            ? null
+            : IconButton(
+                tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+                onPressed: _cancelAndPop,
+                icon: const BackButtonIcon(),
+              ),
       ),
       body: SafeArea(
         child: Column(
@@ -280,22 +290,25 @@ class _ReverseImageSearchPageState
   }
 
   Widget _idle(BuildContext context, ReverseImageFlowState state) {
-    return _WithBottomAction(
-      action: FilledButton.icon(
-        onPressed: _controller.pick,
-        icon: const Icon(Icons.photo_library_outlined),
-        label: Text(context.l10n.searchReversePick),
-      ),
+    final pickButton = FilledButton.icon(
+      onPressed: _controller.pick,
+      icon: const Icon(AppIcons.multiPage),
+      label: Text(context.l10n.searchReversePick),
+    );
+    return Align(
+      alignment: const Alignment(0, -0.15),
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(FuncSpacing.xl),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            const SizedBox(height: FuncSpacing.xxl),
-            const Icon(Icons.image_search_outlined, size: 72),
+            const Icon(AppIcons.imageSearch, size: 72),
             const SizedBox(height: FuncSpacing.lg),
             Text(context.l10n.searchReverseIntro, textAlign: TextAlign.center),
             const SizedBox(height: FuncSpacing.lg),
             _engineChips(context, state),
+            const SizedBox(height: FuncSpacing.xl),
+            pickButton,
           ],
         ),
       ),
@@ -335,7 +348,7 @@ class _ReverseImageSearchPageState
     return _WithBottomAction(
       action: FilledButton.icon(
         onPressed: supported ? _search : null,
-        icon: const Icon(Icons.search),
+        icon: const Icon(AppIcons.search),
         label: Text(context.l10n.searchReverseUse),
       ),
       child: SingleChildScrollView(
@@ -352,7 +365,7 @@ class _ReverseImageSearchPageState
             Center(
               child: TextButton.icon(
                 onPressed: _controller.pick,
-                icon: const Icon(Icons.photo_library_outlined, size: 18),
+                icon: const Icon(AppIcons.multiPage, size: 18),
                 label: Text(context.l10n.searchReverseRetry),
               ),
             ),
@@ -375,23 +388,23 @@ class _ReverseImageSearchPageState
         held && failure.code == ReverseImageProviderFailureCode.challenge;
     final next = state.nextEngine;
     return _Outcome(
-      icon: Icons.error_outline,
+      icon: UiIcons.errorOutline,
       message: _failureText(context, failure, state.engine),
       primary: challenged
           ? FilledButton.icon(
               onPressed: _controller.searchInBrowser,
-              icon: const Icon(Icons.open_in_browser_outlined),
+              icon: const Icon(AppIcons.externalLink),
               label: Text(context.l10n.searchReverseOpenInBrowser),
             )
           : held
           ? FilledButton.icon(
               onPressed: _search,
-              icon: const Icon(Icons.refresh),
+              icon: const Icon(UiIcons.refresh),
               label: Text(context.l10n.searchReverseRetrySameEngine),
             )
           : FilledButton.icon(
               onPressed: _controller.pick,
-              icon: const Icon(Icons.photo_library_outlined),
+              icon: const Icon(AppIcons.multiPage),
               label: Text(context.l10n.searchReverseRetry),
             ),
       secondary: [
@@ -414,14 +427,14 @@ class _ReverseImageSearchPageState
   Widget _noMatch(BuildContext context, ReverseImageFlowState state) {
     final next = state.nextEngine;
     return _Outcome(
-      icon: Icons.search_off,
+      icon: AppIcons.searchOff,
       message: next == null
           ? context.l10n.searchReverseAllEnginesTried
           : context.l10n.searchReverseNoResults,
       primary: next == null
           ? FilledButton.icon(
               onPressed: _controller.pick,
-              icon: const Icon(Icons.photo_library_outlined),
+              icon: const Icon(AppIcons.multiPage),
               label: Text(context.l10n.searchReverseRetry),
             )
           : FilledButton(

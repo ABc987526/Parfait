@@ -13,6 +13,7 @@ import '../../core/platform/android_intent_channel.dart';
 import '../../core/user/user_entity.dart';
 import '../../l10n/context.dart';
 import 'profile_statistics.dart';
+import '../../app/icons/app_icons.dart';
 
 /// User profile About tab: basic identity details, translated introduction,
 /// external profile links, and statistics.
@@ -215,13 +216,13 @@ class _ProfileSocialLinkRow extends StatelessWidget {
               key: ValueKey('profile-link-open-$id'),
               tooltip: context.l10n.openLink,
               onPressed: onOpen,
-              icon: const Icon(Icons.open_in_new),
+              icon: const Icon(AppIcons.externalLink),
             ),
             IconButton(
               key: ValueKey('profile-link-copy-$id'),
               tooltip: context.l10n.copyLink,
               onPressed: onCopy,
-              icon: const Icon(Icons.copy_outlined),
+              icon: const Icon(AppIcons.copy),
             ),
           ],
         ),

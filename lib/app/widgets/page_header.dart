@@ -16,6 +16,7 @@ import '../theme/func_semantic_tokens.dart';
 import '../window/desktop_command_bar.dart';
 import 'func_bottom_nav.dart';
 import 'search_field_button.dart';
+import '../icons/ui_icons.dart';
 
 /// How page top bars are laid out on the shell's larger forms (NAV-20).
 abstract final class PageHeader {
@@ -128,7 +129,7 @@ class HeaderRefresh extends StatelessWidget {
     }
     return IconButton(
       tooltip: context.l10n.refresh,
-      icon: const Icon(Icons.refresh),
+      icon: const Icon(UiIcons.refresh),
       onPressed: () => PullToRefresh.triggerActive(context),
     );
   }

@@ -7,15 +7,16 @@ import '../../motion/removal.dart';
 import '../../theme/func_semantic_tokens.dart';
 import 'settings_anchor.dart';
 
-/// Inset settings group: optional header, the rows, optional footnote below.
+/// Inset settings group: optional header, one grouped card of rows, and an
+/// optional footnote below.
 ///
-/// Every row is its own surfaceContainer card with [FuncShape.card] corners,
-/// [rowGap] apart. A row that is one composite control (a slider block) is
-/// one card — the group never splits a child. The group's bottom padding
-/// (FuncSpacing.xl) separates groups.
+/// Non-empty rows sit inside a single [SettingsCard] separated by 1dp inset
+/// hairlines so stacked controls read as one calm list rather than isolated
+/// slabs. A composite control (a slider block) remains a single child row. The
+/// group's bottom padding ([FuncSpacing.xl]) separates groups.
 ///
 /// Under a [RemovalScope], a [Removable] row whose exit is playing no
-/// longer counts: the gap above it closes as the exit starts, animated on
+/// longer counts: the hairline above it closes as the exit starts, animated on
 /// the same spring as the row's collapse, so nothing jumps when the data
 /// drops the row.
 class SettingsGroup extends StatelessWidget {
@@ -118,36 +119,38 @@ class SettingsGroup extends StatelessWidget {
     var position = 0;
     for (final child in children) {
       final key = child is Removable ? ValueKey(child.id) : null;
-      // A leaving row's gap closes with it as it collapses.
+      // A leaving row's hairline closes with it as it collapses.
       final isLeaving = child is Removable && leaving.contains(child.id);
       rows.add(
         _Row(
           key: key,
-          gap: isLeaving || position == 0 ? 0 : rowGap,
+          showDivider: !isLeaving && position > 0,
           motion: motion,
           child: child,
         ),
       );
       if (!isLeaving) position++;
     }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: rows,
+    return SettingsCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: rows,
+      ),
     );
   }
 }
 
-/// One row of a [SettingsGroup] and the gap above it. The gap animates on
-/// [motion] when the group reshapes.
+/// One row of a [SettingsGroup] and the inset 1dp hairline above it. The
+/// separator animates on [motion] when the group reshapes.
 class _Row extends StatelessWidget {
   const _Row({
     super.key,
-    required this.gap,
+    required this.showDivider,
     required this.motion,
     required this.child,
   });
 
-  final double gap;
+  final bool showDivider;
   final (Duration, Curve) motion;
   final Widget child;
 
@@ -158,23 +161,33 @@ class _Row extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        TweenAnimationBuilder(
-          tween: Tween(end: gap),
+        TweenAnimationBuilder<double>(
+          tween: Tween<double>(end: showDivider ? 1.0 : 0.0),
           duration: duration,
           curve: curve,
-          // The spring curve can land a hair past its end: below zero here.
-          builder: (context, height, _) =>
-              SizedBox(height: math.max(height, 0)),
+          // The spring curve can land a hair past its end: clamp below zero.
+          builder: (context, factor, _) {
+            final height = math.max(factor, 0.0);
+            if (height == 0) return const SizedBox.shrink();
+            return Padding(
+              padding: const EdgeInsetsDirectional.only(start: FuncSpacing.lg),
+              child: SizedBox(
+                height: height,
+                child: ColoredBox(
+                  color: FuncSemanticTokens.of(context).brandHairline,
+                ),
+              ),
+            );
+          },
         ),
-        SettingsCard(child: child),
+        child,
       ],
     );
   }
 }
 
-/// The card one settings row sits on, for a list that lays its rows out
-/// itself (a reorderable one) and keeps [SettingsGroup.rowGap] between
-/// them.
+/// The rounded card container for a [SettingsGroup] (or an individually lifted
+/// reorderable row in `bottom_bar_settings_page.dart`).
 class SettingsCard extends StatelessWidget {
   const SettingsCard({super.key, required this.child});
 
@@ -183,9 +196,13 @@ class SettingsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final mark = SettingHighlight.maybeOf(context);
+    final hairline = FuncSemanticTokens.of(context).brandHairline;
     return Material(
       color: Theme.of(context).colorScheme.surfaceContainer,
-      shape: const RoundedRectangleBorder(borderRadius: FuncShape.card),
+      shape: RoundedRectangleBorder(
+        borderRadius: FuncShape.card,
+        side: BorderSide(color: hairline),
+      ),
       // Ink stays inside its own card.
       clipBehavior: Clip.antiAlias,
       child: mark == null

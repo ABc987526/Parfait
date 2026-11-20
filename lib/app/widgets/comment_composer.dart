@@ -19,6 +19,8 @@ import '../../core/comments/comment_assets.dart';
 import '../../core/settings/keyboard_heights.dart';
 import '../../l10n/context.dart';
 import '../theme/func_semantic_tokens.dart';
+import '../icons/app_icons.dart';
+import '../icons/ui_icons.dart';
 
 const double _panelCellSpacing = 8;
 
@@ -535,7 +537,7 @@ class CommentComposerState extends State<CommentComposer>
                           IconButton(
                             tooltip: context.l10n.commentCancelReply,
                             onPressed: _disabled ? null : widget.onCancelReply,
-                            icon: const Icon(Icons.close, size: 18),
+                            icon: const Icon(UiIcons.close, size: 18),
                           ),
                         ],
                       ),
@@ -590,7 +592,7 @@ class CommentComposerState extends State<CommentComposer>
                             : () =>
                                   _togglePanel(CommentComposerInputState.emoji),
                         icon: Icon(
-                          Icons.emoji_emotions_outlined,
+                          AppIcons.stamp,
                           color: _inputState == CommentComposerInputState.emoji
                               ? theme.colorScheme.primary
                               : null,
@@ -605,7 +607,7 @@ class CommentComposerState extends State<CommentComposer>
                                   CommentComposerInputState.stamp,
                                 ),
                           icon: Icon(
-                            Icons.image_outlined,
+                            AppIcons.illust,
                             color:
                                 _inputState == CommentComposerInputState.stamp
                                 ? theme.colorScheme.primary
@@ -632,7 +634,7 @@ class CommentComposerState extends State<CommentComposer>
                                   ),
                                 ),
                               )
-                            : const Icon(Icons.send_outlined),
+                            : const Icon(AppIcons.send),
                       ),
                     ],
                   ),

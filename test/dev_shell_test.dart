@@ -6,6 +6,7 @@ import 'package:parfait/app/layout/window_layout_spec.dart';
 import 'package:parfait/app/window/desktop_title_bar.dart';
 import 'package:parfait/l10n/app_localizations.dart';
 import 'package:parfait/l10n/app_localizations_delegates.dart';
+import 'package:parfait/app/icons/app_icons.dart';
 
 class _StatefulProbe extends StatefulWidget {
   const _StatefulProbe();
@@ -145,7 +146,7 @@ void main() {
       await tester.tap(
         find.descendant(
           of: find.byKey(const ValueKey('dev-shell-floating-pill')),
-          matching: find.byIcon(Icons.tune_outlined),
+          matching: find.byIcon(AppIcons.filter),
         ),
       );
       await tester.pump();

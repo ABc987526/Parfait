@@ -1,17 +1,23 @@
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:parfait/app/widgets/app_top_bar.dart';
 import 'package:parfait/core/auth/credential.dart';
 import 'package:parfait/core/network/compat/network_providers.dart';
+import 'package:parfait/core/paging/feed_snapshot_store.dart';
 import 'package:parfait/core/translation/translation_service.dart'
     show translationCredentialStoreProvider;
+import 'package:parfait/core/user/user_entity.dart';
 import 'package:parfait/features/settings/network_settings_page.dart';
 import 'package:parfait/features/settings/settings_catalog.dart';
+import 'package:parfait/features/settings/settings_helpers.dart';
 import 'package:parfait/features/settings/settings_page.dart';
 import 'package:parfait/l10n/app_localizations_zh.dart';
 
+import 'helpers/api_responses.dart';
 import 'helpers/fake_account.dart';
 import 'helpers/localized_app.dart';
+import 'helpers/memory_feed_snapshot_store.dart';
 import 'helpers/pixiv_router.dart';
 import 'helpers/prompt_host.dart';
 import 'helpers/settings_world.dart';
@@ -96,6 +102,117 @@ void main() {
       setViewSize(tester, const Size(800, 8000));
       await tester.pump();
       expect(find.byType(NetworkSettingsPage), findsNothing);
+    },
+    variant: TargetPlatformVariant.only(TargetPlatform.windows),
+  );
+
+  testWidgets(
+    'wide Me dashboard wraps SettingsDetailScope and opens bookmarks directly',
+    (tester) async {
+      setViewSize(tester, const Size(1280, 800));
+      final router = pixivRouter('/settings');
+      await tester.pumpWidget(
+        localizedRouterApp(
+          router,
+          overrides: _overrides(),
+          builder: promptHostBuilder,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('me-wide-dashboard')), findsOneWidget);
+      final railList = find.byType(ListView).first;
+      expect(find.text('个人资料'), findsNothing);
+      for (final label in [
+        zh.profileBookmarked,
+        zh.profileFollowing,
+        zh.watchlistTitle,
+        zh.historySettings,
+        zh.watchLaterTitle,
+        zh.localNovelsTitle,
+        zh.downloaderSettings,
+      ]) {
+        expect(
+          find.descendant(of: railList, matching: find.text(label)),
+          findsOneWidget,
+        );
+      }
+
+      final detailNav = find.byType(Navigator).last;
+      final detailHeader = find.descendant(
+        of: find.byType(AppTopBar),
+        matching: find.text(zh.profileBookmarked),
+      );
+      expect(detailHeader, findsOneWidget);
+      expect(
+        SettingsDetailScope.maybeOf(tester.element(detailHeader)),
+        isNotNull,
+      );
+
+      await tester.tap(
+        find.descendant(of: railList, matching: find.text(zh.historySettings)),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.descendant(
+          of: detailNav,
+          matching: find.descendant(
+            of: find.byType(AppTopBar),
+            matching: find.text(zh.historySettings),
+          ),
+        ),
+        findsOneWidget,
+      );
+    },
+    variant: TargetPlatformVariant.only(TargetPlatform.windows),
+  );
+
+  testWidgets(
+    'offstage Me dashboard defers profile and bookmark requests until visible',
+    (tester) async {
+      setViewSize(tester, const Size(1280, 800));
+      final api = PixivApi({
+        ...backgroundRoutes,
+        ...shellRoutes,
+        '/v1/user/detail': answer(
+          userDetailJson(
+            const UserEntity(id: 100, name: 'tester', account: 'tester'),
+          ),
+        ),
+        '/v1/user/bookmarks/illust': answer(pageJson('illusts', const [])),
+        '/v1/user/bookmark-tags/illust': answer({
+          'bookmark_tags': const <Map<String, Object?>>[],
+          'next_url': null,
+        }),
+      });
+      final container = await signedInApiContainer(
+        api.client,
+        overrides: [
+          feedSnapshotStoreProvider.overrideWithValue(
+            MemoryFeedSnapshotStore(),
+          ),
+        ],
+      );
+      final router = pixivRouter('/recommended');
+      await tester.pumpWidget(
+        localizedRouterApp(
+          router,
+          container: container,
+          builder: promptHostBuilder,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(api.sent('/v1/user/detail'), isEmpty);
+      expect(api.sent('/v1/user/bookmarks/illust'), isEmpty);
+      expect(api.sent('/v1/user/bookmark-tags/illust'), isEmpty);
+
+      router.go('/settings');
+      await tester.pumpAndSettle();
+
+      expect(api.sent('/v1/user/detail'), hasLength(1));
+      expect(api.sent('/v1/user/bookmarks/illust'), hasLength(1));
+      expect(api.sent('/v1/user/bookmark-tags/illust'), hasLength(1));
     },
     variant: TargetPlatformVariant.only(TargetPlatform.windows),
   );

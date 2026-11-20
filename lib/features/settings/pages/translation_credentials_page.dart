@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/widgets/danger_filled_button.dart';
 import '../../../app/motion/app_overlays.dart';
 import '../../../app/motion/reveal.dart';
+import '../../../app/widgets/app_dialog.dart';
 import '../../../app/widgets/app_top_bar.dart';
 import '../../../app/widgets/settings/settings_action_tile.dart';
 import '../../../app/widgets/settings/settings_group.dart';
@@ -16,6 +17,8 @@ import '../../../l10n/context.dart';
 import '../settings_helpers.dart';
 import '../../../app/theme/func_semantic_tokens.dart';
 import '../../../app/layout/content_widths.dart';
+import '../../../app/icons/app_icons.dart';
+import '../../../app/icons/ui_icons.dart';
 
 class TranslationCredentialsPage extends ConsumerStatefulWidget {
   const TranslationCredentialsPage({super.key, required this.baidu});
@@ -206,7 +209,7 @@ class _TranslationCredentialsPageState
     // re-entered before translation works again, so it asks first.
     final confirmed = await showAppDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
+      builder: (dialogContext) => AppAlertDialog(
         title: Text(context.l10n.translateCredentialsClear),
         content: Text(context.l10n.translateCredentialsClearConfirm),
         actions: [
@@ -315,10 +318,20 @@ class _TranslationCredentialsPageState
                           alignment: AlignmentDirectional.centerEnd,
                           child: FilledButton.icon(
                             onPressed: _busy ? null : _save,
+                            style: FilledButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: FuncSpacing.lg,
+                                vertical: FuncSpacing.md,
+                              ),
+                              minimumSize: const Size(0, 44),
+                            ),
                             icon: _busy && !_clearing
                                 ? const _BusyIndicator()
-                                : const Icon(Icons.save_outlined),
-                            label: Text(context.l10n.translateCredentialsSave),
+                                : const Icon(AppIcons.save),
+                            label: Text(
+                              context.l10n.translateCredentialsSave,
+                              textAlign: TextAlign.center,
+                            ),
                           ),
                         ),
                       ],
@@ -330,7 +343,7 @@ class _TranslationCredentialsPageState
               SettingsGroup(
                 children: [
                   SettingsActionTile(
-                    icon: Icons.delete_outline,
+                    icon: AppIcons.trash,
                     title: Text(context.l10n.translateCredentialsClear),
                     trailing: _busy && _clearing
                         ? const _BusyIndicator()
@@ -424,7 +437,7 @@ class _StatusLine extends StatelessWidget {
       child: Row(
         children: [
           Icon(
-            isError ? Icons.error_outline : Icons.check_circle_outline,
+            isError ? UiIcons.errorOutline : UiIcons.checkCircle,
             size: 18,
             color: isError ? scheme.error : scheme.primary,
           ),

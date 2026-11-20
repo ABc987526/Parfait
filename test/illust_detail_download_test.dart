@@ -26,6 +26,7 @@ import 'package:visibility_detector/visibility_detector.dart';
 
 import 'helpers/illust_detail_page_support.dart';
 import 'helpers/waits.dart';
+import 'package:parfait/app/icons/ui_icons.dart';
 
 void main() {
   // The detail page tracks the visible image page through
@@ -82,7 +83,7 @@ void main() {
         // chrome does not.
         expect(find.byTooltip('Download All'), findsOneWidget);
         expect(selectionCount(tester), isNull);
-        expect(find.byIcon(Icons.radio_button_unchecked), findsNothing);
+        expect(find.byIcon(UiIcons.circleUnchecked), findsNothing);
 
         await longPressImage(tester);
 
@@ -104,7 +105,7 @@ void main() {
           isNull,
         );
         // Every shown page carries the unselected hollow circle.
-        final unselected = find.byIcon(Icons.radio_button_unchecked);
+        final unselected = find.byIcon(UiIcons.circleUnchecked);
         expect(unselected, findsWidgets);
 
         // Tapping page 0's badge toggles the selection — nothing downloads
@@ -113,7 +114,7 @@ void main() {
         await tester.pump();
         final manager = container.read(downloadManagerProvider);
         expect(manager.tasks, isEmpty);
-        expect(find.byIcon(Icons.check_circle), findsOneWidget);
+        expect(find.byIcon(UiIcons.checkCircle), findsOneWidget);
         expect(selectionCount(tester), '1');
 
         // Download submits exactly the selected page and exits the mode.
@@ -329,7 +330,7 @@ void main() {
       // Enter the selection mode, pick page 0, submit — the task itself
       // then fails asynchronously.
       await longPressImage(tester);
-      await tester.tap(find.byIcon(Icons.radio_button_unchecked).first);
+      await tester.tap(find.byIcon(UiIcons.circleUnchecked).first);
       await tester.pump();
       await tester.tap(downloadSelectedButton);
       await tester.pump(const Duration(milliseconds: 100));
@@ -342,7 +343,7 @@ void main() {
       await longPressImage(tester);
       final pageError = find.descendant(
         of: find.byType(DetailPageImage),
-        matching: find.byIcon(Icons.error_outline),
+        matching: find.byIcon(UiIcons.errorOutline),
       );
       expect(pageError, findsOneWidget);
       // The selection mode brings its own download; the bar slides away.
@@ -351,10 +352,10 @@ void main() {
 
       await tester.tap(pageError);
       await tester.pump();
-      expect(find.byIcon(Icons.check_circle), findsOneWidget);
+      expect(find.byIcon(UiIcons.checkCircle), findsOneWidget);
       expect(
         find.ancestor(
-          of: find.byIcon(Icons.check_circle),
+          of: find.byIcon(UiIcons.checkCircle),
           matching: find.byType(StateIconSwitcher),
         ),
         findsOneWidget,

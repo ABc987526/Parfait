@@ -429,6 +429,22 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
+  forui:
+    dependency: "direct main"
+    description:
+      name: forui
+      sha256: af6dcb2f57467c39bc808b6576d6dfdad19be7caf788bdd89d8b2fe3b6a521a2
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.27.7"
+  forui_lucide:
+    dependency: transitive
+    description:
+      name: forui_lucide
+      sha256: "63c660e4213309d9558cfc1c10ec52c13dab88cc2794dc41b8be769a7c86206c"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.27.0"
   freezed_annotation:
     dependency: transitive
     description:
@@ -637,6 +653,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.19.5"
+  navigator_resizable:
+    dependency: transitive
+    description:
+      name: navigator_resizable
+      sha256: "689f591b70218e152c6496b41142d9058e6c9ba5581a4126a7db978a8239d2eb"
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.1.0"
   nm:
     dependency: transitive
     description:
@@ -945,6 +969,14 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
+  smooth_sheets:
+    dependency: "direct main"
+    description:
+      name: smooth_sheets
+      sha256: eca93e7f2c8967728f678f7daf22b094bbcab1cf1cfb8e895c6a67aae97caab8
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.3.2"
   source_span:
     dependency: transitive
     description:
@@ -1041,6 +1073,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.4.1"
+  sugar:
+    dependency: transitive
+    description:
+      name: sugar
+      sha256: a0a97f1d3552a3ef4cbec7c6e62c7b52c151cd5c11e984e8311700a918f73dc5
+      url: "https://pub.dev"
+    source: hosted
+    version: "4.0.0"
   synchronized:
     dependency: transitive
     description:

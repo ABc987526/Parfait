@@ -15,6 +15,7 @@ import '../../app/layout/deferred_cache_scroll_view.dart';
 import '../../app/layout/input_modality.dart';
 import '../../app/widgets/app_top_bar.dart';
 import '../../app/widgets/errors/error_details.dart';
+import '../../app/widgets/feed/desktop_gallery_controls.dart';
 import '../../app/widgets/feed/feed_grid.dart';
 import '../../app/widgets/feed/feed_states.dart';
 import '../../app/widgets/feed/illust_card.dart';
@@ -46,6 +47,8 @@ import '../../app/widgets/smooth_wheel_scroll.dart';
 import '../../app/theme/func_semantic_tokens.dart';
 import '../../app/widgets/settings/persist_settings.dart';
 import '../../app/widgets/feed/load_more_listener.dart';
+import '../../app/icons/app_icons.dart';
+import '../../app/icons/ui_icons.dart';
 
 /// The three rows of the history page's overflow menu.
 enum _HistoryMenuAction { recordLocal, recordPixiv, deleteAll }
@@ -248,20 +251,23 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                     onPressed: accountId == null
                         ? null
                         : () => _selectAll(accountId),
-                    icon: const Icon(Icons.select_all),
+                    icon: const Icon(UiIcons.selectAll),
                   ),
                   IconButton(
                     tooltip: context.l10n.historyDelete,
                     onPressed: _selected.isEmpty || accountId == null
                         ? null
                         : () => _deleteSelected(repository, accountId),
-                    icon: const Icon(Icons.delete_outline),
+                    icon: const Icon(AppIcons.trash),
                   ),
                 ],
               )
             : AppTopBar(
                 title: Text(context.l10n.historySettings),
                 actions: [
+                  DesktopGalleryControls(
+                    visible: accountId != null && !_managing,
+                  ),
                   // Spelled out like every list's manage entry: an icon
                   // alone did not read as "manage".
                   if (accountId != null)
@@ -302,20 +308,24 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                   ),
                 ],
               ),
-        body: accountId == null
-            ? Center(child: Text(context.l10n.signedOut))
-            : RemovalScope(
-                controller: _removals,
-                child: _HistoryBody(
-                  key: ValueKey('$accountId-$_bodyGeneration'),
-                  generation: _bodyGeneration,
-                  accountId: accountId,
-                  managing: _managing,
-                  selectedKeys: _selected,
-                  onToggle: _handleItemToggle,
-                  onEnterManaging: _enterManaging,
+        body: DesktopInspectableGallery(
+          enabled: !_managing,
+          active: accountId != null,
+          child: accountId == null
+              ? Center(child: Text(context.l10n.signedOut))
+              : RemovalScope(
+                  controller: _removals,
+                  child: _HistoryBody(
+                    key: ValueKey('$accountId-$_bodyGeneration'),
+                    generation: _bodyGeneration,
+                    accountId: accountId,
+                    managing: _managing,
+                    selectedKeys: _selected,
+                    onToggle: _handleItemToggle,
+                    onEnterManaging: _enterManaging,
+                  ),
                 ),
-              ),
+        ),
       ),
     );
   }
@@ -468,13 +478,13 @@ class _HistoryBody extends ConsumerWidget {
           final recording =
               ref.watch(settingsProvider).value?.enableHistory ?? true;
           return FeedEmpty(
-            icon: Icons.history,
+            icon: AppIcons.history,
             title: l10n.historyEmpty,
             detail: recording
                 ? null
                 : l10n.historyEmptyRecordingOff(l10n.historyRecordLocal),
             actionLabel: recording ? null : l10n.historyTurnOnRecording,
-            actionIcon: Icons.history,
+            actionIcon: AppIcons.history,
             onAction: recording
                 ? null
                 : () => unawaited(
@@ -515,8 +525,11 @@ class _HistoryBody extends ConsumerWidget {
                     restorationId: 'history-$accountId',
                     slivers: [
                       IllustFeedGrid(
-                        padding: const EdgeInsets.all(FuncSpacing.sm),
-                        mainAxisSpacing: FuncSpacing.sm,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: FuncSpacing.lg - FuncSpacing.xxs,
+                          vertical: FuncSpacing.sm,
+                        ),
+                        mainAxisSpacing: IllustFeedGrid.defaultMainAxisSpacing,
                         itemCount: entries.length,
                         warmTexts: (context, index) {
                           final record = entries[index].record;
@@ -764,7 +777,7 @@ class _IllustHistoryEntry extends StatelessWidget {
       child: InkWell(
         onTap: () =>
             openIllust(context, record.contentId, heroScope: _heroScope),
-        child: _SnapshotEntry(record: record, icon: Icons.image_outlined),
+        child: _SnapshotEntry(record: record, icon: AppIcons.illust),
       ),
     );
   }
@@ -811,7 +824,7 @@ class _NovelHistoryEntry extends StatelessWidget {
                             ? ColoredBox(
                                 color: colorScheme.surfaceContainer,
                                 child: const Icon(
-                                  Icons.menu_book_outlined,
+                                  AppIcons.localNovel,
                                   size: 42,
                                 ),
                               )
@@ -827,7 +840,7 @@ class _NovelHistoryEntry extends StatelessWidget {
                     const Positioned(
                       left: 7,
                       top: 7,
-                      child: EntityBadge(icon: Icons.menu_book_outlined),
+                      child: EntityBadge(icon: AppIcons.localNovel),
                     ),
                   ],
                 ),

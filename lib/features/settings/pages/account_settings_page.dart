@@ -9,6 +9,7 @@ import '../../../app/motion/removal.dart';
 import '../../../app/navigation/routes.dart' show openLogin;
 import '../../../app/person_avatar.dart';
 import '../../../app/theme/func_semantic_tokens.dart';
+import '../../../app/widgets/app_dialog.dart';
 import '../../../app/widgets/app_snack_bar.dart';
 import '../../../app/widgets/app_top_bar.dart';
 import '../../../app/widgets/feed/feed_states.dart';
@@ -29,6 +30,8 @@ import '../../../l10n/context.dart';
 import '../settings_helpers.dart';
 import '../settings_catalog.dart';
 import '../../../app/layout/content_widths.dart';
+import '../../../app/icons/app_icons.dart';
+import '../../../app/icons/ui_icons.dart';
 
 String _accountSubtitle(BuildContext context, Account account) =>
     context.l10n.labelValue(context.l10n.accountId, account.id);
@@ -93,12 +96,14 @@ class _AccountSettingsPageState extends ConsumerState<AccountSettingsPage> {
     final accounts = ref.watch(accountStoreProvider);
     return Scaffold(
       appBar: AppTopBar(
-        contentWidth: ContentWidths.settings,
+        contentWidth: SettingsDetailScope.maybeOf(context) != null
+            ? 780
+            : ContentWidths.settings,
         title: Text(context.l10n.accountManagement),
         actions: [
           IconButton(
             tooltip: context.l10n.addAccount,
-            icon: const Icon(Icons.add),
+            icon: const Icon(UiIcons.add),
             onPressed: () => openLogin(context),
           ),
         ],
@@ -143,6 +148,11 @@ class _AccountSettingsPageState extends ConsumerState<AccountSettingsPage> {
                                 title: Text(account.name),
                                 subtitle: Text(
                                   _accountSubtitle(context, account),
+                                  style: TextStyle(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
+                                  ),
                                 ),
                                 trailing: Row(
                                   mainAxisSize: MainAxisSize.min,
@@ -165,7 +175,7 @@ class _AccountSettingsPageState extends ConsumerState<AccountSettingsPage> {
                                       )
                                     else if (state.currentId == account.id)
                                       Icon(
-                                        Icons.check,
+                                        UiIcons.check,
                                         color: Theme.of(
                                           context,
                                         ).colorScheme.primary,
@@ -177,7 +187,7 @@ class _AccountSettingsPageState extends ConsumerState<AccountSettingsPage> {
                                       color: Theme.of(
                                         context,
                                       ).colorScheme.error,
-                                      icon: const Icon(Icons.delete_outline),
+                                      icon: const Icon(AppIcons.trash),
                                       onPressed: _switchingTo == null
                                           ? () => _confirmRemove(account)
                                           : null,
@@ -197,7 +207,7 @@ class _AccountSettingsPageState extends ConsumerState<AccountSettingsPage> {
                           // gates the actual copy.
                           if (state.current != null)
                             SettingsTile(
-                              icon: Icons.send_to_mobile,
+                              icon: AppIcons.send,
                               setting: Setting.accountTransferExport,
                               onTap: _confirmCopyAccount,
                             ),
@@ -219,7 +229,7 @@ class _AccountSettingsPageState extends ConsumerState<AccountSettingsPage> {
   Future<void> _confirmRemove(Account account) async {
     final remove = await showAppDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (context) => AppAlertDialog(
         title: Text(context.l10n.removeAccount),
         content: Text(context.l10n.removeAccountConfirm),
         actions: [
@@ -229,7 +239,7 @@ class _AccountSettingsPageState extends ConsumerState<AccountSettingsPage> {
           ),
           DangerFilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text(context.l10n.confirm),
+            child: Text(context.l10n.downloadRemoveRecord),
           ),
         ],
       ),
@@ -259,7 +269,7 @@ class _AccountSettingsPageState extends ConsumerState<AccountSettingsPage> {
     final l10n = context.l10n;
     final confirmed = await showAppDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (context) => AppAlertDialog(
         title: Text(l10n.accountTransferExportTitle),
         content: Text(l10n.accountTransferWarning),
         actions: [
@@ -358,7 +368,7 @@ class _ServerDisplaySection extends ConsumerWidget {
         ],
         error: (error, _) => [
           SettingsActionTile(
-            icon: Icons.error_outline,
+            icon: UiIcons.errorOutline,
             title: Text(context.l10n.serverDisplayLoadFailed),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

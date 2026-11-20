@@ -6,15 +6,21 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
+import '../../../app/format/app_format.dart';
+import '../../../app/theme/func_tokens.dart';
+
 import '../../../app/navigation/route_animation.dart';
 import '../../../app/pixiv_image.dart';
 import '../../../app/pull_to_refresh.dart';
 import '../../../app/widgets/ambient_wash.dart';
 import '../../../app/widgets/app_top_bar.dart';
+import '../../../app/widgets/artwork_controls.dart';
+import '../../../app/widgets/author_summary.dart';
 import '../../../app/widgets/bookmark_switch_button.dart'
     show BookmarkSwitchButton, showBookmarkEditSheet;
 import '../../../app/widgets/card_actions/card_action.dart';
 import '../../../app/widgets/card_actions/illust_card_actions.dart';
+import '../../../app/widgets/follow_switch_button.dart';
 import '../../../core/auth/account_store.dart';
 import '../../../core/bookmark/bookmark_models.dart';
 import '../../../core/bookmark/bookmark_store.dart';
@@ -50,6 +56,7 @@ import 'related_illusts_section.dart';
 import 'widgets/detail_action_bar.dart';
 import 'widgets/detail_comment_layer.dart';
 import 'widgets/detail_image_pager.dart';
+import 'widgets/detail_overlay_frame.dart';
 import 'widgets/illust_detail_skeleton.dart';
 import 'widgets/detail_page_counter.dart';
 import 'widgets/illust_series_section.dart';
@@ -68,7 +75,18 @@ import '../../../app/layout/deferred_cache_scroll_view.dart';
 import '../../../app/layout/two_pane.dart';
 import '../../../app/widgets/smooth_wheel_scroll.dart';
 import '../../../app/widgets/comment_composer.dart';
+import '../../../app/icons/app_icons.dart';
+import '../../../app/icons/ui_icons.dart';
 part 'illust_detail_content.dart';
+
+/// Coordinates system back / Esc inside an embedded [IllustDetailPage] so an
+/// active sub-mode (page download selection or comment composer) dismisses
+/// before its outer host closes the inspector pane.
+class IllustEmbeddedBackController {
+  bool Function()? _handler;
+
+  bool handleBack() => _handler?.call() ?? false;
+}
 
 class IllustDetailPage extends ConsumerStatefulWidget {
   const IllustDetailPage({
@@ -78,6 +96,10 @@ class IllustDetailPage extends ConsumerStatefulWidget {
     this.heroScope = 'feed',
     this.heroImageUrl,
     this.heroImageDecodeWidth,
+    this.embeddedInspector = false,
+    this.onCloseInspector,
+    this.onOpenFullStage,
+    this.embeddedBackController,
   });
 
   final int illustId;
@@ -89,6 +111,12 @@ class IllustDetailPage extends ConsumerStatefulWidget {
   /// phase at this width reuses the feed's decoded cache entry, so the
   /// landing frame does not re-decode the same file at screen width.
   final int? heroImageDecodeWidth;
+
+  /// True when hosted inside the desktop side inspector rather than a route.
+  final bool embeddedInspector;
+  final VoidCallback? onCloseInspector;
+  final ValueChanged<IllustEntity>? onOpenFullStage;
+  final IllustEmbeddedBackController? embeddedBackController;
 
   @override
   ConsumerState<IllustDetailPage> createState() => _IllustDetailPageState();
@@ -154,7 +182,7 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
   /// slides away as soon as the route starts to leave.
   late final AnimationController _barVisibility = AnimationController(
     vsync: this,
-    value: widget.heroImageUrl == null ? 1 : 0,
+    value: widget.embeddedInspector || widget.heroImageUrl == null ? 1 : 0,
   );
   final _scrollHide = ScrollHideTracker();
 
@@ -183,7 +211,7 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
   /// card (see [AppTopBar.entrance]); without a card it is there at once.
   late final AnimationController _topBarEntrance = AnimationController(
     vsync: this,
-    value: widget.heroImageUrl == null ? 1 : 0,
+    value: widget.embeddedInspector || widget.heroImageUrl == null ? 1 : 0,
   );
   Animation<double>? _routeAnimation;
 
@@ -206,11 +234,36 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
   @override
   void initState() {
     super.initState();
+    widget.embeddedBackController?._handler = _handleEmbeddedBack;
     _narrowScroll
       ..addListener(_updateImmersion)
       ..addListener(_schedulePagesToggleCheck)
       ..addListener(_updateNarrowInfoStartOffset);
     _metaScroll.addListener(_onMetaScrollChanged);
+  }
+
+  @override
+  void didUpdateWidget(IllustDetailPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.embeddedBackController != widget.embeddedBackController) {
+      if (oldWidget.embeddedBackController?._handler == _handleEmbeddedBack) {
+        oldWidget.embeddedBackController?._handler = null;
+      }
+      widget.embeddedBackController?._handler = _handleEmbeddedBack;
+    }
+  }
+
+  bool _handleEmbeddedBack() {
+    if (_composing) {
+      final composer = _composerKey.currentState;
+      composer == null ? _closeComposer() : composer.dismiss();
+      return true;
+    }
+    if (_downloadMode) {
+      _exitDownloadMode();
+      return true;
+    }
+    return false;
   }
 
   void _onMetaScrollChanged() {
@@ -319,9 +372,10 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
   /// bar down on its own read as a second, smaller exit under the page's
   /// fade.
   void _onRouteStatus(AnimationStatus status) {
-    // Only the first forward is the page entering.
-    final entering = status == AnimationStatus.forward && !_entered;
-    if (!entering && !status.isCompleted) return;
+    // Only the initial entry reveals chrome; later route status transitions
+    // (such as a cancelled back gesture) must leave scroll-hidden chrome alone.
+    if (_entered) return;
+    if (status != AnimationStatus.forward && !status.isCompleted) return;
     _entered = true;
     _topBarEntrance.forward();
     if (!_touchExploration) {
@@ -549,6 +603,9 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
 
   @override
   void dispose() {
+    if (widget.embeddedBackController?._handler == _handleEmbeddedBack) {
+      widget.embeddedBackController?._handler = null;
+    }
     unawaited(_downloadEvents?.cancel());
     _narrowScroll.dispose();
     _metaScroll.dispose();
@@ -679,27 +736,32 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
     final entity = _entityOf(async);
     // The narrow layout opens on the artwork under a see-through bar —
     // the skeleton too, so content arriving never shifts it.
-    final immersive =
-        !AppBreakpoints.useTwoPaneDetailOf(
+    final twoPane =
+        !widget.embeddedInspector &&
+        AppBreakpoints.useTwoPaneDetailOf(
           context,
           HomeShellChrome.contentSizeOf(context),
-        ) &&
-        (entity == null ? async.isLoading : _rendersContent(async, entity));
+        );
+    final rendersContent = entity != null && _rendersContent(async, entity);
+    final hideTwoPaneAppBar = !_downloadMode && twoPane && rendersContent;
+    final hideInspectorAppBar =
+        !_downloadMode && widget.embeddedInspector && rendersContent;
+    final immersive =
+        !widget.embeddedInspector &&
+        !twoPane &&
+        (entity == null ? async.isLoading : rendersContent);
     return PopScope(
       // While the selection mode is on, system back exits the mode instead
       // of leaving the page, like the selection bar's close button.
       // In-flight downloads are untouched — the mode is only a UI
       // selection layer.
       // Back sends the comment composer down first.
-      canPop: !_downloadMode && !_composing,
+      canPop:
+          widget.embeddedBackController != null ||
+          (!_downloadMode && !_composing),
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) return;
-        if (_composing) {
-          final composer = _composerKey.currentState;
-          composer == null ? _closeComposer() : composer.dismiss();
-        } else {
-          _exitDownloadMode();
-        }
+        _handleEmbeddedBack();
       },
       child: RefreshActionAnchor(
         onRefresh: () => ref
@@ -710,7 +772,9 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
           // page under it keeps its size (LAYOUT-10's overlay exception).
           resizeToAvoidBottomInset: false,
           extendBodyBehindAppBar: immersive,
-          appBar: _downloadMode && entity != null
+          appBar: hideTwoPaneAppBar || hideInspectorAppBar
+              ? null
+              : _downloadMode && entity != null
               ? _buildSelectionAppBar(context, entity)
               : _buildAppBar(context, async, immersive: immersive),
           body: _fadeStates(
@@ -744,11 +808,11 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
                 // surfaces (the loading branch above reads the store directly).
                 return switch (state) {
                   IllustDetailRestricted(:final entity) => FeedEmpty(
-                    icon: Icons.visibility_off_outlined,
+                    icon: AppIcons.eyeOff,
                     title: context.l10n.illustDetailRestricted(entity.id),
                   ),
                   IllustDetailNotFound() => FeedEmpty(
-                    icon: Icons.search_off,
+                    icon: AppIcons.searchOff,
                     title: context.l10n.illustDetailNotFound,
                   ),
                   IllustDetailReady(:final entity) => _buildContent(
@@ -790,14 +854,14 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
         IconButton(
           tooltip: l10n.selectAll,
           onPressed: () => _selectAllPages(entity),
-          icon: const Icon(Icons.select_all),
+          icon: const Icon(UiIcons.selectAll),
         ),
         IconButton(
           tooltip: l10n.downloadSelectedPages,
           onPressed: selected.isEmpty
               ? null
               : () => unawaited(_submitSelection(entity)),
-          icon: const Icon(Icons.download_outlined),
+          icon: const Icon(AppIcons.download),
         ),
       ],
     );
@@ -821,11 +885,22 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
     // InfoBlock — the menu's artwork-info item only exists while the
     // content actually renders.
     final rendersContent = _rendersContent(async, entity);
-    final twoPane = AppBreakpoints.useTwoPaneDetailOf(
-      context,
-      HomeShellChrome.contentSizeOf(context),
-    );
+    final twoPane =
+        !widget.embeddedInspector &&
+        AppBreakpoints.useTwoPaneDetailOf(
+          context,
+          HomeShellChrome.contentSizeOf(context),
+        );
+    if (widget.embeddedInspector) {
+      return _buildInspectorAppBar(
+        context,
+        entity: entity,
+        rendersContent: rendersContent,
+      );
+    }
+    final isModalOverlay = DetailOverlayFrame.isActiveOf(context);
     return AppTopBar(
+      automaticallyImplyLeading: !isModalOverlay,
       // Over the artwork the bar shows nothing but controls; the work's
       // title fades in with the surface once the image scrolls away. The
       // opaque layouts keep a generic label: the real title wraps freely
@@ -858,7 +933,58 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
           _buildMoreMenu(
             entity,
             rendersContent: rendersContent,
-            twoPane: twoPane,
+            includeShare: true,
+            includeInfoJump: !twoPane,
+          ),
+        if (isModalOverlay && (!twoPane || !rendersContent))
+          IconButton(
+            tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
+            icon: const Icon(UiIcons.close),
+            onPressed: () => unawaited(Navigator.maybePop(context)),
+          ),
+      ],
+    );
+  }
+
+  PreferredSizeWidget _buildInspectorAppBar(
+    BuildContext context, {
+    required IllustEntity? entity,
+    required bool rendersContent,
+  }) {
+    final l10n = context.l10n;
+    final tokens = FuncSemanticTokens.of(context);
+    return AppTopBar(
+      automaticallyImplyLeading: false,
+      titleSpacing: FuncSpacing.lg,
+      backgroundColor: tokens.surface,
+      title: SelectionContainer.disabled(
+        child: Text(
+          l10n.illustDetailTitle,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
+      actions: [
+        if (entity != null && widget.onOpenFullStage != null)
+          IconButton(
+            key: const ValueKey('desktop-inspector-expand'),
+            tooltip: l10n.viewerOpenDetail,
+            icon: const Icon(AppIcons.expand, size: 18),
+            onPressed: () => widget.onOpenFullStage!(entity),
+          ),
+        if (entity != null)
+          _buildMoreMenu(
+            entity,
+            rendersContent: rendersContent,
+            includeShare: true,
+            includeInfoJump: false,
+          ),
+        if (widget.onCloseInspector != null)
+          IconButton(
+            key: const ValueKey('desktop-inspector-close'),
+            tooltip: l10n.profileShareClose,
+            icon: const Icon(UiIcons.close, size: 19),
+            onPressed: widget.onCloseInspector,
           ),
       ],
     );
@@ -867,12 +993,13 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
   Widget _buildMoreMenu(
     IllustEntity entity, {
     required bool rendersContent,
-    required bool twoPane,
+    required bool includeShare,
+    required bool includeInfoJump,
   }) {
     return _DetailMoreMenu(
       entity: entity,
       actions: [
-        if (!twoPane || !rendersContent) _DetailMenuAction.share,
+        if (includeShare) _DetailMenuAction.share,
         if (rendersContent) ...[
           _DetailMenuAction.editBookmark,
           if (isDesktopImageClipboardSupported) copyImageCardAction,
@@ -881,7 +1008,7 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
         if (entity.pageCount > 1 && !entity.isUgoira)
           _DetailMenuAction.selectPages,
         if (rendersContent) ...[
-          if (!twoPane) _DetailMenuAction.info,
+          if (includeInfoJump) _DetailMenuAction.info,
           ...muteCardActions,
         ],
       ],

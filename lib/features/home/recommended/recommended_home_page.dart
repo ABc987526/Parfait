@@ -1,42 +1,43 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../../app/icons/app_icons.dart';
+import '../../../app/layout/card_columns.dart';
 import '../../../app/layout/deferred_cache_scroll_view.dart';
-import '../../../app/widgets/app_top_bar.dart';
-import '../../../app/widgets/errors/error_details.dart';
+import '../../../app/navigation/routes.dart';
+import '../../../app/pull_to_refresh.dart';
+import '../../../app/theme/func_semantic_tokens.dart';
 import '../../../app/widgets/app_snack_bar.dart';
+import '../../../app/widgets/app_tab_bar.dart';
+import '../../../app/widgets/app_top_bar.dart';
+import '../../../app/widgets/author_summary.dart';
+import '../../../app/widgets/errors/error_details.dart';
+import '../../../app/widgets/feed/desktop_gallery_controls.dart';
 import '../../../app/widgets/feed/feed_grid.dart';
 import '../../../app/widgets/feed/feed_selection.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import '../../../app/pull_to_refresh.dart';
-import '../../../app/navigation/routes.dart';
-import '../../../app/icons/app_icons.dart';
+import '../../../app/widgets/feed/feed_states.dart';
+import '../../../app/widgets/feed/illust_card.dart';
+import '../../../app/widgets/feed/load_more_listener.dart';
+import '../../../app/widgets/func_bottom_nav.dart';
+import '../../../app/widgets/home_branch_stack.dart';
+import '../../../app/widgets/novel_entry.dart';
+import '../../../app/widgets/page_header.dart';
+import '../../../app/widgets/skeleton/illust_grid_skeleton.dart';
+import '../../../app/widgets/skeleton/list_skeletons.dart';
+import '../../../app/widgets/smooth_wheel_scroll.dart';
+import '../../../app/widgets/tab_swipe_switcher.dart';
+import '../../../app/widgets/user_preview_row.dart';
 import '../../../core/entity/illust_store.dart';
 import '../../../core/entity/stored_entities.dart';
+import '../../../core/illust/recommended_feed_controller.dart';
+import '../../../core/illust/recommended_repository.dart';
 import '../../../core/navigation/home_destination.dart';
 import '../../../core/network/api_error.dart';
 import '../../../core/novel/novel_store.dart';
 import '../../../core/paging/paged_feed_controller.dart';
 import '../../../core/user/user_store.dart';
-import '../../../core/illust/recommended_feed_controller.dart';
-import '../../../app/widgets/feed/feed_states.dart';
-import '../../../app/widgets/feed/illust_card.dart';
-import '../../../app/widgets/skeleton/illust_grid_skeleton.dart';
-import '../../../app/widgets/app_tab_bar.dart';
-import '../../../app/widgets/home_branch_stack.dart';
-import '../../../app/widgets/func_bottom_nav.dart';
-import '../../../app/widgets/page_header.dart';
-import '../../../app/widgets/tab_swipe_switcher.dart';
-import '../../../app/widgets/author_summary.dart';
-import '../../../app/widgets/novel_entry.dart';
-import '../../../app/widgets/user_preview_row.dart';
-import '../../../app/theme/func_semantic_tokens.dart';
-import '../../../core/illust/recommended_repository.dart';
 import '../../../l10n/context.dart';
 import '../../../l10n/lookup.dart';
-import '../../../app/widgets/smooth_wheel_scroll.dart';
-import '../../../app/layout/card_columns.dart';
-import '../../../app/widgets/feed/load_more_listener.dart';
 
 String _recommendedText(BuildContext context, String key) {
   return l10nLookup(context.l10n, key);
@@ -56,9 +57,9 @@ String _recommendedLabelKey(RecommendedContentType type) => switch (type) {
 /// cursor/scroll state via the TabSlideStack, so switching back does not
 /// refetch.
 /// Grid padding shared by the feed sliver and its first-load skeleton.
-const _gridPadding = EdgeInsets.fromLTRB(FuncSpacing.sm, 0, FuncSpacing.sm, 0);
+const _gridPadding = IllustFeedGrid.defaultPadding;
 
-class RecommendedHomePage extends StatefulWidget {
+class RecommendedHomePage extends ConsumerStatefulWidget {
   const RecommendedHomePage({
     super.key,
     this.initialType = RecommendedContentType.illust,
@@ -69,10 +70,11 @@ class RecommendedHomePage extends StatefulWidget {
   final ValueChanged<RecommendedContentType>? onTypeChanged;
 
   @override
-  State<RecommendedHomePage> createState() => _RecommendedHomePageState();
+  ConsumerState<RecommendedHomePage> createState() =>
+      _RecommendedHomePageState();
 }
 
-class _RecommendedHomePageState extends State<RecommendedHomePage>
+class _RecommendedHomePageState extends ConsumerState<RecommendedHomePage>
     with SingleTickerProviderStateMixin {
   static const _types = RecommendedContentType.values;
 
@@ -88,12 +90,9 @@ class _RecommendedHomePageState extends State<RecommendedHomePage>
   final _bodies = <RecommendedContentType, Widget>{};
   bool _suppressRouteEcho = false;
   ReTapChannel? _reTapChannel;
-
-  /// A context inside the Scaffold's notification scope, captured from the
-  /// body's Builder: scroll announcements dispatched from here reach the
-  /// app bar's ScrollNotificationObserver without passing the feeds' own
-  /// NotificationListeners — a synthetic update must not trip load-more.
   late BuildContext _notificationContext;
+
+  /// Unused placeholder removed.
 
   @override
   void initState() {
@@ -157,8 +156,6 @@ class _RecommendedHomePageState extends State<RecommendedHomePage>
       _type = _types[_tabController.index];
       _loaded.add(_type);
     });
-    // The app bar's scrolled-under state must follow the tab now on
-    // screen, not the last list that scrolled.
     announceTabScroll(_notificationContext, _scrollControllerFor(_type));
     if (!_suppressRouteEcho) {
       widget.onTypeChanged?.call(_type);
@@ -185,9 +182,6 @@ class _RecommendedHomePageState extends State<RecommendedHomePage>
       type,
       () => ScrollController(
         onAttach: (_) {
-          // A first-visited tab's list mounts after the tab-change
-          // announce has already fired — re-announce so the app bar's
-          // scrolled-under state still lands on the tab on screen.
           if (type == _type) {
             announceTabScroll(_notificationContext, _scrollControllers[type]!);
           }
@@ -205,60 +199,63 @@ class _RecommendedHomePageState extends State<RecommendedHomePage>
 
   @override
   Widget build(BuildContext context) {
-    // Same chrome as Ranking/New/Search: AppBar with an embedded TabBar.
-    // Before this the selector was a bare TabBar pinned below the status
-    // bar, which visually diverged from every other tab (no AppBar height,
-    // no surface elevation) — the three tabs looked like three apps.
+    final showGalleryControls =
+        _type == RecommendedContentType.illust ||
+        _type == RecommendedContentType.manga;
+    final labels = [
+      for (final value in _types)
+        _recommendedText(context, _recommendedLabelKey(value)),
+    ];
+    final tabBody = Builder(
+      builder: (context) {
+        _notificationContext = context;
+        return TabSwipeSwitcher(
+          tabController: _tabController,
+          prepareTab: _prepareTab,
+          child: TabSlideStack(
+            controller: _tabController,
+            children: [
+              for (final type in _types)
+                if (_loaded.contains(type))
+                  _bodies.putIfAbsent(
+                    type,
+                    () => _RecommendedFeedView(
+                      key: ValueKey(type),
+                      type: type,
+                      scrollController: _scrollControllerFor(type),
+                    ),
+                  )
+                else
+                  const SizedBox.shrink(),
+            ],
+          ),
+        );
+      },
+    );
+
     return Scaffold(
-      // Root pages own no inline composer: leaving the default `true`
-      // would subscribe this whole subtree to per-frame viewInsets churn
-      // every time the IME animates (e.g. the push that hides the search
-      // keyboard) — a relayout storm across all five live branches.
       resizeToAvoidBottomInset: false,
       appBar: AppTopBar(
         titleSpacing: 0,
-        actions: const [_OffBarSearchAction(), HeaderRefresh(), HeaderSearch()],
+        actions: [
+          DesktopGalleryControls(visible: showGalleryControls),
+          const _OffBarSearchAction(),
+          const HeaderRefresh(),
+          const HeaderSearch(),
+        ],
         title: AppTabBar(
           controller: _tabController,
           onTap: (index) {
-            // _changeIndex early-returns on a same-index tap, so
-            // indexIsChanging is still false only for a re-tap: scroll the
-            // current type's feed to top, nothing else.
             if (!_tabController.indexIsChanging) {
               reTapScrollToTop(context, _scrollControllerFor(_types[index]));
             }
           },
-          labels: [
-            for (final value in RecommendedContentType.values)
-              _recommendedText(context, _recommendedLabelKey(value)),
-          ],
+          labels: labels,
         ),
       ),
-      body: Builder(
-        builder: (context) {
-          _notificationContext = context;
-          return TabSwipeSwitcher(
-            tabController: _tabController,
-            prepareTab: _prepareTab,
-            child: TabSlideStack(
-              controller: _tabController,
-              children: [
-                for (final type in _types)
-                  if (_loaded.contains(type))
-                    _bodies.putIfAbsent(
-                      type,
-                      () => _RecommendedFeedView(
-                        key: ValueKey(type),
-                        type: type,
-                        scrollController: _scrollControllerFor(type),
-                      ),
-                    )
-                  else
-                    const SizedBox.shrink(),
-              ],
-            ),
-          );
-        },
+      body: DesktopInspectableGallery(
+        active: showGalleryControls,
+        child: tabBody,
       ),
     );
   }
@@ -275,6 +272,20 @@ class _RecommendedFeedView extends ConsumerWidget {
 
   final RecommendedContentType type;
   final ScrollController scrollController;
+
+  Widget _initialSkeleton(BuildContext context) => switch (type) {
+    RecommendedContentType.novel => NovelListSkeleton(
+      label: context.l10n.contentLoading,
+    ),
+    RecommendedContentType.user => UserListSkeleton(
+      label: context.l10n.contentLoading,
+    ),
+    RecommendedContentType.illust ||
+    RecommendedContentType.manga => IllustGridSkeleton(
+      label: context.l10n.contentLoading,
+      padding: _gridPadding,
+    ),
+  };
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -307,10 +318,7 @@ class _RecommendedFeedView extends ConsumerWidget {
     final feedAsync = ref.watch(recommendedFeedProvider(key));
 
     return feedAsync.when(
-      loading: () => IllustGridSkeleton(
-        label: context.l10n.contentLoading,
-        padding: _gridPadding,
-      ),
+      loading: () => _initialSkeleton(context),
       error: (error, _) => FeedError(
         title: context.l10n.recommendedLoadFailed,
         error: error,
@@ -328,10 +336,7 @@ class _RecommendedFeedView extends ConsumerWidget {
           );
         }
         if (feed.showInitialSpinner) {
-          return IllustGridSkeleton(
-            label: context.l10n.contentLoading,
-            padding: _gridPadding,
-          );
+          return _initialSkeleton(context);
         }
         final controller = ref.read(recommendedFeedProvider(key).notifier);
         // User recommendations are not filtered: an empty page there is

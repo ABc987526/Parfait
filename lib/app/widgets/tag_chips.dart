@@ -6,6 +6,7 @@ import '../motion/press_scale.dart';
 import '../theme/func_semantic_tokens.dart';
 import '../theme/func_tokens.dart';
 import 'feed/feed_text_warmup.dart';
+import '../icons/app_icons.dart';
 
 /// Visible height of a tag pill; text scaling may grow it.
 const _pillHeight = 32.0;
@@ -71,7 +72,9 @@ class TagChip extends StatefulWidget {
     strutStyle: null,
   );
 
-  /// The tag, then its translation in the secondary colour.
+  /// The tag in neutral primary content ink, then its translation in the
+  /// secondary colour (`THEME-07`: tag chips stay neutral; only keyboard focus
+  /// rings them in the accent).
   static TextSpan _span(
     FuncSemanticTokens tokens,
     String label,
@@ -83,7 +86,7 @@ class TagChip extends StatefulWidget {
       if (translated != null)
         TextSpan(
           text: ' $translated',
-          style: TextStyle(color: tokens.contentSecondary),
+          style: tokens.caption.copyWith(color: tokens.contentSecondary),
         ),
     ],
   );
@@ -95,20 +98,25 @@ class TagChip extends StatefulWidget {
 class _TagChipState extends State<TagChip> {
   /// Keyboard focus thickens the outline in place of the ink highlight.
   var _focused = false;
+  var _hovered = false;
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     final tokens = FuncSemanticTokens.of(context);
+    final interactive = widget.onTap != null || widget.onLongPress != null;
+    final hovered = interactive && _hovered;
     final pill = DecoratedBox(
       decoration: ShapeDecoration(
-        color: tokens.surface,
+        color: hovered ? tokens.surfaceRaised : tokens.surface,
         shape: StadiumBorder(
           side: _focused
-              ? BorderSide(
-                  color: Theme.of(context).colorScheme.primary,
-                  width: 2,
-                )
-              : BorderSide(color: tokens.divider),
+              ? BorderSide(color: colors.primary, width: 2)
+              : BorderSide(
+                  color: hovered
+                      ? colors.onSurface.withValues(alpha: 0.22)
+                      : tokens.divider,
+                ),
         ),
       ),
       child: ConstrainedBox(
@@ -119,12 +127,14 @@ class _TagChipState extends State<TagChip> {
             vertical: FuncSpacing.xs,
           ),
           // One line: a tag too long for the row loses its end, the
-          // translation first.
+          // translation first, without word-break pre-truncation when space
+          // still remains in the row.
           child: Center(
             widthFactor: 1,
             child: Text.rich(
               TagChip._span(tokens, widget.label, widget.translated),
               maxLines: 1,
+              softWrap: false,
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -133,7 +143,7 @@ class _TagChipState extends State<TagChip> {
     );
     final chip = PressScale(
       scale: MotionTokens.pillPressScale,
-      enabled: widget.onTap != null || widget.onLongPress != null,
+      enabled: interactive,
       child: InkWell(
         onTap: widget.onTap,
         onLongPress: widget.onLongPress,
@@ -142,6 +152,9 @@ class _TagChipState extends State<TagChip> {
             : (details) => widget.onSecondaryTapAt!(details.globalPosition),
         onSecondaryTap: widget.onSecondaryTapAt == null
             ? widget.onLongPress
+            : null,
+        onHover: interactive
+            ? (isHovered) => setState(() => _hovered = isHovered)
             : null,
         onFocusChange: (focused) => setState(() => _focused = focused),
         // A long-press host plays its own AppHaptics role; the ink
@@ -170,7 +183,7 @@ class _TagChipState extends State<TagChip> {
               right: 0,
               child: IgnorePointer(
                 child: Icon(
-                  Icons.block,
+                  AppIcons.banFilled,
                   size: 15,
                   color: widget.blocked
                       ? Theme.of(context).colorScheme.primary

@@ -16,9 +16,22 @@ import '../../core/profile/profile_models.dart';
 import '../../l10n/context.dart';
 import '../../app/theme/func_semantic_tokens.dart';
 import '../../app/widgets/feed/load_more_listener.dart';
+import '../../app/icons/ui_icons.dart';
 
 /// Grid padding shared by this feed and `ProfileSkeleton`'s grid block.
 const gridPadding = EdgeInsets.all(FuncSpacing.sm);
+
+/// Whether [feedKey] currently holds at least one loaded work to show
+/// (including while refreshing or paging over existing items), excluding
+/// initial loading, initial errors and empty feeds.
+bool hasVisibleProfileIllusts(WidgetRef ref, ProfileFeedKey feedKey) {
+  final feed = ref.watch(profileIllustFeedProvider(feedKey)).value;
+  if (feed == null || feed.showInitialError || feed.ids.isEmpty) {
+    return false;
+  }
+  final store = ref.watch(illustStoreProvider);
+  return store.getAll(feed.ids).isNotEmpty;
+}
 
 class ProfileIllustFeed extends ConsumerWidget {
   const ProfileIllustFeed({super.key, required this.feedKey, this.localFilter});
@@ -109,7 +122,7 @@ class ProfileIllustFeed extends ConsumerWidget {
                               onLoadMore: controller.retryLoadMore,
                             )
                           : FeedEmpty(
-                              icon: Icons.inbox_outlined,
+                              icon: UiIcons.inbox,
                               title: query.isEmpty
                                   ? context.l10n.profileItemsEmpty
                                   : context.l10n.bookmarkTagFilterEmpty,

@@ -4,6 +4,7 @@ import '../layout/content_widths.dart';
 import '../navigation/keyboard_back.dart';
 import '../theme/func_semantic_tokens.dart';
 import 'search_keyword_pills.dart';
+import '../icons/app_icons.dart';
 
 /// Looks like a search field, acts as a button: the input page owns typing.
 ///
@@ -52,7 +53,7 @@ class SearchFieldButton extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: FuncSpacing.lg),
               child: Row(
                 children: [
-                  Icon(Icons.search, color: colors.onSurfaceVariant),
+                  Icon(AppIcons.search, color: colors.onSurfaceVariant),
                   // Where SearchBar puts its text after a bare leading icon.
                   const SizedBox(width: FuncSpacing.lg),
                   Expanded(child: isHint ? _hint(theme) : _query(theme)),

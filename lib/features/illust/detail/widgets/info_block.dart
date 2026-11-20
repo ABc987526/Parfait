@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/clipboard.dart';
 import '../../../../app/format/app_format.dart';
+import '../../../../app/layout/form_factor.dart';
+import '../../../../app/layout/input_modality.dart';
 import '../../../../app/navigation/routes.dart';
 import '../../../../app/theme/func_semantic_tokens.dart';
 import '../../../../app/widgets/author_summary.dart';
@@ -23,6 +25,7 @@ import '../../../../app/widgets/inline_translation.dart';
 import '../../../../app/widgets/tag_actions_sheet.dart';
 import '../../../../core/entity/illust_caption.dart';
 import 'detail_section_header.dart';
+import '../../../../app/icons/app_icons.dart';
 
 /// The page margin of the info area, the app's (LAYOUT-14).
 const _margin = EdgeInsets.symmetric(horizontal: FuncSpacing.lg);
@@ -97,32 +100,41 @@ class InfoBlock extends StatelessWidget {
         _KeptPart(
           key: anchorKey,
           child: Padding(
-            padding: const EdgeInsets.only(top: FuncSpacing.lg),
-            // Official client order: the work title leads the meta block,
-            // wraps without a line cap, and stays selectable — a one-line
-            // AppBar title could only ellipsise. Without a caption the
-            // title carries the translate button.
-            child: entity.caption.isEmpty
-                ? Padding(
-                    padding: _buttonRowMargin,
-                    child: _TranslatableTitle(title: entity.title),
-                  )
-                : _inMargin(_Title(title: entity.title)),
-          ),
-        ),
-        _KeptPart(
-          child: Padding(
-            padding: _margin.copyWith(top: FuncSpacing.sm),
-            child: _MarksAndStats(entity: entity),
+            padding: EdgeInsets.only(
+              top: showAuthor ? FuncSpacing.sm : FuncSpacing.md,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Official client order: the work title leads the meta block,
+                // wraps without a line cap, and stays selectable — a one-line
+                // AppBar title could only ellipsise. Without a caption the
+                // title carries the translate button.
+                entity.caption.isEmpty
+                    ? Padding(
+                        padding: _buttonRowMargin,
+                        child: _TranslatableTitle(title: entity.title),
+                      )
+                    : _inMargin(_Title(title: entity.title)),
+              ],
+            ),
           ),
         ),
         if (showAuthor)
           _KeptPart(
             child: Padding(
-              padding: _margin.copyWith(top: FuncSpacing.md),
+              padding: _margin.copyWith(top: FuncSpacing.sm),
               child: DetailAuthorCard(entity: entity),
             ),
           ),
+        _KeptPart(
+          child: Padding(
+            padding: _margin.copyWith(
+              top: showAuthor ? FuncSpacing.md : FuncSpacing.sm,
+            ),
+            child: DetailMarksAndStats(entity: entity),
+          ),
+        ),
         if (entity.caption.isNotEmpty)
           _KeptPart(
             key: const Key('illust-detail-caption'),
@@ -194,11 +206,14 @@ class DetailAuthorCard extends ConsumerWidget {
     final author = entity.user;
     // The author is an object of its own on the page: its card rests on a
     // faint lift (THEME-20).
+    final colors = Theme.of(context).colorScheme;
+    final tokens = FuncSemanticTokens.of(context);
     return LayoutBuilder(
       builder: (context, constraints) => DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: FuncShape.card,
-          boxShadow: FuncSemanticTokens.of(context).cardLift,
+          color: tokens.surface,
+          border: Border.all(color: tokens.brandHairline),
         ),
         child: PersonCard(
           key: const Key('illust-author-row'),
@@ -224,6 +239,7 @@ class DetailAuthorCard extends ConsumerWidget {
             account: _handle(author),
             imageUrl: author.profileImageUrl,
             avatarRadius: 20,
+            avatarRingColor: colors.primary.withValues(alpha: 0.45),
           ),
         ),
       ),
@@ -232,7 +248,7 @@ class DetailAuthorCard extends ConsumerWidget {
 }
 
 /// The tags, each searching on a tap or, in the block mode, muting.
-class _TagsSection extends ConsumerWidget {
+class _TagsSection extends ConsumerStatefulWidget {
   const _TagsSection({
     required this.entity,
     required this.blockMode,
@@ -244,18 +260,33 @@ class _TagsSection extends ConsumerWidget {
   final VoidCallback onToggleBlockMode;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_TagsSection> createState() => _TagsSectionState();
+}
+
+class _TagsSectionState extends ConsumerState<_TagsSection> {
+  final _chipKeys = <int, GlobalKey>{};
+
+  GlobalKey _chipKey(int index) => _chipKeys.putIfAbsent(index, GlobalKey.new);
+
+  @override
+  Widget build(BuildContext context) {
+    final entity = widget.entity;
+    final blockMode = widget.blockMode;
     // Tag chips now block through the MuteStore: tag mutes sync with the
     // official /v1/mute list instead of the legacy local-only pref.
     final mutedTags = ref.watch(muteStoreProvider.select((s) => s.tags));
     final muteStore = ref.read(muteStoreProvider.notifier);
-    // The same entries as the long-press panel, beside the pointer on a PC
-    // (R11).
-    void showTagActions(IllustTag tag, {Offset? position}) {
+    // The same entries as the long-press panel, beside the chip/pointer on a
+    // PC (R11).
+    void showTagActions(
+      BuildContext anchorContext,
+      IllustTag tag, {
+      Offset? position,
+    }) {
       final muted = mutedTags.contains(tag.name);
       unawaited(
         showTagActionsSheet(
-          context,
+          anchorContext,
           tag: tag.name,
           muted: muted,
           position: position,
@@ -263,44 +294,133 @@ class _TagsSection extends ConsumerWidget {
           onToggleMute: () => unawaited(
             toggleTagMute(context, muteStore, tag.name, muted: muted),
           ),
-          onMuteMode: onToggleBlockMode,
+          onMuteMode: widget.onToggleBlockMode,
         ),
       );
     }
 
+    VoidCallback tapFor(IllustTag tag) => () {
+      if (blockMode) {
+        unawaited(
+          toggleTagMute(
+            context,
+            muteStore,
+            tag.name,
+            muted: mutedTags.contains(tag.name),
+          ),
+        );
+      } else {
+        unawaited(openTagSearch(context, tag.name));
+      }
+    };
+
+    final isPc = FormFactor.of(context) == FormFactor.pc;
     return _Section(
       heading: context.l10n.detailSectionTags,
-      child: TagChips(
-        children: [
-          for (final tag in entity.tags)
-            TagChip(
-              label: tag.name,
-              translated: tag.translatedName,
-              blockMode: blockMode,
-              blocked: mutedTags.contains(tag.name),
-              onTap: () {
-                if (blockMode) {
-                  unawaited(
-                    toggleTagMute(
-                      context,
-                      muteStore,
-                      tag.name,
-                      muted: mutedTags.contains(tag.name),
+      child: isPc
+          ? Wrap(
+              children: [
+                for (var i = 0; i < entity.tags.length; i++)
+                  _DesktopAnchoredTagChip(
+                    key: ValueKey('tag-anchor-$i-${entity.tags[i].name}'),
+                    tag: entity.tags[i],
+                    blockMode: blockMode,
+                    blocked: mutedTags.contains(entity.tags[i].name),
+                    onTap: tapFor(entity.tags[i]),
+                    onShowActions: (anchorContext, {position}) =>
+                        showTagActions(
+                          anchorContext,
+                          entity.tags[i],
+                          position: position,
+                        ),
+                  ),
+              ],
+            )
+          : TagChips(
+              children: [
+                for (var i = 0; i < entity.tags.length; i++)
+                  TagChip(
+                    key: _chipKey(i),
+                    label: entity.tags[i].name,
+                    translated: entity.tags[i].translatedName,
+                    blockMode: blockMode,
+                    blocked: mutedTags.contains(entity.tags[i].name),
+                    onTap: tapFor(entity.tags[i]),
+                    // Long-press opens the direct action menu (search /
+                    // copy / mute / batch-mute entry) instead of silently
+                    // flipping the block mode.
+                    onLongPress: () => showTagActions(
+                      _chipKey(i).currentContext ?? context,
+                      entity.tags[i],
                     ),
-                  );
-                } else {
-                  unawaited(openTagSearch(context, tag.name));
-                }
-              },
-              // Long-press opens the direct action menu (search /
-              // copy / mute / batch-mute entry) instead of silently
-              // flipping the block mode.
-              onLongPress: () => showTagActions(tag),
-              onSecondaryTapAt: (position) =>
-                  showTagActions(tag, position: position),
+                    onSecondaryTapAt: (position) => showTagActions(
+                      _chipKey(i).currentContext ?? context,
+                      entity.tags[i],
+                      position: position,
+                    ),
+                  ),
+              ],
             ),
-        ],
-      ),
+    );
+  }
+}
+
+/// Anchors tag action popovers on desktop (`FormFactor.pc`) directly to the
+/// clicked [TagChip] rather than falling back to a window-centered modal over
+/// the artwork stage when triggered via long-press.
+class _DesktopAnchoredTagChip extends StatefulWidget {
+  const _DesktopAnchoredTagChip({
+    super.key,
+    required this.tag,
+    required this.blockMode,
+    required this.blocked,
+    required this.onTap,
+    required this.onShowActions,
+  });
+
+  final IllustTag tag;
+  final bool blockMode;
+  final bool blocked;
+  final VoidCallback onTap;
+  final void Function(BuildContext anchorContext, {Offset? position})
+  onShowActions;
+
+  @override
+  State<_DesktopAnchoredTagChip> createState() =>
+      _DesktopAnchoredTagChipState();
+}
+
+class _DesktopAnchoredTagChipState extends State<_DesktopAnchoredTagChip> {
+  final _anchorKey = GlobalKey();
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: IgnorePointer(
+            child: ExcludeSemantics(
+              child: InputModalityScope(
+                initialModality: InputModality.pointer,
+                child: SizedBox.expand(key: _anchorKey),
+              ),
+            ),
+          ),
+        ),
+        TagChip(
+          label: widget.tag.name,
+          translated: widget.tag.translatedName,
+          blockMode: widget.blockMode,
+          blocked: widget.blocked,
+          onTap: widget.onTap,
+          onLongPress: () =>
+              widget.onShowActions(_anchorKey.currentContext ?? context),
+          onSecondaryTapAt: (position) => widget.onShowActions(
+            _anchorKey.currentContext ?? context,
+            position: position,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -342,13 +462,9 @@ class _Mark extends StatelessWidget {
 
 /// What the work is marked as and how it was received, under the title:
 /// the marks (AI-generated, R-18, R-18G; only those it has), then views,
-/// bookmarks and the full posting time, wrapping as whole items. Every
-/// list payload carries these, so the line is complete on a neighbour
-/// page before it is swiped in; the comment count only the detail API has
-/// sits on the comments section. Screen readers hear one node: the marks,
-/// then the stats as one sentence.
-class _MarksAndStats extends StatelessWidget {
-  const _MarksAndStats({required this.entity});
+/// bookmarks and the full posting time.
+class DetailMarksAndStats extends StatelessWidget {
+  const DetailMarksAndStats({super.key, required this.entity});
 
   final IllustEntity entity;
 
@@ -369,38 +485,28 @@ class _MarksAndStats extends StatelessWidget {
     ];
     return MergeSemantics(
       key: const Key('illust-detail-stats'),
-      child: Wrap(
-        spacing: FuncSpacing.md,
-        runSpacing: FuncSpacing.xs,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          if (marks.isNotEmpty)
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              spacing: FuncSpacing.xs,
-              children: marks,
-            ),
-          Semantics(
-            label: date == null
-                ? l10n.detailMetaCountsSemantics(views, bookmarks)
-                : l10n.detailStatsSemantics(views, bookmarks, date),
-            child: ExcludeSemantics(
-              child: MetaFact(
-                icon: Icons.visibility_outlined,
-                text: views,
-                style: style,
-              ),
-            ),
+      child: Semantics(
+        label: date == null
+            ? l10n.detailMetaCountsSemantics(views, bookmarks)
+            : l10n.detailStatsSemantics(views, bookmarks, date),
+        child: ExcludeSemantics(
+          child: Wrap(
+            spacing: FuncSpacing.md,
+            runSpacing: FuncSpacing.xs,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              if (marks.isNotEmpty)
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  spacing: FuncSpacing.xs,
+                  children: marks,
+                ),
+              MetaFact(icon: AppIcons.eye, text: views, style: style),
+              MetaFact(icon: AppIcons.heart, text: bookmarks, style: style),
+              if (date != null) Text(date, style: style),
+            ],
           ),
-          ExcludeSemantics(
-            child: MetaFact(
-              icon: Icons.favorite_outline,
-              text: bookmarks,
-              style: style,
-            ),
-          ),
-          if (date != null) ExcludeSemantics(child: Text(date, style: style)),
-        ],
+        ),
       ),
     );
   }
@@ -436,7 +542,7 @@ class _FactsRow extends StatelessWidget {
       children: [
         boxed(
           MetaFact(
-            icon: Icons.aspect_ratio,
+            icon: AppIcons.dimensions,
             text: '${entity.width}×${entity.height}',
             style: style,
           ),
@@ -444,7 +550,7 @@ class _FactsRow extends StatelessWidget {
         if (entity.pageCount > 1)
           boxed(
             MetaFact(
-              icon: Icons.collections_outlined,
+              icon: AppIcons.series,
               text: context.l10n.detailPageCount(entity.pageCount),
               style: style,
             ),
@@ -454,7 +560,7 @@ class _FactsRow extends StatelessWidget {
             label: context.l10n.detailTools,
             child: boxed(
               MetaFact(
-                icon: Icons.brush_outlined,
+                icon: AppIcons.brush,
                 text: entity.tools.join(' / '),
                 style: style,
               ),
@@ -490,15 +596,11 @@ class _CopyableId extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.tag, size: MetaFact.glyph, color: style.color),
+              Icon(AppIcons.tag, size: MetaFact.glyph, color: style.color),
               const SizedBox(width: FuncSpacing.xxs),
               Text('$id', style: style),
               const SizedBox(width: FuncSpacing.xs),
-              Icon(
-                Icons.content_copy,
-                size: MetaFact.glyph,
-                color: style.color,
-              ),
+              Icon(AppIcons.copy, size: MetaFact.glyph, color: style.color),
             ],
           ),
         ),

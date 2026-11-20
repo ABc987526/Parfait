@@ -4,6 +4,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/pull_to_refresh.dart';
+import '../../app/layout/content_widths.dart';
 import '../../app/layout/sliver_width_builder.dart';
 import '../../app/widgets/app_tab_bar.dart';
 import '../../app/widgets/app_top_bar.dart';
@@ -20,6 +21,7 @@ import '../../l10n/context.dart';
 import '../../l10n/lookup.dart';
 import '../../app/theme/func_semantic_tokens.dart';
 import '../../app/widgets/feed/load_more_listener.dart';
+import '../../app/icons/app_icons.dart';
 
 /// pixivision spotlight article list: category tabs (all/illust/manga) over
 /// independent paged feeds. Cards open the in-app article page through
@@ -98,6 +100,7 @@ class _SpotlightFeedPageState extends State<SpotlightFeedPage>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppTopBar(
+        contentWidth: ContentWidths.article,
         title: Text(context.l10n.spotlightTitle),
         tabsBesideTitle: PageHeader.isWide(context),
         bottom: AppTabBar(
@@ -142,9 +145,6 @@ class _SpotlightCategoryFeed extends ConsumerWidget {
     required this.category,
     required this.scrollController,
   });
-
-  /// Cards stop growing here; wider windows centre the column.
-  static const double _maxCardWidth = 640;
 
   final SpotlightCategory category;
   final ScrollController scrollController;
@@ -196,7 +196,7 @@ class _SpotlightCategoryFeed extends ConsumerWidget {
                     SliverFillRemaining(
                       hasScrollBody: false,
                       child: FeedEmpty(
-                        icon: Icons.newspaper_outlined,
+                        icon: AppIcons.spotlight,
                         title: context.l10n.spotlightEmpty,
                         retryLabel: context.l10n.refresh,
                         onRefresh: () => ref.read(provider.notifier).refresh(),
@@ -205,9 +205,13 @@ class _SpotlightCategoryFeed extends ConsumerWidget {
                   else
                     SliverWidthBuilder(
                       builder: (context, width) {
-                        final cardWidth = math.min(
-                          _maxCardWidth,
-                          width - 2 * FuncSpacing.lg,
+                        final columnWidth = math.min(
+                          ContentWidths.article,
+                          width,
+                        );
+                        final cardWidth = math.max(
+                          0.0,
+                          columnWidth - 2 * FuncSpacing.lg,
                         );
                         final side = (width - cardWidth) / 2;
                         return SliverPadding(

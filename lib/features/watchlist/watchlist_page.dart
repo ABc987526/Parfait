@@ -16,6 +16,7 @@ import '../../app/widgets/entity_row.dart';
 import '../../app/widgets/page_header.dart';
 import '../../app/widgets/errors/error_details.dart';
 import '../../app/widgets/feed/feed_states.dart';
+import '../../app/widgets/smooth_wheel_scroll.dart';
 import '../../core/auth/account_store.dart';
 import '../../core/errors/error_category.dart';
 import '../../core/log.dart';
@@ -28,6 +29,8 @@ import '../../core/watchlist/watchlist_store.dart';
 import '../../l10n/context.dart';
 import '../../app/theme/func_semantic_tokens.dart';
 import '../../app/widgets/feed/load_more_listener.dart';
+import '../../app/icons/app_icons.dart';
+import '../../app/icons/ui_icons.dart';
 
 /// 追更列表: manga and novel series segments (`/v1/watchlist/*`).
 /// A tile shows a "new content" badge while its `latest_content_id` is
@@ -41,6 +44,7 @@ class WatchlistPage extends StatelessWidget {
       length: 2,
       child: Scaffold(
         appBar: AppTopBar(
+          contentWidth: ContentWidths.management,
           title: Text(context.l10n.watchlistTitle),
           tabsBesideTitle: PageHeader.isWide(context),
           // The feeds sit one Scrollable deep inside the TabBarView's
@@ -86,7 +90,7 @@ class _WatchlistFeedBody extends ConsumerWidget {
           data: (feed) {
             if (feed.entries.isEmpty) {
               return FeedEmpty(
-                icon: Icons.library_books_outlined,
+                icon: AppIcons.watchlist,
                 title: context.l10n.watchlistEmpty,
               );
             }
@@ -97,14 +101,18 @@ class _WatchlistFeedBody extends ConsumerWidget {
                 itemCount: feed.entries.length,
                 onLoadMore: () =>
                     ref.read(watchlistFeedProvider(type).notifier).loadMore(),
-                child: ListView.builder(
-                  itemCount: feed.entries.length + 1,
-                  itemBuilder: (context, index) {
-                    if (index == feed.entries.length) {
-                      return _LoadMoreFooter(feed: feed);
-                    }
-                    return _WatchlistEntryTile(entry: feed.entries[index]);
-                  },
+                child: SmoothWheelScroll(
+                  builder: (context, controller, physics) => ListView.builder(
+                    controller: controller,
+                    physics: physics,
+                    itemCount: feed.entries.length + 1,
+                    itemBuilder: (context, index) {
+                      if (index == feed.entries.length) {
+                        return _LoadMoreFooter(feed: feed);
+                      }
+                      return _WatchlistEntryTile(entry: feed.entries[index]);
+                    },
+                  ),
                 ),
               ),
             );
@@ -225,7 +233,7 @@ class _WatchlistEntryTile extends ConsumerWidget {
                   left: _badgeInset,
                   bottom: _badgeInset,
                   child: EntityBadge(
-                    icon: Icons.collections_bookmark_outlined,
+                    icon: AppIcons.series,
                     label: AppFormat.count(context, count),
                     semanticsLabel: context.l10n.seriesWorksCount(count),
                   ),
@@ -249,7 +257,7 @@ class _WatchlistEntryTile extends ConsumerWidget {
       onTap: canOpen ? () => unawaited(_viewLatest(context, ref)) : null,
       trailing: Builder(
         builder: (buttonContext) => IconButton(
-          icon: const Icon(Icons.more_vert),
+          icon: const Icon(UiIcons.more),
           tooltip: MaterialLocalizations.of(buttonContext).showMenuTooltip,
           onPressed: () => _openActions(buttonContext, ref),
         ),
@@ -314,7 +322,7 @@ class _WatchlistEntryTile extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
-                leading: const Icon(Icons.collections_bookmark_outlined),
+                leading: const Icon(AppIcons.series),
                 title: Text(sheetContext.l10n.watchlistOpenContents),
                 onTap: () {
                   Navigator.of(sheetContext).pop();
@@ -327,7 +335,7 @@ class _WatchlistEntryTile extends ConsumerWidget {
               ),
               if (recent != null)
                 ListTile(
-                  leading: const Icon(Icons.history),
+                  leading: const Icon(AppIcons.history),
                   title: Text(
                     recent.contentOrder != null
                         ? sheetContext.l10n.seriesContinueEpisode(
@@ -342,7 +350,7 @@ class _WatchlistEntryTile extends ConsumerWidget {
                 ),
               if (lastNovelId != null)
                 ListTile(
-                  leading: const Icon(Icons.history),
+                  leading: const Icon(AppIcons.history),
                   title: Text(sheetContext.l10n.seriesContinue),
                   onTap: () {
                     Navigator.of(sheetContext).pop();
@@ -350,7 +358,7 @@ class _WatchlistEntryTile extends ConsumerWidget {
                   },
                 ),
               ListTile(
-                leading: const Icon(Icons.remove_circle_outline),
+                leading: const Icon(UiIcons.removeCircle),
                 title: Text(sheetContext.l10n.watchlistRemove),
                 onTap: () {
                   Navigator.of(sheetContext).pop();

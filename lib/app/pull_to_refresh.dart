@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:easy_refresh/easy_refresh.dart';
 import 'package:flutter/gestures.dart';
@@ -7,11 +8,12 @@ import 'package:material_ui/material_ui.dart';
 import 'haptics/app_haptics.dart';
 import 'motion/motion_tokens.dart';
 import 'scroll_behavior.dart';
+import 'theme/func_semantic_tokens.dart';
 
 /// The shared pull-to-refresh wrapper used by feed pages.
 ///
-/// EasyRefresh owns the complete scroll/refresh lifecycle. [MaterialHeader]
-/// runs with `clamping: false` on purpose: clamping pins the indicator while
+/// EasyRefresh owns the complete scroll/refresh lifecycle. Non-nested lists
+/// run with `clamping: false` on purpose: clamping pins the indicator while
 /// the user reverses the pull, which leaves the icon stuck on screen while
 /// the list scrolls; without clamping the indicator retracts with the
 /// reverse gesture first, then the list starts moving — the expected
@@ -20,6 +22,8 @@ import 'scroll_behavior.dart';
 /// [nestedHeader], which pushes it down as far, and the NestedScrollView
 /// runs [NestedRefreshOuterPhysics] so that header retracts before the
 /// outer one collapses.
+///
+/// All platforms share the minimalist [SakuraRefreshIndicator] hairline ring.
 class PullToRefresh extends StatefulWidget {
   const PullToRefresh({
     super.key,
@@ -254,34 +258,41 @@ class _PullToRefreshState extends State<PullToRefresh> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final hairline =
+        theme.extension<FuncSemanticTokens>()?.brandHairline ??
+        theme.progressIndicatorTheme.circularTrackColor ??
+        colors.outlineVariant;
     final indicatorExit = MotionTokens.resolve(
       context,
       MotionTokens.refreshIndicatorExit,
     );
     final settings = (
       colors.primary,
-      colors.surface,
+      hairline,
       indicatorExit,
       widget.isNested,
       widget.scrollController,
     );
     if (settings != _refreshSettings) {
       _refreshSettings = settings;
-      _refresh = _buildRefresh(colors, indicatorExit);
+      _refresh = _buildRefresh(colors.primary, hairline, indicatorExit);
     }
     return _RefreshContent(content: widget.child, child: _refresh!);
   }
 
-  EasyRefresh _buildRefresh(ColorScheme colors, Duration indicatorExit) {
+  EasyRefresh _buildRefresh(
+    Color color,
+    Color trackColor,
+    Duration indicatorExit,
+  ) {
     final isNested = widget.isNested;
     return EasyRefresh(
       header: BuilderHeader(
         // Keep EasyRefresh's 100dp arm threshold, but do not expose the
-        // progress icon during the first few pixels of an ordinary scroll.
-        // MaterialHeader paints as soon as overscroll starts; that makes a
-        // tiny finger adjustment look like a refresh affordance. The icon
-        // now fades in only after a deliberate pull while the underlying
+        // progress ring during the first few pixels of an ordinary scroll.
+        // The ring fades in only after a deliberate pull while the underlying
         // trigger/retract state remains owned by EasyRefresh.
         triggerOffset: _triggerOffset,
         clamping: isNested,
@@ -289,13 +300,10 @@ class _PullToRefreshState extends State<PullToRefresh> {
             ? IndicatorPosition.locator
             : IndicatorPosition.above,
         safeArea: !isNested,
-        // This header owns the lifecycle; MaterialHeader below only paints.
-        // Its default 1s hold would keep the list pulled down over an empty
-        // gap long after the 200ms indicator exit — match the painter.
         processedDuration: indicatorExit,
         builder: (context, state) {
-          final revealStart = 36.0;
-          final revealRange = 20.0;
+          const revealStart = 36.0;
+          const revealRange = 20.0;
           final pullOpacity = ((state.offset - revealStart) / revealRange)
               .clamp(0.0, 1.0);
           final terminal = switch (state.mode) {
@@ -306,21 +314,45 @@ class _PullToRefreshState extends State<PullToRefresh> {
             IndicatorMode.armed => 1.0,
             _ => pullOpacity,
           };
+          final active =
+              state.mode != IndicatorMode.inactive && state.offset > 0;
+          final padding =
+              math.max(state.offset - SakuraRefreshIndicator.size, 0.0) / 2;
           return _ArmHaptics(
             mode: state.mode,
-            child: Opacity(
-              opacity: terminal,
-              child: MaterialHeader(
-                processedDuration: indicatorExit,
-                triggerOffset: _triggerOffset,
-                clamping: false,
-                position: isNested
-                    ? IndicatorPosition.locator
-                    : IndicatorPosition.above,
-                safeArea: !isNested,
-                color: colors.primary,
-                backgroundColor: colors.surface,
-              ).build(context, state),
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                SizedBox(width: double.infinity, height: state.offset),
+                if (active)
+                  Positioned(
+                    bottom: padding,
+                    left: 0,
+                    right: 0,
+                    child: Center(
+                      child: Opacity(
+                        opacity: terminal,
+                        child: AnimatedScale(
+                          duration: indicatorExit,
+                          scale:
+                              state.mode == IndicatorMode.processed ||
+                                  state.mode == IndicatorMode.done
+                              ? 0
+                              : 1,
+                          child: SakuraRefreshIndicator(
+                            progress: (state.offset / state.actualTriggerOffset)
+                                .clamp(0.0, 1.0),
+                            spinning:
+                                state.mode == IndicatorMode.ready ||
+                                state.mode == IndicatorMode.processing,
+                            color: color,
+                            trackColor: trackColor,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
           );
         },
@@ -575,4 +607,146 @@ class _ArmHapticsState extends State<_ArmHaptics> {
 
   @override
   Widget build(BuildContext context) => widget.child;
+}
+
+/// Minimalist hairline sakura ring rendered by [PullToRefresh] across all
+/// platforms (replaces Material's white floating disc).
+class SakuraRefreshIndicator extends StatefulWidget {
+  const SakuraRefreshIndicator({
+    super.key,
+    required this.progress,
+    required this.spinning,
+    required this.color,
+    required this.trackColor,
+  });
+
+  static const double size = 24.0;
+  static const double strokeWidth = 2.4;
+
+  /// Normalized pull fraction in `[0, 1]` before [spinning] begins.
+  final double progress;
+
+  /// True while refresh work is in flight (`IndicatorMode.ready` or
+  /// `IndicatorMode.processing`).
+  final bool spinning;
+
+  final Color color;
+  final Color trackColor;
+
+  @override
+  State<SakuraRefreshIndicator> createState() => _SakuraRefreshIndicatorState();
+}
+
+class _SakuraRefreshIndicatorState extends State<SakuraRefreshIndicator>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _spinController = AnimationController(
+    vsync: this,
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _syncSpin();
+  }
+
+  @override
+  void didUpdateWidget(SakuraRefreshIndicator oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.spinning != widget.spinning) {
+      _syncSpin();
+    }
+  }
+
+  void _syncSpin() {
+    final period = MotionTokens.resolve(context, MotionTokens.refreshSpin);
+    if (widget.spinning && period > Duration.zero) {
+      if (_spinController.duration != period) {
+        _spinController.duration = period;
+      }
+      if (!_spinController.isAnimating) {
+        _spinController.repeat();
+      }
+    } else if (_spinController.isAnimating) {
+      _spinController.stop();
+    }
+  }
+
+  @override
+  void dispose() {
+    _spinController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final reducedMotion =
+        MotionTokens.resolve(context, MotionTokens.refreshSpin) ==
+        Duration.zero;
+    return AnimatedBuilder(
+      animation: _spinController,
+      builder: (context, _) {
+        final rotation = widget.spinning && !reducedMotion
+            ? _spinController.value * 2 * math.pi
+            : 0.0;
+        final sweep = widget.spinning
+            ? 0.72 * 2 * math.pi
+            : (0.15 + 0.70 * widget.progress.clamp(0.0, 1.0)) * 2 * math.pi;
+        return CustomPaint(
+          size: const Size.square(SakuraRefreshIndicator.size),
+          painter: _SakuraRingPainter(
+            rotation: rotation,
+            sweep: sweep,
+            color: widget.color,
+            trackColor: widget.trackColor,
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _SakuraRingPainter extends CustomPainter {
+  const _SakuraRingPainter({
+    required this.rotation,
+    required this.sweep,
+    required this.color,
+    required this.trackColor,
+  });
+
+  final double rotation;
+  final double sweep;
+  final Color color;
+  final Color trackColor;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const stroke = SakuraRefreshIndicator.strokeWidth;
+    final center = size.center(Offset.zero);
+    final radius = (math.min(size.width, size.height) - stroke) / 2;
+    final trackPaint = Paint()
+      ..color = trackColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke;
+    canvas.drawCircle(center, radius, trackPaint);
+
+    final arcPaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke
+      ..strokeCap = StrokeCap.round;
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      -math.pi / 2 + rotation,
+      sweep,
+      false,
+      arcPaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_SakuraRingPainter oldDelegate) =>
+      oldDelegate.rotation != rotation ||
+      oldDelegate.sweep != sweep ||
+      oldDelegate.color != color ||
+      oldDelegate.trackColor != trackColor;
 }

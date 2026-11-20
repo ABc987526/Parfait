@@ -12,7 +12,9 @@ import 'package:parfait/core/auth/account_store.dart';
 import 'package:parfait/core/entity/illust_store.dart';
 import 'package:parfait/core/paging/feed_snapshot_store.dart';
 import 'package:parfait/app/icons/app_icons.dart';
+import 'package:parfait/app/motion/app_overlays.dart';
 import 'package:parfait/app/motion/motion_tokens.dart';
+import 'package:parfait/app/widgets/app_date_picker.dart';
 import 'package:parfait/app/widgets/tab_swipe_switcher.dart';
 import 'package:parfait/app/widgets/func_bottom_nav.dart';
 import 'package:parfait/features/ranking/ranking_page.dart';
@@ -398,8 +400,8 @@ void main() {
       await tester.tap(find.text('选择日期'));
       await tester.pumpAndSettle();
 
-      final picker = tester.widget<DatePickerDialog>(
-        find.byType(DatePickerDialog),
+      final picker = tester.widget<AppDatePickerDialog>(
+        find.byType(AppDatePickerDialog),
       );
       expect(picker.firstDate, DateTime(2007, 9, 13));
       expect(picker.lastDate, rankingLastDate());
@@ -510,7 +512,7 @@ void main() {
     await tester.tap(
       find.descendant(
         of: find.byType(FuncShellBottomNav),
-        matching: find.byIcon(AppIcons.ranking),
+        matching: find.byIcon(AppIcons.rankingFilled),
       ),
     );
     await tester.pump();
@@ -524,7 +526,7 @@ void main() {
     // A tile's label follows its icon in one Text.rich, so it is matched
     // without the icon's placeholder.
     Finder inSheet(String text) => find.descendant(
-      of: find.byType(BottomSheet),
+      of: find.byType(AppBottomSheet),
       matching: find.byWidgetPredicate(
         (widget) =>
             widget is Text &&
@@ -557,6 +559,10 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(inSheet('编辑'));
       await tester.pumpAndSettle();
+      // Downward drag on a mobile editing sheet must not dismiss it mid-edit.
+      await tester.drag(inSheet('我的分类'), const Offset(0, 300));
+      await tester.pumpAndSettle();
+      expect(find.byType(AppBottomSheet), findsOneWidget);
       // A shown tile's tap hides it.
       await tester.tap(inSheet('每日'));
       await tester.pumpAndSettle();
@@ -582,7 +588,7 @@ void main() {
 
       await tester.tap(inSheet('每月'));
       await tester.pumpAndSettle();
-      expect(find.byType(BottomSheet), findsNothing);
+      expect(find.byType(AppBottomSheet), findsNothing);
       expect(router.state.uri.queryParameters['mode'], 'month');
       expect(tabs(tester).index, 1);
     });

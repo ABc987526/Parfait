@@ -3,7 +3,7 @@ prefix: SET
 applies_to:
   - lib/app/widgets/settings/**
   - lib/features/settings/**
-reviewed: 2026-11-15
+reviewed: 2026-11-18
 ---
 
 # Settings pages and the Me tab
@@ -16,21 +16,24 @@ reviewed: 2026-11-15
 
 ## Rows and groups
 
-### SET-01 Rows sit in SettingsGroup cards, never Divider
-- **Rule:** Settings rows go inside `SettingsGroup`, which draws each child
-  as its own `surfaceContainer` card 8dp apart, the gap being the only
-  separator; never a `Divider`, never a hand-built group container.
-  A note on one row is that row's subtitle; a note on the whole group, or
-  on content without a subtitle (a slider, a form), is the group
-  `footer`. So is an empty group's line saying it is empty: never a card
-  of its own. Notes on how to use a setting are not written (PAGE-20).
-  On one page either every group has a title or none does. A leaving
-  `Removable` row stops counting from the exit's first frame.
-- **Why:** User decision: separate cards on settings pages replaced the 2dp
-  segmented list. The Me tab is not a settings page and lists its rows
-  plainly (SET-07). Notes set apart from their row and a
-  page with one titled group read as unrelated. An empty group's note on
-  a card read as a row to press (user report, 10-25).
+### SET-01 Rows sit in a unified SettingsGroup card, never Divider
+- **Rule:** Settings rows go inside `SettingsGroup`, which wraps non-empty
+  children inside one unified `SettingsCard` (`surfaceContainer` with
+  `FuncShape.card` corners and a `1dp` `brandHairline` border) and separates
+  adjacent active rows with an animated `1dp` inset `brandHairline`
+  (`EdgeInsetsDirectional.only(start: FuncSpacing.lg)`), never a `Divider` and
+  never a hand-built group container (`BottomBarSettingsPage`'s reorderable list
+  still draws one `SettingsCard` per draggable item `SettingsGroup.rowGap`
+  apart). A note on one row is that row's subtitle; a note on the whole group,
+  or on content without a subtitle (a slider, a form), is the group `footer`.
+  So is an empty group's line saying it is empty: never a card of its own.
+  Notes on how to use a setting are not written (PAGE-20). On one page either
+  every group has a title or none does. A leaving `Removable` row stops
+  counting from the exit's first frame so its hairline closes smoothly.
+- **Why:** One inset grouped card with 1dp hairlines keeps settings and the Me
+  dashboard calm across desktop and mobile without stacked thick card slabs.
+  Notes set apart from their row and a page with one titled group read as
+  unrelated. An empty group's note on a card read as a row to press.
 - **Check:** `test/architecture/settings_rows_test.dart` "SettingsSection is gone from lib/"; `test/muted_items_page_test.dart` "an empty group says it is empty, off the cards"
 - **Code:** `lib/app/widgets/settings/settings_group.dart`
 
@@ -40,24 +43,36 @@ reviewed: 2026-11-15
   edge, never over the title). A longer list is a `SettingsGroup` of
   `SettingsChoiceTile`s, which mark the chosen row with a check and
   `ListTile.selected`, not a radio. A two-way property is a
-  `SettingsControl` switch.
+  `SettingsControl` backed by `FSwitch`; on `BottomBarSettingsPage`, locked-on
+  destinations (`shown && onChanged == null`) pass `locked: true` and
+  `lockedIcon` (`AppIcons.lock` / `AppIcons.check`) to render a muted `0.40`
+  primary-blended track, `onPrimary` thumb, and lock overlay while keeping
+  `onChanged: null` (THEME-07), and omit `bottomBarMeLocked` under
+  `DesktopCommandBarScope`. Diagnostic result panels in `NetworkProbePage` use
+  `FAccordion` / `FAccordionItem`.
 - **Why:** `RadioListTile` is deprecated in the pinned Flutter, and
   `selected` is what screen readers announce; segmented buttons were
-  removed (NAV-17).
-- **Check:** `test/selection_controls_haptics_test.dart`
-- **Code:** `lib/app/widgets/settings/settings_menu_tile.dart`, `lib/app/widgets/settings/settings_choice_tile.dart`
+  removed (NAV-17), while locked-on bar destinations needed clear active
+  visual state without looking toggleable.
+- **Check:** `test/selection_controls_haptics_test.dart`; `test/phase3_forui_bridge_test.dart` "SettingsControl locked mode renders disabled active FSwitch with lock icon"
+- **Code:** `lib/app/widgets/settings/settings_control.dart`, `lib/app/widgets/settings/settings_menu_tile.dart`, `lib/app/widgets/settings/settings_choice_tile.dart`, `lib/features/settings/pages/bottom_bar_settings_page.dart`, `lib/features/settings/network_probe_page.dart`
 
-### SET-08 Page entries carry a circle in their group's color
-- **Rule:** A row that opens a settings page from the index is
-  `SettingsTile.topLevel`, its icon on a circle in its group's
-  category tone (THEME-07): appearance purple, browse blue, network and
-  download green, data orange; account, about and developer neutral.
-  Rows inside a settings page show the bare icon.
-- **Why:** User decision: the circle marks the top level, and one color
-  per group tells the groups apart before their titles are read; on
-  sub-pages the circle outweighed the setting rows around it.
-- **Check:** manual
-- **Code:** `lib/app/widgets/settings/settings_tile.dart`, `lib/features/settings/settings_page.dart`
+### SET-08 Page entries use monochrome icons without color discs
+- **Rule:** A row that opens a settings page from the index (`SettingsTile.topLevel`)
+  or a section from the Me dashboard renders a bare 22dp monochrome `AppIcons`
+  leading icon (`selected ? (selectedIcon ?? icon) : icon`, THEME-07, THEME-16)
+  with no colored circular backdrop. Library rows carry optional live
+  `trailingText` tabular counts ahead of the chevron instead of placeholder
+  double-line subtitles. Selected `SettingsTile`s step their overlay alpha
+  across default/focused (0.12), hovered (0.16) and pressed (0.20), and
+  `AccountSettingsPage` keeps the selected account's ID subtitle on
+  `onSurfaceVariant`.
+- **Why:** Multi-hue 40dp icon discs made Settings and Me read like noisy rainbow
+  lists and clashed with monochrome workspace navigation; bare 22dp glyphs with
+  `*Filled` selection states and trailing counts align hierarchy across mobile
+  and desktop without decorative color.
+- **Check:** `test/architecture/icon_style_test.dart`, `test/settings_test.dart`
+- **Code:** `lib/app/widgets/settings/settings_tile.dart`, `lib/features/settings/settings_page.dart`, `lib/features/settings/me_dashboard_page.dart`, `lib/features/settings/pages/account_settings_page.dart`
 
 ### SET-09 A form is one card with its save at the end
 - **Rule:** A form's fields and its `FilledButton` save sit in one
@@ -116,71 +131,88 @@ reviewed: 2026-11-15
 - **Check:** `test/settings_search_test.dart` "title hits come before option hits, case and spaces ignored" "a result opens its page with the setting revealed and marked"
 - **Code:** `lib/features/settings/settings_catalog.dart`, `lib/app/widgets/settings/settings_anchor.dart`
 
-### SET-06 Each setting has one home page
-- **Rule:** `/settings/motion` holds animation speed,
-  reduced motion, press feedback and haptic strength. Credential export
-  is in account management. History switches and delete-all are in the
-  history page's overflow menu; there is no history settings page. The
-  interface form (NAV-20) heads `/settings/navigation` and, like the
-  haptic strength, exists only where `Setting.available` says so: the row
-  and its search entry alike.
-- **Why:** The same setting on two pages drifted apart.
-- **Check:** `test/settings_search_test.dart` "every catalog entry is on its page"
-- **Code:** `lib/features/settings/settings_catalog.dart`
+### SET-06 Each setting has one home page and master-detail layout on wide workspaces
+- **Rule:** `/settings/motion` holds animation speed, reduced motion, press
+  feedback and haptic strength (shown on Android and on iOS devices where
+  `hapticsCapabilityProvider` reports `tier != HapticsTier.none`; `Setting.hapticStrength.available`
+  is true on both Android and iOS, while `followSystemColors` and
+  `saveLocationSafFolder` are hidden on iOS in both `Setting.available` and
+  their respective pages). Credential
+  export is in account management. History switches and delete-all are in the
+  history page's overflow menu; there is no history settings page. The interface
+  form (NAV-20) heads `/settings/navigation` and, like haptic strength, exists
+  only where `Setting.available` says so: the row and its search entry alike.
+  When `MasterDetailWorkspace.canDisplay` holds (`HomeShellChrome.contentSizeOf`
+  `>= 840x480` and `viewport.width >= viewport.height * 0.75`), `/settings/all`
+  and leaf settings routes wrapped in `SettingsAdaptiveHost` stay inside
+  `MasterDetailWorkspace`: a 280dp `surfaceContainerLow` index pane (`52dp` top
+  header with `1dp` `brandHairline`, `showChevron: false` rows, and vertical
+  `ScrollEdgeFade(axis: Axis.vertical, fadeExtent: FuncSpacing.lg)` over
+  `masterBody`) and a `1dp`
+  `brandHairline`-separated nested detail `Navigator` (`SettingsDetailScope`,
+  `EmbeddedHeaderScope` flat aligned `52dp` headers,
+  `MotionTokens.stateFadeCurve` with leaving `IgnorePointer`, and
+  `settingsNarrowBody` left-aligned up to 780dp wrapped in vertical
+  `ScrollEdgeFade(axis: Axis.vertical, fadeExtent: FuncSpacing.lg)`); secondary leaf paths
+  (`/settings/about/licenses`, `/settings/network/advanced`,
+  `/settings/navigation/bottom-bar`, `/settings/translate/credentials`) map to
+  their parent category and scroll the active rail entry into view.
+- **Why:** The same setting on two pages drifted apart; hardwareless iPads omit
+  dead haptic sliders while Taptic iPhones expose them (and iOS omits Android
+  Material You system colors and SAF pickers); and unified `280dp`
+  master-detail hosting keeps deep-linked settings pages coherent beside the
+  collapsed shell rail without double headers or orphaned single-column sheets.
+- **Check:** `test/settings_search_test.dart` "every catalog entry is on its page"; `test/settings_master_detail_test.dart` "wide desktop uses master-detail with nested navigation; below 840dp stays single column"; `test/shared_widgets_test.dart` "MasterDetailWorkspace wraps scrollable masterBody in vertical ScrollEdgeFade"; `test/phase1_platform_fidelity_test.dart` "Setting.available and ThemeSettingsPage adapt haptics and system colors on iOS"
+- **Code:** `lib/app/widgets/master_detail_workspace.dart`, `lib/app/navigation/route_branches.dart`, `lib/features/settings/settings_catalog.dart`, `lib/features/settings/settings_page.dart`, `lib/features/settings/settings_helpers.dart`, `lib/features/settings/pages/motion_settings_page.dart`, `lib/features/settings/pages/theme_settings_page.dart`, `lib/features/settings/pages/download_destination_page.dart`
 
 ## Me tab
 
-### SET-07 The Me tab puts content before settings
-- **Rule:** The Me root is laid out as YouTube's: no buttons on its top
-  bar, and no card but the account header. First the account header, a
-  `PersonCard` (PAGE-07): a 72dp avatar, the name with a neutral
-  "Premium" pill for a premium account, and the user ID under it,
-  together one button that opens the profile (its screen-reader hint
-  says so); account management is its own icon button at the card's
-  end, its glyph on the card's padding. Signed out, the header is one
-  button to the login, with no manage button. Then the last eight
-  history records as a row of covers with
-  "see all" (hidden when the history is empty), then the content entries
-  as list rows with a neutral icon (bookmarks, following, watchlist,
-  watch later, local novels, download tasks with the active-task count
-  at the row's end, then each destination the user took off the bottom
-  bar), then a divider and two rows: settings (the index) and about. The
-  settings groups and the developer group live on the index only. A
-  cover is square and shows the top of
-  a taller image, the middle of a wider one. An illustration cover opens
-  the detail pager over the row's illustrations in their order at the
-  tap. A cover whose work is in the illustration store flies to the
-  detail page and back (TRANS-09, its own scope per TRANS-07); one whose
-  work is not opens with no flight and takes none back. While any page
-  covers the row (opened from it or from anywhere, in the branch or on
-  the root navigator over the shell) it keeps its order; once that page
-  has left (its image landed) it takes the new order at once: each cover slides from
-  where it was to its place on `MotionTokens.spatial`, one new to the row
-  slides in from the leading edge and fades in, a new order mid-slide
-  carries on from where each cover is, and reduced motion moves them at
-  once. Hidden (another tab) the row takes the new order when it shows.
-  "Covered" is read from the secondary animations of the row's route and
-  of the shell's route, never from TickerMode: the Overlay stops tickers
-  under any opaque page, so TickerMode cannot tell a page from a tab. When
-  `HomeShellChrome.contentSizeOf` is at least `840×480`, the Me tab lays
-  out as a centred 1080dp-max two-column dashboard
-  (`ValueKey('me-wide-dashboard')`: account header, recent row and settings
-  in the leading column beside the content shortcuts), preserving the
-  recent row across resizes via a persistent `GlobalKey`.
+### SET-07 The Me tab puts content before settings on unified workspaces and cards
+- **Rule:** On narrow layouts (`!MasterDetailWorkspace.canDisplay`), the Me root
+  shows an `AppIcons.settings` shortcut (`settingsTitle` tooltip) in
+  `AppTopBar.actions` (omitted when `DesktopCommandBarScope` owns chrome)
+  while keeping the bottom `设置` row (`SET-08`). First comes the atmospheric
+  account header (`_AccountHeader`: a `FuncShape.panel` card on `surfaceContainer`
+  layered with `_CardWashBackdrop` `AmbientWash` tinted from the user's cover/work
+  image at `decodeWidth: 96`, containing `PersonCard` at 52dp avatar, name with
+  neutral "Premium" pill, user ID, and trailing manage icon button — or one
+  sign-in button when signed out — plus a `brandHairline`-separated 3-column
+  interactive `收藏 / 关注 / 好P友` stat row once `userDetail` loads). Next
+  comes the last eight history records as a row of square covers (or an
+  empty-history `暂无浏览历史` entry card without a `"see all"` button when empty),
+  followed by monochrome grouped `SettingsGroup` / `SettingsTile.topLevel`
+  sections (`showChevron: true`, 22dp `AppIcons`, `SET-08`, single-line library
+  and collection rows carrying live `trailingText` counts when non-zero, keeping
+  `Badge` on downloads and subtitle on `设置` / `关于`) ordering library,
+  collections, recent tools and settings/about. An illustration cover opens the
+  detail pager over the row's illustrations; covers in `IllustStore` fly via
+  Hero (`'me-history'`, TRANS-07) while unseen ones do not. The row uses
+  `HistoryVisibility` settled-route gating plus root-to-leaf `Navigator`
+  secondary-animation checks so, while covered, it holds its order and slides
+  on `MotionTokens.spatial` once uncovered (painting hovered covers in the top
+  layer with unclipped `FuncSpacing.xs` lift headroom and symmetric
+  `Curves.easeInOutCubic` curves so promoted/displaced slots leave no gap, plus
+  horizontal `ScrollEdgeFade(axis: Axis.horizontal, fadeExtent: FuncSpacing.lg)`).
+  When `MasterDetailWorkspace.canDisplay` holds (`>= 840x480` content), the Me
+  tab mounts `MasterDetailWorkspace` (`masterBody` scrolled with vertical
+  `ScrollEdgeFade`) wrapping its nested detail `Navigator` in
+  `SettingsDetailScope`: a `280dp` left rail (`40dp` `_CompactAccountHeader`
+  card opening the signed-in user's profile or login with an inline
+  `AppIcons.accountManage` button, plus grouped `showChevron: false` monochrome
+  single-entry destination items with live `trailingText` counts and
+  `*Filled` selected states `heartFilled` / `watchLaterFilled`, including
+  `HistoryPage` under data and settings/about on touch tablets without
+  `DesktopCommandBarScope`) that opens directly onto `_MeBookmarksPane` (`收藏`)
+  without duplicating profile cards, library metric cards, or history strips in
+  a separate overview pane; `_MeBookmarksPane` and `_MeFollowingPane` defer
+  network-backed filters and feeds until `_MeNetworkScope.of(context)` is true.
 - **Why:** User decision: settings filled two thirds of the page in a
-  style of their own, and nothing showed what the user saw last; then
-  (10-21) the page read as unpolished next to mature apps, and YouTube's
-  layout was chosen: a list over a grid, one settings entry at the end
-  over a bar button. The flight needs the work's ratio on its first frame, and a
-  history record has none. Each work the pager shows moves to the front
-  of the history, so a row reordered mid-flight would land the image on
-  another work's cover. Swapped in place at the landing, covers changed
-  right where the eye was; waiting for the next visit left the row stale
-  (user decision 10-20: catch up at the landing, with the slide). Read
-  from TickerMode, a page not opened from the row (the profile, the
-  history page) let the row reorder behind it, and the slide was over
-  before the user came back. 10-25: the header, plain, did not show it
-  opened the profile; it took the person card every author block uses
-  (user decision).
-- **Check:** `test/settings_test.dart` "the Me header, manage button and end rows open their pages" "signed out, the Me header is one button to the login" "the dashboard badge counts downloads as they start and end" "the recent row follows the history and pages in its own order" "a recent cover flies to its work and back, an unseen one not" "a page over the row holds its order until it has left"
-- **Code:** `lib/features/settings/me_dashboard_page.dart`
+  style of their own, while static multi-hue icon lists under-utilized desktop
+  canvas space; monochrome grouped rows clarify visual hierarchy on mobile, and
+  removing the redundant overview studio eliminates duplicate entries in the wide
+  2-column workspace so every library section opens cleanly in one click inside
+  the shared 280dp `MasterDetailWorkspace` / `SettingsDetailScope` pattern. The
+  history row holds its order while covered so Hero landing flights target the
+  right cover before sliding to match recent history.
+- **Check:** `test/settings_test.dart` "the Me header, manage button and end rows open their pages" "signed out, the Me header is one button to the login" "the dashboard badge counts downloads as they start and end" "the recent row follows the history and pages in its own order" "a recent cover flies to its work and back, an unseen one not" "a page over the row holds its order until it has left"; `test/settings_master_detail_test.dart` "wide Me dashboard wraps SettingsDetailScope and opens bookmarks directly"
+- **Code:** `lib/app/widgets/master_detail_workspace.dart`, `lib/app/widgets/scroll_edge_fade.dart`, `lib/app/widgets/settings/settings_group.dart`, `lib/app/widgets/settings/settings_tile.dart`, `lib/core/history/history_visibility.dart`, `lib/features/settings/me_dashboard_page.dart`

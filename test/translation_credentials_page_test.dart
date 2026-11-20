@@ -9,6 +9,7 @@ import 'package:parfait/features/settings/pages/translation_credentials_page.dar
 
 import 'helpers/settings_world.dart';
 import 'helpers/localized_app.dart';
+import 'package:parfait/app/icons/ui_icons.dart';
 
 /// The shared fake with injectable delete failures; Baidu reads wait on
 /// [readBlocker], writes and deletes on [blocker].
@@ -124,9 +125,9 @@ void main() {
 
       // The error colour is the icon's (THEME-08).
       expect(find.text('Secure storage operation failed'), findsOneWidget);
-      final icon = tester.widget<Icon>(find.byIcon(Icons.error_outline));
+      final icon = tester.widget<Icon>(find.byIcon(UiIcons.errorOutline));
       final scheme = Theme.of(
-        tester.element(find.byIcon(Icons.error_outline)),
+        tester.element(find.byIcon(UiIcons.errorOutline)),
       ).colorScheme;
       expect(icon.color, scheme.error);
     },

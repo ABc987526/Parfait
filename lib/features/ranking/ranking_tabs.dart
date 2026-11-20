@@ -6,10 +6,12 @@ import 'package:material_ui/material_ui.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../app/haptics/app_haptics.dart';
+import '../../app/navigation/routes.dart';
 import '../../app/widgets/app_menu_button.dart';
 import '../../app/widgets/app_tab_bar.dart';
 import '../../app/widgets/app_top_bar.dart';
 import '../../app/widgets/display_actions.dart';
+import '../../app/widgets/feed/desktop_gallery_controls.dart';
 import '../../app/widgets/feed/feed_states.dart';
 import '../../app/widgets/func_bottom_nav.dart';
 import '../../app/widgets/home_branch_stack.dart';
@@ -26,6 +28,8 @@ import '../../core/settings/settings_controller.dart';
 import '../../l10n/context.dart';
 import '../../l10n/lookup.dart';
 import 'ranking_date.dart';
+import '../../app/icons/app_icons.dart';
+import '../../app/icons/ui_icons.dart';
 
 /// Records the page's mode and ranking day (null is the latest) in the
 /// route.
@@ -51,6 +55,8 @@ class RankingTabs<M extends RankingCategory> extends ConsumerStatefulWidget {
     required this.switchIcon,
     required this.onSwitch,
     required this.bodyBuilder,
+    this.showGalleryControls = false,
+    this.enableDesktopInspector = false,
   });
 
   final RankingCatalog<M> catalog;
@@ -67,6 +73,8 @@ class RankingTabs<M extends RankingCategory> extends ConsumerStatefulWidget {
   final IconData switchIcon;
   final void Function(BuildContext context) onSwitch;
   final RankingBodyBuilder<M> bodyBuilder;
+  final bool showGalleryControls;
+  final bool enableDesktopInspector;
 
   @override
   ConsumerState<RankingTabs<M>> createState() => _RankingTabsState<M>();
@@ -462,19 +470,19 @@ class _RankingTabsState<M extends RankingCategory>
       AppMenuEntry(
         value: _TabAction.moveToFront,
         label: l10n.rankingMoveToFront,
-        icon: Icons.first_page,
+        icon: UiIcons.firstPage,
         enabled: index > 0,
       ),
       AppMenuEntry(
         value: _TabAction.hide,
         label: l10n.rankingHideCategory,
-        icon: Icons.visibility_off_outlined,
+        icon: AppIcons.eyeOff,
         enabled: canHide,
       ),
       AppMenuEntry(
         value: _TabAction.edit,
         label: l10n.rankingEditCategories,
-        icon: Icons.edit_outlined,
+        icon: AppIcons.edit,
       ),
     ];
     return AppMenuButton<_TabAction>(
@@ -496,7 +504,7 @@ class _RankingTabsState<M extends RankingCategory>
             actions: [
               for (final entry in entries)
                 DisplayAction(
-                  icon: entry.icon ?? Icons.more_horiz,
+                  icon: entry.icon ?? UiIcons.more,
                   label: entry.label,
                   enabled: entry.enabled,
                   onSelected: () =>
@@ -523,10 +531,11 @@ class _RankingTabsState<M extends RankingCategory>
       appBar: AppTopBar(
         titleSpacing: 0,
         actions: [
+          if (widget.showGalleryControls) const DesktopGalleryControls(),
           IconButton(
             tooltip: context.l10n.rankingAllCategories,
             onPressed: _openSheet,
-            icon: const Icon(Icons.grid_view_outlined),
+            icon: const Icon(AppIcons.categoryGrid),
           ),
           const HeaderRefresh(),
           const HeaderSearch(),
@@ -580,7 +589,7 @@ class _RankingTabsState<M extends RankingCategory>
           );
           // Always a Column, so the bar coming and going keeps the tab
           // strip's element.
-          return Column(
+          final content = Column(
             children: [
               if (_date case final date?)
                 RankingDateBar(
@@ -590,6 +599,9 @@ class _RankingTabsState<M extends RankingCategory>
               Expanded(child: tabs),
             ],
           );
+          return widget.enableDesktopInspector
+              ? DesktopInspectableGallery(child: content)
+              : content;
         },
       ),
     );
@@ -619,12 +631,12 @@ Widget rankingEmpty(
     );
   }
   return FeedEmpty(
-    icon: Icons.visibility_off_outlined,
+    icon: AppIcons.eyeOff,
     title: l10n.rankingR18gHint,
     retryLabel: l10n.refresh,
     onRefresh: onRefresh,
     actionLabel: l10n.rankingR18gOpenSettings,
-    actionIcon: Icons.open_in_new,
+    actionIcon: AppIcons.externalLink,
     // Fire-and-forget like the other outbound links: the browser owns the
     // failure surface.
     onAction: () => unawaited(

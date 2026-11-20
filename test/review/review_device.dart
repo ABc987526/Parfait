@@ -235,7 +235,7 @@ const reviewDevices = <String, ReviewDevice>{
       trafficLightHeight: 16,
     ),
   ),
-  // 1280 x 800, Linux desktop window with integrated caption controls.
+  // 1280 x 800, Linux desktop window using the native GTK title bar.
   'linux': ReviewDevice(
     physicalSize: Size(1920, 1200),
     dpr: 1.5,
@@ -243,7 +243,7 @@ const reviewDevices = <String, ReviewDevice>{
     targetPlatform: TargetPlatform.linux,
     platformCaps: PlatformCaps(isLinux: true),
     inputModality: InputModality.pointer,
-    desktopMetrics: DesktopWindowPlatformMetrics(usesSystemTitleBar: false),
+    desktopMetrics: DesktopWindowPlatformMetrics(usesSystemTitleBar: true),
   ),
 };
 

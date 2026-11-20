@@ -34,6 +34,8 @@ import 'helpers/localized_app.dart';
 import 'helpers/view_size.dart';
 import 'helpers/waits.dart';
 import 'helpers/leak_tracking.dart';
+import 'package:parfait/app/icons/app_icons.dart';
+import 'package:parfait/app/icons/ui_icons.dart';
 
 const _articleHtml = '''
 <!DOCTYPE html>
@@ -447,7 +449,7 @@ void main() {
         images: {cdn: http.Response.bytes(onePixelPng, 200)},
       );
       await pumpIoUntil(tester, () => painted(tester));
-      expect(find.byIcon(Icons.broken_image_outlined), findsNothing);
+      expect(find.byIcon(AppIcons.illustBroken), findsNothing);
     });
 
     testWidgets('a landscape window caps the cover, so the first lines show', (
@@ -604,11 +606,11 @@ void main() {
       expect(
         find.descendant(
           of: find.byType(AuthorRow),
-          matching: find.byIcon(Icons.chevron_right),
+          matching: find.byIcon(UiIcons.chevronRight),
         ),
         findsOneWidget,
       );
-      expect(find.byIcon(Icons.chevron_right), findsOneWidget);
+      expect(find.byIcon(UiIcons.chevronRight), findsOneWidget);
 
       await tester.tap(image);
       await tester.pumpAndSettle();
@@ -698,6 +700,8 @@ void main() {
         );
         await tester.pumpAndSettle();
         expect(find.text('在浏览器打开'), findsOneWidget);
+        expect(find.byType(FilledButton), findsOneWidget);
+        expect(find.text('重试'), findsNothing);
       },
     );
   });

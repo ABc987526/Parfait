@@ -6,6 +6,7 @@ import '../../../../app/navigation/route_animation.dart';
 import '../../../../app/theme/func_semantic_tokens.dart';
 import '../../../../app/theme/func_tokens.dart';
 import '../../../../l10n/context.dart';
+import '../../../../app/icons/ui_icons.dart';
 
 /// Page position over the artwork ("N / M"), shared by the narrow scroll
 /// body and the two-pane pager. Hidden for single-page works, while [page]
@@ -195,7 +196,7 @@ class _CollapsePill extends StatelessWidget {
         textStyle: Theme.of(context).textTheme.labelMedium,
       ),
       onPressed: onPressed,
-      icon: const Icon(Icons.expand_less, size: 18),
+      icon: const Icon(UiIcons.expandLess, size: 18),
       label: Text(context.l10n.detailCollapsePages),
     );
   }

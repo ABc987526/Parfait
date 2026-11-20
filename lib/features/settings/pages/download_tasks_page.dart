@@ -17,7 +17,9 @@ import '../../../app/motion/state_icon_switcher.dart';
 import '../../../app/navigation/routes.dart';
 import '../../../app/pixiv_image.dart';
 import '../../../app/theme/func_semantic_tokens.dart';
+import '../../../app/widgets/app_dialog.dart';
 import '../../../app/widgets/app_menu_button.dart';
+import '../../../app/widgets/app_progress_bar.dart';
 import '../../../app/widgets/app_top_bar.dart';
 import '../../../app/widgets/display_actions.dart';
 import '../../../app/widgets/errors/error_details.dart';
@@ -31,6 +33,8 @@ import '../../../core/download/download_task.dart';
 import '../../../core/errors/error_category.dart';
 import '../../../l10n/context.dart';
 import 'download_task_presentation.dart';
+import '../../../app/icons/app_icons.dart';
+import '../../../app/icons/ui_icons.dart';
 
 part 'download_task_rows.dart';
 
@@ -300,7 +304,7 @@ class _DownloadTasksPageState extends ConsumerState<DownloadTasksPage> {
     AppHaptics.confirm();
     final confirmed = await showAppDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
+      builder: (dialogContext) => AppAlertDialog(
         title: Text(title),
         content: Text(body),
         actions: [
@@ -402,7 +406,7 @@ class _DownloadTasksPageState extends ConsumerState<DownloadTasksPage> {
                   IconButton(
                     tooltip: context.l10n.selectAll,
                     onPressed: _selectAll,
-                    icon: const Icon(Icons.select_all),
+                    icon: const Icon(UiIcons.selectAll),
                   ),
                   IconButton(
                     // Batch-cancel applies to in-flight selections;
@@ -411,14 +415,14 @@ class _DownloadTasksPageState extends ConsumerState<DownloadTasksPage> {
                     onPressed: selectedNonTerminal.isEmpty
                         ? null
                         : _cancelSelected,
-                    icon: const Icon(Icons.cancel_outlined),
+                    icon: const Icon(UiIcons.cancelCircle),
                   ),
                   IconButton(
                     tooltip: context.l10n.downloadRemoveRecord,
                     onPressed: selectedTerminal.isEmpty
                         ? null
                         : _dismissSelected,
-                    icon: const Icon(Icons.remove_circle_outline),
+                    icon: const Icon(UiIcons.removeCircle),
                   ),
                 ],
               )
@@ -440,7 +444,7 @@ class _DownloadTasksPageState extends ConsumerState<DownloadTasksPage> {
                         AppMenuEntry(
                           value: () =>
                               unawaited(_removeTasks(_completedTaskIds)),
-                          icon: Icons.cleaning_services_outlined,
+                          icon: AppIcons.clearDone,
                           label: context.l10n.downloadClearCompleted,
                           enabled: tasks.any(
                             (task) => task.status == DownloadStatus.succeeded,
@@ -452,65 +456,58 @@ class _DownloadTasksPageState extends ConsumerState<DownloadTasksPage> {
                   ],
                 ],
               ),
-        body: tasks.isEmpty
-            ? FeedEmpty(title: context.l10n.downloadTasksEmpty)
-            // Management-list cap (parent §5.5).
-            : Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(
-                    maxWidth: ContentWidths.management,
-                  ),
-                  child: RemovalScope(
-                    controller: _removals,
-                    child: CustomScrollView(
-                      restorationId: 'download-tasks',
-                      slivers: [
-                        SliverPadding(
-                          // A group header brings _groupGap above it; the
-                          // surfaces keep the old cards' spacing.
-                          padding: EdgeInsets.fromLTRB(
-                            FuncSpacing.md,
-                            entries.first is _GroupedEntry
-                                ? FuncSpacing.sm + FuncSpacing.xs - _groupGap
-                                : FuncSpacing.sm,
-                            FuncSpacing.md,
-                            entries.last is _GroupedEntry
-                                ? FuncSpacing.sm + FuncSpacing.xs
-                                : FuncSpacing.sm,
-                          ),
-                          // One surface per group, drawn around its rows as
-                          // they are laid out: the outline follows rows
-                          // growing in, folding away and leaving. A task on
-                          // its own is a plain row.
-                          sliver: SliverSurfaceList.builder(
-                            groups: [
-                              for (final entry in entries)
-                                if (entry case _GroupedEntry(:final groupId))
-                                  groupId
-                                else
-                                  null,
-                            ],
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.surfaceContainer,
-                            borderRadius: FuncShape.card,
-                            leadingGap: _groupGap,
-                            findChildIndexCallback: (key) =>
-                                _indexOfKey(entries, key),
-                            itemBuilder: (context, index) => _row(
-                              entries[index],
-                              orderedTaskIds: orderedTaskIds,
-                              afterSurface:
-                                  index > 0 &&
-                                  entries[index - 1] is _GroupedEntry,
-                            ),
+        body: ContentWidthCap(
+          maxWidth: ContentWidths.management,
+          child: tasks.isEmpty
+              ? FeedEmpty(title: context.l10n.downloadTasksEmpty)
+              : RemovalScope(
+                  controller: _removals,
+                  child: CustomScrollView(
+                    restorationId: 'download-tasks',
+                    slivers: [
+                      SliverPadding(
+                        // A group header brings _groupGap above it; the
+                        // surfaces keep the page's 16dp margin (LAYOUT-14).
+                        padding: EdgeInsets.fromLTRB(
+                          FuncSpacing.lg,
+                          entries.first is _GroupedEntry
+                              ? FuncSpacing.sm + FuncSpacing.xs - _groupGap
+                              : FuncSpacing.sm,
+                          FuncSpacing.lg,
+                          entries.last is _GroupedEntry
+                              ? FuncSpacing.sm + FuncSpacing.xs
+                              : FuncSpacing.sm,
+                        ),
+                        // One surface per group, drawn around its rows as
+                        // they are laid out: the outline follows rows
+                        // growing in, folding away and leaving. A task on
+                        // its own is a plain row.
+                        sliver: SliverSurfaceList.builder(
+                          groups: [
+                            for (final entry in entries)
+                              if (entry case _GroupedEntry(:final groupId))
+                                groupId
+                              else
+                                null,
+                          ],
+                          color: Theme.of(context).colorScheme.surfaceContainer,
+                          borderRadius: FuncShape.card,
+                          leadingGap: _groupGap,
+                          findChildIndexCallback: (key) =>
+                              _indexOfKey(entries, key),
+                          itemBuilder: (context, index) => _row(
+                            entries[index],
+                            orderedTaskIds: orderedTaskIds,
+                            afterSurface:
+                                index > 0 &&
+                                entries[index - 1] is _GroupedEntry,
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
+        ),
       ),
     );
   }

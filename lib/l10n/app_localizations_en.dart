@@ -907,6 +907,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get feedDensityComfortable => 'Comfortable';
 
   @override
+  String get desktopDetailMode => 'Desktop detail view';
+
+  @override
+  String get desktopDetailModeModal => 'Stage modal';
+
+  @override
+  String get desktopDetailModeInspector => 'Side inspector';
+
+  @override
   String get qualityMedium => 'Medium';
 
   @override
@@ -1048,6 +1057,26 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get saveLocationUriCopied => 'Folder URI copied';
+
+  @override
+  String get saveLocationDesktopFolder => 'Default folder';
+
+  @override
+  String get saveLocationDesktopDefaultFolder => 'Parfait folder (default)';
+
+  @override
+  String get saveLocationDesktopCustomSubfolder => 'Custom subfolder name';
+
+  @override
+  String get saveLocationDesktopCustomFolder =>
+      'Custom directory (system folder picker)';
+
+  @override
+  String get saveLocationMacosBookmarkLabel =>
+      'Authorized folder (macOS sandbox bookmark)';
+
+  @override
+  String get saveLocationPathCopied => 'Folder path copied';
 
   @override
   String get namingPreset => 'File naming preset';
@@ -1457,7 +1486,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String settingsMutedSummary(int count) {
-    return '$count muted items';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count muted items',
+      one: '1 muted item',
+    );
+    return '$_temp0';
   }
 
   @override
@@ -1783,10 +1818,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get novelRankingCategories => 'Novel ranking categories';
 
   @override
-  String get bottomBarItems => 'Bottom bar items';
+  String get bottomBarItems => 'Navigation items';
 
   @override
-  String get navigationBottomBar => 'Bottom bar';
+  String get navigationBottomBar => 'Navigation bar';
 
   @override
   String get navigationRanking => 'Ranking categories';
@@ -1822,7 +1857,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get railDownloads => 'Downloads';
 
   @override
-  String get homeStartFirstVisible => 'First bar item';
+  String get homeStartFirstVisible => 'First navigation item';
 
   @override
   String get homeStartLastUsed => 'Last used page';
@@ -3055,6 +3090,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get spotlightChallengeFailed =>
       'pixivision currently needs verification or a proxy';
+
+  @override
+  String get spotlightExternalBrowserHint =>
+      'In-app browser verification isn\'t available on this platform. Open the article in your browser instead.';
 
   @override
   String get spotlightCategoryAll => 'All';

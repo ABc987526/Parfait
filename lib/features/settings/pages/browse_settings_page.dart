@@ -94,6 +94,24 @@ class BrowseSettingsPage extends ConsumerWidget {
                         .setFeedDensity(density),
                   ),
                 ),
+                if (Setting.desktopDetailMode.available)
+                  SettingsMenuTile<DesktopDetailMode>(
+                    setting: Setting.desktopDetailMode,
+                    value: settings.desktopDetailMode,
+                    options: [
+                      for (final mode in DesktopDetailMode.values)
+                        AppMenuEntry(
+                          value: mode,
+                          label: _desktopDetailModeText(context, mode),
+                        ),
+                    ],
+                    onChanged: (mode) => persistSettings(
+                      context,
+                      () => ref
+                          .read(settingsProvider.notifier)
+                          .setDesktopDetailMode(mode),
+                    ),
+                  ),
                 SettingsMenuTile<PreviewQuality>(
                   setting: Setting.previewQuality,
                   value: settings.previewQuality,
@@ -161,6 +179,12 @@ String _densityText(BuildContext context, FeedDensity density) =>
       FeedDensity.compact => context.l10n.feedDensityCompact,
       FeedDensity.standard => context.l10n.feedDensityStandard,
       FeedDensity.comfortable => context.l10n.feedDensityComfortable,
+    };
+
+String _desktopDetailModeText(BuildContext context, DesktopDetailMode mode) =>
+    switch (mode) {
+      DesktopDetailMode.modal => context.l10n.desktopDetailModeModal,
+      DesktopDetailMode.inspector => context.l10n.desktopDetailModeInspector,
     };
 
 List<AppMenuEntry<T>> _qualityOptions<T extends Object>(

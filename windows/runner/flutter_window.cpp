@@ -819,6 +819,36 @@ LRESULT FlutterWindow::HitTestNonClient(int screen_x, int screen_y) const {
   HMONITOR monitor = ::MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
   const UINT dpi = FlutterDesktopGetDpiForMonitor(monitor);
 
+  POINT client_pt{screen_x, screen_y};
+  if (!::ScreenToClient(hwnd, &client_pt)) {
+    return HTCLIENT;
+  }
+  const double scale = dpi > 0 ? static_cast<double>(dpi) / 96.0 : 1.0;
+  const double lx = static_cast<double>(client_pt.x) / scale;
+  const double ly = static_cast<double>(client_pt.y) / scale;
+
+  bool in_maximize_button = false;
+  bool in_caption_buttons = false;
+  for (const auto& region : title_bar_regions_) {
+    if (region.kind == "maximize") {
+      if (lx >= region.left && lx < region.right && ly >= region.top &&
+          ly < region.bottom) {
+        in_maximize_button = true;
+        in_caption_buttons = true;
+      } else {
+        const double button_width = region.right - region.left;
+        if (button_width > 0 && lx >= region.left - button_width &&
+            lx < region.right + button_width && ly >= region.top &&
+            ly < region.bottom) {
+          in_caption_buttons = true;
+        }
+      }
+    } else if (region.kind == "buttons" && lx >= region.left &&
+               lx < region.right && ly >= region.top && ly < region.bottom) {
+      in_caption_buttons = true;
+    }
+  }
+
   const bool resizable =
       !IsFullscreenState() && ::IsZoomed(hwnd) == FALSE &&
       (::GetWindowLongPtrW(hwnd, GWL_STYLE) & WS_THICKFRAME) != 0;
@@ -827,12 +857,17 @@ LRESULT FlutterWindow::HitTestNonClient(int screen_x, int screen_y) const {
                          ::GetSystemMetricsForDpi(SM_CXPADDEDBORDER, dpi);
     const int border_y = ::GetSystemMetricsForDpi(SM_CYSIZEFRAME, dpi) +
                          ::GetSystemMetricsForDpi(SM_CXPADDEDBORDER, dpi);
+    const int button_rim =
+        std::max(1, ::MulDiv(2, static_cast<int>(dpi), 96));
+    const int top_hit_height = in_caption_buttons ? button_rim : border_y;
+    const int right_hit_width = in_caption_buttons ? button_rim : border_x;
+
     const bool on_left =
         screen_x >= window_rect.left && screen_x < window_rect.left + border_x;
     const bool on_right = screen_x < window_rect.right &&
-                          screen_x >= window_rect.right - border_x;
-    const bool on_top =
-        screen_y >= window_rect.top && screen_y < window_rect.top + border_y;
+                          screen_x >= window_rect.right - right_hit_width;
+    const bool on_top = screen_y >= window_rect.top &&
+                        screen_y < window_rect.top + top_hit_height;
     const bool on_bottom = screen_y < window_rect.bottom &&
                            screen_y >= window_rect.bottom - border_y;
 
@@ -846,19 +881,11 @@ LRESULT FlutterWindow::HitTestNonClient(int screen_x, int screen_y) const {
     if (on_bottom) return HTBOTTOM;
   }
 
-  POINT client_pt{screen_x, screen_y};
-  if (!::ScreenToClient(hwnd, &client_pt)) {
-    return HTCLIENT;
+  if (in_maximize_button) {
+    return HTMAXBUTTON;
   }
-  const double scale = dpi > 0 ? static_cast<double>(dpi) / 96.0 : 1.0;
-  const double lx = static_cast<double>(client_pt.x) / scale;
-  const double ly = static_cast<double>(client_pt.y) / scale;
-
-  for (const auto& region : title_bar_regions_) {
-    if (region.kind == "maximize" && lx >= region.left && lx < region.right &&
-        ly >= region.top && ly < region.bottom) {
-      return HTMAXBUTTON;
-    }
+  if (in_caption_buttons) {
+    return HTCLIENT;
   }
   for (const auto& region : title_bar_regions_) {
     if (region.kind == "caption" && lx >= region.left && lx < region.right &&

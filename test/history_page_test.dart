@@ -5,6 +5,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:parfait/app/motion/app_overlays.dart';
 import 'package:parfait/app/motion/removal.dart';
 import 'package:parfait/app/motion/state_icon_switcher.dart';
 import 'package:parfait/app/widgets/feed/illust_card.dart';
@@ -22,6 +23,7 @@ import 'helpers/illust_fixtures.dart';
 import 'helpers/localized_app.dart';
 import 'helpers/prompt_host.dart';
 import 'helpers/view_size.dart';
+import 'package:parfait/app/icons/ui_icons.dart';
 
 Widget _app(ProviderContainer container) => localizedApp(
   container: container,
@@ -129,15 +131,15 @@ void main() {
     await tester.longPress(find.text('work 1'));
     await tester.pump();
     expect(_selectionTitle('已选 1 项'), findsOneWidget);
-    expect(find.byIcon(Icons.check_circle), findsOneWidget);
+    expect(find.byIcon(UiIcons.checkCircle), findsOneWidget);
     expect(
       find.ancestor(
-        of: find.byIcon(Icons.check_circle),
+        of: find.byIcon(UiIcons.checkCircle),
         matching: find.byType(StateIconSwitcher),
       ),
       findsOneWidget,
     );
-    expect(find.byIcon(Icons.select_all), findsOneWidget);
+    expect(find.byIcon(UiIcons.selectAll), findsOneWidget);
 
     // In selection mode a plain tap toggles instead of navigating — the
     // row's own ink is absorbed by the selection wrapper, so warnIfMissed
@@ -150,7 +152,7 @@ void main() {
     expect(_selectionTitle('已选 1 项'), findsOneWidget);
 
     // The close button exits the mode and restores the normal AppBar.
-    await tester.tap(find.byIcon(Icons.close));
+    await tester.tap(find.byIcon(UiIcons.close));
     await tester.pump();
     expect(_selectionTitle('已选 1 项'), findsNothing);
     expect(find.text('历史记录'), findsOneWidget);
@@ -345,7 +347,7 @@ void main() {
   ) async {
     final container = await _seedPage(tester, [historyRecord(1)]);
 
-    await tester.tap(find.byIcon(Icons.more_vert));
+    await tester.tap(find.byIcon(UiIcons.more));
     await tester.pumpAndSettle();
     // Defaults record into both stores — the check mark is the trailing
     // icon of a checkable menu row.
@@ -353,7 +355,7 @@ void main() {
       final item = find.widgetWithText(MenuItemButton, label);
       expect(item, findsOneWidget);
       expect(
-        find.descendant(of: item, matching: find.byIcon(Icons.check)),
+        find.descendant(of: item, matching: find.byIcon(UiIcons.check)),
         findsOneWidget,
       );
     }
@@ -379,16 +381,16 @@ void main() {
     expect(container.read(settingsProvider).value!.enableHistory, isFalse);
 
     // Reopened: the local switch reads unchecked, the Pixiv one still on.
-    await tester.tap(find.byIcon(Icons.more_vert));
+    await tester.tap(find.byIcon(UiIcons.more));
     await tester.pumpAndSettle();
     final local = find.widgetWithText(MenuItemButton, '记录本地浏览历史');
     expect(
-      find.descendant(of: local, matching: find.byIcon(Icons.check)),
+      find.descendant(of: local, matching: find.byIcon(UiIcons.check)),
       findsNothing,
     );
     final pixiv = find.widgetWithText(MenuItemButton, '记录到 Pixiv 浏览历史');
     expect(
-      find.descendant(of: pixiv, matching: find.byIcon(Icons.check)),
+      find.descendant(of: pixiv, matching: find.byIcon(UiIcons.check)),
       findsOneWidget,
     );
   });
@@ -430,7 +432,7 @@ void main() {
 
       await tester.tap(find.byTooltip('删除历史记录'), kind: PointerDeviceKind.mouse);
       await tester.pumpAndSettle();
-      expect(find.byType(BottomSheet), findsNothing);
+      expect(find.byType(AppBottomSheet), findsNothing);
       expect(find.text('删除后将不可恢复'), findsOneWidget);
       final dialogRect = tester.getRect(
         find

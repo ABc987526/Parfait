@@ -17,6 +17,7 @@ import 'package:parfait/core/user/user_repository.dart';
 import 'package:parfait/core/user/user_store.dart';
 import 'package:parfait/core/profile/profile_models.dart';
 import 'package:parfait/app/pixiv_image.dart';
+import 'package:parfait/app/pull_to_refresh.dart';
 import 'package:parfait/app/scroll_behavior.dart';
 import 'package:parfait/app/widgets/ambient_wash.dart';
 import 'package:parfait/app/widgets/app_tab_bar.dart';
@@ -27,7 +28,6 @@ import 'package:parfait/features/profile/profile_novel_feed.dart';
 import 'package:parfait/features/profile/user_page.dart';
 import 'package:parfait/features/profile/profile_skeleton.dart';
 import 'package:parfait/features/profile/user_series_feed.dart';
-
 import 'helpers/api_responses.dart';
 import 'helpers/illust_fixtures.dart';
 import 'helpers/image_network.dart';
@@ -35,6 +35,8 @@ import 'helpers/profile_world.dart';
 import 'helpers/prompt_host.dart';
 import 'helpers/localized_app.dart';
 import 'helpers/view_size.dart';
+import 'package:parfait/app/icons/app_icons.dart';
+import 'package:parfait/app/icons/ui_icons.dart';
 
 class _FakeOutboundUrlOpener implements OutboundUrlOpener {
   final requests = <String>[];
@@ -399,7 +401,7 @@ void main() {
       ),
     );
     Future<void> openMenu() async {
-      await tester.tap(find.byIcon(Icons.more_vert));
+      await tester.tap(find.byIcon(UiIcons.more));
       await tester.pumpAndSettle();
     }
 
@@ -452,7 +454,7 @@ void main() {
       // Each action shows once at a time: while the name row is on screen
       // the overflow leaves its share and main action out.
       Future<void> openMenu() async {
-        await tester.tap(find.byIcon(Icons.more_vert));
+        await tester.tap(find.byIcon(UiIcons.more));
         await tester.pumpAndSettle();
       }
 
@@ -480,9 +482,7 @@ void main() {
       await tester.pump();
       expect(
         tester.getRect(find.byTooltip('分享用户')).top,
-        greaterThanOrEqualTo(
-          tester.getRect(find.byIcon(Icons.more_vert)).bottom,
-        ),
+        greaterThanOrEqualTo(tester.getRect(find.byIcon(UiIcons.more)).bottom),
       );
       await openMenu();
       expect(find.text('分享用户'), findsNothing);
@@ -497,8 +497,8 @@ void main() {
 
       controller.jumpTo(_headerCollapseRange(tester));
       await tester.pump();
-      expect(find.byIcon(Icons.more_vert), findsOneWidget);
-      await tester.tap(find.byIcon(Icons.more_vert));
+      expect(find.byIcon(UiIcons.more), findsOneWidget);
+      await tester.tap(find.byIcon(UiIcons.more));
       await tester.pumpAndSettle();
       expect(find.text('分享用户'), findsOneWidget);
       // Collapsed: the inline identity is offstage, only the menu item.
@@ -614,7 +614,7 @@ void main() {
         // The overflow fires even inside the fade hand-off: the expanded
         // row used to be IgnorePointer'd from 0.55 and unmounted at 0.78,
         // while the collapsed toolbar only mounted at the very end.
-        await tester.tap(find.byIcon(Icons.more_vert));
+        await tester.tap(find.byIcon(UiIcons.more));
         await tester.pumpAndSettle();
         await tester.tap(find.text('复制链接'));
         await tester.pumpAndSettle();
@@ -670,8 +670,13 @@ void main() {
         totalNovelSeries: 2,
         hasDetail: true,
       ),
+      works: [_illust(1)],
     );
-    final container = await makeProfileWorld(users: repository);
+    final novels = answer(pageJson('novels', [novelJson(1)]));
+    final container = await makeProfileWorld(
+      users: repository,
+      routes: {'/v1/user/novels': novels},
+    );
     await _pumpProfile(tester, container);
 
     // Manga and series are empty, and novel series have no list of their
@@ -1154,7 +1159,7 @@ void main() {
       );
       final outer = outerPosition(tester);
       final inner = activeFeedPosition(tester);
-      final indicator = find.byType(RefreshProgressIndicator);
+      final indicator = find.byType(SakuraRefreshIndicator);
       final requests = repository.requests.length;
       final card = find.byType(IllustCard).first;
       final cardTop = tester.getTopLeft(card).dy;
@@ -1460,7 +1465,7 @@ void main() {
       // chrome survives loading/error/empty).
       expect(repository.requests, contains('works:42:illust:first'));
       expect(_tabLabels(tester).take(4), ['插画', '漫画', '小说', '系列']);
-      expect(find.byIcon(Icons.share_outlined), findsOneWidget);
+      expect(find.byIcon(AppIcons.share), findsOneWidget);
       expect(
         find.byKey(const ValueKey('profile-expanded-name')),
         findsOneWidget,

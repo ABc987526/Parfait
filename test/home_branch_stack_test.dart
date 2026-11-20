@@ -23,6 +23,7 @@ import 'package:parfait/core/settings/app_settings.dart';
 import 'package:parfait/core/settings/settings_controller.dart';
 import 'package:parfait/features/history/history_page.dart';
 import 'package:parfait/features/home/recommended/recommended_home_page.dart';
+import 'package:parfait/features/illust/detail/widgets/detail_overlay_frame.dart';
 import 'package:parfait/features/ranking/ranking_page.dart';
 import 'package:parfait/features/search/search_page.dart';
 import 'package:parfait/features/settings/settings_page.dart';
@@ -34,6 +35,7 @@ import 'helpers/localized_app.dart';
 import 'helpers/view_size.dart';
 import 'helpers/pixiv_router.dart';
 import 'helpers/prompt_host.dart';
+import 'package:parfait/app/icons/ui_icons.dart';
 
 /// A split-screen phone height: the "me" dashboard at the root of the
 /// settings branch fits a full phone screen and only scrolls on a short
@@ -371,12 +373,12 @@ void main() {
       await _pumpHome(tester);
       final events = _recordReTaps(tester, find.byType(RecommendedHomePage));
 
-      await tester.tap(_barIcon(AppIcons.home));
+      await tester.tap(_barIcon(AppIcons.homeFilled));
       await tester.pump();
       expect(events, [0]);
 
       // A repeat fires again — the event is an edge, not a state.
-      await tester.tap(_barIcon(AppIcons.home));
+      await tester.tap(_barIcon(AppIcons.homeFilled));
       await tester.pump();
       expect(events, [0, 0]);
     });
@@ -590,7 +592,7 @@ void main() {
     // Its destinations read as the bottom bar's do.
     expect(
       tester.getSemantics(
-        find.descendant(of: rail, matching: find.byIcon(AppIcons.home)),
+        find.descendant(of: rail, matching: find.byIcon(AppIcons.homeFilled)),
       ),
       isSemantics(
         role: SemanticsRole.tab,
@@ -601,9 +603,9 @@ void main() {
     );
   });
 
-  testWidgets('a PC rail opens from extra-large widths until the user '
+  testWidgets('a PC rail opens from large widths until the user '
       'toggles it, then stays as left', (tester) async {
-    await _pumpHome(tester, width: 1600, height: 900);
+    await _pumpHome(tester, width: 1200, height: 900);
     final rail = find.byType(ShellRail);
     final container = ProviderScope.containerOf(tester.element(rail));
     double railWidth() => tester.getSize(rail).width;
@@ -612,7 +614,7 @@ void main() {
       HomeShellChrome.contentSizeOf(
         tester.element(find.byType(RecommendedHomePage)),
       ).width,
-      1600 - ShellRail.expandedWidth,
+      1200 - ShellRail.expandedWidth,
     );
 
     await tester.tap(find.byTooltip('收起侧栏'));
@@ -701,7 +703,8 @@ void main() {
     await tester.pumpAndSettle();
     final history = tester.state(find.byType(HistoryPage));
     final rail = find.byType(ShellRail);
-    expect(find.byTooltip('展开侧栏'), findsOneWidget);
+    expect(tester.getSize(rail).width, ShellRail.expandedWidth);
+    expect(find.byTooltip('收起侧栏'), findsOneWidget);
 
     await ProviderScope.containerOf(
       tester.element(rail),
@@ -736,10 +739,7 @@ void main() {
     String location() => router.state.uri.toString();
 
     await tester.tap(
-      find.descendant(
-        of: rail,
-        matching: find.byIcon(Icons.downloading_outlined),
-      ),
+      find.descendant(of: rail, matching: find.byIcon(AppIcons.downloading)),
     );
     await tester.pumpAndSettle();
     expect(find.byType(DownloadTasksPage), findsOneWidget);
@@ -747,7 +747,7 @@ void main() {
     expect(rail.hitTestable(), findsOneWidget);
 
     await tester.tap(
-      find.descendant(of: rail, matching: find.byIcon(Icons.favorite_border)),
+      find.descendant(of: rail, matching: find.byIcon(AppIcons.heart)),
     );
     await tester.pumpAndSettle();
     expect(location(), '/recommended/me?tab=bookmarks');
@@ -790,7 +790,7 @@ void main() {
       await tester.tap(
         find.descendant(
           of: find.byType(ShellRail),
-          matching: find.byIcon(AppIcons.home),
+          matching: find.byIcon(AppIcons.homeFilled),
         ),
       );
       await tester.pump();
@@ -874,4 +874,144 @@ void main() {
       expect(tester.getTopLeft(nav).dy, greaterThanOrEqualTo(_shortHeight));
     });
   });
+
+  testWidgets(
+    'ShellRail dims behind bounded DetailOverlayFrame and dismisses on tap',
+    (tester) async {
+      final router = await _pumpHome(tester, width: 1180, height: 820);
+      const railScrimKey = ValueKey('home-rail-modal-scrim');
+      expect(find.byKey(railScrimKey), findsNothing);
+
+      unawaited(router.push<void>('/recommended/illust/42'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('detail-overlay-scrim')),
+        findsOneWidget,
+      );
+      expect(find.byKey(railScrimKey), findsOneWidget);
+      final scrimBox = tester.widget<ColoredBox>(
+        find.descendant(
+          of: find.byKey(railScrimKey),
+          matching: find.byType(ColoredBox),
+        ),
+      );
+      expect(scrimBox.color, const Color(0x990C0B0E));
+      expect(find.byIcon(UiIcons.close), findsOneWidget);
+
+      await tester.tap(find.byKey(railScrimKey));
+      await tester.pumpAndSettle();
+      expect(router.state.uri.path, '/recommended');
+      expect(find.byKey(railScrimKey), findsNothing);
+    },
+    variant: TargetPlatformVariant.only(TargetPlatform.windows),
+  );
+
+  testWidgets(
+    'wide HomePage modal scrim starts at 0.0 on frame 0 and decays monotonically on pop or interrupt',
+    (tester) async {
+      final router = await _pumpHome(tester, width: 1280, height: 800);
+      const railScrimKey = ValueKey('home-rail-modal-scrim');
+
+      double? entryOpacity() {
+        final frames = find.byType(DetailOverlayFrame).evaluate();
+        if (frames.isEmpty) return null;
+        final entries = HomeShellChrome.maybeOf(
+          frames.first,
+        )?.modalScrim?.activeEntries;
+        if (entries == null || entries.isEmpty) return null;
+        return entries.last.opacity;
+      }
+
+      double renderedScrimProgress() {
+        final boxes = tester.widgetList<ColoredBox>(
+          find.descendant(
+            of: find.byKey(railScrimKey),
+            matching: find.byType(ColoredBox),
+          ),
+        );
+        if (boxes.isEmpty) return 0.0;
+        return boxes.single.color.a / const Color(0x990C0B0E).a;
+      }
+
+      // Frame 0 of push: scrim starts at 0.0 (never flashes 1.0).
+      unawaited(router.push<void>('/recommended/illust/42'));
+      await tester.pump();
+      expect(renderedScrimProgress(), 0.0);
+      expect(entryOpacity() ?? 0.0, 0.0);
+
+      // Mid-entrance: strictly inside (0, 1).
+      await tester.pump(const Duration(milliseconds: 120));
+      final midEntry = entryOpacity()!;
+      expect(midEntry, greaterThan(0.0));
+      expect(midEntry, lessThan(1.0));
+      expect(renderedScrimProgress(), greaterThan(0.0));
+      expect(renderedScrimProgress(), lessThan(1.0));
+
+      // Interrupt mid-push: frame 1 stays > 0 and decays monotonically.
+      router.pop();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 16));
+      final interrupt1 = entryOpacity()!;
+      expect(interrupt1, greaterThan(0.0));
+      expect(interrupt1, lessThan(midEntry));
+      expect(renderedScrimProgress(), greaterThan(0.0));
+      await tester.pump(const Duration(milliseconds: 16));
+      final interrupt2 = entryOpacity()!;
+      expect(interrupt2, greaterThan(0.0));
+      expect(interrupt2, lessThan(interrupt1));
+      await tester.pumpAndSettle();
+      expect(find.byKey(railScrimKey), findsNothing);
+
+      // Full push -> settled 1.0 -> normal pop decays monotonically from > 0.
+      unawaited(router.push<void>('/recommended/illust/42'));
+      await tester.pumpAndSettle();
+      expect(entryOpacity(), 1.0);
+      expect(renderedScrimProgress(), closeTo(1.0, 0.01));
+
+      router.pop();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 16));
+      final pop1 = entryOpacity()!;
+      expect(pop1, greaterThan(0.0));
+      expect(pop1, lessThan(1.0));
+      expect(renderedScrimProgress(), greaterThan(0.0));
+      await tester.pump(const Duration(milliseconds: 16));
+      final pop2 = entryOpacity()!;
+      expect(pop2, greaterThan(0.0));
+      expect(pop2, lessThan(pop1));
+      await tester.pumpAndSettle();
+      expect(find.byKey(railScrimKey), findsNothing);
+    },
+    variant: TargetPlatformVariant.only(TargetPlatform.windows),
+  );
+
+  testWidgets(
+    'tablet landscape auto-collapses expanded ShellRail on Me and Settings',
+    (tester) async {
+      final router = await _pumpHome(
+        tester,
+        width: 1180,
+        height: 820,
+        display: const Size(1180, 820),
+      );
+      final rail = find.byType(ShellRail);
+      await tester.tap(find.byTooltip('展开侧栏'));
+      await tester.pumpAndSettle();
+      expect(tester.getSize(rail).width, ShellRail.expandedWidth);
+
+      await tester.tap(find.descendant(of: rail, matching: find.text('我的')));
+      await tester.pumpAndSettle();
+      expect(tester.getSize(rail).width, ShellRail.width);
+
+      unawaited(router.push<void>('/settings/all'));
+      await tester.pumpAndSettle();
+      expect(tester.getSize(rail).width, ShellRail.width);
+
+      await tester.tap(find.descendant(of: rail, matching: find.text('推荐')));
+      await tester.pumpAndSettle();
+      expect(tester.getSize(rail).width, ShellRail.expandedWidth);
+    },
+    variant: TargetPlatformVariant.only(TargetPlatform.iOS),
+  );
 }

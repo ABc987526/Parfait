@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:parfait/app/widgets/app_dialog.dart';
 import 'package:parfait/app/widgets/bookmark_switch_button.dart';
 import 'package:parfait/app/widgets/follow_switch_button.dart';
 import 'package:parfait/core/bookmark/bookmark_models.dart';
@@ -104,7 +105,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('已取消关注'), findsOneWidget);
     // No confirmation step: the unfollow already landed (D5).
-    expect(find.byType(AlertDialog), findsNothing);
+    expect(find.byType(AppAlertDialog), findsNothing);
 
     await _closePage(tester);
     await tester.tap(_undo);

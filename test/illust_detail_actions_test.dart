@@ -18,6 +18,7 @@ import 'package:parfait/core/platform/platform_caps.dart';
 import 'package:parfait/features/illust/detail/illust_detail_page.dart';
 import 'package:parfait/features/illust/detail/widgets/detail_image_pager.dart';
 import 'package:parfait/app/widgets/app_top_bar.dart';
+import 'package:parfait/app/widgets/bookmark_switch_button.dart';
 import 'package:parfait/app/widgets/comment_composer.dart';
 import 'package:parfait/app/widgets/comment_text.dart';
 import 'package:parfait/features/illust/detail/widgets/detail_action_bar.dart';
@@ -44,6 +45,8 @@ import 'package:parfait/app/layout/input_modality.dart';
 import 'helpers/localized_app.dart';
 import 'helpers/pixiv_router.dart';
 import 'helpers/prompt_host.dart';
+import 'package:parfait/app/icons/app_icons.dart';
+import 'package:parfait/app/icons/ui_icons.dart';
 
 /// A phone short enough that the sections under the info block start
 /// below the fold.
@@ -156,7 +159,7 @@ void main() {
 
       gates[1].complete();
       await tester.pumpAndSettle();
-      expect(inBar(find.byIcon(Icons.download_done)), findsOneWidget);
+      expect(inBar(find.byIcon(AppIcons.downloadDone)), findsOneWidget);
       expect(inBar(find.byTooltip('已下载')), findsOneWidget);
     });
 
@@ -393,7 +396,7 @@ void main() {
         await settle();
         expect(find.text(draft), findsOneWidget);
 
-        await tester.tap(find.byIcon(Icons.send_outlined));
+        await tester.tap(find.byIcon(AppIcons.send));
         await settle();
         expect(find.byType(CommentComposer), findsNothing);
         final rows = find.descendant(
@@ -532,7 +535,13 @@ void main() {
       await pumpDetail(tester, container);
 
       expect(find.byTooltip('Download All'), findsOneWidget);
-      expect(find.byIcon(Icons.favorite_outline_sharp), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(BookmarkSwitchButton),
+          matching: find.byIcon(AppIcons.heart),
+        ),
+        findsOneWidget,
+      );
       expect(find.byTooltip('Show menu'), findsOneWidget);
       expect(find.byTooltip('Share'), findsNothing);
       expect(find.byTooltip('Select pages to download'), findsNothing);
@@ -700,7 +709,7 @@ void main() {
       // its name and the next tap asks again.
       final rowIcon = find.descendant(
         of: find.widgetWithText(ListTile, '翻译标签名'),
-        matching: find.byIcon(Icons.translate),
+        matching: find.byIcon(AppIcons.translate),
       );
       expect(tester.widget<Icon>(rowIcon).color, isNull);
 
@@ -850,7 +859,7 @@ void main() {
       expect(inspectorBar, findsOneWidget);
       final bar = tester.getRect(inspectorBar);
       expect(bar.left, greaterThanOrEqualTo(pager.right));
-      expect(find.byIcon(Icons.more_vert), findsOneWidget);
+      expect(find.byIcon(UiIcons.more), findsOneWidget);
     });
 
     testWidgets('tabletop hinge splits artwork above inspector action bar', (

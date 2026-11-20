@@ -15,7 +15,8 @@ applies_to:
   - lib/app/widgets/follow_switch_button.dart
   - lib/app/widgets/watchlist_toggle.dart
   - lib/app/widgets/comment_composer.dart
-reviewed: 2026-11-15
+  - lib/app/widgets/feed/desktop_gallery_controls.dart
+reviewed: 2026-11-17
 ---
 
 # Menus, overlays, prompts, undo and haptics
@@ -31,8 +32,10 @@ reviewed: 2026-11-15
 ## Menus and overlays
 
 ### FB-01 Menus are AppMenuButton
-- **Rule:** Overflow and choice menus use `AppMenuButton` / `AppMenuEntry`,
-  never `PopupMenuButton`. A touch outside closes the menu and is consumed;
+- **Rule:** Overflow and choice menus use `AppMenuButton` / `AppMenuEntry`
+  (styling `MenuStyle` with `surfaceContainerHigh`, `brandHairline`,
+  `FuncShape.card`, and `FuncSpacing.xs`), never `PopupMenuButton`. A touch
+  outside closes the menu and is consumed;
   back closes the menu before the page. The panel keeps
   `crossAxisUnconstrained: false` so long labels truncate inside the width
   cap. A menu keeps `FuncSpacing.sm` off the side of the screen it lines
@@ -46,14 +49,19 @@ reviewed: 2026-11-15
 
 ### FB-02 Dialogs and sheets go through app_overlays.dart
 - **Rule:** Dialogs and bottom sheets open through `showAppDialog` /
-  `showAppBottomSheet`; adaptive overlays (`showAppAdaptiveDialog`,
+  `showAppBottomSheet` (`smooth_sheets` `PopupRoute + ModalSheetRouteMixin`
+  hosting `AppBottomSheet` (`Sheet` with `SheetScrollConfiguration`,
+  `BouncingSheetPhysics` or `ClampingSheetPhysics` under reduced motion,
+  `PromptCover` and `_ReleaseDismissBarrier`)); adaptive overlays (`showAppAdaptiveDialog`,
   `showAppAdaptiveSideSheet`, `showAppAdaptivePopover`) split viewport
   geometry from interaction modality: `useWideOverlay` (width >= 600dp
   and height >= 480dp, keeping turned phones on bottom sheets) selects
   bounded centered dialogs or trailing side sheets for tablets as well as
   desktops, while `usePointerOverlay` (width >= 600dp, height >= 480dp,
   and pointer input) limits pointer-anchored popovers to cursor inputs so
-  wide touch viewports fall back to `showAppAdaptiveDialog`. A modal
+  wide touch viewports fall back to `showAppAdaptiveDialog`. `showAppDatePicker`
+  presents `AppDatePickerDialog` backed by `FCalendar.grid` with UTC day
+  clamping, and dialogs use `AppAlertDialog` backed by `FDialog`. A modal
   surface that places itself (the docked search input, NAV-25) uses
   `showAppPanel`, and a pointer menu (PAGE-18) uses `showAppContextMenu`.
   The barrier routes close when a touch that started on the scrim is
@@ -63,8 +71,8 @@ reviewed: 2026-11-15
   and Android tablets full-width mobile bottom sheets; decoupling
   `useWideOverlay` from `usePointerOverlay` gives touch tablets bounded
   dialogs and side sheets while avoiding pointer-anchored popovers.
-- **Check:** `test/architecture/feedback_channels_test.dart` "app modal overlays funnel through app_overlays.dart", `test/app_overlays_test.dart` "a drag outside closes it on release, one layer only" "useWideOverlay and usePointerOverlay split container shape from pointer anchoring" "wide touch viewports render bounded dialog, side sheet, and dialog popover"
-- **Code:** `lib/app/motion/app_overlays.dart`
+- **Check:** `test/architecture/feedback_channels_test.dart` "app modal overlays funnel through app_overlays.dart", `test/app_overlays_test.dart` "a drag outside closes it on release, one layer only" "useWideOverlay and usePointerOverlay split container shape from pointer anchoring" "wide touch viewports render bounded dialog, side sheet, and dialog popover", `test/phase3_forui_bridge_test.dart` "AppDatePickerDialog clamps out-of-range today and returns a local DateTime" "AppAlertDialog mounts FDialog with inner Material for TextField"
+- **Code:** `lib/app/motion/app_overlays.dart`, `lib/app/widgets/app_dialog.dart`, `lib/app/widgets/app_date_picker.dart`
 
 ### FB-03 Each action appears once at a time
 - **Rule:** A menu or sheet lists only actions not already on screen. A
@@ -181,13 +189,14 @@ reviewed: 2026-11-15
 ### FB-12 Controls own their haptic
 - **Rule:** Selection controls are used through their wrappers
   (`SettingsControl`, `ReplicaSwitchTile`, `SettingsChoiceTile`,
-  `SettingsMenuTile`, `FilterMenuButton`, `AppChoiceChip`, `AppSlider`),
-  which play the haptic for a user change only. A carrier with an app long
-  press sets `enableFeedback: false` and plays `longPress` itself.
+  `SettingsMenuTile`, `FilterMenuButton`, `DesktopGalleryControls`,
+  `AppChoiceChip`, `AppSlider`), which play the haptic for a user change only.
+  A carrier with a touch long press sets `enableFeedback: false` and plays
+  `longPress` itself; secondary mouse clicks opening context menus stay silent.
 - **Why:** Raw controls were silent; Material's own long-press feedback
-  doubled the app's.
+  doubled the app's, and mouse right-clicks do not warrant touch haptics.
 - **Check:** `test/architecture/feedback_channels_test.dart` "selection controls live only in their haptic wrappers", `test/selection_controls_haptics_test.dart`
-- **Code:** `lib/app/widgets/settings`, `lib/app/widgets/app_choice_chip.dart`
+- **Code:** `lib/app/widgets/settings`, `lib/app/widgets/app_choice_chip.dart`, `lib/app/widgets/feed/desktop_gallery_controls.dart`
 
 ### FB-13 Store mutations vibrate on the settled outcome
 - **Rule:** Bookmark, follow and watchlist call sites read the entry,
@@ -249,7 +258,7 @@ reviewed: 2026-11-15
 - **Code:** `lib/app/widgets/bookmark_switch_button.dart`, `lib/app/widgets/comment_composer.dart`, `lib/features/settings/pages/account_settings_page.dart`, `lib/app/widgets/settings/persist_settings.dart`, `lib/app/widgets/card_actions/illust_card_actions.dart`, `lib/app/widgets/card_actions/card_action_sheet.dart`, `lib/app/widgets/follow_switch_button.dart`, `lib/features/watchlater/watchlater_page.dart`
 
 ### FB-17 iOS Taptic Engine probing and frosted preview card context menu
-- **Rule:** On iOS, `IosHapticsDriver` probes `parfait/haptics` (`capabilities`) for Taptic Engine hardware and maps semantic roles through `UINotificationFeedbackGenerator` (`success`, `warning`, `error`) and `UIImpactFeedbackGenerator`, disabling haptics on hardwareless iPads. Touch long-press on `IllustCard` under `TargetPlatform.iOS` replaces the Material bottom sheet with `IosCardContextMenu` (frosted blur backdrop, spring-lifted card preview respecting mute blur, compact action menu with deduplicated `Semantics`), reflecting live action state updates.
+- **Rule:** On iOS, `IosHapticsDriver` probes `parfait/haptics` (`capabilities`) for Taptic Engine hardware and maps semantic roles through `UINotificationFeedbackGenerator` (`success`, `warning`, `error`) and `UIImpactFeedbackGenerator`, while `hapticsDriverProvider` watches `hapticsCapabilityProvider` and downgrades unsupported devices (hardwareless iPads) to `NoHapticsDriver` at runtime. Touch long-press on `IllustCard` under `TargetPlatform.iOS` replaces the Material bottom sheet with `IosCardContextMenu` (frosted blur backdrop, spring-lifted card preview respecting mute blur, compact action menu with deduplicated `Semantics`), reflecting live action state updates.
 - **Why:** Hardwareless iPads avoid no-op channel calls while iPhones get system notification waveforms, and frosted card preview keeps visual focus on the long-pressed artwork instead of pulling the thumb across a bottom modal sheet.
 - **Check:** `test/app_haptics_test.dart` "notification waveforms map success, warning, and error" "capability distinguishes iPhone Taptic Engine vs hardwareless iPad" "play swallows platform errors on notification channel", `test/card_action_test.dart` "iOS long-press replaces bottom sheet with frosted preview context menu and runs actions"
 - **Code:** `lib/app/haptics/haptics_driver.dart`, `ios/Runner/AppDelegate.swift`, `lib/app/widgets/card_actions/card_action_sheet.dart`, `lib/app/widgets/card_actions/ios_card_context_menu.dart`

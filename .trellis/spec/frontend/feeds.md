@@ -9,7 +9,7 @@ applies_to:
   - lib/app/format/content_locale.dart
   - lib/features/**/*_page.dart
   - lib/core/bookmark/bookmark_actions.dart
-reviewed: 2026-11-15
+reviewed: 2026-11-18
 ---
 
 # Feeds: states, grid, pull to refresh, skeletons
@@ -101,13 +101,15 @@ reviewed: 2026-11-15
 
 ### FEED-19 Grid columns follow the user's density
 - **Rule:** Every illustration grid is an `IllustFeedGrid` and takes its
-  column count from `illustColumnsFor(extent, density)`, the density
-  being the `feedDensity` setting: the narrowest card is 120, 180 or
-  360dp and the fewest columns 3, 2 or 1 (compact, standard,
-  comfortable), so a phone shows three, two or one and wider layouts add
-  columns in proportion. Standard is the default and the old grid.
+  column count from `illustColumnsForContext(context, extent, density)`
+  over `illustColumnsFor(extent, density)`: the narrowest card is 120,
+  180 or 360dp and the fewest columns 3, 2 or 1 (compact, standard,
+  comfortable), while on `FormFactor.pc` the default `standard` density
+  widens the minimum card extent to 216dp (minimum 2 columns) so wide
+  desktops breathe at ~5 columns rather than cramped strips.
 - **Why:** User decision: quick scanning wanted more columns, slow
-  looking a single one; a per-page setting would split one habit.
+  looking a single one, and desktop monitors needed wider default gutters
+  and card extents without splitting the setting per page.
 - **Check:** `test/responsive_layout_test.dart` "illustColumnsFor derives columns from the extent and density" "IllustFeedGrid counts columns on the sliver extent, not the window"
 - **Code:** `lib/app/widgets/feed/feed_grid.dart`, `lib/core/settings/app_settings.dart`
 
@@ -203,8 +205,9 @@ reviewed: 2026-11-15
   width is at least `AppBreakpoints.medium` (600dp) and clears selection when
   narrowed below 600dp. It supports hover selection badges, `Ctrl`/`Cmd`+Click
   individual toggles, `Shift`+Click inclusive range selection, `Ctrl`/`Cmd`+A
-  select-all, and Esc or system back dismissal, displaying `FeedBatchActionBar`
-  for bounded-concurrency public/private batch bookmarking
+  select-all, and Esc or system back dismissal, displaying one floating
+  `FeedBatchActionBar` (integrating select-all and clear with no duplicate top
+  selection strip) for bounded-concurrency public/private batch bookmarking
   (`BookmarkActions.addBatch`) and original downloads.
 - **Why:** Wide desktop and tablet feeds need fast batch triage without polluting
   compact phone browsing or firing uncapped parallel network writes.
@@ -214,7 +217,11 @@ reviewed: 2026-11-15
 ## Pull to refresh
 
 ### FEED-07 PullToRefresh is the only refresh wrapper
-- **Rule:** Feeds refresh through `PullToRefresh`, with
+- **Rule:** Feeds refresh through `PullToRefresh`, rendering the unified
+  minimalist `SakuraRefreshIndicator` ring (`MotionTokens.refreshSpin`) across
+  all five platforms (with `brandHairline` track, `colorScheme.primary` round
+  arc, and reduced-motion stillness), and `FeedTail` / `FeedLoading` use
+  `AppSpinner` (`brandHairline` track, `StrokeCap.round`). `PullToRefresh` runs
   `clamping: false` for ordinary lists: the whole list follows the finger
   down and the header shows above it. A tab body inside a
   `NestedScrollView` passes `isNested: true` and starts its list with
@@ -225,7 +232,8 @@ reviewed: 2026-11-15
   on the outer scroll. Nothing wraps the whole `NestedScrollView`; its
   outer physics is `NestedRefreshOuterPhysics`, which holds the outer
   scroll while the user drags a feed's header out.
-- **Why:** Per-page wrappers diverged; under clamping the reversed pull is
+- **Why:** Per-page wrappers diverged, and Material's white floating disc felt
+  dated on desktop/iOS and over dark feeds; under clamping the reversed pull is
   not real overscroll, so the indicator stayed pinned while the list
   moved. A clamping header keeps the feed at its top, so the coordinator
   gave a reversed pull to the outer scroll first: the profile header
@@ -238,7 +246,7 @@ reviewed: 2026-11-15
   header's height off the outer scroll without a layout, so a profile
   header pushed up during a refresh jumped open on the next drag.
 - **Check:** `test/pull_to_refresh_test.dart` "the shared wrapper refreshes a nested scroll view once", `test/user_profile_test.dart` "a reversed pull retracts the indicator before the header collapses" "a header pushed up during a refresh stays when it ends"
-- **Code:** `lib/app/pull_to_refresh.dart`, `lib/features/profile/user_page.dart`, `lib/features/profile/profile_illust_feed.dart`, `pubspec.yaml`
+- **Code:** `lib/app/pull_to_refresh.dart`, `lib/app/widgets/app_spinner.dart`, `lib/app/widgets/feed/feed_states.dart`, `lib/features/profile/user_page.dart`, `lib/features/profile/profile_illust_feed.dart`, `pubspec.yaml`
 
 ### FEED-08 The indicator follows observable outcomes
 - **Rule:** A reversed pull moves the indicator back with the finger, and
@@ -358,12 +366,14 @@ reviewed: 2026-11-15
 ### FEED-15 One skeleton root paints, animates and speaks
 - **Rule:** The outermost `FuncSkeleton` owns the one shimmer controller,
   the one gradient (each `SkeletonBone` paints its slice) and the one
-  semantics node with a localized loading label. A nested `FuncSkeleton`
-  renders its child as-is. No `ShaderMask`; under reduced motion the
-  bones are static.
+  semantics node with a localized loading label, using calibrated base and
+  shimmer contrast tokens distinct between page canvas and elevated card
+  surfaces (`UserListSkeleton` separates title and `@handle` bones cleanly). A
+  nested `FuncSkeleton` renders its child as-is. No `ShaderMask`; under reduced
+  motion the bones are static.
 - **Why:** A full-page `ShaderMask` cost an offscreen layer every frame.
 - **Check:** `test/motion_test.dart`
-- **Code:** `lib/app/widgets/skeleton/func_skeleton.dart`
+- **Code:** `lib/app/widgets/skeleton/func_skeleton.dart`, `lib/app/widgets/skeleton/list_skeletons.dart`
 
 ### FEED-16 Skeleton geometry matches the real layout
 - **Rule:** `IllustGridSkeleton` takes its columns from

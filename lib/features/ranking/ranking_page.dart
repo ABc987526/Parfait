@@ -20,6 +20,7 @@ import '../../core/ranking/ranking_catalog.dart';
 import '../../l10n/context.dart';
 import 'ranking_tabs.dart';
 import '../../app/widgets/feed/load_more_listener.dart';
+import '../../app/icons/app_icons.dart';
 
 /// The illust ranking, a home branch root: [RankingTabs] over the illust
 /// categories, each a grid of ranked works.
@@ -46,8 +47,10 @@ class RankingPage extends StatelessWidget {
       date: date,
       onRouteChanged: onRouteChanged,
       switchLabel: context.l10n.novelRanking,
-      switchIcon: Icons.menu_book_outlined,
+      switchIcon: AppIcons.novel,
       onSwitch: openNovelRanking,
+      showGalleryControls: true,
+      enableDesktopInspector: true,
       bodyBuilder: (mode, date, scrollController) => _RankingModeBody(
         feedKey: (mode: mode, date: date),
         scrollController: scrollController,

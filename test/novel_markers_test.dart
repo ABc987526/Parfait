@@ -17,6 +17,7 @@ import 'helpers/localized_app.dart';
 import 'helpers/memory_feed_snapshot_store.dart';
 import 'helpers/pixiv_router.dart';
 import 'helpers/prompt_host.dart';
+import 'package:parfait/app/icons/app_icons.dart';
 
 const _markers = '/v2/novel/markers';
 
@@ -146,7 +147,7 @@ void main() {
     expect(writes.single.url.path, '/v1/novel/marker/delete');
     // The row stays, its page kept for putting it back.
     expect(find.text('书签 · 第 2 页'), findsOneWidget);
-    expect(find.byIcon(Icons.bookmark_border), findsOneWidget);
+    expect(find.byIcon(AppIcons.watchLater), findsOneWidget);
 
     failWrites = true;
     await tester.tap(find.byTooltip('加回书签'));

@@ -81,14 +81,14 @@ class _FuncSkeletonState extends State<FuncSkeleton>
   @override
   Widget build(BuildContext context) {
     if (_nested) return widget.child;
-    final colorScheme = Theme.of(context).colorScheme;
+    final palette = _SkeletonTone.resolve(Theme.of(context).colorScheme);
     final controller = _controller;
     return Semantics(
       label: widget.label,
       container: true,
       child: _SkeletonTone(
-        color: colorScheme.surfaceContainer,
-        highlight: colorScheme.surfaceContainerLow,
+        color: palette.color,
+        highlight: palette.highlight,
         sweep: MotionTokens.enabled(context) ? controller : null,
         // Each bone paints its slice of one tree-wide gradient, so the
         // sweep needs no ShaderMask: that was a full-page offscreen layer
@@ -140,7 +140,9 @@ class SkeletonBone extends StatelessWidget {
           Directionality.of(context),
         );
     final tone = context.dependOnInheritedWidgetOfExactType<_SkeletonTone>();
-    final color = tone?.color ?? Theme.of(context).colorScheme.surfaceContainer;
+    final color =
+        tone?.color ??
+        _SkeletonTone.resolve(Theme.of(context).colorScheme).color;
     return SizedBox(
       width: width,
       height: effectiveHeight,
@@ -208,6 +210,35 @@ class _SkeletonTone extends InheritedWidget {
 
   /// Shimmer progress, null when motion is off.
   final Animation<double>? sweep;
+
+  /// Calibrates bone base and shimmer crest tones so placeholders stay soft
+  /// yet clearly legible on both page canvas (`surface`) and elevated cards
+  /// (`surfaceContainer`) in light and dark themes.
+  static ({Color color, Color highlight}) resolve(ColorScheme colorScheme) {
+    if (colorScheme.brightness == Brightness.dark) {
+      return (
+        color: Color.alphaBlend(
+          colorScheme.onSurface.withValues(alpha: 0.05),
+          colorScheme.surfaceContainerHigh,
+        ),
+        highlight: Color.alphaBlend(
+          colorScheme.onSurface.withValues(alpha: 0.13),
+          colorScheme.surfaceContainerHigh,
+        ),
+      );
+    }
+    final base = Color.alphaBlend(
+      colorScheme.onSurface.withValues(alpha: 0.07),
+      colorScheme.surfaceContainerHighest,
+    );
+    return (
+      color: base,
+      highlight: Color.alphaBlend(
+        colorScheme.surface.withValues(alpha: 0.42),
+        base,
+      ),
+    );
+  }
 
   @override
   bool updateShouldNotify(_SkeletonTone oldWidget) =>

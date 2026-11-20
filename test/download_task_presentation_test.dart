@@ -9,6 +9,8 @@ import 'package:parfait/core/download/download_task.dart';
 import 'package:parfait/features/settings/pages/download_task_presentation.dart';
 import 'package:parfait/l10n/app_localizations.dart';
 import 'support/contrast.dart';
+import 'package:parfait/app/icons/app_icons.dart';
+import 'package:parfait/app/icons/ui_icons.dart';
 
 DownloadTaskSnapshot _task({
   int illustId = 7,
@@ -196,33 +198,39 @@ void main() {
       Color iconColor(DownloadVisualState state) =>
           downloadVisualIconColor(scheme, tokens, state);
 
-      expect(downloadVisualIcon(DownloadVisualState.queued), Icons.schedule);
+      expect(downloadVisualIcon(DownloadVisualState.queued), UiIcons.clock);
       expect(
         downloadVisualIcon(DownloadVisualState.running),
-        Icons.downloading,
+        AppIcons.downloading,
       );
       expect(
         downloadVisualIcon(DownloadVisualState.processing),
-        Icons.hourglass_top,
+        UiIcons.hourglass,
       );
       expect(
         downloadVisualIcon(DownloadVisualState.canceling),
-        Icons.hourglass_top,
+        UiIcons.hourglass,
       );
       expect(
         downloadVisualIcon(DownloadVisualState.succeeded),
-        Icons.check_circle,
+        UiIcons.checkCircle,
       );
       expect(
         downloadVisualIcon(DownloadVisualState.paused),
-        Icons.pause_circle,
+        UiIcons.pauseCircle,
       );
       expect(
         downloadVisualIcon(DownloadVisualState.retryable),
-        Icons.error_outline,
+        UiIcons.errorOutline,
       );
-      expect(downloadVisualIcon(DownloadVisualState.failed), Icons.error);
-      expect(downloadVisualIcon(DownloadVisualState.canceled), Icons.block);
+      expect(
+        downloadVisualIcon(DownloadVisualState.failed),
+        UiIcons.errorFatal,
+      );
+      expect(
+        downloadVisualIcon(DownloadVisualState.canceled),
+        AppIcons.banFilled,
+      );
 
       expect(iconColor(DownloadVisualState.running), scheme.primary);
       expect(iconColor(DownloadVisualState.succeeded), tokens.success);

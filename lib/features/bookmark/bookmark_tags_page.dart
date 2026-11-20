@@ -13,6 +13,9 @@ import '../../app/widgets/app_tab_bar.dart';
 import '../../app/layout/content_widths.dart';
 import '../../app/widgets/feed/load_more_listener.dart';
 import '../../app/widgets/page_header.dart';
+import '../../app/widgets/smooth_wheel_scroll.dart';
+import '../../app/widgets/tab_swipe_switcher.dart';
+import '../../app/icons/app_icons.dart';
 
 /// The signed-in user's bookmark tag collection (`/v1/user/bookmark-tags/`)
 /// of one [kind] in two tabs, public and private. Tapping a tag opens the
@@ -36,6 +39,30 @@ class _BookmarkTagsPageState extends State<BookmarkTagsPage>
   static const _restricts = [BookmarkRestrict.public, BookmarkRestrict.private];
 
   late final TabController _tabController;
+  final _scrollControllers = <BookmarkRestrict, ScrollController>{};
+  BuildContext? _notificationContext;
+
+  BookmarkRestrict get _active => _restricts[_tabController.index];
+
+  ScrollController _scrollControllerFor(BookmarkRestrict restrict) =>
+      _scrollControllers.putIfAbsent(
+        restrict,
+        () => ScrollController(
+          onAttach: (_) {
+            final ctx = _notificationContext;
+            if (ctx != null && restrict == _active) {
+              announceTabScroll(ctx, _scrollControllers[restrict]!);
+            }
+          },
+        ),
+      );
+
+  void _onTabChanged() {
+    final ctx = _notificationContext;
+    if (ctx != null) {
+      announceTabScroll(ctx, _scrollControllerFor(_active));
+    }
+  }
 
   @override
   void initState() {
@@ -44,7 +71,7 @@ class _BookmarkTagsPageState extends State<BookmarkTagsPage>
       length: _restricts.length,
       vsync: this,
       initialIndex: _restricts.indexOf(widget.initialRestrict),
-    );
+    )..addListener(_onTabChanged);
   }
 
   @override
@@ -57,7 +84,12 @@ class _BookmarkTagsPageState extends State<BookmarkTagsPage>
 
   @override
   void dispose() {
-    _tabController.dispose();
+    _tabController
+      ..removeListener(_onTabChanged)
+      ..dispose();
+    for (final controller in _scrollControllers.values) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
@@ -76,15 +108,24 @@ class _BookmarkTagsPageState extends State<BookmarkTagsPage>
           labels: [l10n.restrictPublic, l10n.restrictPrivate],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          for (final restrict in _restricts)
-            ContentWidthCap(
-              maxWidth: ContentWidths.management,
-              child: _RestrictTags(kind: widget.kind, restrict: restrict),
-            ),
-        ],
+      body: Builder(
+        builder: (context) {
+          _notificationContext = context;
+          return TabBarView(
+            controller: _tabController,
+            children: [
+              for (final restrict in _restricts)
+                ContentWidthCap(
+                  maxWidth: ContentWidths.management,
+                  child: _RestrictTags(
+                    kind: widget.kind,
+                    restrict: restrict,
+                    scrollController: _scrollControllerFor(restrict),
+                  ),
+                ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -93,10 +134,15 @@ class _BookmarkTagsPageState extends State<BookmarkTagsPage>
 /// One visibility's tags, refreshable and paged. Kept alive in the tab
 /// view: its list goes with the page, not when the other tab shows.
 class _RestrictTags extends ConsumerStatefulWidget {
-  const _RestrictTags({required this.kind, required this.restrict});
+  const _RestrictTags({
+    required this.kind,
+    required this.restrict,
+    required this.scrollController,
+  });
 
   final BookmarkEntityType kind;
   final BookmarkRestrict restrict;
+  final ScrollController scrollController;
 
   @override
   ConsumerState<_RestrictTags> createState() => _RestrictTagsState();
@@ -126,8 +172,12 @@ class _RestrictTagsState extends ConsumerState<_RestrictTags>
           onRetry: () =>
               ref.read(userBookmarkTagsProvider(query).notifier).refresh(),
         ),
-        data: (state) =>
-            _TagList(query: query, state: state, restrict: restrict),
+        data: (state) => _TagList(
+          query: query,
+          state: state,
+          restrict: restrict,
+          scrollController: widget.scrollController,
+        ),
       ),
     );
   }
@@ -138,78 +188,82 @@ class _TagList extends ConsumerWidget {
     required this.query,
     required this.state,
     required this.restrict,
+    required this.scrollController,
   });
 
   final BookmarkTagQuery query;
   final UserBookmarkTagsState state;
   final BookmarkRestrict restrict;
+  final ScrollController scrollController;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     if (state.tags.isEmpty) {
-      return FeedEmpty(
-        icon: Icons.label_outline,
-        title: l10n.bookmarkTagsEmpty,
-      );
+      return FeedEmpty(icon: AppIcons.tag, title: l10n.bookmarkTagsEmpty);
     }
     return LoadMoreListener(
       itemCount: state.tags.length,
       onLoadMore: () =>
           ref.read(userBookmarkTagsProvider(query).notifier).loadMore(),
-      child: ListView.builder(
-        itemCount: state.tags.length + 1,
-        itemBuilder: (context, index) {
-          if (index >= state.tags.length) {
-            if (state.loadingMore) {
-              return const Padding(
-                padding: EdgeInsets.all(FuncSpacing.lg),
-                child: Center(
-                  child: SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+      child: SmoothWheelScroll(
+        controller: scrollController,
+        builder: (context, controller, physics) => ListView.builder(
+          controller: controller,
+          physics: physics,
+          itemCount: state.tags.length + 1,
+          itemBuilder: (context, index) {
+            if (index >= state.tags.length) {
+              if (state.loadingMore) {
+                return const Padding(
+                  padding: EdgeInsets.all(FuncSpacing.lg),
+                  child: Center(
+                    child: SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
                   ),
-                ),
-              );
-            }
-            if (state.loadMoreError != null) {
-              return ListTile(
-                title: Text(l10n.profileLoadMoreFailed),
-                trailing: TextButton(
-                  onPressed: () => ref
-                      .read(userBookmarkTagsProvider(query).notifier)
-                      .loadMore(),
-                  child: Text(l10n.profileRetry),
-                ),
-              );
-            }
-            if (!state.hasMore) {
-              return Padding(
-                padding: const EdgeInsets.all(FuncSpacing.lg),
-                child: Center(
-                  child: Text(
-                    l10n.bookmarkTagsEnd,
-                    style: Theme.of(context).textTheme.bodySmall,
+                );
+              }
+              if (state.loadMoreError != null) {
+                return ListTile(
+                  title: Text(l10n.profileLoadMoreFailed),
+                  trailing: TextButton(
+                    onPressed: () => ref
+                        .read(userBookmarkTagsProvider(query).notifier)
+                        .loadMore(),
+                    child: Text(l10n.profileRetry),
                   ),
-                ),
-              );
+                );
+              }
+              if (!state.hasMore) {
+                return Padding(
+                  padding: const EdgeInsets.all(FuncSpacing.lg),
+                  child: Center(
+                    child: Text(
+                      l10n.bookmarkTagsEnd,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ),
+                );
+              }
+              return const SizedBox.shrink();
             }
-            return const SizedBox.shrink();
-          }
-          final tag = state.tags[index];
-          return ListTile(
-            leading: const Icon(Icons.label_outline),
-            title: Text(tag.name),
-            trailing: Text('${tag.count}'),
-            onTap: () => openBookmarkTagFeed(
-              context,
-              tag: tag.name,
-              kind: query.$1,
-              restrict: restrict,
-            ),
-          );
-        },
+            final tag = state.tags[index];
+            return ListTile(
+              leading: const Icon(AppIcons.tag),
+              title: Text(tag.name),
+              trailing: Text('${tag.count}'),
+              onTap: () => openBookmarkTagFeed(
+                context,
+                tag: tag.name,
+                kind: query.$1,
+                restrict: restrict,
+              ),
+            );
+          },
+        ),
       ),
     );
   }

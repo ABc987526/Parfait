@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../app/navigation/routes.dart';
 import '../../app/widgets/app_top_bar.dart';
 import '../../app/widgets/feed/feed_states.dart';
 import '../../core/auth/account_store.dart';
@@ -11,6 +12,7 @@ import '../../l10n/context.dart';
 import 'profile_illust_feed.dart';
 import 'profile_novel_feed.dart';
 import '../../app/theme/func_semantic_tokens.dart';
+import '../../app/icons/app_icons.dart';
 
 /// The signed-in user's bookmarks of one [kind] filtered to one tag — the
 /// profile's own list (`ProfileIllustFeed` or `ProfileNovelFeed`) with
@@ -52,23 +54,31 @@ class _BookmarkTagFeedPageState extends ConsumerState<BookmarkTagFeedPage> {
     );
     return Scaffold(
       appBar: AppTopBar(
-        title: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(widget.tag, maxLines: 1, overflow: TextOverflow.ellipsis),
-            Text(
-              // The kind is named for novels only: illustrations are what
-              // this page always showed.
-              [
-                if (widget.kind == BookmarkEntityType.novel) l10n.profileNovel,
-                widget.restrict == BookmarkRestrict.private
-                    ? l10n.restrictPrivate
-                    : l10n.restrictPublic,
-              ].join(' · '),
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
+        title: Builder(
+          builder: (titleContext) {
+            final titleColor = DefaultTextStyle.of(titleContext).style.color;
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(widget.tag, maxLines: 1, overflow: TextOverflow.ellipsis),
+                Text(
+                  // The kind is named for novels only: illustrations are what
+                  // this page always showed.
+                  [
+                    if (widget.kind == BookmarkEntityType.novel)
+                      l10n.profileNovel,
+                    widget.restrict == BookmarkRestrict.private
+                        ? l10n.restrictPrivate
+                        : l10n.restrictPublic,
+                  ].join(' · '),
+                  style: Theme.of(titleContext).textTheme.bodySmall?.copyWith(
+                    color: titleColor?.withValues(alpha: 0.82),
+                  ),
+                ),
+              ],
+            );
+          },
         ),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(64),
@@ -84,16 +94,22 @@ class _BookmarkTagFeedPageState extends ConsumerState<BookmarkTagFeedPage> {
               controller: _filterController,
               constraints: const BoxConstraints(minHeight: 48),
               hintText: l10n.bookmarkTagFilterHint,
-              leading: const Icon(Icons.search),
+              leading: Icon(
+                AppIcons.search,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
               onChanged: (value) => setState(() => _filter = value),
               textInputAction: TextInputAction.search,
             ),
           ),
         ),
       ),
-      body: userId == null
-          ? FeedEmpty(icon: Icons.label_outline, title: l10n.bookmarkTagsEmpty)
-          : _feed(userId),
+      body: DesktopInspectableGallery(
+        active: widget.kind == BookmarkEntityType.illust,
+        child: userId == null
+            ? FeedEmpty(icon: AppIcons.tag, title: l10n.bookmarkTagsEmpty)
+            : _feed(userId),
+      ),
     );
   }
 

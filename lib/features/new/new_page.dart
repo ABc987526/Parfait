@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../app/layout/deferred_cache_scroll_view.dart';
 import '../../app/widgets/app_top_bar.dart';
+import '../../app/widgets/feed/desktop_gallery_controls.dart';
 import '../../app/widgets/feed/feed_grid.dart';
 import '../../app/widgets/feed/feed_selection.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -32,6 +33,8 @@ import '../../app/theme/func_semantic_tokens.dart';
 import '../../app/layout/card_columns.dart';
 import '../../app/widgets/feed/load_more_listener.dart';
 import '../../app/widgets/edge_icon_buttons.dart';
+import '../../app/icons/app_icons.dart';
+import '../../app/icons/ui_icons.dart';
 
 /// Beta56 New page for one content [type]: scope tabs over that type's
 /// feeds, the same shape as the ranking pages. The illust page is the
@@ -199,6 +202,7 @@ class _NewPageState extends State<NewPage> with SingleTickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    final isIllust = widget.type == NewFeedType.illust;
     return Scaffold(
       // Root pages own no inline composer: leaving the default `true`
       // would subscribe this whole subtree to per-frame viewInsets churn
@@ -219,11 +223,12 @@ class _NewPageState extends State<NewPage> with SingleTickerProviderStateMixin {
         // entries (watchlist, local novels) live in the Me tab's content
         // group.
         actions: [
-          if (widget.type == NewFeedType.illust)
+          if (isIllust) const DesktopGalleryControls(),
+          if (isIllust)
             IconButton(
               tooltip: context.l10n.newNovels,
               onPressed: () => openNewNovels(context),
-              icon: const Icon(Icons.menu_book_outlined),
+              icon: const Icon(AppIcons.novel),
             ),
           const HeaderRefresh(),
           HeaderSearch(
@@ -237,33 +242,36 @@ class _NewPageState extends State<NewPage> with SingleTickerProviderStateMixin {
           ),
         ],
       ),
-      body: Builder(
-        builder: (context) {
-          _notificationContext = context;
-          return TabSwipeSwitcher(
-            tabController: _tabController,
-            prepareTab: _prepareTab,
-            child: TabSlideStack(
-              controller: _tabController,
-              children: [
-                for (final key in _scopes.map(_keyFor))
-                  // A scope slot builds its feed on first visit (or swipe
-                  // warm-up) and keeps it from then on.
-                  if (_loadedKeys.contains(key))
-                    _bodies.putIfAbsent(
-                      key,
-                      () => _NewFeedBody(
-                        key: ValueKey(key),
-                        feedKey: key,
-                        scrollController: _scrollControllerFor(key),
-                      ),
-                    )
-                  else
-                    const SizedBox.shrink(),
-              ],
-            ),
-          );
-        },
+      body: DesktopInspectableGallery(
+        active: isIllust,
+        child: Builder(
+          builder: (context) {
+            _notificationContext = context;
+            return TabSwipeSwitcher(
+              tabController: _tabController,
+              prepareTab: _prepareTab,
+              child: TabSlideStack(
+                controller: _tabController,
+                children: [
+                  for (final key in _scopes.map(_keyFor))
+                    // A scope slot builds its feed on first visit (or swipe
+                    // warm-up) and keeps it from then on.
+                    if (_loadedKeys.contains(key))
+                      _bodies.putIfAbsent(
+                        key,
+                        () => _NewFeedBody(
+                          key: ValueKey(key),
+                          feedKey: key,
+                          scrollController: _scrollControllerFor(key),
+                        ),
+                      )
+                    else
+                      const SizedBox.shrink(),
+                ],
+              ),
+            );
+          },
+        ),
       ),
     );
   }
@@ -324,7 +332,7 @@ class _NewFeedBody extends ConsumerWidget {
         }
         if (feed.isEmptyAndReady) {
           return FeedEmpty(
-            icon: Icons.inbox_outlined,
+            icon: UiIcons.inbox,
             title: context.l10n.newEmpty,
             retryLabel: context.l10n.refresh,
             onRefresh: () =>

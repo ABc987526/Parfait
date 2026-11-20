@@ -63,11 +63,12 @@ class ThemeSettingsPage extends ConsumerWidget {
                   ),
               ],
             ),
-            SettingsGroup(
-              children: [
-                _FollowSystemColorsTile(enabled: settings.followSystemColors),
-              ],
-            ),
+            if (Theme.of(context).platform != TargetPlatform.iOS)
+              SettingsGroup(
+                children: [
+                  _FollowSystemColorsTile(enabled: settings.followSystemColors),
+                ],
+              ),
           ],
         ),
       ),

@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 
 import '../../haptics/app_haptics.dart';
+import '../../icons/ui_icons.dart';
 
 /// Single-choice settings row (D1): `ListTile(selected:)` so screen readers
 /// announce the selected entry, with a primary-coloured check as its visual
@@ -40,7 +41,9 @@ class SettingsChoiceTile extends StatelessWidget {
               child: subtitle,
             ),
       selected: selected,
-      trailing: selected ? Icon(Icons.check, color: colorScheme.primary) : null,
+      trailing: selected
+          ? Icon(UiIcons.check, color: colorScheme.primary)
+          : null,
       onTap: onTap == null
           ? null
           : () {

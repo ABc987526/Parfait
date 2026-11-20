@@ -15,7 +15,10 @@ import '../motion/app_overlays.dart';
 import '../motion/spring_size.dart';
 import '../motion/state_fade.dart';
 import '../theme/func_semantic_tokens.dart';
+import 'fit_label.dart';
 import 'settings/persist_settings.dart';
+import '../icons/app_icons.dart';
+import '../icons/ui_icons.dart';
 
 /// What a ranking page puts in its category sheet besides the categories.
 /// Each row closes the sheet before it acts.
@@ -56,7 +59,7 @@ Future<void> showRankingCategorySheet<M extends RankingCategory>(
 }) {
   return showAppAdaptiveDialog<void>(
     context: context,
-    maxWidth: 520,
+    maxWidth: 640,
     isScrollControlled: true,
     // A long sheet: its top edge stays below the status bar.
     useSafeArea: true,
@@ -87,7 +90,7 @@ class _RankingCategorySheet<M extends RankingCategory>
 
 class _RankingCategorySheetState<M extends RankingCategory>
     extends ConsumerState<_RankingCategorySheet<M>> {
-  static const _maxHeightFactor = 0.9;
+  static const _maxHeightFactor = 0.92;
 
   late bool _editing = widget.editing;
 
@@ -135,14 +138,25 @@ class _RankingCategorySheetState<M extends RankingCategory>
         isRankingCategoryBlocked(mode, blockR18: block.r18, blockAI: block.ai);
     final l10n = context.l10n;
     final theme = Theme.of(context);
+    final tokens = FuncSemanticTokens.of(context);
     final page = _page;
+    final wide = useWideOverlay(context);
+    final pointer = usePointerOverlay(context);
+    final footerColor =
+        theme.bottomSheetTheme.backgroundColor ??
+        (wide
+            ? theme.colorScheme.surfaceContainerHigh
+            : theme.colorScheme.surfaceContainerLow);
+    final showHeaderClose = wide && (pointer || !_editing || page != null);
     final header = Padding(
       // The end meets the grid's edge: a tonal button's edge is its
       // container, a text button's is its label, inset by the padding.
       padding: EdgeInsets.fromLTRB(
         FuncSpacing.xl,
-        FuncSpacing.lg,
-        _editing ? FuncSpacing.xl : FuncSpacing.md,
+        wide ? FuncSpacing.md : FuncSpacing.lg,
+        showHeaderClose
+            ? FuncSpacing.sm
+            : (_editing ? FuncSpacing.xl : FuncSpacing.md),
         FuncSpacing.xs,
       ),
       child: Row(
@@ -153,49 +167,108 @@ class _RankingCategorySheetState<M extends RankingCategory>
               style: theme.textTheme.titleLarge,
             ),
           ),
-          if (_editing)
+          if (_editing && !pointer)
             FilledButton.tonal(
               onPressed: _finishEditing,
               child: Text(l10n.rankingEditDone),
             )
-          else
+          else if (!_editing)
             TextButton.icon(
               onPressed: () => setState(() => _editing = true),
-              icon: const Icon(Icons.edit_outlined),
+              icon: const Icon(AppIcons.edit),
               label: Text(l10n.rankingEdit),
             ),
+          if (showHeaderClose) ...[
+            const SizedBox(width: FuncSpacing.xs),
+            IconButton(
+              tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
+              onPressed: () => Navigator.of(context).maybePop(),
+              icon: const Icon(UiIcons.close),
+            ),
+          ],
         ],
       ),
     );
     final body = _editing
         ? _editor(context, blocked)
         : _browser(context, page!);
+    final restoreButton = TextButton.icon(
+      onPressed: _draft == widget.catalog.defaults
+          ? null
+          : () => _save(widget.catalog.defaults),
+      icon: const Icon(UiIcons.reset),
+      label: Text(l10n.restoreDefault),
+    );
     return ConstrainedBox(
       constraints: BoxConstraints(
         maxHeight: MediaQuery.heightOf(context) * _maxHeightFactor,
       ),
-      // While editing, a vertical drag never moves the sheet: it would
-      // fight the long-press drag and could close the sheet mid-edit.
+      // While editing on a bottom sheet, a vertical drag never moves the
+      // sheet: it would fight the long-press drag and could close mid-edit.
+      // Wide bounded dialogs have no sheet drag to intercept.
       child: GestureDetector(
-        onVerticalDragStart: _editing ? (_) {} : null,
+        onVerticalDragStart: (_editing && !wide) ? (_) {} : null,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             StateFade(kind: _editing, child: header),
             Flexible(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.only(bottom: FuncSpacing.lg),
-                child: SafeArea(
-                  top: false,
-                  // Switching between browsing and editing fades the new
-                  // view in while the sheet springs to its height.
-                  child: SpringSize(
-                    child: StateFade(kind: _editing, child: body),
+              child: _SheetBottomScrollFade(
+                child: SingleChildScrollView(
+                  primary: !(_editing && !wide),
+                  padding: const EdgeInsets.only(bottom: FuncSpacing.lg),
+                  child: SafeArea(
+                    top: false,
+                    bottom: !_editing,
+                    // Switching between browsing and editing fades the new
+                    // view in while the sheet springs to its height.
+                    child: SpringSize(
+                      child: StateFade(kind: _editing, child: body),
+                    ),
                   ),
                 ),
               ),
             ),
+            if (_editing) ...[
+              Divider(height: 1, thickness: 1, color: tokens.brandHairline),
+              ColoredBox(
+                color: footerColor,
+                child: SafeArea(
+                  top: false,
+                  child: pointer
+                      ? Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: FuncSpacing.xl,
+                            vertical: FuncSpacing.sm,
+                          ),
+                          child: OverflowBar(
+                            alignment: MainAxisAlignment.end,
+                            spacing: FuncSpacing.sm,
+                            overflowSpacing: FuncSpacing.sm,
+                            overflowAlignment: OverflowBarAlignment.end,
+                            children: [
+                              restoreButton,
+                              FilledButton(
+                                onPressed: _finishEditing,
+                                child: Text(l10n.rankingEditDone),
+                              ),
+                            ],
+                          ),
+                        )
+                      : Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: FuncSpacing.md,
+                            vertical: FuncSpacing.xs,
+                          ),
+                          child: Align(
+                            alignment: AlignmentDirectional.centerStart,
+                            child: restoreButton,
+                          ),
+                        ),
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -214,25 +287,26 @@ class _RankingCategorySheetState<M extends RankingCategory>
           ),
           leading: Icon(page.switchIcon),
           title: Text(page.switchLabel),
-          trailing: const Icon(Icons.chevron_right),
+          trailing: const Icon(UiIcons.chevronRight),
           onTap: () => _closeThen(page.onSwitch),
         ),
         ListTile(
           contentPadding: const EdgeInsets.symmetric(
             horizontal: FuncSpacing.xl,
           ),
-          leading: const Icon(Icons.calendar_month_outlined),
+          leading: const Icon(AppIcons.calendar),
           title: Text(l10n.rankingPickDate),
           subtitle: Text(page.dateLabel),
-          trailing: const Icon(Icons.chevron_right),
+          trailing: const Icon(UiIcons.chevronRight),
           onTap: () => _closeThen(page.onPickDate),
         ),
         _SectionLabel(l10n.rankingMyCategories),
         _CategoryGrid<M>(
           modes: tabs.modes,
           labelsToFit: tabs.modes,
-          tileBuilder: (mode, _) => _CategoryTile(
+          tileBuilder: (mode, size) => _CategoryTile(
             label: _label(context, mode),
+            tileWidth: size.width,
             selected: mode == tabs.selected,
             onTap: () => _closeThen(() => page.onSelect(mode)),
           ),
@@ -266,6 +340,7 @@ class _RankingCategorySheetState<M extends RankingCategory>
         _CategoryGrid<M>(
           modes: draft.shown,
           labelsToFit: all,
+          hasLeadingIcon: true,
           tileBuilder: (mode, size) => _ShownTile<M>(
             mode: mode,
             size: size,
@@ -296,33 +371,72 @@ class _RankingCategorySheetState<M extends RankingCategory>
           _CategoryGrid<M>(
             modes: draft.hidden,
             labelsToFit: all,
-            tileBuilder: (mode, _) => _CategoryTile(
+            hasLeadingIcon: true,
+            tileBuilder: (mode, size) => _CategoryTile(
               label: _label(context, mode),
+              tileWidth: size.width,
               blocked: blocked(mode),
-              leadingIcon: Icons.add,
+              leadingIcon: UiIcons.add,
               semanticsHint: l10n.rankingShowCategory,
               onTap: () => _save(draft.show(mode)),
             ),
           ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-            FuncSpacing.md,
-            FuncSpacing.md,
-            FuncSpacing.md,
-            0,
-          ),
-          child: Align(
-            alignment: AlignmentDirectional.centerStart,
-            child: TextButton.icon(
-              onPressed: draft == widget.catalog.defaults
-                  ? null
-                  : () => _save(widget.catalog.defaults),
-              icon: const Icon(Icons.restart_alt),
-              label: Text(l10n.restoreDefault),
-            ),
-          ),
-        ),
       ],
+    );
+  }
+}
+
+/// Fades the bottom edge of the category scroll view while more rows remain
+/// below the fold, keeping the tree stable so active drags never reparent.
+class _SheetBottomScrollFade extends StatefulWidget {
+  const _SheetBottomScrollFade({required this.child});
+
+  final Widget child;
+
+  static const _fadeHeight = FuncSpacing.lg;
+  static const _edgeSlop = 0.5;
+
+  @override
+  State<_SheetBottomScrollFade> createState() => _SheetBottomScrollFadeState();
+}
+
+class _SheetBottomScrollFadeState extends State<_SheetBottomScrollFade> {
+  var _hasMoreBelow = false;
+
+  bool _onMetrics(ScrollMetrics metrics) {
+    if (metrics.axis != Axis.vertical) return false;
+    final more = metrics.extentAfter > _SheetBottomScrollFade._edgeSlop;
+    if (more != _hasMoreBelow && mounted) {
+      setState(() => _hasMoreBelow = more);
+    }
+    return false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return NotificationListener<ScrollMetricsNotification>(
+      onNotification: (notification) => _onMetrics(notification.metrics),
+      child: NotificationListener<ScrollUpdateNotification>(
+        onNotification: (notification) => _onMetrics(notification.metrics),
+        child: ShaderMask(
+          blendMode: BlendMode.dstIn,
+          shaderCallback: (bounds) {
+            final stop = bounds.height <= 0
+                ? 0.0
+                : (1.0 - _SheetBottomScrollFade._fadeHeight / bounds.height)
+                      .clamp(0.5, 1.0);
+            const shown = Color(0xFF000000);
+            const hidden = Color(0x00000000);
+            return LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [shown, shown, _hasMoreBelow ? hidden : shown],
+              stops: [0.0, stop, 1.0],
+            ).createShader(bounds);
+          },
+          child: widget.child,
+        ),
+      ),
     );
   }
 }
@@ -364,6 +478,7 @@ class _CategoryGrid<M extends RankingCategory> extends StatelessWidget {
     required this.modes,
     required this.labelsToFit,
     required this.tileBuilder,
+    this.hasLeadingIcon = false,
   });
 
   static const _minTileWidth = 96.0;
@@ -372,6 +487,7 @@ class _CategoryGrid<M extends RankingCategory> extends StatelessWidget {
   final List<M> modes;
   final List<M> labelsToFit;
   final Widget Function(M mode, Size size) tileBuilder;
+  final bool hasLeadingIcon;
 
   @override
   Widget build(BuildContext context) {
@@ -383,20 +499,40 @@ class _CategoryGrid<M extends RankingCategory> extends StatelessWidget {
           final labels = [
             for (final mode in labelsToFit) _label(context, mode),
           ];
-          // As many columns as keep the longest name on one line; two at
-          // least, wrapping only what two cannot hold.
+          // As many columns (capped at 3) as keep the longest name on one line
+          // (allowing a gentle single-line fit when a wide modal barely misses
+          // 3 columns); two at least, wrapping only what two cannot hold.
           final tileFloor = math.max(
             _minTileWidth,
-            _CategoryTile.oneLineWidth(context, labels),
+            _CategoryTile.oneLineWidth(
+              context,
+              labels,
+              hasLeadingIcon: hasLeadingIcon,
+            ),
           );
-          final columns = math.max(
-            2,
-            ((width + _spacing) / (tileFloor + _spacing)).floor(),
+          var columns = math.min(
+            3,
+            math.max(2, ((width + _spacing) / (tileFloor + _spacing)).floor()),
           );
+          if (columns == 2) {
+            final threeColWidth = (width - _spacing * 2) / 3;
+            final fitFloor = _CategoryTile.scaledOneLineFloor(
+              tileFloor,
+              hasLeadingIcon: hasLeadingIcon,
+            );
+            if (threeColWidth >= _minTileWidth && fitFloor <= threeColWidth) {
+              columns = 3;
+            }
+          }
           final tileWidth = (width - _spacing * (columns - 1)) / columns;
           final size = Size(
             tileWidth,
-            _CategoryTile.heightFor(context, tileWidth, labels),
+            _CategoryTile.heightFor(
+              context,
+              tileWidth,
+              labels,
+              hasLeadingIcon: hasLeadingIcon,
+            ),
           );
           return Wrap(
             spacing: _spacing,
@@ -419,6 +555,7 @@ class _CategoryGrid<M extends RankingCategory> extends StatelessWidget {
 class _CategoryTile extends StatelessWidget {
   const _CategoryTile({
     required this.label,
+    this.tileWidth,
     this.selected = false,
     this.blocked = false,
     this.leadingIcon,
@@ -427,13 +564,15 @@ class _CategoryTile extends StatelessWidget {
   });
 
   static const _padding = EdgeInsets.symmetric(
-    horizontal: FuncSpacing.sm,
+    horizontal: FuncSpacing.xs,
     vertical: FuncSpacing.sm,
   );
   static const _iconSize = 16.0;
   static const _minHeight = 48.0;
+  static const _minSingleLineScale = 0.88;
 
   final String label;
+  final double? tileWidth;
   final bool selected;
   final bool blocked;
   final IconData? leadingIcon;
@@ -443,49 +582,150 @@ class _CategoryTile extends StatelessWidget {
   static TextStyle? _style(BuildContext context) =>
       Theme.of(context).textTheme.labelLarge;
 
-  /// The tile width that holds the longest of [labels] on one line, beside
-  /// the icon.
-  static double oneLineWidth(BuildContext context, List<String> labels) {
-    final painter = TextPainter(
-      textDirection: Directionality.of(context),
-      textScaler: MediaQuery.textScalerOf(context),
-      maxLines: 1,
-    );
-    var widest = 0.0;
-    for (final label in labels) {
-      painter.text = TextSpan(text: label, style: _style(context));
-      painter.layout();
-      widest = math.max(widest, painter.width);
-    }
-    painter.dispose();
-    return widest.ceilToDouble() +
+  static const _iconPlaceholder = PlaceholderDimensions(
+    size: Size(_iconSize + FuncSpacing.xs, _iconSize),
+    alignment: PlaceholderAlignment.middle,
+  );
+
+  static TextSpan _measureSpan(
+    String label,
+    TextStyle style, {
+    required bool hasLeadingIcon,
+  }) => TextSpan(
+    style: style,
+    children: [
+      if (hasLeadingIcon)
+        const WidgetSpan(
+          alignment: PlaceholderAlignment.middle,
+          child: SizedBox(width: _iconSize + FuncSpacing.xs, height: _iconSize),
+        ),
+      TextSpan(text: label),
+    ],
+  );
+
+  /// Width floor under [_minSingleLineScale] so a wide modal only slightly
+  /// short of 3 columns fits on one line without shrinking narrow grids.
+  static double scaledOneLineFloor(
+    double oneLineFloor, {
+    required bool hasLeadingIcon,
+  }) {
+    final fixed =
         _padding.horizontal +
-        _iconSize +
-        FuncSpacing.xs;
+        FuncSpacing.xs +
+        (hasLeadingIcon ? _iconSize + FuncSpacing.xs : 0);
+    if (oneLineFloor <= fixed) return oneLineFloor;
+    return (oneLineFloor - fixed) * _minSingleLineScale + fixed;
   }
 
-  /// The height every tile takes: the tallest label wrapped at the width
-  /// left beside the icon, at the painted style and text scale.
-  static double heightFor(
+  /// Gentle single-line [TextScaler] when [label] overflows [tileWidth] by at
+  /// most ~12% (preserving one-line layout for `"+ マンガ・ウィークリー"` and
+  /// wide 3-column modals), falling back to wrapping on narrow/1.3x sheets.
+  static TextScaler _fitScaler(
+    BuildContext context, {
+    required String label,
+    required TextStyle style,
+    required double tileWidth,
+    required bool hasLeadingIcon,
+  }) {
+    final base = MediaQuery.textScalerOf(context);
+    final maxWidth = math.max(0.0, tileWidth - _padding.horizontal);
+    final painter = TextPainter(
+      text: _measureSpan(label, style, hasLeadingIcon: hasLeadingIcon),
+      textDirection: Directionality.of(context),
+      textScaler: base,
+      textAlign: TextAlign.center,
+      locale: Localizations.maybeLocaleOf(context),
+      maxLines: 1,
+    );
+    if (hasLeadingIcon) {
+      painter.setPlaceholderDimensions(const [_iconPlaceholder]);
+    }
+    painter.layout();
+    final rawWidth = painter.width;
+    painter.dispose();
+    if (rawWidth <= maxWidth) return base;
+    final iconWidth = hasLeadingIcon ? _iconSize + FuncSpacing.xs : 0.0;
+    final textWidth = rawWidth - iconWidth;
+    final availableTextWidth = maxWidth - iconWidth;
+    if (textWidth <= 0 || availableTextWidth <= 0) return base;
+    final factor = (availableTextWidth - 1.0) / textWidth;
+    if (factor < _minSingleLineScale) return base;
+    return LabelFit(scale: factor, truncates: false).scaler(base);
+  }
+
+  /// The tile width that holds the longest of [labels] on one line, beside
+  /// the icon when [hasLeadingIcon] holds.
+  static double oneLineWidth(
     BuildContext context,
-    double tileWidth,
-    List<String> labels,
-  ) {
+    List<String> labels, {
+    required bool hasLeadingIcon,
+  }) {
+    final style = LabelFit.paintedStyle(
+      context,
+      _style(context) ?? const TextStyle(),
+    );
     final painter = TextPainter(
       textDirection: Directionality.of(context),
       textScaler: MediaQuery.textScalerOf(context),
       textAlign: TextAlign.center,
+      locale: Localizations.maybeLocaleOf(context),
+      maxLines: 1,
     );
-    final textWidth =
-        tileWidth - _padding.horizontal - _iconSize - FuncSpacing.xs;
+    var widest = 0.0;
+    for (final label in labels) {
+      painter.text = _measureSpan(label, style, hasLeadingIcon: hasLeadingIcon);
+      if (hasLeadingIcon) {
+        painter.setPlaceholderDimensions(const [_iconPlaceholder]);
+      }
+      painter.layout();
+      widest = math.max(widest, painter.width);
+    }
+    painter.dispose();
+    return widest.ceilToDouble() + _padding.horizontal + FuncSpacing.xs;
+  }
+
+  /// The height every tile takes: the tallest label wrapped at [tileWidth]
+  /// with the same inline icon placeholder and painted text style as [build],
+  /// so two-line Japanese/Russian or 1.3x labels never clip at the bottom.
+  static double heightFor(
+    BuildContext context,
+    double tileWidth,
+    List<String> labels, {
+    required bool hasLeadingIcon,
+  }) {
+    final style = LabelFit.paintedStyle(
+      context,
+      _style(context) ?? const TextStyle(),
+    );
+    final direction = Directionality.of(context);
+    final locale = Localizations.maybeLocaleOf(context);
+    final painter = TextPainter(
+      textDirection: direction,
+      textAlign: TextAlign.center,
+      locale: locale,
+    );
+    final maxWidth = math.max(0.0, tileWidth - _padding.horizontal);
     var tallest = 0.0;
     for (final label in labels) {
-      painter.text = TextSpan(text: label, style: _style(context));
-      painter.layout(maxWidth: math.max(0, textWidth));
+      painter.textScaler = _fitScaler(
+        context,
+        label: label,
+        style: style,
+        tileWidth: tileWidth,
+        hasLeadingIcon: hasLeadingIcon,
+      );
+      painter.text = _measureSpan(label, style, hasLeadingIcon: hasLeadingIcon);
+      if (hasLeadingIcon) {
+        painter.setPlaceholderDimensions(const [_iconPlaceholder]);
+      }
+      painter.layout(maxWidth: maxWidth);
       tallest = math.max(tallest, painter.height);
     }
     painter.dispose();
-    return math.max(_minHeight, tallest + _padding.vertical);
+    return math.max(
+      _minHeight,
+      tallest.ceilToDouble() + _padding.vertical + FuncSpacing.xxs,
+    );
   }
 
   @override
@@ -497,6 +737,19 @@ class _CategoryTile extends StatelessWidget {
         ? scheme.onPrimaryContainer
         : scheme.onSurface;
     final icon = leadingIcon;
+    final rawStyle = _style(context);
+    final scaler = tileWidth == null
+        ? MediaQuery.textScalerOf(context)
+        : _fitScaler(
+            context,
+            label: label,
+            style: LabelFit.paintedStyle(
+              context,
+              rawStyle ?? const TextStyle(),
+            ),
+            tileWidth: tileWidth!,
+            hasLeadingIcon: icon != null,
+          );
     return Semantics(
       selected: selected,
       onTapHint: semanticsHint,
@@ -529,7 +782,8 @@ class _CategoryTile extends StatelessWidget {
                   ],
                 ),
                 textAlign: TextAlign.center,
-                style: _style(context)?.copyWith(color: foreground),
+                textScaler: scaler,
+                style: rawStyle?.copyWith(color: foreground),
               ),
             ),
           ),
@@ -576,8 +830,9 @@ class _ShownTile<M extends RankingCategory> extends StatelessWidget {
     final last = arrangement.shown.length - 1;
     final tile = _CategoryTile(
       label: label,
+      tileWidth: size.width,
       blocked: blocked,
-      leadingIcon: onHide == null ? null : Icons.close,
+      leadingIcon: onHide == null ? null : UiIcons.close,
       semanticsHint: onHide == null ? null : l10n.rankingHideCategory,
       onTap: onHide,
     );
@@ -613,6 +868,7 @@ class _ShownTile<M extends RankingCategory> extends StatelessWidget {
                 ),
                 child: _CategoryTile(
                   label: label,
+                  tileWidth: size.width,
                   blocked: blocked,
                   leadingIcon: tile.leadingIcon,
                 ),

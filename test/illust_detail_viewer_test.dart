@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'package:parfait/app/layout/input_modality.dart';
+import 'package:parfait/app/motion/app_overlays.dart';
 import 'package:parfait/core/download/download_providers.dart';
 import 'package:parfait/core/download/download_task.dart';
 import 'package:parfait/app/motion/drag_to_dismiss.dart';
@@ -22,6 +23,8 @@ import 'helpers/illust_detail_page_support.dart';
 import 'helpers/localized_app.dart';
 import 'helpers/view_size.dart';
 import 'helpers/waits.dart';
+import 'package:parfait/app/icons/app_icons.dart';
+import 'package:parfait/app/icons/ui_icons.dart';
 
 // §7 screen-reader representative paths — the three priority surfaces
 // (author header, artwork viewer, comment composer). These are widget-tree
@@ -309,7 +312,7 @@ void main() {
         ),
       );
       await tester.pump();
-      await tester.tap(find.byIcon(Icons.download_outlined));
+      await tester.tap(find.byIcon(AppIcons.download));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 50));
       final manager = container.read(downloadManagerProvider);
@@ -337,7 +340,7 @@ void main() {
         ),
       );
       await tester.pump();
-      await tester.tap(find.byIcon(Icons.download_outlined));
+      await tester.tap(find.byIcon(AppIcons.download));
       await tester.pump();
 
       // The task completes over the scripted transport; the manager's
@@ -351,14 +354,14 @@ void main() {
       );
       expect(manager.tasks.single.status, DownloadStatus.succeeded);
       await tester.pump();
-      expect(find.byIcon(Icons.check_circle), findsOneWidget);
+      expect(find.byIcon(UiIcons.checkCircle), findsOneWidget);
       // The exist state also disables the button (detail-page badge
       // semantics carried over).
       expect(
         tester
             .widget<IconButton>(
               find.ancestor(
-                of: find.byIcon(Icons.check_circle),
+                of: find.byIcon(UiIcons.checkCircle),
                 matching: find.byType(IconButton),
               ),
             )
@@ -639,13 +642,13 @@ void main() {
           kind: PointerDeviceKind.mouse,
         );
         await tester.pumpAndSettle();
-        expect(find.byType(BottomSheet), findsNothing);
+        expect(find.byType(AppBottomSheet), findsNothing);
         await tester.tap(find.text('2').last, kind: PointerDeviceKind.mouse);
         await tester.pumpAndSettle();
         expect(find.text('2 / 2'), findsOneWidget);
 
         await tester.tap(
-          find.byIcon(Icons.info_outline),
+          find.byIcon(AppIcons.info),
           kind: PointerDeviceKind.mouse,
         );
         await tester.pumpAndSettle();
@@ -696,10 +699,10 @@ void main() {
 
         await tester.tap(find.byType(TextField));
         await tester.pump();
-        expect(find.byIcon(Icons.play_circle_outline_outlined), findsOneWidget);
+        expect(find.byIcon(AppIcons.playCircle), findsOneWidget);
         await tester.sendKeyEvent(LogicalKeyboardKey.space);
         await tester.pump();
-        expect(find.byIcon(Icons.play_circle_outline_outlined), findsOneWidget);
+        expect(find.byIcon(AppIcons.playCircle), findsOneWidget);
 
         FocusManager.instance.primaryFocus?.unfocus();
         await tester.pump();
@@ -711,7 +714,7 @@ void main() {
 
         await tester.sendKeyEvent(LogicalKeyboardKey.space);
         await tester.pump();
-        expect(find.byIcon(Icons.play_circle_outline_outlined), findsNothing);
+        expect(find.byIcon(AppIcons.playCircle), findsNothing);
 
         await tester.tap(find.text('1x'));
         await tester.pumpAndSettle();

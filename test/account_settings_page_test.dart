@@ -12,6 +12,7 @@ import 'helpers/localized_app.dart';
 import 'helpers/prompt_host.dart';
 import 'helpers/settings_world.dart';
 import 'helpers/test_preferences.dart';
+import 'package:parfait/app/icons/app_icons.dart';
 
 void main() {
   for (final closed in [false, true]) {
@@ -46,16 +47,13 @@ void main() {
         await tester.pumpAndSettle();
         final second = find.widgetWithText(ListTile, 'second');
         await tester.tap(
-          find.descendant(
-            of: second,
-            matching: find.byIcon(Icons.delete_outline),
-          ),
+          find.descendant(of: second, matching: find.byIcon(AppIcons.trash)),
         );
         await tester.pumpAndSettle();
         preferences.writeGate = Future<void>.error(StateError('disk full'))
           ..ignore();
 
-        await tester.tap(find.text('确定'));
+        await tester.tap(find.text('移除'));
         await tester.pump();
         if (closed) {
           // The stack is replaced, without a transition, while the row

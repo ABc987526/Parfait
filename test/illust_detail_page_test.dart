@@ -40,6 +40,8 @@ import 'helpers/illust_detail_page_support.dart';
 import 'helpers/localized_app.dart';
 import 'helpers/view_size.dart';
 import 'helpers/waits.dart';
+import 'package:parfait/app/icons/app_icons.dart';
+import 'package:parfait/app/icons/ui_icons.dart';
 
 class _RecordingOpener implements OutboundUrlOpener {
   final urls = <String>[];
@@ -328,7 +330,7 @@ void main() {
         // A plain work: no marks, no tools.
         expect(find.text('AI 生成'), findsNothing);
         expect(find.text('R-18G'), findsNothing);
-        expect(find.byIcon(Icons.brush_outlined), findsNothing);
+        expect(find.byIcon(AppIcons.brush), findsNothing);
         await tester.tap(find.byKey(const Key('illust-detail-id')));
         await tester.pump();
         expect(clipboard, ['42']);
@@ -379,7 +381,7 @@ void main() {
         expect(
           tester.getCenter(find.text('AI 生成')).dy,
           moreOrLessEquals(
-            tester.getCenter(find.byIcon(Icons.visibility_outlined)).dy,
+            tester.getCenter(find.byIcon(AppIcons.eye)).dy,
             epsilon: 1,
           ),
         );
@@ -505,9 +507,50 @@ void main() {
         // Selecting, the badge sits as far into the image's top as into its
         // end: the toolbar does not reach the image.
         await longPressImage(tester);
-        final mark = tester.getRect(find.byIcon(Icons.radio_button_unchecked));
+        final mark = tester.getRect(find.byIcon(UiIcons.circleUnchecked));
         final image = tester.getRect(hero);
         expect(mark.top - image.top, closeTo(image.right - mark.right, 0.5));
+      },
+    );
+
+    testWidgets(
+      'a portrait 3:4 image collapses sub-toolbar band so icons stay over artwork',
+      (tester) async {
+        tester.view.padding = const FakeViewPadding(top: 24);
+        final json = illustJson(
+          42,
+          pageCount: 2,
+          width: 600,
+          height: 800,
+          withMetaPages: true,
+        );
+        final (container, _, _) = await makeWorld(detailOverrides: {42: json});
+        container.read(illustStoreProvider).mergeAll([parseIllust(json)]);
+        await pumpDetail(
+          tester,
+          container,
+          seedStore: false,
+          locale: const Locale('zh', 'CN'),
+        );
+        await tester.pumpAndSettle();
+
+        final slot = tester.getRect(find.byType(DetailPageImage));
+        final hero = find.byWidgetPredicate(
+          (widget) => widget is Hero && widget.tag == illustHeroTag('feed', 42),
+        );
+        // 390 / (600 / 800) = 520 => rawBand = (844 * 0.7 - 520) / 2 = 35.4 < 56.
+        expect(slot.top, closeTo(24, 0.5));
+        expect(tester.getRect(hero).top, closeTo(24, 0.5));
+        expect(lifted(tester), isTrue);
+
+        final page1State = tester.state(find.byType(DetailPageImage).first);
+        await tester.tap(find.textContaining('展开'));
+        await tester.pumpAndSettle();
+        expect(find.byType(DetailPageImage), findsNWidgets(2));
+        expect(
+          tester.state(find.byType(DetailPageImage).first),
+          same(page1State),
+        );
       },
     );
 
@@ -656,9 +699,7 @@ void main() {
 
       // Under the toolbar, page 1's badge keeps that inset below the bar.
       await longPressImage(tester);
-      final mark = tester.getRect(
-        find.byIcon(Icons.radio_button_unchecked).first,
-      );
+      final mark = tester.getRect(find.byIcon(UiIcons.circleUnchecked).first);
       expect(mark.top - kToolbarHeight, closeTo(390 - mark.right, 0.5));
     });
   });

@@ -9,7 +9,7 @@ applies_to:
   - lib/app/widgets/feed/illust_card*.dart
   - lib/features/illust/**
   - android/app/src/main/AndroidManifest.xml
-reviewed: 2026-10-29
+reviewed: 2026-11-20
 ---
 
 # Page transitions, back gesture and Hero flights
@@ -90,9 +90,9 @@ reviewed: 2026-10-29
   route following the gesture had to gate itself on branch visibility
   (parked branches keep an `isCurrent` route offstage and popped a page
   the user could not see) and release the Navigator when a commit threw;
-  the back button's path already does both. Upheld 11-05: an in-app
-  preview that shrank the page and the sheet with the finger was
-  tried on a device and reverted; the user found it a worse experience.
+  the back button's path already does both. Upheld 11-05 and 11-20: in-app
+  predictive-back previews clashed with the app's custom slide, Hero, and
+  sheet transitions on device and were reverted.
 - **Check:** `test/func_page_test.dart` "only the visible branch answers the back gesture" "a root-level page owns the gesture over the whole shell"
 - **Code:** `lib/app/navigation/func_page.dart`
 
@@ -153,7 +153,7 @@ reviewed: 2026-10-29
   from the opening's second frame until then; leaving, the content fades out over
   `sharedElementContentOut`, then the background over
   `sharedElementBackdropOut`. The viewer has no background: its stage
-  fades whole (`sharedElementFadeIn`/`Out`). A leave that cuts an opening
+  fades whole (`_Primed` on `sharedElementFadeIn` with `reverseCurve: Curves.easeInOutCubic`). A leave that cuts an opening
   short takes each layer down from the opacity it reached (`TurnCurve`).
   The Hero flies on `illustHeroCurve`, `MotionTokens.spatialCurve`
   turning with its route, set as `curve` and `reverseCurve` on the ends
@@ -236,7 +236,11 @@ reviewed: 2026-10-29
   or the whole page without one), or over the route holding
   the card's navigator (the viewer on the root navigator over a branch's
   detail page; `HeroPageCover`, the more opaque of a leaving page and its
-  reopened successor), by flight
+  reopened successor; `boundedOverlayOnWide` routes skip `_LiftedBars.capture`
+  so underlying feed bars stay put while `DetailOverlayFrame` drives
+  `HomeShellModalScrim` from `RouteAnimationScope.of(context)` and
+  `!(route?.isFirst ?? true)` for continuous 0.0-start and monotonic-decay
+  scrim progress), by flight
   progress where no page registered one. Flight progress (radius, the
   cropped part's reveal) is read off the shuttle's size between the two
   ends, not the route animation. Ignore horizontal route transforms, and
@@ -278,13 +282,14 @@ reviewed: 2026-10-29
   half-drawn bar vanished over an empty band where the image stayed cut,
   and the viewer's end was cut by a status strip it does not have: the
   ends' insets came from the pages' own MediaQuery.
-- **Check:** `test/hero_lifted_bars_test.dart` "a card flight lifts the card page's bars over the image" (with their shadows) "a card flight shows the feed under the bars it lifts, and ", `test/hero_transition_test.dart` "Hero pop flight is occluded by the chrome" "Hero push from a nested feed stays intact" "chrome over a flight steps aside until the landing" "detail and viewer: the clip runs between the work page's top "
+- **Check:** `test/hero_lifted_bars_test.dart` "a card flight lifts the card page's bars over the image" (with their shadows) "a card flight shows the feed under the bars it lifts, and ", `test/hero_transition_test.dart` "Hero pop flight is occluded by the chrome" "Hero push from a nested feed stays intact" "chrome over a flight steps aside until the landing" "detail and viewer: the clip runs between the work page's top ", `test/home_branch_stack_test.dart` "wide HomePage modal scrim starts at 0.0 on frame 0 and decays monotonically on pop or interrupt"
 - **Code:** `lib/app/motion/hero_rect_clip.dart`, `lib/app/motion/hero_transition.dart`, `lib/app/motion/hero_lifted_bars.dart`, `lib/app/navigation/func_page.dart`, `lib/app/widgets/func_bottom_nav.dart`, `lib/app/widgets/app_top_bar.dart`, `lib/features/profile/profile_header_delegate.dart`
 
 ### TRANS-11 Card rounding lives inside the Hero child
 - **Rule:** The card's corner clip (`IllustHeroCardFrame`) wraps the Hero
-  child, and feed cards draw no outline. Only a flight with a card end
-  rounds its corners; detail ↔ viewer flies square. A card that shows
+  child with a clean `ClipRRect(borderRadius: FuncShape.card)` (no inner
+  thumbnail border in either theme per THEME-20). Only a flight with a card end rounds its corners;
+  detail ↔ viewer flies square. A card that shows
   only part of the image (the top of a taller one, the middle of a wider
   one) hands its `cropAspect` to the flight, which lays the image out
   covering the rect, top-aligned and centered across, and cuts it to the

@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:leak_tracker_flutter_testing/leak_tracker_flutter_testing.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:parfait/app/widgets/app_dialog.dart';
 import 'package:parfait/app/widgets/tag_chips.dart';
 import 'package:parfait/core/search/search_history.dart';
 import 'package:parfait/core/search/search_keywords.dart';
@@ -319,7 +320,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(
       find.descendant(
-        of: find.byType(AlertDialog),
+        of: find.byType(AppAlertDialog),
         matching: find.text('清除全部'),
       ),
     );

@@ -13,6 +13,8 @@ import '../../l10n/context.dart';
 import '../../app/theme/func_semantic_tokens.dart';
 import '../../app/widgets/app_choice_chip.dart';
 import '../../app/widgets/fit_label.dart';
+import '../../app/icons/app_icons.dart';
+import '../../app/icons/ui_icons.dart';
 
 /// What the filter sheet applies: the edited set plus whether the user also
 /// asked to persist it as that type's default ("设为默认").
@@ -52,6 +54,7 @@ class _SearchFilterSheet extends ConsumerStatefulWidget {
 
 class _SearchFilterSheetState extends ConsumerState<_SearchFilterSheet> {
   late SearchFilters _filters = widget.initial;
+  final _scrollController = ScrollController();
 
   late final TextEditingController _bookmarkMin;
   late final TextEditingController _bookmarkMax;
@@ -95,6 +98,7 @@ class _SearchFilterSheetState extends ConsumerState<_SearchFilterSheet> {
 
   @override
   void dispose() {
+    _scrollController.dispose();
     _bookmarkMin.dispose();
     _bookmarkMax.dispose();
     _widthMin.dispose();
@@ -142,7 +146,7 @@ class _SearchFilterSheetState extends ConsumerState<_SearchFilterSheet> {
       false;
 
   Future<void> _pickDate({required bool start}) async {
-    final selected = await showDatePicker(
+    final selected = await showAppDatePicker(
       context: context,
       firstDate: DateTime(2007),
       lastDate: DateTime.now(),
@@ -190,21 +194,32 @@ class _SearchFilterSheetState extends ConsumerState<_SearchFilterSheet> {
     // the IME so the field being typed in and the apply bar stay in sight.
     final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
     final availableHeight = MediaQuery.heightOf(context) - keyboardInset;
+    final wide = useWideOverlay(context);
+    final scrollController = wide
+        ? _scrollController
+        : (PrimaryScrollController.maybeOf(context) ?? _scrollController);
+    final theme = Theme.of(context);
+    final tokens = FuncSemanticTokens.of(context);
+    final footerColor =
+        theme.bottomSheetTheme.backgroundColor ??
+        theme.colorScheme.surfaceContainerLow;
     return Padding(
       padding: EdgeInsets.only(bottom: keyboardInset),
       child: ConstrainedBox(
         constraints: BoxConstraints(
-          maxHeight: availableHeight * _maxHeightFactor,
+          maxHeight: wide
+              ? availableHeight
+              : availableHeight * _maxHeightFactor,
         ),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: wide ? MainAxisSize.max : MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(
+              padding: EdgeInsets.fromLTRB(
                 FuncSpacing.xl,
-                FuncSpacing.lg,
-                FuncSpacing.md,
+                wide ? FuncSpacing.md : FuncSpacing.lg,
+                wide ? FuncSpacing.sm : FuncSpacing.md,
                 FuncSpacing.xs,
               ),
               child: Row(
@@ -212,64 +227,82 @@ class _SearchFilterSheetState extends ConsumerState<_SearchFilterSheet> {
                   Expanded(
                     child: Text(
                       context.l10n.searchFilters,
-                      style: Theme.of(context).textTheme.titleLarge,
+                      style: theme.textTheme.titleLarge,
                     ),
                   ),
                   TextButton(
                     onPressed: _reset,
                     child: Text(context.l10n.searchReset),
                   ),
+                  if (wide)
+                    IconButton(
+                      tooltip: MaterialLocalizations.of(
+                        context,
+                      ).closeButtonTooltip,
+                      onPressed: () => Navigator.of(context).maybePop(),
+                      icon: const Icon(UiIcons.close),
+                    ),
                 ],
               ),
             ),
             Flexible(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(
-                  FuncSpacing.xl,
-                  0,
-                  FuncSpacing.xl,
-                  FuncSpacing.lg,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    ..._matchGroup(context),
-                    _groupGap,
-                    ..._timeGroup(context),
-                    _groupGap,
-                    ..._workGroup(context),
-                    _groupGap,
-                    ..._countGroup(context),
-                  ],
+              fit: wide ? FlexFit.tight : FlexFit.loose,
+              child: _BottomScrollFade(
+                controller: scrollController,
+                child: SingleChildScrollView(
+                  controller: scrollController,
+                  padding: const EdgeInsets.fromLTRB(
+                    FuncSpacing.xl,
+                    FuncSpacing.xs,
+                    FuncSpacing.xl,
+                    FuncSpacing.xl,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ..._matchGroup(context),
+                      _groupGap,
+                      ..._timeGroup(context),
+                      _groupGap,
+                      ..._workGroup(context),
+                      _groupGap,
+                      ..._countGroup(context),
+                    ],
+                  ),
                 ),
               ),
             ),
-            const Divider(height: 1),
-            // Fixed under the scrolling groups: applying never needs a
-            // scroll to the end.
-            SafeArea(
-              top: false,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: FuncSpacing.xl,
-                  vertical: FuncSpacing.md,
-                ),
-                child: _ActionBar(
-                  apply: FilledButton(
-                    onPressed: _canApply
-                        ? () => _pop(makeDefault: false)
-                        : null,
-                    child: Text(context.l10n.searchApply),
+            // Fixed under the scrolling groups with an opaque backing and a
+            // crisp 1dp hairline so scrolled rows never bleed behind actions.
+            Divider(height: 1, thickness: 1, color: tokens.brandHairline),
+            ColoredBox(
+              color: footerColor,
+              child: SafeArea(
+                top: false,
+                child: Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: FuncSpacing.xl,
+                    vertical: usePointerOverlay(context)
+                        ? FuncSpacing.sm
+                        : FuncSpacing.md,
                   ),
-                  setDefault: widget.offerSetDefault
-                      ? OutlinedButton(
-                          onPressed: _canApply
-                              ? () => _pop(makeDefault: true)
-                              : null,
-                          child: Text(context.l10n.searchSetDefault),
-                        )
-                      : null,
-                  setDefaultLabel: context.l10n.searchSetDefault,
+                  child: _ActionBar(
+                    apply: FilledButton(
+                      onPressed: _canApply
+                          ? () => _pop(makeDefault: false)
+                          : null,
+                      child: Text(context.l10n.searchApply),
+                    ),
+                    setDefault: widget.offerSetDefault
+                        ? OutlinedButton(
+                            onPressed: _canApply
+                                ? () => _pop(makeDefault: true)
+                                : null,
+                            child: Text(context.l10n.searchSetDefault),
+                          )
+                        : null,
+                    setDefaultLabel: context.l10n.searchSetDefault,
+                  ),
                 ),
               ),
             ),
@@ -502,8 +535,9 @@ class _SearchFilterSheetState extends ConsumerState<_SearchFilterSheet> {
 }
 
 /// Tallest the sheet grows, as a share of the height above the keyboard:
-/// the scrim above it keeps the page underneath in sight.
-const _maxHeightFactor = 0.9;
+/// the scrim above it keeps the page underneath in sight while giving 1.3x
+/// text room to show the initial filter groups without mid-chip clipping.
+const _maxHeightFactor = 0.94;
 
 /// Apply, with "设为默认" beside it when offered. Side by side in equal
 /// halves while the longer label fits a half on one line; stacked, apply
@@ -525,6 +559,15 @@ class _ActionBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final setDefault = this.setDefault;
+    if (usePointerOverlay(context)) {
+      return OverflowBar(
+        alignment: MainAxisAlignment.end,
+        spacing: FuncSpacing.sm,
+        overflowSpacing: FuncSpacing.sm,
+        overflowAlignment: OverflowBarAlignment.end,
+        children: [?setDefault, apply],
+      );
+    }
     if (setDefault == null) return apply;
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -561,9 +604,116 @@ class _ActionBar extends StatelessWidget {
   }
 }
 
-/// Groups of related filters stand apart by space alone, well past the
+/// Fades the bottom edge of the filter scroll view while more sections remain
+/// below the fold, so partially visible rows never look hard-sliced above the
+/// fixed action bar.
+class _BottomScrollFade extends StatefulWidget {
+  const _BottomScrollFade({required this.controller, required this.child});
+
+  final ScrollController controller;
+  final Widget child;
+
+  static const _fadeHeight = FuncSpacing.lg + FuncSpacing.xs;
+  static const _edgeSlop = 0.5;
+
+  @override
+  State<_BottomScrollFade> createState() => _BottomScrollFadeState();
+}
+
+class _BottomScrollFadeState extends State<_BottomScrollFade> {
+  var _hasMoreBelow = false;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(_syncFromController);
+    _scheduleCheck();
+  }
+
+  @override
+  void didUpdateWidget(_BottomScrollFade oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller.removeListener(_syncFromController);
+      widget.controller.addListener(_syncFromController);
+    }
+    _scheduleCheck();
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_syncFromController);
+    super.dispose();
+  }
+
+  void _scheduleCheck() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _syncFromController();
+    });
+  }
+
+  void _syncFromController() {
+    if (!widget.controller.hasClients) return;
+    final position = widget.controller.position;
+    if (!position.hasContentDimensions) return;
+    _setMoreBelow(position.extentAfter > _BottomScrollFade._edgeSlop);
+  }
+
+  bool _onMetrics(ScrollMetrics metrics) {
+    if (metrics.axis != Axis.vertical) return false;
+    _setMoreBelow(metrics.extentAfter > _BottomScrollFade._edgeSlop);
+    return false;
+  }
+
+  void _setMoreBelow(bool more) {
+    if (more != _hasMoreBelow && mounted) {
+      setState(() => _hasMoreBelow = more);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Keep ShaderMask permanently mounted (like ScrollEdgeFade) so flipping
+    // _hasMoreBelow never reparents SingleChildScrollView or resets its
+    // ScrollPosition and focused TextField.
+    return NotificationListener<ScrollMetricsNotification>(
+      onNotification: (notification) => _onMetrics(notification.metrics),
+      child: NotificationListener<ScrollUpdateNotification>(
+        onNotification: (notification) => _onMetrics(notification.metrics),
+        child: ShaderMask(
+          blendMode: BlendMode.dstIn,
+          shaderCallback: (bounds) {
+            const shown = Color(0xFF000000);
+            const hidden = Color(0x00000000);
+            if (!_hasMoreBelow || bounds.height <= 0) {
+              return const LinearGradient(
+                colors: [shown, shown],
+              ).createShader(bounds);
+            }
+            final start = (1.0 - _BottomScrollFade._fadeHeight / bounds.height)
+                .clamp(0.4, 1.0);
+            final end = (1.0 - FuncSpacing.xxs / bounds.height).clamp(
+              start,
+              1.0,
+            );
+            final mid = start + (end - start) * 0.5;
+            return LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: const [shown, shown, Color(0x66000000), hidden, hidden],
+              stops: [0.0, start, mid, end, 1.0],
+            ).createShader(bounds);
+          },
+          child: widget.child,
+        ),
+      ),
+    );
+  }
+}
+
+/// Groups of related filters stand apart by space alone, past the
 /// [FuncSpacing.md] between the sections inside a group: no rules.
-const _groupGap = SizedBox(height: FuncSpacing.xxl);
+const _groupGap = SizedBox(height: FuncSpacing.lg);
 
 class _SectionTitle extends StatelessWidget {
   const _SectionTitle(this.text);
@@ -743,6 +893,7 @@ class _DateFilterTile extends StatelessWidget {
     final errorText = this.errorText;
     return ListTile(
       contentPadding: EdgeInsets.zero,
+      visualDensity: VisualDensity.compact,
       title: Text(label),
       subtitle: errorText == null
           ? Text(value)
@@ -752,11 +903,11 @@ class _DateFilterTile extends StatelessWidget {
             ),
       onTap: onTap,
       trailing: onClear == null
-          ? const Icon(Icons.calendar_today_outlined)
+          ? const Icon(AppIcons.calendar)
           : IconButton(
               tooltip: context.l10n.searchClear,
               onPressed: onClear,
-              icon: const Icon(Icons.clear),
+              icon: const Icon(UiIcons.close),
             ),
     );
   }

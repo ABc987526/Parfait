@@ -710,7 +710,6 @@ Map<String, ReviewResponder> _defaultResponders() {
                   'id': novel['id'],
                   'title': novel['title'],
                   'visible': false,
-                  'viewable_message': 'restricted by its author',
                   'content_order': '${i + 1}',
                 }
               : {...novel, 'content_order': '${i + 1}'},

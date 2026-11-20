@@ -4,14 +4,15 @@ import 'dart:io';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../app/layout/app_breakpoints.dart';
 import '../../app/layout/content_widths.dart';
 import '../../app/motion/app_overlays.dart';
 import '../../app/motion/reveal.dart';
 import '../../app/person_avatar.dart';
 import '../../app/pixiv_image.dart';
+import '../../app/widgets/app_dialog.dart';
 import '../../app/widgets/app_top_bar.dart';
 import '../../app/widgets/feed/feed_states.dart';
+import '../../app/window/desktop_command_bar.dart';
 import '../../core/platform/platform_caps.dart';
 import '../../core/reverse_image/desktop_image_input.dart';
 import '../../core/auth/account_store.dart';
@@ -26,6 +27,8 @@ import '../../app/widgets/errors/error_details.dart';
 import '../../l10n/context.dart';
 import '../../l10n/lookup.dart';
 import '../../app/theme/func_semantic_tokens.dart';
+import '../../app/icons/app_icons.dart';
+import '../../app/icons/ui_icons.dart';
 
 String _profileEditText(BuildContext context, String key) {
   return l10nLookup(context.l10n, key);
@@ -159,7 +162,7 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
     );
     final leave = await showAppDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (context) => AppAlertDialog(
         title: Text(context.l10n.profileEditLeaveTitle),
         content: Text(context.l10n.profileEditLeaveDetail),
         actions: [
@@ -200,6 +203,9 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
     final contentMaxWidth = _profileEditContentMaxWidth(
       MediaQuery.widthOf(context),
     );
+    final suppressBack =
+        DesktopCommandBarScope.isActiveOf(context) &&
+        !EmbeddedHeaderScope.isActiveOf(context);
     return PopScope(
       canPop: !hasUnsaved,
       onPopInvokedWithResult: (didPop, _) {
@@ -207,12 +213,16 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
       },
       child: Scaffold(
         appBar: AppTopBar(
+          contentWidth: ContentWidths.form,
           title: Text(context.l10n.profileEditTitle),
-          leading: IconButton(
-            tooltip: MaterialLocalizations.of(context).backButtonTooltip,
-            onPressed: _attemptPop,
-            icon: const Icon(Icons.arrow_back),
-          ),
+          automaticallyImplyLeading: false,
+          leading: suppressBack
+              ? null
+              : IconButton(
+                  tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+                  onPressed: _attemptPop,
+                  icon: const BackButtonIcon(),
+                ),
         ),
         body: Center(
           child: ConstrainedBox(
@@ -282,7 +292,7 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
                                       strokeWidth: 2,
                                     ),
                                   )
-                                : const Icon(Icons.save_outlined),
+                                : const Icon(AppIcons.save),
                             label: Text(context.l10n.profileEditSave),
                           ),
                         ),
@@ -403,14 +413,14 @@ class _ProfileEditBodyState extends ConsumerState<_ProfileEditBody> {
         children: [
           if (!capabilities.isAvailable)
             _Notice(
-              icon: Icons.info_outline,
+              icon: AppIcons.info,
               text: capabilities.reason ?? context.l10n.profileEditUnavailable,
             ),
           // What a save brought back comes and goes in place (MOTION-14).
           Reveal(
             child: switch (state.failure) {
               final failure? => _Notice(
-                icon: Icons.error_outline,
+                icon: UiIcons.errorOutline,
                 text: failure.message,
               ),
               null => null,
@@ -419,7 +429,7 @@ class _ProfileEditBodyState extends ConsumerState<_ProfileEditBody> {
           Reveal(
             child: state.status == ProfileEditStatus.confirmed
                 ? _Notice(
-                    icon: Icons.check_circle_outline,
+                    icon: UiIcons.checkCircle,
                     text: context.l10n.profileEditConfirmed,
                   )
                 : null,
@@ -653,7 +663,7 @@ class _ImageField extends StatelessWidget {
           fit: BoxFit.cover,
           errorBuilder: (_, _, _) => ColoredBox(
             color: Theme.of(context).colorScheme.surfaceContainer,
-            child: const Icon(Icons.image_outlined, size: 42),
+            child: const Icon(AppIcons.illust, size: 42),
           ),
         ),
       ),
@@ -680,7 +690,7 @@ class _ImageField extends StatelessWidget {
 
   Widget _emptyImagePreview(BuildContext context) => ColoredBox(
     color: Theme.of(context).colorScheme.surfaceContainer,
-    child: const Center(child: Icon(Icons.image_outlined, size: 42)),
+    child: const Center(child: Icon(AppIcons.illust, size: 42)),
   );
 
   Widget _details(BuildContext context, String subtitle) => Column(
@@ -710,19 +720,13 @@ class _EditBadge extends StatelessWidget {
         shape: BoxShape.circle,
         color: scheme.primaryContainer,
       ),
-      child: Icon(
-        Icons.edit_outlined,
-        size: 14,
-        color: scheme.onPrimaryContainer,
-      ),
+      child: Icon(AppIcons.edit, size: 14, color: scheme.onPrimaryContainer),
     );
   }
 }
 
 double _profileEditContentMaxWidth(double availableWidth) =>
-    availableWidth >= AppBreakpoints.large
-    ? ContentWidths.form
-    : availableWidth;
+    availableWidth >= ContentWidths.form ? ContentWidths.form : availableWidth;
 
 class _Notice extends StatelessWidget {
   const _Notice({required this.icon, required this.text});
@@ -780,7 +784,7 @@ class _StatusBody extends StatelessWidget {
             if (busy)
               const CircularProgressIndicator()
             else
-              const Icon(Icons.info_outline, size: 52),
+              const Icon(AppIcons.info, size: 52),
             const SizedBox(height: FuncSpacing.lg),
             Text(
               // A spinner next to the failure headline read as "load failed"

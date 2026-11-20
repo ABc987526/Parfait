@@ -9,7 +9,7 @@
   "dark": "深色",
   "light": "浅色",
   "system": "跟随系统",
-  "loginTitle": "注册 或 登录",
+  "loginTitle": "注册或登录",
   "loginProxyNoticeTitle": "提示",
   "loginProxyNoticeBody": "由于网络环境限制，登录和注册需要你先在系统或其他应用中开启代理（梯子）。Parfait 不提供内置代理。",
   "loginProxyNoticeCancel": "取消",
@@ -405,6 +405,9 @@
   "feedDensityCompact": "紧凑",
   "feedDensityStandard": "标准",
   "feedDensityComfortable": "宽松",
+  "desktopDetailMode": "桌面端详情样式",
+  "desktopDetailModeModal": "大图弹窗",
+  "desktopDetailModeInspector": "侧栏预览",
   "qualityMedium": "中图",
   "qualityLarge": "大图",
   "qualityOriginal": "原图",
@@ -458,6 +461,12 @@
     }
   },
   "saveLocationUriCopied": "已复制目录 URI",
+  "saveLocationDesktopFolder": "默认文件夹",
+  "saveLocationDesktopDefaultFolder": "Parfait 文件夹（默认）",
+  "saveLocationDesktopCustomSubfolder": "自定义子文件夹名称",
+  "saveLocationDesktopCustomFolder": "自定义目录（系统目录选择）",
+  "saveLocationMacosBookmarkLabel": "已授权目录（macOS 沙盒书签）",
+  "saveLocationPathCopied": "已复制目录路径",
   "namingPreset": "文件命名预设",
   "downloadGroupTasks": "任务",
   "downloadGroupSaving": "保存",
@@ -903,8 +912,8 @@
   "rankingR18gOpenSettings": "打开 pixiv 设置",
   "illustRankingCategories": "插画排行分类",
   "novelRankingCategories": "小说排行分类",
-  "bottomBarItems": "底栏项目",
-  "navigationBottomBar": "底栏",
+  "bottomBarItems": "导航栏项目",
+  "navigationBottomBar": "导航栏",
   "navigationRanking": "排行分类",
   "bottomBarMeLocked": "设置在这里，始终显示",
   "@bottomBarMeLocked": {
@@ -943,7 +952,7 @@
   "@railDownloads": {
     "description": "Rail shortcut under the destinations: opens the download tasks"
   },
-  "homeStartFirstVisible": "底栏第一项",
+  "homeStartFirstVisible": "导航栏第一项",
   "@homeStartFirstVisible": {
     "description": "Start page choice: open the first item of the bottom bar"
   },
@@ -1747,6 +1756,7 @@
   "spotlightChallengeVerifying": "正在通过 pixivision 验证…",
   "spotlightChallengeManual": "pixivision 需要人工验证，请完成下方验证",
   "spotlightChallengeFailed": "pixivision 当前需要验证或代理",
+  "spotlightExternalBrowserHint": "当前平台不支持内置浏览器验证，请在系统浏览器中查看。",
   "spotlightCategoryAll": "全部",
   "spotlightCategoryIllust": "插画",
   "spotlightCategoryManga": "漫画",

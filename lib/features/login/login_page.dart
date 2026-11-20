@@ -4,9 +4,11 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../app/layout/app_breakpoints.dart';
 import '../../app/motion/app_overlays.dart';
 import '../../app/motion/reveal.dart';
 import '../../app/theme/func_semantic_tokens.dart';
+import '../../app/widgets/app_dialog.dart';
 import '../../app/widgets/feed/feed_states.dart';
 import '../../app/widgets/replica_button.dart';
 import '../../app/widgets/replica_scaffold.dart';
@@ -30,6 +32,7 @@ import '../../core/settings/app_settings.dart';
 import '../../core/settings/settings_controller.dart';
 import '../../l10n/lookup.dart';
 import '../../l10n/context.dart';
+import '../../app/icons/app_icons.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({
@@ -141,7 +144,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   Future<void> _openLoginWebview({bool create = false}) async {
     final confirmed = await showAppDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (context) => AppAlertDialog(
         title: Text(context.l10n.loginProxyNoticeTitle),
         content: Text(context.l10n.loginProxyNoticeBody),
         actions: [
@@ -265,12 +268,17 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
     );
 
+    final inlineTitle =
+        widget.isFirst ||
+        MediaQuery.sizeOf(context).width >= AppBreakpoints.expanded;
+
     return ScrollableFormShell(
       brandGlow: true,
-      title: widget.isFirst ? null : title,
-      // The first-run variant shows the title inside the scrollable body —
-      // same treatment as the onboarding pages sharing this shell.
-      header: widget.isFirst ? title : const SizedBox.shrink(),
+      title: inlineTitle ? null : title,
+      // First-run onboarding and wide/desktop viewports keep the heading
+      // inside the scrollable centered form group so it never strands at the
+      // top window edge.
+      header: inlineTitle ? title : const SizedBox.shrink(),
       content: _buildNetworkOptions(context, text: text),
       primaryAction: _buildMainActions(text),
       secondary: _buildSecondary(
@@ -425,7 +433,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           onPressed: () => setState(() => _help = !_help),
           tooltip: text('networkCompatibility'),
           icon: Icon(
-            Icons.info_outline,
+            AppIcons.info,
             color: Theme.of(context).colorScheme.primary,
           ),
           iconSize: 20,

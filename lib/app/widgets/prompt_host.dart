@@ -406,16 +406,32 @@ class _PromptCard extends StatelessWidget {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
     final snackBarTheme = theme.snackBarTheme;
+    final isDark = theme.brightness == Brightness.dark;
     final action = prompt.action;
-    final actionColor = snackBarTheme.actionTextColor ?? colors.inversePrimary;
+    final backgroundColor = isDark
+        ? colors.surfaceContainerHigh
+        : (snackBarTheme.backgroundColor ?? colors.inverseSurface);
+    final foregroundColor = isDark ? colors.onSurface : colors.onInverseSurface;
+    final actionColor = isDark
+        ? colors.primary
+        : (snackBarTheme.actionTextColor ?? colors.inversePrimary);
+    final baseTextStyle =
+        snackBarTheme.contentTextStyle ?? theme.textTheme.bodyMedium!;
+    final contentTextStyle = isDark
+        ? baseTextStyle.copyWith(color: foregroundColor)
+        : (snackBarTheme.contentTextStyle ??
+              theme.textTheme.bodyMedium!.copyWith(color: foregroundColor));
+    final shape = isDark
+        ? RoundedRectangleBorder(
+            borderRadius: FuncShape.card,
+            side: BorderSide(color: colors.outlineVariant),
+          )
+        : (snackBarTheme.shape ??
+              const RoundedRectangleBorder(borderRadius: FuncShape.card));
     final message = Padding(
       padding: const EdgeInsets.symmetric(vertical: _verticalPadding),
       child: DefaultTextStyle(
-        style:
-            snackBarTheme.contentTextStyle ??
-            theme.textTheme.bodyMedium!.copyWith(
-              color: colors.onInverseSurface,
-            ),
+        style: contentTextStyle,
         child: Text(prompt.message),
       ),
     );
@@ -448,11 +464,11 @@ class _PromptCard extends StatelessWidget {
         behavior: HitTestBehavior.deferToChild,
         onDismissed: (_) => onSwiped(),
         child: Material(
-          color: snackBarTheme.backgroundColor ?? colors.inverseSurface,
+          color: backgroundColor,
+          surfaceTintColor: Colors.transparent,
+          shadowColor: colors.shadow,
           elevation: snackBarTheme.elevation ?? 0,
-          shape:
-              snackBarTheme.shape ??
-              const RoundedRectangleBorder(borderRadius: FuncShape.card),
+          shape: shape,
           child: Padding(
             padding: EdgeInsetsDirectional.only(
               start: _horizontalPadding,

@@ -32,6 +32,8 @@ import 'helpers/prompt_host.dart';
 import 'helpers/test_preferences.dart';
 import 'helpers/localized_app.dart';
 import 'helpers/waits.dart';
+import 'package:parfait/app/icons/app_icons.dart';
+import 'package:parfait/app/icons/ui_icons.dart';
 
 Future<ProviderContainer> _apiContainer({
   SharedPreferencesAsyncPlatform? platform,
@@ -131,16 +133,21 @@ Object.defineProperty(window, 'pixiv', {value: {
   return container;
 }
 
+Finder _progressSuffix() => find.textContaining(RegExp(r'^ · \d+/\d+ · \d+%'));
+
+Finder _progressHint() =>
+    find.ancestor(of: _progressSuffix(), matching: find.byType(MergeSemantics));
+
 /// Pumps until the async pagination lands on its real page count: the
 /// controller boots at `1/1`, so a still-laying-out footer always shows
 /// `· 1/1 ·`. Layout yields on zero-duration timers, which `pump` drains.
 Future<void> _settleReader(WidgetTester tester) {
-  final hint = find.textContaining('novel 1 ·');
+  final suffix = _progressSuffix();
   return pumpUntil(
     tester,
     () =>
-        hint.tryEvaluate() &&
-        !tester.widget<Text>(hint).data!.contains('· 1/1 ·'),
+        suffix.tryEvaluate() &&
+        !tester.widget<Text>(suffix).data!.contains('· 1/1 ·'),
     step: const Duration(milliseconds: 50),
     frames: 80,
   );
@@ -231,35 +238,40 @@ void main() {
     // yet. The passive footer is the only title-bearing readout in the
     // hidden state.
     expect(barTitle(), findsNothing);
-    expect(find.textContaining('novel 1 ·'), findsOneWidget);
+    expect(_progressHint(), findsOneWidget);
+    expect(
+      find.descendant(of: _progressHint(), matching: find.text('novel 1')),
+      findsOneWidget,
+    );
     expect(find.byIcon(Icons.arrow_back), findsNothing);
 
     // Center tap reveals the chrome; the title appears exactly once.
     await tester.tapAt(const Offset(400, 300));
     await tester.pumpAndSettle();
     expect(barTitle(), findsOneWidget);
-    expect(find.textContaining('novel 1 ·'), findsNothing);
+    expect(_progressHint(), findsNothing);
     expect(find.byIcon(Icons.arrow_back), findsOneWidget);
-    expect(find.byIcon(Icons.info_outline), findsOneWidget);
-    expect(find.byIcon(Icons.share_outlined), findsOneWidget);
-    expect(find.byIcon(Icons.text_decrease_outlined), findsOneWidget);
+    expect(find.byIcon(AppIcons.info), findsOneWidget);
+    expect(find.byIcon(AppIcons.share), findsOneWidget);
+    expect(find.byIcon(AppIcons.textDecrease), findsOneWidget);
     // Adjacent navigation from the webview payload rides the bottom bar.
-    expect(find.byIcon(Icons.chevron_left), findsOneWidget);
-    expect(find.byIcon(Icons.chevron_right), findsOneWidget);
+    expect(find.byIcon(UiIcons.chevronLeft), findsOneWidget);
+    expect(find.byIcon(UiIcons.chevronRight), findsOneWidget);
 
     // System back closes the chrome instead of popping the page.
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
     expect(find.byType(ListView), findsOneWidget);
     expect(barTitle(), findsNothing);
-    expect(find.textContaining('novel 1 ·'), findsOneWidget);
+    expect(_progressHint(), findsOneWidget);
 
     // The dismissed bars stay mounted offstage, out of the semantics tree;
     // the next reveal reuses their laid-out text.
     final semantics = tester.ensureSemantics();
     final paragraph = tester.renderObject(barTitle(skipOffstage: false));
-    // The page's title block is the one title node while the bar is gone.
-    final titleNodes = find.semantics.byLabel(RegExp(r'^novel 1(\n|$)'));
+    // The page's title block is the one title node while the bar is gone
+    // (the passive hint merges `' · page/total'` onto a second line).
+    final titleNodes = find.semantics.byLabel(RegExp(r'^novel 1(\n[^ ]|$)'));
     expect(titleNodes, findsOne);
     await tester.tapAt(const Offset(400, 300));
     await tester.pumpAndSettle();
@@ -276,9 +288,8 @@ void main() {
     final container = await _apiContainer();
     await _mountReader(tester, container);
 
-    bool hintShown() => find.textContaining('novel 1 ·').evaluate().isNotEmpty;
-    bool barShown() =>
-        find.byIcon(Icons.text_decrease_outlined).evaluate().isNotEmpty;
+    bool hintShown() => _progressHint().evaluate().isNotEmpty;
+    bool barShown() => find.byIcon(AppIcons.textDecrease).evaluate().isNotEmpty;
     void expectNotBoth(String direction, int frame) {
       expect(
         hintShown() && barShown(),
@@ -446,7 +457,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(requests.length, 2, reason: 'retry must issue exactly one fetch');
     expect(find.text('series five'), findsOneWidget);
-    expect(find.byIcon(Icons.library_add_outlined), findsOneWidget);
+    expect(find.byIcon(AppIcons.watchlistAdd), findsOneWidget);
   });
 
   testWidgets('a series missing the current entry dead-ends navigation', (
@@ -467,7 +478,7 @@ void main() {
     expect(
       tester
           .widget<IconButton>(
-            find.widgetWithIcon(IconButton, Icons.chevron_left),
+            find.widgetWithIcon(IconButton, UiIcons.chevronLeft),
           )
           .onPressed,
       isNull,
@@ -475,7 +486,7 @@ void main() {
     expect(
       tester
           .widget<IconButton>(
-            find.widgetWithIcon(IconButton, Icons.chevron_right),
+            find.widgetWithIcon(IconButton, UiIcons.chevronRight),
           )
           .onPressed,
       isNull,
@@ -511,7 +522,7 @@ void main() {
       await tester.tapAt(const Offset(400, 300));
       await tester.pumpAndSettle();
     }
-    expect(find.textContaining('novel 1 ·'), findsOneWidget);
+    expect(_progressHint(), findsOneWidget);
     expect(
       requests.length,
       1,
@@ -674,7 +685,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
       await _settleReader(tester);
 
-      final hint = tester.getRect(find.textContaining('novel 1 ·'));
+      final hint = tester.getRect(_progressHint());
       if (pageTurn == NovelPageTurn.scroll) {
         // The column shows its lines only above the bottom margin; the
         // hint lives in that margin.
@@ -897,7 +908,7 @@ void main() {
       await _openReader(tester, container);
       await tester.tapAt(const Offset(400, 300));
       await tester.pumpAndSettle();
-      await tester.tap(find.byIcon(Icons.info_outline));
+      await tester.tap(find.byIcon(AppIcons.info));
       await tester.pumpAndSettle();
 
       expect(find.text('4000 字'), findsOneWidget);

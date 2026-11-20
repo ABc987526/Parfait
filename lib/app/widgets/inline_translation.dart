@@ -11,6 +11,8 @@ import '../clipboard.dart';
 import '../motion/spring_size.dart';
 import '../motion/state_fade.dart';
 import '../theme/func_semantic_tokens.dart';
+import '../icons/app_icons.dart';
+import '../icons/ui_icons.dart';
 
 /// Inline translation for the State that shows the original text: idle →
 /// translating → translations or a failure, shown below the original by a
@@ -86,9 +88,9 @@ class TranslateIconButton extends StatelessWidget {
     return IconButton(
       tooltip: shown ? l10n.translationHide : l10n.translateAction,
       isSelected: shown,
-      icon: const Icon(Icons.translate),
+      icon: const Icon(AppIcons.translate),
       selectedIcon: Icon(
-        Icons.translate,
+        AppIcons.translate,
         color: Theme.of(context).colorScheme.primary,
       ),
       onPressed: translating ? null : onPressed,
@@ -172,7 +174,7 @@ class TranslationPanel extends StatelessWidget {
               if (copyable)
                 IconButton(
                   tooltip: context.l10n.tagActionCopyTranslation,
-                  icon: const Icon(Icons.copy_outlined, size: 20),
+                  icon: const Icon(AppIcons.copy, size: 20),
                   onPressed: () => unawaited(
                     copyToClipboard(
                       context,
@@ -220,11 +222,15 @@ class _TranslationFailure extends StatelessWidget {
           // an error.
           translationNotSetUp(kind)
               ? Icon(
-                  Icons.info_outline,
+                  AppIcons.info,
                   size: _iconSize,
                   color: scheme.onSurfaceVariant,
                 )
-              : Icon(Icons.error_outline, size: _iconSize, color: scheme.error),
+              : Icon(
+                  UiIcons.errorOutline,
+                  size: _iconSize,
+                  color: scheme.error,
+                ),
           const SizedBox(width: FuncSpacing.sm),
           Expanded(
             child: Text(

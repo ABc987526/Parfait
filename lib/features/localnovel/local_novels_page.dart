@@ -11,6 +11,7 @@ import '../../app/motion/app_overlays.dart';
 import '../../app/motion/removal.dart';
 import '../../app/navigation/routes.dart';
 import '../../app/pull_to_refresh.dart';
+import '../../app/widgets/app_dialog.dart';
 import '../../app/widgets/app_menu_button.dart';
 import '../../app/widgets/app_snack_bar.dart';
 import '../../app/widgets/app_top_bar.dart';
@@ -18,12 +19,14 @@ import '../../app/widgets/edge_icon_buttons.dart';
 import '../../app/widgets/errors/error_details.dart';
 import '../../app/widgets/entity_row.dart';
 import '../../app/widgets/feed/feed_states.dart';
+import '../../app/widgets/smooth_wheel_scroll.dart';
 import '../../core/localnovel/local_novel_decoder.dart';
 import '../../core/localnovel/local_novel_repository.dart';
 import '../../core/localnovel/local_novel_store.dart';
 import '../../core/platform/saf_tree.dart';
 import '../../l10n/context.dart';
 import '../../app/theme/func_semantic_tokens.dart';
+import '../../app/icons/app_icons.dart';
 
 /// The imported-TXT library: list rows (title/size/import time), an import
 /// action, and delete — reading itself is wired by the local reader route.
@@ -48,12 +51,13 @@ class _LocalNovelsPageState extends ConsumerState<LocalNovelsPage> {
     final async = ref.watch(localNovelStoreProvider);
     return Scaffold(
       appBar: AppTopBar(
+        contentWidth: ContentWidths.management,
         title: Text(context.l10n.localNovelsTitle),
         actions: [
           IconButton(
             tooltip: context.l10n.localNovelsImport,
             onPressed: () => _import(context, ref),
-            icon: const Icon(Icons.file_open_outlined),
+            icon: const Icon(AppIcons.folderOpen),
           ),
         ],
       ),
@@ -73,10 +77,10 @@ class _LocalNovelsPageState extends ConsumerState<LocalNovelsPage> {
             data: (novels) {
               if (novels.isEmpty) {
                 return FeedEmpty(
-                  icon: Icons.menu_book_outlined,
+                  icon: AppIcons.localNovel,
                   title: context.l10n.localNovelsEmpty,
                   actionLabel: context.l10n.localNovelsImport,
-                  actionIcon: Icons.file_open_outlined,
+                  actionIcon: AppIcons.folderOpen,
                   onAction: () => unawaited(_import(context, ref)),
                 );
               }
@@ -84,12 +88,16 @@ class _LocalNovelsPageState extends ConsumerState<LocalNovelsPage> {
                 onRefresh: () async => ref.invalidate(localNovelStoreProvider),
                 child: RemovalScope(
                   controller: _removals,
-                  child: ListView.builder(
-                    restorationId: 'local-novels',
-                    itemCount: novels.length,
-                    itemBuilder: (context, index) => Removable(
-                      id: novels[index].id,
-                      child: _LocalNovelTile(novel: novels[index]),
+                  child: SmoothWheelScroll(
+                    builder: (context, controller, physics) => ListView.builder(
+                      controller: controller,
+                      physics: physics,
+                      restorationId: 'local-novels',
+                      itemCount: novels.length,
+                      itemBuilder: (context, index) => Removable(
+                        id: novels[index].id,
+                        child: _LocalNovelTile(novel: novels[index]),
+                      ),
                     ),
                   ),
                 ),
@@ -173,7 +181,7 @@ class _LocalNovelTile extends ConsumerWidget {
           color: Theme.of(context).colorScheme.surfaceContainer,
           borderRadius: FuncShape.control,
         ),
-        child: const Icon(Icons.menu_book_outlined),
+        child: const Icon(AppIcons.localNovel),
       ),
       title: novel.title,
       meta: meta,
@@ -187,7 +195,7 @@ class _LocalNovelTile extends ConsumerWidget {
         entries: [
           AppMenuEntry(
             value: _LocalNovelAction.delete,
-            icon: Icons.delete_outline,
+            icon: AppIcons.trash,
             label: context.l10n.localNovelsDelete,
           ),
         ],
@@ -206,7 +214,7 @@ class _LocalNovelTile extends ConsumerWidget {
     AppHaptics.confirm();
     final confirmed = await showAppDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
+      builder: (dialogContext) => AppAlertDialog(
         title: Text(context.l10n.localNovelsDelete),
         content: Text(context.l10n.localNovelsDeleteConfirm(novel.title)),
         actions: [

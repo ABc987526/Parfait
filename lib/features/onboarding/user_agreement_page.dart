@@ -18,6 +18,7 @@ class UserAgreementPage extends StatelessWidget {
       title: Text(l10n.agreementTitle),
       // The agreement belongs to the sign-in flow.
       upLocation: '/login',
+      contentWidth: ContentWidths.article,
       child: Align(
         alignment: Alignment.topCenter,
         // Article-role width cap — a readable line length on wide
@@ -44,7 +45,13 @@ class UserAgreementPage extends StatelessWidget {
                 const SizedBox(height: FuncSpacing.xl),
                 for (final (title, body) in [
                   (l10n.agreementServiceTitle, l10n.agreementServiceBody),
-                  (l10n.agreementAccountTitle, l10n.agreementAccountBody),
+                  (
+                    l10n.agreementAccountTitle,
+                    _accountAgreementBody(
+                      l10n.agreementAccountBody,
+                      Theme.of(context).platform,
+                    ),
+                  ),
                   (l10n.agreementUsageTitle, l10n.agreementUsageBody),
                   (l10n.agreementContentTitle, l10n.agreementContentBody),
                   (l10n.agreementNetworkTitle, l10n.agreementNetworkBody),
@@ -88,4 +95,18 @@ class _AgreementSection extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Omits the Android 13 clipboard sensitivity clause on non-Android platforms
+/// without altering ARB resources directly.
+String _accountAgreementBody(String body, TargetPlatform platform) {
+  if (platform == TargetPlatform.android) return body;
+  return body
+      .replaceFirst('：Android 13 及以上会标记为敏感内容。', '。')
+      .replaceFirst(': on Android 13 and later it is marked as sensitive.', '.')
+      .replaceFirst('Android 13以降では機密内容としてマークされます。', '')
+      .replaceFirst(
+        ': на Android 13 и новее они помечаются как конфиденциальные.',
+        '.',
+      );
 }

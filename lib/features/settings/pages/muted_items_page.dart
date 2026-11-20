@@ -22,6 +22,8 @@ import '../../../l10n/context.dart';
 import '../settings_helpers.dart';
 import '../settings_catalog.dart';
 import '../../../app/layout/content_widths.dart';
+import '../../../app/icons/app_icons.dart';
+import '../../../app/icons/ui_icons.dart';
 
 /// Muted items management: tags and users mirror the official client's
 /// `/v1/mute` list; works are local-only (no official endpoint). Removing
@@ -161,7 +163,7 @@ class _MutedItemsPageState extends ConsumerState<MutedItemsPage> {
                         labelText: l10n.muteTagInputHint,
                         suffixIcon: IconButton(
                           tooltip: l10n.add,
-                          icon: const Icon(Icons.add),
+                          icon: const Icon(UiIcons.add),
                           onPressed: () => _addTag(_controller.text),
                         ),
                       ),
@@ -307,10 +309,7 @@ class _MutedThumbnail extends StatelessWidget {
         child: url == null
             ? ColoredBox(
                 color: scheme.surfaceContainerHighest,
-                child: Icon(
-                  Icons.image_outlined,
-                  color: scheme.onSurfaceVariant,
-                ),
+                child: Icon(AppIcons.illust, color: scheme.onSurfaceVariant),
               )
             : PixivImage(
                 url: url,

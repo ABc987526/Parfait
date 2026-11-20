@@ -14,6 +14,7 @@ import 'helpers/watchlist_world.dart';
 import 'helpers/prompt_host.dart';
 import 'helpers/localized_app.dart';
 import 'helpers/test_preferences.dart';
+import 'package:parfait/app/icons/ui_icons.dart';
 
 Widget _app(Widget child) =>
     localizedApp(locale: null, builder: promptHostBuilder, home: child);
@@ -82,7 +83,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Novel Series'), findsOneWidget);
     // Its actions open the series' contents; nothing read, no continue.
-    await tester.tap(find.byIcon(Icons.more_vert));
+    await tester.tap(find.byIcon(UiIcons.more));
     await tester.pumpAndSettle();
     expect(find.text('Continue reading'), findsNothing);
     await tester.tap(find.text('Open contents'));
@@ -95,7 +96,7 @@ void main() {
         .read(novelSeriesLastReadStoreProvider)
         .write(testerAccount.id, 21, 905);
     await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(Icons.more_vert));
+    await tester.tap(find.byIcon(UiIcons.more));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Continue reading'));
     await tester.pumpAndSettle();

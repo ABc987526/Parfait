@@ -1,6 +1,8 @@
+import 'package:forui/forui.dart';
 import 'package:material_ui/material_ui.dart';
 import '../theme/func_semantic_tokens.dart';
 import '../haptics/app_haptics.dart';
+import '../theme/forui_theme_bridge.dart';
 
 /// Whole-row switch. Owns the toggle haptic for both the row and the
 /// switch itself.
@@ -28,15 +30,18 @@ class ReplicaSwitchTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: _toggle,
-      child: Padding(
-        padding: contentPadding,
-        child: Row(
-          children: [
-            Expanded(child: title),
-            Switch(value: value, onChanged: (_) => _toggle()),
-          ],
+    return ForuiThemeHost.ensure(
+      context,
+      InkWell(
+        onTap: _toggle,
+        child: Padding(
+          padding: contentPadding,
+          child: Row(
+            children: [
+              Expanded(child: title),
+              FSwitch(value: value, onChange: (_) => _toggle()),
+            ],
+          ),
         ),
       ),
     );

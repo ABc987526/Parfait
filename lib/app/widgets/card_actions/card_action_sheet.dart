@@ -16,6 +16,8 @@ import '../feed/muted_cover.dart';
 import 'card_action.dart';
 import 'illust_card_actions.dart';
 import 'ios_card_context_menu.dart';
+import '../../icons/app_icons.dart';
+import '../../icons/ui_icons.dart';
 
 /// The card's secondary click on a pointer: the registered [CardAction]s as a
 /// context menu beside the pointer (R11). On touch or stylus the same call
@@ -78,6 +80,7 @@ Future<void> showCardActionSheet(BuildContext context, IllustEntity entity) {
         final state = CardActionState.ofRef(ref);
         final providers = ProviderScope.containerOf(sheetContext);
         final l10n = sheetContext.l10n;
+        final wide = useWideOverlay(sheetContext);
         return SafeArea(
           top: false,
           // The sheet announces which work its actions apply to.
@@ -87,11 +90,23 @@ Future<void> showCardActionSheet(BuildContext context, IllustEntity entity) {
             label: entity.title,
             child: ListView(
               shrinkWrap: true,
-              // Scrolls only when it overflows; otherwise a drag on the
-              // actions moves the sheet (see showAppBottomSheet).
-              primary: false,
+              // Scrolls only when it overflows; compact sheets attach to
+              // smooth_sheets' PrimaryScrollController so scrolling back to top
+              // drags the sheet closed cleanly.
+              primary: !wide,
+              physics: const ClampingScrollPhysics(),
               children: [
-                _SheetHeader(entity),
+                _SheetHeader(
+                  entity,
+                  onClose: wide
+                      ? () => Navigator.of(sheetContext).maybePop()
+                      : null,
+                ),
+                if (wide)
+                  Divider(
+                    height: 1,
+                    color: FuncSemanticTokens.of(sheetContext).divider,
+                  ),
                 for (final action in actions)
                   Semantics(
                     button: true,
@@ -123,11 +138,12 @@ Future<void> showCardActionSheet(BuildContext context, IllustEntity entity) {
 /// Thumbnail, title and author of the work the actions apply to. A work the
 /// card shows blurred (muted, not revealed) keeps its image hidden here.
 class _SheetHeader extends ConsumerWidget {
-  const _SheetHeader(this.entity);
+  const _SheetHeader(this.entity, {this.onClose});
 
   static const double thumbnailSize = 48;
 
   final IllustEntity entity;
+  final VoidCallback? onClose;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -141,10 +157,10 @@ class _SheetHeader extends ConsumerWidget {
         );
     final url = entity.squareUrlAt(0);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
+      padding: EdgeInsets.fromLTRB(
         FuncSpacing.lg,
         FuncSpacing.sm,
-        FuncSpacing.lg,
+        onClose != null ? FuncSpacing.sm : FuncSpacing.lg,
         FuncSpacing.sm,
       ),
       child: Row(
@@ -157,9 +173,7 @@ class _SheetHeader extends ConsumerWidget {
                   ? ColoredBox(
                       color: colors.surfaceContainerHighest,
                       child: Icon(
-                        muted
-                            ? Icons.visibility_off_outlined
-                            : Icons.image_outlined,
+                        muted ? AppIcons.eyeOff : AppIcons.illust,
                         color: colors.onSurfaceVariant,
                       ),
                     )
@@ -192,6 +206,14 @@ class _SheetHeader extends ConsumerWidget {
               ),
             ),
           ),
+          if (onClose != null) ...[
+            const SizedBox(width: FuncSpacing.xs),
+            IconButton(
+              tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
+              onPressed: onClose,
+              icon: const Icon(UiIcons.close),
+            ),
+          ],
         ],
       ),
     );

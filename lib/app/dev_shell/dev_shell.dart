@@ -14,6 +14,8 @@ import '../layout/window_layout_spec.dart';
 import '../theme/func_semantic_tokens.dart';
 import '../widgets/app_menu_button.dart';
 import '../window/desktop_title_bar.dart';
+import '../icons/app_icons.dart';
+import '../icons/ui_icons.dart';
 
 /// Build-time toggle for the five-platform interactive shell emulator.
 ///
@@ -284,8 +286,12 @@ class DevShellHostState extends State<DevShellHost> {
         trafficLightWidth: 78,
         trafficLightHeight: 16,
       ),
-      TargetPlatform.windows || TargetPlatform.linux =>
-        const DesktopWindowPlatformMetrics(usesSystemTitleBar: false),
+      TargetPlatform.windows => const DesktopWindowPlatformMetrics(
+        usesSystemTitleBar: false,
+      ),
+      TargetPlatform.linux => const DesktopWindowPlatformMetrics(
+        usesSystemTitleBar: true,
+      ),
       _ => null,
     };
   }
@@ -507,7 +513,7 @@ class DevShellHostState extends State<DevShellHost> {
                 onSelected: (_, p) => _controller.setPlatform(p),
                 anchorBuilder: (context, toggle) => TextButton.icon(
                   onPressed: toggle,
-                  icon: const Icon(Icons.devices_outlined, size: 16),
+                  icon: const Icon(UiIcons.devices, size: 16),
                   label: Text(_controller.platform.label, style: labelStyle),
                 ),
               ),
@@ -527,7 +533,7 @@ class DevShellHostState extends State<DevShellHost> {
                 onSelected: (_, v) => _controller.setViewport(v),
                 anchorBuilder: (context, toggle) => TextButton.icon(
                   onPressed: toggle,
-                  icon: const Icon(Icons.aspect_ratio, size: 16),
+                  icon: const Icon(AppIcons.dimensions, size: 16),
                   label: Text(_controller.viewport.label, style: labelStyle),
                 ),
               ),
@@ -537,8 +543,8 @@ class DevShellHostState extends State<DevShellHost> {
                 onPressed: _controller.cycleModality,
                 icon: Icon(
                   _controller.modalityChoice == DevShellModalityChoice.touch
-                      ? Icons.touch_app_outlined
-                      : Icons.mouse_outlined,
+                      ? UiIcons.touch
+                      : UiIcons.pointer,
                   size: 16,
                 ),
                 label: Text(_controller.modalityChoice.label),
@@ -546,7 +552,7 @@ class DevShellHostState extends State<DevShellHost> {
               TextButton.icon(
                 key: const ValueKey('dev-shell-dpr-btn'),
                 onPressed: _controller.cycleDpr,
-                icon: const Icon(Icons.display_settings_outlined, size: 16),
+                icon: const Icon(UiIcons.displaySettings, size: 16),
                 label: Text(dprLabel),
               ),
               IconButton(
@@ -554,13 +560,13 @@ class DevShellHostState extends State<DevShellHost> {
                 tooltip: 'Toggle Crease Ruler',
                 isSelected: _controller.showCreaseOverlay,
                 onPressed: _controller.toggleCreaseOverlay,
-                icon: const Icon(Icons.view_column_outlined),
+                icon: const Icon(UiIcons.columns),
               ),
               IconButton(
                 key: const ValueKey('dev-shell-capture-btn'),
                 tooltip: 'Capture Frame PNG',
                 onPressed: () => unawaited(captureFrameToDisk()),
-                icon: const Icon(Icons.photo_camera_outlined),
+                icon: const Icon(AppIcons.imageSearch),
               ),
               if (captureName != null) ...[
                 const SizedBox(width: FuncSpacing.xs),
@@ -574,7 +580,7 @@ class DevShellHostState extends State<DevShellHost> {
                 key: const ValueKey('dev-shell-collapse-btn'),
                 tooltip: 'Collapse DevShell to Floating Pill',
                 onPressed: () => _controller.setCollapsedToPill(true),
-                icon: const Icon(Icons.expand_less),
+                icon: const Icon(UiIcons.expandLess),
               ),
             ],
           ),
@@ -602,7 +608,7 @@ class DevShellHostState extends State<DevShellHost> {
                 tooltip: 'Expand DevShell Controls',
                 onPressed: () => _controller.setCollapsedToPill(false),
                 icon: Icon(
-                  Icons.tune_outlined,
+                  AppIcons.filter,
                   color: colors.onInverseSurface,
                   size: 18,
                 ),

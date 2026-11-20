@@ -25,6 +25,7 @@ import 'helpers/fake_webview.dart';
 import 'helpers/localized_app.dart';
 import 'helpers/pixiv_router.dart';
 import 'helpers/test_preferences.dart';
+import 'package:parfait/app/icons/app_icons.dart';
 
 const _guided = AppSettings(
   guideCompleted: true,
@@ -160,7 +161,7 @@ void main() {
 
     expect(find.byType(HomePage), findsOneWidget);
     // The fifth destination is Me; the profile opens from its card.
-    expect(find.byIcon(Icons.person_outline), findsOneWidget);
+    expect(find.byIcon(AppIcons.user), findsOneWidget);
   });
 
   testWidgets('reauth-required current account falls back to login', (

@@ -159,7 +159,7 @@ abstract class AppLocalizations {
   /// No description provided for @loginTitle.
   ///
   /// In zh, this message translates to:
-  /// **'注册 或 登录'**
+  /// **'注册或登录'**
   String get loginTitle;
 
   /// No description provided for @loginProxyNoticeTitle.
@@ -1721,6 +1721,24 @@ abstract class AppLocalizations {
   /// **'宽松'**
   String get feedDensityComfortable;
 
+  /// No description provided for @desktopDetailMode.
+  ///
+  /// In zh, this message translates to:
+  /// **'桌面端详情样式'**
+  String get desktopDetailMode;
+
+  /// No description provided for @desktopDetailModeModal.
+  ///
+  /// In zh, this message translates to:
+  /// **'大图弹窗'**
+  String get desktopDetailModeModal;
+
+  /// No description provided for @desktopDetailModeInspector.
+  ///
+  /// In zh, this message translates to:
+  /// **'侧栏预览'**
+  String get desktopDetailModeInspector;
+
   /// No description provided for @qualityMedium.
   ///
   /// In zh, this message translates to:
@@ -1996,6 +2014,42 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'已复制目录 URI'**
   String get saveLocationUriCopied;
+
+  /// No description provided for @saveLocationDesktopFolder.
+  ///
+  /// In zh, this message translates to:
+  /// **'默认文件夹'**
+  String get saveLocationDesktopFolder;
+
+  /// No description provided for @saveLocationDesktopDefaultFolder.
+  ///
+  /// In zh, this message translates to:
+  /// **'Parfait 文件夹（默认）'**
+  String get saveLocationDesktopDefaultFolder;
+
+  /// No description provided for @saveLocationDesktopCustomSubfolder.
+  ///
+  /// In zh, this message translates to:
+  /// **'自定义子文件夹名称'**
+  String get saveLocationDesktopCustomSubfolder;
+
+  /// No description provided for @saveLocationDesktopCustomFolder.
+  ///
+  /// In zh, this message translates to:
+  /// **'自定义目录（系统目录选择）'**
+  String get saveLocationDesktopCustomFolder;
+
+  /// No description provided for @saveLocationMacosBookmarkLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'已授权目录（macOS 沙盒书签）'**
+  String get saveLocationMacosBookmarkLabel;
+
+  /// No description provided for @saveLocationPathCopied.
+  ///
+  /// In zh, this message translates to:
+  /// **'已复制目录路径'**
+  String get saveLocationPathCopied;
 
   /// No description provided for @namingPreset.
   ///
@@ -3338,13 +3392,13 @@ abstract class AppLocalizations {
   /// No description provided for @bottomBarItems.
   ///
   /// In zh, this message translates to:
-  /// **'底栏项目'**
+  /// **'导航栏项目'**
   String get bottomBarItems;
 
   /// No description provided for @navigationBottomBar.
   ///
   /// In zh, this message translates to:
-  /// **'底栏'**
+  /// **'导航栏'**
   String get navigationBottomBar;
 
   /// No description provided for @navigationRanking.
@@ -3416,7 +3470,7 @@ abstract class AppLocalizations {
   /// Start page choice: open the first item of the bottom bar
   ///
   /// In zh, this message translates to:
-  /// **'底栏第一项'**
+  /// **'导航栏第一项'**
   String get homeStartFirstVisible;
 
   /// Start page choice: open the bottom bar destination used last
@@ -5656,6 +5710,12 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'pixivision 当前需要验证或代理'**
   String get spotlightChallengeFailed;
+
+  /// No description provided for @spotlightExternalBrowserHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'当前平台不支持内置浏览器验证，请在系统浏览器中查看。'**
+  String get spotlightExternalBrowserHint;
 
   /// No description provided for @spotlightCategoryAll.
   ///

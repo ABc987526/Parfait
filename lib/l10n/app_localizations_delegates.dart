@@ -9,6 +9,17 @@ import 'package:flutter_localizations/flutter_localizations.dart'
 // Material and Cupertino's own delegates load the date data through it too.
 // ignore: implementation_imports
 import 'package:flutter_localizations/src/utils/date_localizations.dart';
+import 'package:forui/forui.dart' show FLocalizations;
+// Only the four locales Parfait ships are registered, matching the delegates
+// below without pulling all 115 Forui translation tables into the app bundle.
+// ignore: implementation_imports
+import 'package:forui/src/localizations/localizations_en.dart';
+// ignore: implementation_imports
+import 'package:forui/src/localizations/localizations_ja.dart';
+// ignore: implementation_imports
+import 'package:forui/src/localizations/localizations_ru.dart';
+// ignore: implementation_imports
+import 'package:forui/src/localizations/localizations_zh.dart';
 import 'package:intl/intl.dart' as intl;
 import 'package:material_ui/material_ui.dart';
 
@@ -26,6 +37,7 @@ const appLocalizationsDelegates = <LocalizationsDelegate<dynamic>>[
   _MaterialDelegate(),
   _CupertinoDelegate(),
   _WidgetsDelegate(),
+  _ForuiDelegate(),
 ];
 
 typedef _Material =
@@ -148,4 +160,23 @@ class _WidgetsDelegate extends LocalizationsDelegate<WidgetsLocalizations> {
 
   @override
   bool shouldReload(_WidgetsDelegate old) => false;
+}
+
+class _ForuiDelegate extends LocalizationsDelegate<FLocalizations> {
+  const _ForuiDelegate();
+
+  @override
+  bool isSupported(Locale locale) => _languages.contains(locale.languageCode);
+
+  @override
+  Future<FLocalizations> load(Locale locale) =>
+      SynchronousFuture(switch (locale.languageCode) {
+        'zh' => FLocalizationsZh(),
+        'ja' => FLocalizationsJa(),
+        'ru' => FLocalizationsRu(),
+        _ => FLocalizationsEn(),
+      });
+
+  @override
+  bool shouldReload(_ForuiDelegate old) => false;
 }

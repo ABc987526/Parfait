@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:parfait/app/widgets/settings/settings_control.dart';
 import 'package:parfait/core/download/download_destination.dart';
 import 'package:parfait/core/download/naming_rule.dart';
 import 'package:parfait/core/platform/platform_caps.dart';
@@ -114,7 +115,7 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(
-        tester.getSemantics(find.widgetWithText(SwitchListTile, '同时导出作品简介')),
+        tester.getSemantics(find.widgetWithText(SettingsControl, '同时导出作品简介')),
         isSemantics(
           hasEnabledState: true,
           isEnabled: available,

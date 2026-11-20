@@ -37,6 +37,8 @@ import '../../../core/ugoira/ugoira_zip.dart';
 import '../../../app/widgets/app_snack_bar.dart';
 import '../../../l10n/context.dart';
 import '../../../app/theme/func_semantic_tokens.dart';
+import '../../../app/icons/app_icons.dart';
+import '../../../app/icons/ui_icons.dart';
 
 /// Inline beta56-compatible Ugoira surface. The cover, play affordance and
 /// paused overlay stay in the detail page; ZIP/decode/export resources are
@@ -256,7 +258,7 @@ class _UgoiraViewerState extends ConsumerState<UgoiraViewer>
                         color: const Color(0x99343838),
                       ),
                       child: const Icon(
-                        Icons.gif_box_outlined,
+                        AppIcons.ugoira,
                         color: FuncTokens.white,
                         size: 30,
                       ),
@@ -771,7 +773,7 @@ class _UgoiraViewerState extends ConsumerState<UgoiraViewer>
         onLongPress: () {},
         actions: [
           DisplayAction(
-            icon: playing ? Icons.pause : Icons.play_arrow,
+            icon: playing ? UiIcons.pause : UiIcons.play,
             label: playing
                 ? l10n.pauseDownload
                 : scheduler == null
@@ -780,18 +782,18 @@ class _UgoiraViewerState extends ConsumerState<UgoiraViewer>
             onSelected: _togglePlayback,
           ),
           DisplayAction(
-            icon: Icons.download_outlined,
+            icon: AppIcons.download,
             label: l10n.ugoiraSaveGif,
             enabled: !exporting,
             onSelected: () => unawaited(_export()),
           ),
           DisplayAction(
-            icon: Icons.share_outlined,
+            icon: AppIcons.share,
             label: l10n.share,
             onSelected: () => unawaited(_share()),
           ),
           DisplayAction(
-            icon: Icons.link_outlined,
+            icon: AppIcons.link,
             label: l10n.copyLink,
             onSelected: () => unawaited(
               copyToClipboard(
@@ -883,11 +885,7 @@ class _PlayOverlay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Center(
-      child: Icon(
-        Icons.play_circle_outline_outlined,
-        size: 70,
-        color: FuncTokens.white,
-      ),
+      child: Icon(AppIcons.playCircle, size: 70, color: FuncTokens.white),
     );
   }
 }
@@ -970,7 +968,7 @@ class _UgoiraSpeedButton extends StatelessWidget {
           MenuItemButton(
             onPressed: () => onSelected(option),
             leadingIcon: option == speed
-                ? const Icon(Icons.check, size: 18)
+                ? const Icon(UiIcons.check, size: 18)
                 : const SizedBox(width: 18),
             child: Text(_format(option)),
           ),
@@ -1035,7 +1033,7 @@ class _ExportButton extends StatelessWidget {
       // ancestor scheduling frames (and would never let pumpAndSettle
       // settle in tests).
       tooltip = l10n.ugoiraSaveGif;
-      icon = const Icon(Icons.download_outlined);
+      icon = const Icon(AppIcons.download);
       onPressed = null;
     } else if (exporting) {
       final percent = ((snapshot?.progress ?? 0) * 100).round();
@@ -1049,13 +1047,13 @@ class _ExportButton extends StatelessWidget {
     } else if (status == UgoiraExportStatus.failed) {
       tooltip = l10n.retry;
       icon = Icon(
-        Icons.error_outline,
+        UiIcons.errorOutline,
         color: Theme.of(context).colorScheme.error,
       );
       onPressed = onExport;
     } else {
       tooltip = l10n.ugoiraSaveGif;
-      icon = const Icon(Icons.download_outlined);
+      icon = const Icon(AppIcons.download);
       onPressed = onExport;
     }
 

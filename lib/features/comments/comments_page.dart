@@ -8,6 +8,7 @@ import '../../app/haptics/app_haptics.dart';
 import '../../app/motion/app_overlays.dart';
 import '../../app/motion/removal.dart';
 import '../../app/navigation/routes.dart';
+import '../../app/widgets/app_dialog.dart';
 import '../../app/widgets/app_top_bar.dart';
 import '../../app/widgets/feed/feed_states.dart';
 import '../../app/pull_to_refresh.dart';
@@ -28,6 +29,7 @@ import '../../l10n/context.dart';
 import '../../app/theme/func_semantic_tokens.dart';
 import '../../app/layout/content_widths.dart';
 import '../../app/widgets/feed/load_more_listener.dart';
+import '../../app/icons/app_icons.dart';
 
 class CommentsPage extends ConsumerStatefulWidget {
   const CommentsPage({
@@ -92,18 +94,20 @@ class _CommentsPageState extends ConsumerState<CommentsPage> {
                 ),
               ),
             ),
-            CommentComposer(
-              key: _composerKey,
-              replyTo: _replyTarget == null
-                  ? null
-                  : commentAuthorDisplayName(context, _replyTarget!.user),
-              onCancelReply: () => setState(() => _replyTarget = null),
-              sending: sending,
-              onSend: (text) => _send(text: text, target: _replyTarget),
-              onStampSend: (stampId) =>
-                  _send(stampId: stampId, target: _replyTarget),
-              onError: _showMutationError,
-              keyboardHeights: ref.watch(keyboardHeightsProvider.notifier),
+            _BoundedComposerSlot(
+              child: CommentComposer(
+                key: _composerKey,
+                replyTo: _replyTarget == null
+                    ? null
+                    : commentAuthorDisplayName(context, _replyTarget!.user),
+                onCancelReply: () => setState(() => _replyTarget = null),
+                sending: sending,
+                onSend: (text) => _send(text: text, target: _replyTarget),
+                onStampSend: (stampId) =>
+                    _send(stampId: stampId, target: _replyTarget),
+                onError: _showMutationError,
+                keyboardHeights: ref.watch(keyboardHeightsProvider.notifier),
+              ),
             ),
           ],
         ),
@@ -157,7 +161,7 @@ class _CommentsPageState extends ConsumerState<CommentsPage> {
   Future<void> _confirmAndDelete(CommentEntity comment) async {
     final confirmed = await showAppDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (context) => AppAlertDialog(
         title: Text(context.l10n.commentDelete),
         content: Text(context.l10n.commentDeleteConfirm),
         actions: [
@@ -271,17 +275,19 @@ class _CommentRepliesPageState extends ConsumerState<CommentRepliesPage> {
                 ),
               ),
             ),
-            CommentComposer(
-              key: _composerKey,
-              replyTo: replyTarget == null
-                  ? null
-                  : commentAuthorDisplayName(context, replyTarget.user),
-              onCancelReply: () => setState(() => _replyTarget = root),
-              sending: sending,
-              onSend: (text) => _send(text: text),
-              onStampSend: (stampId) => _send(stampId: stampId),
-              onError: _showMutationError,
-              keyboardHeights: ref.watch(keyboardHeightsProvider.notifier),
+            _BoundedComposerSlot(
+              child: CommentComposer(
+                key: _composerKey,
+                replyTo: replyTarget == null
+                    ? null
+                    : commentAuthorDisplayName(context, replyTarget.user),
+                onCancelReply: () => setState(() => _replyTarget = root),
+                sending: sending,
+                onSend: (text) => _send(text: text),
+                onStampSend: (stampId) => _send(stampId: stampId),
+                onError: _showMutationError,
+                keyboardHeights: ref.watch(keyboardHeightsProvider.notifier),
+              ),
             ),
           ],
         ),
@@ -326,7 +332,7 @@ class _CommentRepliesPageState extends ConsumerState<CommentRepliesPage> {
   Future<void> _confirmAndDelete(CommentEntity comment) async {
     final confirmed = await showAppDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (context) => AppAlertDialog(
         title: Text(context.l10n.commentDelete),
         content: Text(context.l10n.commentDeleteConfirm),
         actions: [
@@ -366,6 +372,33 @@ bool _closed(WidgetRef ref, CommentFeedQuery query) => commentsClosedFor(
   query,
 );
 
+/// Adds subtle side hairlines when a [ContentWidthCap]-constrained composer
+/// floats narrower than the wide viewport, avoiding unframed shadow cutoffs.
+class _BoundedComposerSlot extends StatelessWidget {
+  const _BoundedComposerSlot({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    if (MediaQuery.widthOf(context) <= ContentWidths.management) {
+      return child;
+    }
+    final side = BorderSide(
+      color:
+          Theme.of(context).extension<FuncSemanticTokens>()?.brandHairline ??
+          Theme.of(context).dividerColor,
+    );
+    return DecoratedBox(
+      position: DecorationPosition.foreground,
+      decoration: BoxDecoration(
+        border: Border(left: side, right: side),
+      ),
+      child: child,
+    );
+  }
+}
+
 /// A comments page whose work's author turned comments off: the notice
 /// alone, with no list, composer or reply.
 class _ClosedCommentsPage extends StatelessWidget {
@@ -379,9 +412,12 @@ class _ClosedCommentsPage extends StatelessWidget {
       contentWidth: ContentWidths.management,
       title: Text(title),
     ),
-    body: FeedEmpty(
-      icon: Icons.comments_disabled_outlined,
-      title: context.l10n.commentsClosed,
+    body: ContentWidthCap(
+      maxWidth: ContentWidths.management,
+      child: FeedEmpty(
+        icon: AppIcons.commentOff,
+        title: context.l10n.commentsClosed,
+      ),
     ),
   );
 }
@@ -442,7 +478,7 @@ class _CommentFeedView extends ConsumerWidget {
               retryLabel: context.l10n.refresh,
               onRefresh: () =>
                   ref.read(commentFeedProvider(query).notifier).refresh(),
-              icon: Icons.comment_outlined,
+              icon: AppIcons.comment,
             ),
           );
         }

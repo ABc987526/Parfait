@@ -14,6 +14,7 @@ import '../../core/novel/novel_store.dart';
 import '../../l10n/context.dart';
 import '../../app/layout/card_columns.dart';
 import '../../app/widgets/feed/load_more_listener.dart';
+import '../../app/icons/ui_icons.dart';
 
 /// A user's novels, or their novel bookmarks when [feedKey] is a
 /// bookmarks key. [localFilter] narrows the loaded list to titles and tags
@@ -98,7 +99,7 @@ class ProfileNovelFeed extends ConsumerWidget {
                             onLoadMore: () => controller().retryLoadMore(),
                           )
                         : FeedEmpty(
-                            icon: Icons.inbox_outlined,
+                            icon: UiIcons.inbox,
                             title: query.isEmpty
                                 ? context.l10n.profileItemsEmpty
                                 : context.l10n.bookmarkTagFilterEmpty,

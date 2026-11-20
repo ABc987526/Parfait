@@ -11,7 +11,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:parfait/app/layout/content_widths.dart';
 import 'package:parfait/app/layout/input_modality.dart';
+import 'package:parfait/app/motion/app_overlays.dart';
 import 'package:parfait/app/navigation/home_shell_metrics.dart';
+import 'package:parfait/app/widgets/app_slider.dart';
 import 'package:parfait/core/novel/novel_entity.dart';
 import 'package:parfait/core/novel/reader_settings.dart';
 import 'package:parfait/core/settings/shared_preferences.dart';
@@ -27,6 +29,8 @@ import 'helpers/settings_world.dart' show RecordingTranslationEngine;
 import 'helpers/localized_app.dart';
 import 'helpers/test_preferences.dart';
 import 'helpers/view_size.dart';
+import 'package:parfait/app/icons/app_icons.dart';
+import 'package:parfait/app/icons/ui_icons.dart';
 
 /// Stage-level test with a recording progress binding: pins the D1 write
 /// gate — only user-committed turns reach `save`.
@@ -46,7 +50,7 @@ void main() {
     // Open and close the info sheet — still no write.
     await tester.tapAt(const Offset(400, 300));
     await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(Icons.info_outline));
+    await tester.tap(find.byIcon(AppIcons.info));
     await tester.pumpAndSettle();
     expect(find.text('info sheet'), findsOneWidget);
     await tester.tapAt(const Offset(200, 100));
@@ -84,7 +88,7 @@ void main() {
 
     await tester.tapAt(const Offset(400, 300));
     await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(Icons.tune_outlined));
+    await tester.tap(find.byIcon(AppIcons.filter));
     await tester.pumpAndSettle();
     await tester.tap(find.text('左右翻页'));
     await tester.pumpAndSettle();
@@ -134,7 +138,7 @@ void main() {
 
       // Dragging the slider only moves the preview label — the reader
       // itself never leaves the current page and nothing persists.
-      final slider = find.byType(Slider);
+      final slider = find.byType(AppSlider);
       expect(slider, findsOneWidget);
       final before = find
           .textContaining('·', findRichText: true)
@@ -168,11 +172,11 @@ void main() {
     await tester.tap(find.bySemanticsLabel('阅读进度'));
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
-    final sheet = tester.getRect(find.byType(BottomSheet));
+    final sheet = tester.getRect(find.byType(AppBottomSheet));
     expect(sheet.contains(tester.getCenter(find.text('确定'))), isTrue);
     expect(
       find.descendant(
-        of: find.byType(BottomSheet),
+        of: find.byType(AppBottomSheet),
         matching: find.text('第 1 章'),
       ),
       findsOneWidget,
@@ -188,7 +192,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(
       tester
-          .getRect(find.byType(BottomSheet))
+          .getRect(find.byType(AppBottomSheet))
           .contains(tester.getCenter(find.text('夜间'))),
       isTrue,
     );
@@ -207,7 +211,7 @@ void main() {
     await tester.tap(find.bySemanticsLabel('阅读进度'));
     await tester.pumpAndSettle();
 
-    await tester.drag(find.byType(Slider), const Offset(200, 0));
+    await tester.drag(find.byType(AppSlider), const Offset(200, 0));
     await tester.pump();
     await tester.tap(find.text('取消'));
     await tester.pumpAndSettle();
@@ -291,7 +295,7 @@ void main() {
     final line = firstLine();
     await tester.tapAt(const Offset(400, 300));
     await tester.pumpAndSettle();
-    expect(find.byIcon(Icons.info_outline), findsOneWidget);
+    expect(find.byIcon(AppIcons.info), findsOneWidget);
     expect(firstLine(), same(line));
     await tester.tapAt(const Offset(400, 300));
     await tester.pumpAndSettle();
@@ -310,6 +314,11 @@ void main() {
     expect(reader(), same(opened));
   });
 
+  Finder progressHint() => find.ancestor(
+    of: find.textContaining(RegExp(r'^ · \d+/\d+ · \d+%')),
+    matching: find.byType(MergeSemantics),
+  );
+
   testWidgets('the immersive progress hint stays on the article column', (
     tester,
   ) async {
@@ -318,7 +327,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
 
-    final hint = tester.getRect(find.textContaining('A novel ·'));
+    final hint = tester.getRect(progressHint());
     const columnLeft = (1200 - ContentWidths.article) / 2;
     expect(hint.left, greaterThanOrEqualTo(columnLeft));
     expect(hint.right, lessThanOrEqualTo(1200 - columnLeft));
@@ -387,7 +396,7 @@ void main() {
 
     await tester.tapAt(const Offset(400, 300));
     await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(Icons.text_decrease_outlined));
+    await tester.tap(find.byIcon(AppIcons.textDecrease));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
 
@@ -401,7 +410,7 @@ void main() {
     // programmatically so it stops covering the bottom bar.
     PromptHost.of(tester.element(find.byType(Scaffold).first)).hideCurrent();
     await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(Icons.tune_outlined));
+    await tester.tap(find.byIcon(AppIcons.filter));
     await tester.pumpAndSettle();
     expect(find.text('16'), findsOneWidget);
   });
@@ -537,11 +546,11 @@ void main() {
       );
 
       await tester.tap(
-        find.byIcon(Icons.tune_outlined),
+        find.byIcon(AppIcons.filter),
         kind: PointerDeviceKind.mouse,
       );
       await tester.pumpAndSettle();
-      expect(find.byType(BottomSheet), findsNothing);
+      expect(find.byType(AppBottomSheet), findsNothing);
       final settingsRect = panelRect(find.text('字号'));
       expect(settingsRect.width, lessThanOrEqualTo(380));
       expect(settingsRect.right, greaterThan(700));
@@ -549,11 +558,11 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.tap(
-        find.byIcon(Icons.expand_less),
+        find.byIcon(UiIcons.expandLess),
         kind: PointerDeviceKind.mouse,
       );
       await tester.pumpAndSettle();
-      expect(find.byType(BottomSheet), findsNothing);
+      expect(find.byType(AppBottomSheet), findsNothing);
       final progressRect = panelRect(find.text('阅读进度'));
       expect(progressRect.width, lessThanOrEqualTo(400));
       expect(progressRect.right, closeTo(1100, 1));
@@ -561,11 +570,11 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.tap(
-        find.byIcon(Icons.info_outline),
+        find.byIcon(AppIcons.info),
         kind: PointerDeviceKind.mouse,
       );
       await tester.pumpAndSettle();
-      expect(find.byType(BottomSheet), findsNothing);
+      expect(find.byType(AppBottomSheet), findsNothing);
       final infoRect = panelRect(find.text('info sheet'));
       expect(infoRect.width, lessThanOrEqualTo(400));
       expect(infoRect.right, closeTo(1100, 1));
@@ -578,12 +587,12 @@ void main() {
       await tester.pumpAndSettle();
       expect(tester.getSize(find.byType(NovelReaderStage)).width, 500);
       await tester.tap(
-        find.byIcon(Icons.tune_outlined),
+        find.byIcon(AppIcons.filter),
         kind: PointerDeviceKind.mouse,
       );
       await tester.pumpAndSettle();
       expect(find.text('字号'), findsOneWidget);
-      expect(find.byType(BottomSheet), findsOneWidget);
+      expect(find.byType(AppBottomSheet), findsOneWidget);
       await tester.tapAt(const Offset(20, 20), kind: PointerDeviceKind.mouse);
       await tester.pumpAndSettle();
     },
@@ -626,7 +635,7 @@ void main() {
         expect(rect.left, greaterThanOrEqualTo(448));
       }
 
-      final hint = tester.getRect(find.textContaining('A novel ·'));
+      final hint = tester.getRect(progressHint());
       expect(hint.right, lessThanOrEqualTo(436));
     },
   );
@@ -644,12 +653,12 @@ void main() {
 
       final cue = find.byKey(const ValueKey('novel-pointer-cue'));
       expect(cue, findsOneWidget);
-      expect(find.byIcon(Icons.info_outline), findsNothing);
+      expect(find.byIcon(AppIcons.info), findsNothing);
 
       await tester.tap(cue, kind: PointerDeviceKind.mouse);
       await tester.pumpAndSettle();
 
-      expect(find.byIcon(Icons.info_outline), findsOneWidget);
+      expect(find.byIcon(AppIcons.info), findsOneWidget);
       expect(cue, findsNothing);
     },
   );

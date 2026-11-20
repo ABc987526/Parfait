@@ -12,7 +12,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get networkDohEndpointsInvalid => 'DoHエンドポイントリストが無効です';
 
   @override
-  String get welcome1 => 'Parfaitをご利用ありがとうございます';
+  String get welcome1 => 'Parfaitをご利用\nありがとうございます';
 
   @override
   String get welcome2 => '初期設定を開始します';
@@ -569,7 +569,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settingsBrowseHint => 'ローカル非表示・画質';
 
   @override
-  String get settingsNavigationHint => 'ランキングのカテゴリー';
+  String get settingsNavigationHint => 'ランキングカテゴリ';
 
   @override
   String get downloadSettings => 'ダウンロード設定';
@@ -861,7 +861,7 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String get imageSourceAutoPending => '未計測 — 直连で読み込み';
+  String get imageSourceAutoPending => '未計測 — 直結で読み込み';
 
   @override
   String get previewQuality => 'プレビュー画質';
@@ -886,6 +886,15 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get feedDensityComfortable => 'ゆったり';
+
+  @override
+  String get desktopDetailMode => 'デスクトップ詳細表示';
+
+  @override
+  String get desktopDetailModeModal => '拡大モーダル';
+
+  @override
+  String get desktopDetailModeInspector => 'サイドプレビュー';
 
   @override
   String get qualityMedium => '中サイズ';
@@ -1026,6 +1035,24 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get saveLocationUriCopied => 'フォルダ URI をコピーしました';
+
+  @override
+  String get saveLocationDesktopFolder => 'デフォルトフォルダー';
+
+  @override
+  String get saveLocationDesktopDefaultFolder => 'Parfait フォルダー（デフォルト）';
+
+  @override
+  String get saveLocationDesktopCustomSubfolder => 'カスタムサブフォルダー名';
+
+  @override
+  String get saveLocationDesktopCustomFolder => 'カスタムディレクトリ（システム選択）';
+
+  @override
+  String get saveLocationMacosBookmarkLabel => '許可済みフォルダー（macOS サンドボックスブックマーク）';
+
+  @override
+  String get saveLocationPathCopied => 'フォルダーパスをコピーしました';
 
   @override
   String get namingPreset => 'ファイル名プリセット';
@@ -1739,10 +1766,10 @@ class AppLocalizationsJa extends AppLocalizations {
   String get novelRankingCategories => '小説ランキングのカテゴリー';
 
   @override
-  String get bottomBarItems => 'ボトムバーの項目';
+  String get bottomBarItems => 'ナビゲーション項目';
 
   @override
-  String get navigationBottomBar => 'ボトムバー';
+  String get navigationBottomBar => 'ナビゲーションバー';
 
   @override
   String get navigationRanking => 'ランキングのカテゴリー';
@@ -1778,7 +1805,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get railDownloads => 'ダウンロード';
 
   @override
-  String get homeStartFirstVisible => 'バーの最初の項目';
+  String get homeStartFirstVisible => 'ナビゲーションの最初の項目';
 
   @override
   String get homeStartLastUsed => '前回開いていたページ';
@@ -2981,6 +3008,10 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get spotlightChallengeFailed => 'pixivision は現在、確認またはプロキシを必要としています';
+
+  @override
+  String get spotlightExternalBrowserHint =>
+      'このプラットフォームではアプリ内ブラウザ検証を利用できません。外部ブラウザで開いてください。';
 
   @override
   String get spotlightCategoryAll => 'すべて';

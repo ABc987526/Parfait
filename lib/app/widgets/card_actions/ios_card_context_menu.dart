@@ -15,6 +15,7 @@ import '../../theme/func_semantic_tokens.dart';
 import '../feed/muted_cover.dart';
 import 'card_action.dart';
 import 'illust_card_actions.dart';
+import '../../icons/app_icons.dart';
 
 /// Presents iOS long-press card actions as a full-screen frosted backdrop with
 /// a spring-lifted card preview and a compact action menu docked beside it,
@@ -310,6 +311,7 @@ class _IosCardContextMenuOverlay extends ConsumerWidget {
                                 type: MaterialType.transparency,
                                 child: SingleChildScrollView(
                                   primary: false,
+                                  physics: const ClampingScrollPhysics(),
                                   child: Column(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
@@ -402,9 +404,7 @@ class _PreviewCard extends StatelessWidget {
                       color: colors.surfaceContainerHighest,
                       child: Center(
                         child: Icon(
-                          muted
-                              ? Icons.visibility_off_outlined
-                              : Icons.image_outlined,
+                          muted ? AppIcons.eyeOff : AppIcons.illust,
                           color: colors.onSurfaceVariant,
                         ),
                       ),
