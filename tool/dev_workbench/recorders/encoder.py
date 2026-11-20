@@ -52,21 +52,24 @@ def _win_stage_base_wsl() -> Path:
     """Resolve a fast Win32-writable temp folder accessible from both WSL and ffmpeg.exe."""
     cmd_exe = "/mnt/c/Windows/System32/cmd.exe"
     if Path(cmd_exe).is_file():
-        res = subprocess.run(
-            [cmd_exe, "/c", "echo %TEMP%"],
-            cwd="/mnt/c",
-            stdin=subprocess.DEVNULL,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=5.0,
-        )
-        win_temp = res.stdout.strip().splitlines()[-1].strip() if res.stdout.strip() else ""
-        if win_temp and len(win_temp) >= 3 and win_temp[1] == ":":
-            base = to_wsl_path(win_temp) / "parfait_ffmpeg_stage"
-            base.mkdir(parents=True, exist_ok=True)
-            return base
+        try:
+            res = subprocess.run(
+                [cmd_exe, "/c", "echo %TEMP%"],
+                cwd="/mnt/c",
+                stdin=subprocess.DEVNULL,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=5.0,
+            )
+            win_temp = res.stdout.strip().splitlines()[-1].strip() if res.stdout.strip() else ""
+            if win_temp and len(win_temp) >= 3 and win_temp[1] == ":":
+                base = to_wsl_path(win_temp) / "parfait_ffmpeg_stage"
+                base.mkdir(parents=True, exist_ok=True)
+                return base
+        except (subprocess.SubprocessError, OSError):
+            pass
     fallback = Path(tempfile.gettempdir()) / "parfait_ffmpeg_stage"
     fallback.mkdir(parents=True, exist_ok=True)
     return fallback
@@ -77,6 +80,46 @@ def _to_ffmpeg_path(path: Path) -> str:
     if ffmpeg.lower().endswith(".exe"):
         return to_windows_path(path)
     return str(path)
+
+
+_DURATION_RE = re.compile(r"Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)")
+
+
+def _probe_media_duration_ms(media_path: Path) -> int | None:
+    """Parse actual stream duration in milliseconds from `ffmpeg -hide_banner -i`."""
+    if not media_path.is_file() or media_path.stat().st_size <= 0:
+        return None
+    ffmpeg = resolve_ffmpeg_exe()
+    stage_dir: Path | None = None
+    target = media_path
+    try:
+        if ffmpeg.lower().endswith(".exe") and not str(media_path).startswith("/mnt/"):
+            stage_dir = _win_stage_base_wsl() / uuid.uuid4().hex[:10]
+            stage_dir.mkdir(parents=True, exist_ok=True)
+            target = stage_dir / media_path.name
+            shutil.copy2(media_path, target)
+        win_in = _to_ffmpeg_path(target)
+        win_cwd = "/mnt/c" if ffmpeg.lower().endswith(".exe") else None
+        info = subprocess.run(
+            [ffmpeg, "-hide_banner", "-i", win_in],
+            cwd=win_cwd,
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=15.0,
+        )
+        m = _DURATION_RE.search(info.stderr or "")
+        if m:
+            hrs, mins, secs = int(m.group(1)), int(m.group(2)), float(m.group(3))
+            return max(100, round(((hrs * 60 + mins) * 60 + secs) * 1000.0))
+        return None
+    except (subprocess.SubprocessError, OSError):
+        return None
+    finally:
+        if stage_dir is not None:
+            shutil.rmtree(stage_dir, ignore_errors=True)
 
 
 def verify_media_stream(media_path: Path) -> tuple[bool, str, int, int]:
@@ -319,7 +362,8 @@ def transcode_video_segment(
         shutil.rmtree(stage_dir, ignore_errors=True)
 
     ok, err, w, h = verify_media_stream(out_path)
-    dur_ms = int((duration_sec or 1.5) * 1000)
+    measured_ms = _probe_media_duration_ms(out_path) if ok else None
+    dur_ms = measured_ms if measured_ms is not None else int((duration_sec or 1.5) * 1000)
     sheet_paths: tuple[Path, ...] = ()
     motion_metrics: dict[str, Any] = {}
     if sheet_dir is not None and ok:

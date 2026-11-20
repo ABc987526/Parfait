@@ -545,7 +545,9 @@ def verify_catalog(
             errors.append(f"{cid}: format must be 'gif' or 'mp4', got {fmt!r}")
 
         route_tmpl = item.get("route_template")
-        if isinstance(route_tmpl, str) and route_tmpl not in source_set:
+        if not isinstance(route_tmpl, str) or not route_tmpl:
+            errors.append(f"{cid}: missing required non-empty route_template")
+        elif route_tmpl not in source_set:
             errors.append(f"{cid}: route_template {route_tmpl!r} is not in source routes")
 
         shell_layer = item.get("shell_layer")
@@ -622,6 +624,7 @@ def verify_catalog(
     if stale_in_map:
         errors.append(f"Stale routes in route_coverage_map.json absent from source: {stale_in_map}")
 
+    referenced_ids: set[str] = set()
     for tmpl, mapping in sorted(canonical_map.items()):
         if not isinstance(mapping, dict):
             errors.append(f"Mapping for {tmpl!r} must be a dict")
@@ -635,14 +638,25 @@ def verify_catalog(
                 for ref_id in cids:
                     if ref_id not in items_by_id:
                         errors.append(f"Route {tmpl!r} references unknown catalog id {ref_id!r}")
+                    else:
+                        referenced_ids.add(ref_id)
+                        item_rt = items_by_id[ref_id].get("route_template")
+                        if item_rt != tmpl:
+                            errors.append(
+                                f"Route {tmpl!r} maps {ref_id!r}, whose route_template is {item_rt!r}"
+                            )
         elif excl is not None:
-            if excl not in EXCLUDED_CATEGORIES:
+            if not isinstance(excl, str) or excl not in EXCLUDED_CATEGORIES:
                 errors.append(f"Route {tmpl!r} invalid excluded category {excl!r}")
             reason = mapping.get("reason")
             if not isinstance(reason, str) or not reason.strip():
                 errors.append(f"Excluded route {tmpl!r} requires a non-empty reason")
         else:
             errors.append(f"Route {tmpl!r} must define either 'catalog_ids' or 'excluded'")
+
+    unreferenced_items = sorted(set(items_by_id.keys()) - referenced_ids)
+    if unreferenced_items:
+        errors.append(f"Catalog items not referenced in route_coverage_map.json: {unreferenced_items}")
 
     excluded_surfaces = map_data.get("excluded_surfaces")
     if not isinstance(excluded_surfaces, list) or not excluded_surfaces:

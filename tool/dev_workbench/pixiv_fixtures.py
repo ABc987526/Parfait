@@ -293,6 +293,7 @@ class PixivLoopbackState:
                     800002,
                     "Notes from the Wet Dock",
                     self.authors[1],
+                    series=novel_series,
                 ),
             ]
 

@@ -506,13 +506,23 @@ public class ParfaitWinAgent {
             int vk = ResolveVk(keyName, out ctrl, out alt);
             if (vk == 0) { writer.WriteLine("OK SKIP"); continue; }
             SendMessage(view, WM_SETFOCUS, IntPtr.Zero, IntPtr.Zero);
-            if (fgKey && ctrl) keybd_event(0x11, 0, 0, UIntPtr.Zero);
-            if (fgKey && alt) keybd_event(0x12, 0, 0, UIntPtr.Zero);
+            if (fgKey) {
+              if (ctrl) keybd_event(0x11, 0, 0, UIntPtr.Zero);
+              if (alt) keybd_event(0x12, 0, 0, UIntPtr.Zero);
+            } else {
+              if (ctrl) PostMessage(view, WM_KEYDOWN, new IntPtr(0x11), IntPtr.Zero);
+              if (alt) PostMessage(view, WM_KEYDOWN, new IntPtr(0x12), IntPtr.Zero);
+            }
             PostMessage(view, WM_KEYDOWN, new IntPtr(vk), IntPtr.Zero);
             Thread.Sleep(35);
             PostMessage(view, WM_KEYUP, new IntPtr(vk), new IntPtr(unchecked((int)0xC0000001)));
-            if (fgKey && alt) keybd_event(0x12, 0, 2, UIntPtr.Zero);
-            if (fgKey && ctrl) keybd_event(0x11, 0, 2, UIntPtr.Zero);
+            if (fgKey) {
+              if (alt) keybd_event(0x12, 0, 2, UIntPtr.Zero);
+              if (ctrl) keybd_event(0x11, 0, 2, UIntPtr.Zero);
+            } else {
+              if (alt) PostMessage(view, WM_KEYUP, new IntPtr(0x12), new IntPtr(unchecked((int)0xC0000001)));
+              if (ctrl) PostMessage(view, WM_KEYUP, new IntPtr(0x11), new IntPtr(unchecked((int)0xC0000001)));
+            }
             writer.WriteLine("OK");
             continue;
           }
@@ -938,6 +948,7 @@ def run_windows_recording(
                 return
             agent = _spawn_win_agent(agent_exe, desk=desk)
             pid = 0
+            fg_proc: subprocess.Popen[bytes] | None = None
             try:
                 if desk is not None:
                     pid, client_id = _launch_hidden(desk, prof, fresh=fresh)
@@ -950,7 +961,7 @@ def run_windows_recording(
                         "PARFAIT_DEV_INSTANCE": "1",
                         "PARFAIT_DEV_ROOT": to_windows_path(dev_root),
                     })
-                    proc = subprocess.Popen(
+                    fg_proc = subprocess.Popen(
                         [
                             str(win_exe),
                             f"--dev-profile={prof}",
@@ -965,9 +976,13 @@ def run_windows_recording(
                         stdout=subprocess.DEVNULL,
                         stderr=subprocess.DEVNULL,
                     )
-                    pid = proc.pid
                     client = wb.wait_for_client(platform_prefix="windows", client_id_substring=prof, timeout=45.0)
                     client_id = str(client["clientId"])
+                    # clientId format is "windows-<profile>-<win32_pid>" (proc.pid is the WSL PID, not Win32 PID).
+                    pid_tail = client_id.rsplit("-", 1)[-1]
+                    if not pid_tail.isdigit():
+                        raise RuntimeError(f"Could not resolve Win32 PID from clientId={client_id!r}")
+                    pid = int(pid_tail)
 
                 wb.send_command(client_id, "resizeWindow", {"width": 1280, "height": 780}, timeout=10.0)
                 time.sleep(0.45)
@@ -1028,7 +1043,6 @@ def run_windows_recording(
                     route_after = ""
                     anomaly_reason = ""
                     capture_mode = "win32_foreground_sendinput" if foreground else "win32_hidden_desktop"
-                    cap_started = False
                     ffmpeg_fg_proc: subprocess.Popen[str] | None = None
                     fg_raw_mp4 = frames_dir / "fg_raw.mp4"
 
@@ -1142,11 +1156,6 @@ def run_windows_recording(
                     except (CommandTimeoutError, TargetNotFoundError, Exception) as exc:
                         anomaly_reason = f"{type(exc).__name__}: {exc}"
                     finally:
-                        if cap_started:
-                            try:
-                                agent.cmd("CAP_STOP")
-                            except Exception:
-                                pass
                         if ffmpeg_fg_proc is not None:
                             try:
                                 if ffmpeg_fg_proc.stdin:
@@ -1245,7 +1254,16 @@ def run_windows_recording(
                             "route_before": route_before,
                             "route_after": route_after,
                             "diagnostics": {**diag, "error": f"{anomaly_reason}; encode={enc_exc}".strip("; ")},
-                            "known_blind_spots": [],
+                            "known_blind_spots": (
+                                []
+                                if foreground
+                                else [
+                                    "system_hardware_cursor_sprite",
+                                    "win11_snap_layout_flyout",
+                                    "win32k_modal_move_size_loop",
+                                    "dwm_inactive_desktop_flutter_layer_capture",
+                                ]
+                            ),
                         })
                         continue
 
@@ -1296,6 +1314,12 @@ def run_windows_recording(
                 if pid > 0:
                     run_powershell(f"Stop-Process -Id {int(pid)} -Force -ErrorAction SilentlyContinue; exit 0")
                     time.sleep(0.3)
+                if fg_proc is not None and fg_proc.poll() is None:
+                    fg_proc.terminate()
+                    try:
+                        fg_proc.wait(timeout=3.0)
+                    except subprocess.TimeoutExpired:
+                        fg_proc.kill()
 
         # Background zero-interference recording batches
         bg_pre = [it for it in pre_items if not str((it.get("platforms") or {}).get("windows", "")).startswith("foreground_opt_in:")]

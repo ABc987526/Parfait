@@ -132,12 +132,33 @@ class CatalogAndManifestTest(unittest.TestCase):
             self.assertFalse(ok_name)
             self.assertTrue(any(".sim." in e for e in errs_name), errs_name)
 
+            # Real OS target claiming simulated capture_mode MUST fail
+            (run_dir / "windows").mkdir(exist_ok=True)
+            (run_dir / "windows" / "win.item.gif").write_bytes(b"GIF89a")
+            bad_real_mode = {
+                "schema_version": 1,
+                "run_id": "test",
+                "records": [{
+                    "catalog_id": "win.item",
+                    "platform": "windows",
+                    "evidence_kind": "native_os_recording",
+                    "capture_mode": "flutter_test_film_recorder",
+                    "status": "ok",
+                    "artifact_relpath": "windows/win.item.gif",
+                    "decode_verified": True,
+                    "known_blind_spots": [],
+                }],
+            }
+            ok_real, errs_real = validate_manifest_data(bad_real_mode, run_dir)
+            self.assertFalse(ok_real)
+            self.assertTrue(any("capture_mode" in e for e in errs_real), errs_real)
+
     def test_split_catalog_phases_orders_prehome_and_close_last(self) -> None:
         items = load_catalog()
         pre, post, skipped = split_catalog_phases(items, platform="windows", include_foreground_opt_in=False)
         self.assertGreaterEqual(len(pre), 5)
         self.assertEqual(pre[0]["route_template"], "/splash")
-        self.assertTrue(any(it["id"] == "shell.win_caption.close_top_edge_unmax" for it in post[-2:]))
+        self.assertEqual(post[-1]["id"], "shell.win_caption.close_top_edge_unmax")
         self.assertEqual(sum(1 for it in skipped if it["platforms"]["windows"].startswith("foreground_opt_in:")), 3)
 
     def test_encoder_outputs_decodable_mp4_and_gif(self) -> None:
@@ -261,10 +282,36 @@ class CatalogAndManifestTest(unittest.TestCase):
                 srv.server_close()
 
     def test_windows_agent_source_contains_restore_and_invalidation(self) -> None:
+        from unittest import mock
         from dev_workbench.recorders import windows_recorder
 
         self.assertIn('cmd == "RESTORE"', windows_recorder._WIN_AGENT_CS)
         self.assertIn("ShowWindow", windows_recorder._WIN_AGENT_CS)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            stage = Path(tmp)
+            exe = stage / "win_agent.exe"
+            cs = stage / "win_agent.cs"
+
+            # Fresh cache hit skips recompilation
+            exe.write_bytes(b"MZ")
+            cs.write_text(windows_recorder._WIN_AGENT_CS, encoding="utf-8")
+            with mock.patch.object(windows_recorder.subprocess, "run") as run_mock:
+                out = windows_recorder._compile_win_agent(stage)
+                self.assertEqual(out, exe)
+                run_mock.assert_not_called()
+
+            # Stale source rewrites win_agent.cs and triggers recompilation
+            cs.write_text("// stale source", encoding="utf-8")
+            fake_ok = mock.MagicMock(returncode=0, stdout="", stderr="")
+            with (
+                mock.patch.object(windows_recorder, "to_windows_path", side_effect=str),
+                mock.patch.object(windows_recorder.subprocess, "run", return_value=fake_ok) as run_mock,
+            ):
+                out = windows_recorder._compile_win_agent(stage)
+                self.assertEqual(out, exe)
+                run_mock.assert_called_once()
+                self.assertEqual(cs.read_text(encoding="utf-8"), windows_recorder._WIN_AGENT_CS)
 
     def test_storyboard_sheets_motion_flags_and_extract(self) -> None:
         from dev_workbench.recorders.storyboard import (

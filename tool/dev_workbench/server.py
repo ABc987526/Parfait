@@ -430,8 +430,9 @@ class WorkbenchState:
                 except ValueError:
                     prefix = ""
         records_out: list[dict[str, Any]] = []
-        if isinstance(manifest, dict):
-            for rec in manifest.get("records", []):
+        raw_records = manifest.get("records") if isinstance(manifest, dict) else None
+        if isinstance(raw_records, list):
+            for rec in raw_records:
                 if not isinstance(rec, dict):
                     continue
                 copy = dict(rec)

@@ -30,6 +30,7 @@
   };
 
   let latestClients = [];
+  let lastRawArtifacts = [];
   let lastArtifactsSignature = null;
   let lastManifestSignature = null;
   let manifestPayload = null;
@@ -173,16 +174,18 @@
       const renderSlot = () => {
         mediaSlot.textContent = '';
         if (showSheet && sheetUrls.length) {
-          const link = document.createElement('a');
-          link.href = sheetUrls[0];
-          link.target = '_blank';
-          link.rel = 'noopener noreferrer';
-          const img = document.createElement('img');
-          img.src = sheetUrls[0];
-          img.alt = `${rec.catalog_id} storyboard sheet`;
-          img.loading = 'lazy';
-          link.appendChild(img);
-          mediaSlot.appendChild(link);
+          for (let i = 0; i < sheetUrls.length; i++) {
+            const link = document.createElement('a');
+            link.href = sheetUrls[i];
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            const img = document.createElement('img');
+            img.src = sheetUrls[i];
+            img.alt = `${rec.catalog_id} storyboard sheet ${i + 1}/${sheetUrls.length}`;
+            img.loading = 'lazy';
+            link.appendChild(img);
+            mediaSlot.appendChild(link);
+          }
         } else if (rec.artifactUrl) {
           if (rec.format === 'mp4') {
             const video = document.createElement('video');
@@ -255,9 +258,10 @@
 
   function renderManifestGallery(fallbackArtifacts) {
     if (!manifestPayload || !manifestPayload.hasManifest) {
-      renderRawArtifacts(fallbackArtifacts || []);
+      renderRawArtifacts(fallbackArtifacts || lastRawArtifacts);
       return;
     }
+    lastArtifactsSignature = null;
     const allRecs = manifestPayload.records || [];
     const rep = manifestPayload.report || {};
     const pfCount = Object.entries(rep.per_platform || {})
@@ -424,7 +428,9 @@
       }
       els.logsBox.textContent = lines.join('\n') || '暂无日志';
 
+      lastRawArtifacts = state.artifacts || [];
       const manSig = JSON.stringify([
+        Boolean(man.hasManifest),
         man.runId,
         man.generatedAt,
         (man.records || []).length,
@@ -433,9 +439,9 @@
       if (manSig !== lastManifestSignature) {
         lastManifestSignature = manSig;
         manifestPayload = man;
-        renderManifestGallery(state.artifacts || []);
+        renderManifestGallery(lastRawArtifacts);
       } else if (!man.hasManifest) {
-        renderRawArtifacts(state.artifacts || []);
+        renderRawArtifacts(lastRawArtifacts);
       }
     } catch (_) {
       // Ignore transient poll failure while server restarts.
@@ -452,9 +458,9 @@
     els.toggleCompare,
     els.toggleSheets,
   ]) {
-    if (el) el.addEventListener('change', () => renderManifestGallery([]));
+    if (el) el.addEventListener('change', () => renderManifestGallery(lastRawArtifacts));
   }
-  els.filterSearch.addEventListener('input', () => renderManifestGallery([]));
+  els.filterSearch.addEventListener('input', () => renderManifestGallery(lastRawArtifacts));
 
   document.querySelectorAll('[data-cmd]').forEach((btn) => {
     btn.addEventListener('click', () => sendCommand(btn.getAttribute('data-cmd')));
