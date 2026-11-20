@@ -5,7 +5,7 @@ import '../../app/haptics/app_haptics.dart';
 import '../../app/navigation/route_facade.dart'
     show showDownloadSubmittedSnackBar;
 import '../../app/widgets/app_snack_bar.dart';
-import '../../app/widgets/errors/error_details.dart' show showErrorSnackBar;
+import '../../app/widgets/errors/error_details.dart' show deferErrorSnackBar;
 import '../../core/download/download_task.dart' show DownloadGroupSubmission;
 import '../../core/entity/illust_entity.dart';
 import '../../core/illust/illust_download_controller.dart';
@@ -19,20 +19,18 @@ Future<void> downloadAllIllustPages(
   WidgetRef ref,
   IllustEntity entity,
 ) async {
-  final l10n = context.l10n;
+  final reportFailure = deferErrorSnackBar(
+    context,
+    action: context.l10n.downloadSubmissionFailed,
+  );
   final DownloadGroupSubmission submission;
   try {
     submission = await ref
         .read(illustDownloadControllerProvider)
         .downloadAll(entity);
-  } catch (error) {
-    if (!context.mounted) return;
+  } catch (error, stack) {
     AppHaptics.error();
-    showErrorSnackBar(
-      context,
-      action: l10n.downloadSubmissionFailed,
-      error: error,
-    );
+    reportFailure(error, stack);
     return;
   }
   if (!context.mounted) return;

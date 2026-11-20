@@ -52,6 +52,7 @@ const _allowListedWidgetFiles = <String>{};
 
 const _maxLibFileLines = 800;
 const _maxLibLogicalLibraryLines = 1200;
+const _grandfatheredSlackLines = 20;
 
 bool _isGeneratedLibFile(String path) =>
     path.startsWith('lib/l10n/app_localizations') ||
@@ -610,9 +611,12 @@ void main() {
       }
     }
     final staleFileCaps = <String>[
-      for (final path in _grandfatheredFileLineCaps.keys)
+      for (final MapEntry(key: path, value: cap)
+          in _grandfatheredFileLineCaps.entries)
         if ((counts[path] ?? 0) <= _maxLibFileLines)
-          '  $path (${counts[path] ?? 0} lines <= $_maxLibFileLines)',
+          '  $path (${counts[path] ?? 0} lines <= $_maxLibFileLines; remove entry)'
+        else if (counts[path]! + _grandfatheredSlackLines < cap)
+          '  $path (${counts[path]} lines; lower cap from $cap to ${counts[path]! + _grandfatheredSlackLines})',
     ];
 
     final libraryTotals = <String, int>{};
@@ -638,9 +642,12 @@ void main() {
       }
     }
     final staleLibCaps = <String>[
-      for (final path in _grandfatheredLibraryLineCaps.keys)
+      for (final MapEntry(key: path, value: cap)
+          in _grandfatheredLibraryLineCaps.entries)
         if ((libraryTotals[path] ?? 0) <= _maxLibLogicalLibraryLines)
-          '  $path (${libraryTotals[path] ?? 0} lines <= $_maxLibLogicalLibraryLines)',
+          '  $path (${libraryTotals[path] ?? 0} lines <= $_maxLibLogicalLibraryLines; remove entry)'
+        else if (libraryTotals[path]! + _grandfatheredSlackLines < cap)
+          '  $path (${libraryTotals[path]} lines; lower cap from $cap to ${libraryTotals[path]! + _grandfatheredSlackLines})',
     ];
 
     expect(

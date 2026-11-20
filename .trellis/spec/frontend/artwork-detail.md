@@ -41,7 +41,7 @@ reviewed: 2026-11-21
 - **Rule:** On narrow layouts multi-page illustrations open on page 1 plus an expand button (manga shows all pages) without wrapping the lazy sliver in `AnimatedSize`. Page selection expands first; folding from deep in the set lands at the end of page 1.
 - **Why:** `AnimatedSize` forced eager build of every full-size page at once.
 - **Check:** `test/illust_detail_page_test.dart` "an illustration set opens on its first image"
-- **Code:** `lib/features/illust/detail/illust_detail_page.dart`, `lib/features/illust/detail/illust_detail_shells.dart`
+- **Code:** `lib/features/illust/detail/illust_detail_page.dart`, `lib/features/illust/detail/illust_detail_shells.dart`, `lib/features/illust/detail/illust_detail_menu.dart`
 
 ### DETAIL-05 Viewer jumps wait for the sheet to close
 - **Rule:** The viewer's page-jump sheet pops with the target page; the viewer awaits the sheet route's `completed` future before calling `jumpToPage`.
@@ -105,7 +105,7 @@ reviewed: 2026-11-21
 - **Rule:** On single-column content areas wider than `ContentWidths.article` (700dp), info block and comments preview center inside a 700dp column while artwork and related grid keep full width.
 - **Why:** Full-width ~900dp portrait lines were hard to read.
 - **Check:** `test/illust_detail_page_test.dart` "text keeps the article column on a large portrait"
-- **Code:** `lib/features/illust/detail/illust_detail_page.dart`, `lib/features/illust/detail/illust_detail_shells.dart`, `lib/app/layout/sliver_width_builder.dart`
+- **Code:** `lib/features/illust/detail/illust_detail_page.dart`, `lib/features/illust/detail/illust_detail_shells.dart`, `lib/features/illust/detail/illust_detail_menu.dart`, `lib/app/layout/sliver_width_builder.dart`
 
 ### DETAIL-10 The download button listens to the manager itself
 - **Rule:** `DetailDownloadButton` subscribes to `DownloadManager.changes` for live progress; detail and viewer pages refresh page badges only on terminal `events` matching their own work.
