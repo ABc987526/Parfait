@@ -34,7 +34,7 @@ reviewed: 2026-11-18
   dashboard calm across desktop and mobile without stacked thick card slabs.
   Notes set apart from their row and a page with one titled group read as
   unrelated. An empty group's note on a card read as a row to press.
-- **Check:** `test/architecture/settings_rows_test.dart` "SettingsSection is gone from lib/"; `test/muted_items_page_test.dart` "an empty group says it is empty, off the cards"
+- **Check:** `test/architecture/ui_conventions_test.dart` "SettingsSection is gone from lib/"; `test/muted_items_page_test.dart` "an empty group says it is empty, off the cards"
 - **Code:** `lib/app/widgets/settings/settings_group.dart`
 
 ### SET-02 Choose the row by the number of values
@@ -71,7 +71,7 @@ reviewed: 2026-11-18
   lists and clashed with monochrome workspace navigation; bare 22dp glyphs with
   `*Filled` selection states and trailing counts align hierarchy across mobile
   and desktop without decorative color.
-- **Check:** `test/architecture/icon_style_test.dart`, `test/settings_test.dart`
+- **Check:** `test/architecture/ui_conventions_test.dart`, `test/settings_test.dart`
 - **Code:** `lib/app/widgets/settings/settings_tile.dart`, `lib/features/settings/settings_page.dart`, `lib/features/settings/me_dashboard_page.dart`, `lib/features/settings/pages/account_settings_page.dart`
 
 ### SET-09 A form is one card with its save at the end
@@ -106,7 +106,7 @@ reviewed: 2026-11-18
   architecture test's per-file whitelist with a reason.
 - **Why:** Hand-built settings rows drifted from the shared look and
   haptics.
-- **Check:** `test/architecture/settings_rows_test.dart` "hand-written ListTile rows match the design whitelist"
+- **Check:** `test/architecture/ui_conventions_test.dart` "hand-written ListTile rows match the design whitelist"
 - **Code:** `lib/app/widgets/settings`
 
 ### SET-04 A setting needs a real consumer

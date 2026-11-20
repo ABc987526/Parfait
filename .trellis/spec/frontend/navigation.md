@@ -316,7 +316,7 @@ reviewed: 2026-11-18
 
 - **Why:** User decision: pill-shaped segmented buttons are removed from the
   whole app, including desktop gallery headers.
-- **Check:** `test/architecture/no_segmented_test.dart`
+- **Check:** `test/architecture/ui_conventions_test.dart`
 - **Code:** `lib/app/widgets/filter_menu_button.dart`, `lib/app/widgets/feed/desktop_gallery_controls.dart`
 
 ### NAV-18 Page top bars are AppTopBar
@@ -334,7 +334,7 @@ reviewed: 2026-11-18
 - **Why:** `AppTopBar` owns bar shadows and workspace flatness; omitting
   redundant desktop back arrows avoids double navigation chrome next to
   `DesktopCommandBar` while keeping nested flows reachable.
-- **Check:** `test/architecture/top_bar_test.dart` "page top bars are AppTopBar"; `test/app_tab_bar_test.dart` "a top bar with tabs casts its shadow once content scrolls under it"; `test/desktop_command_bar_test.dart` "DesktopCommandBar chrome, drag regions, header deduplication, and popovers"
+- **Check:** `test/architecture/ui_conventions_test.dart` "page top bars are AppTopBar"; `test/app_tab_bar_test.dart` "a top bar with tabs casts its shadow once content scrolls under it"; `test/desktop_command_bar_test.dart` "DesktopCommandBar chrome, drag regions, header deduplication, and popovers"
 - **Code:** `lib/app/widgets/app_top_bar.dart`, `lib/app/widgets/replica_scaffold.dart`, `lib/app/widgets/master_detail_workspace.dart`
 
 ## Wide windows

@@ -40,7 +40,7 @@ reviewed: 2026-11-18
   chain. `fontFamilyFallback` exists only for the layout test harness.
 - **Why:** The user's ROM font is part of the system look; a bundled family
   overrides it.
-- **Check:** `test/architecture/format_and_font_test.dart` "no bundled Montserrat: text uses the platform font"
+- **Check:** `test/architecture/l10n_and_errors_test.dart` "no bundled Montserrat: text uses the platform font"
 - **Code:** `lib/app/theme/replica_theme.dart`
 
 ### THEME-03 Component text styles derive from the resolved text theme
@@ -63,7 +63,7 @@ reviewed: 2026-11-18
   and `replica_theme.dart`.
 - **Why:** With "follow system colors" on, the accent is the system palette;
   the constant would keep painting the brand pink.
-- **Check:** `test/architecture/format_and_font_test.dart` "the accent comes from the theme, not the brand constant"
+- **Check:** `test/architecture/l10n_and_errors_test.dart` "the accent comes from the theme, not the brand constant"
 - **Code:** `lib/app/theme/func_tokens.dart`
 
 ### THEME-05 System colors drive accents and the full surface ladder
@@ -218,7 +218,7 @@ reviewed: 2026-11-18
   indent else `sm`, 20 → `xl` for page margins else `lg`, 28 → `xxl`).
   Exceptions are allow-listed per file with a reason and a count.
 - **Why:** Hand-picked values drifted page by page.
-- **Check:** `test/architecture/spacing_tokens_test.dart`
+- **Check:** `test/architecture/ui_conventions_test.dart`
 - **Code:** `lib/app/theme/func_semantic_tokens.dart`, `lib/app/theme/func_tokens.dart`
 
 ### THEME-13 Text fields share one look
@@ -294,7 +294,7 @@ reviewed: 2026-11-18
   every glyph under `AppIcons` and `UiIcons` keeps optical geometry and stroke
   weight consistent while preserving distinct outlined vs `*Filled` state
   contrast across light, dark, mobile, and desktop shells.
-- **Check:** `test/architecture/icon_style_test.dart` "a filled icon with an outlined twin marks a state", `test/icon_font_test.dart` "pubspec registers the iconFont family pointing at assets/icon.ttf"
+- **Check:** `test/architecture/ui_conventions_test.dart` "a filled icon with an outlined twin marks a state", `test/icon_font_test.dart` "pubspec registers the iconFont family pointing at assets/icon.ttf"
 - **Code:** `lib/app/icons/app_icons.dart`, `lib/app/icons/ui_icons.dart`, `tool/build_icons.py`, `lib/app/widgets/card_actions/illust_card_actions.dart`, `lib/app/widgets/watchlist_toggle.dart`
 
 ### THEME-17 Every icon button names its action
@@ -303,7 +303,7 @@ reviewed: 2026-11-18
   itself through `Semantics` (the bookmark heart, whose long press opens
   the tag picker) is pinned in the check.
 - **Why:** An icon alone is a guess, and a screen reader read "button".
-- **Check:** `test/architecture/icon_style_test.dart` "every icon button has a tooltip"
+- **Check:** `test/architecture/ui_conventions_test.dart` "every icon button has a tooltip"
 - **Code:** `lib/app/widgets/bookmark_switch_button.dart`
 
 ## Expression

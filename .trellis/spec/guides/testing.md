@@ -63,7 +63,7 @@ reviewed: 2026-11-21
   are deleted in the same commit; no `skip:`. A replaced implementation's
   tests are rewritten in the same PR.
 - **Why:** Skipped tests kept asserting the old defect.
-- **Check:** `test/architecture/test_hygiene_test.dart` "no skipped cases"
+- **Check:** `test/architecture/layering_and_hygiene_test.dart` "no skipped cases"
 - **Code:** `test`
 
 ### TEST-12 Refactors and optimisations add no tests
@@ -115,7 +115,7 @@ reviewed: 2026-11-21
   have stopped five, the largest the 409-line smoke matrix. Gating each
   change keeps that discipline without a shared wall; the trend warning
   catches the slow drift a per-change gate allows.
-- **Check:** `tool/test_budget.py`, `test/architecture/test_hygiene_test.dart` "test files stay under"
+- **Check:** `tool/test_budget.py`, `test/architecture/layering_and_hygiene_test.dart` "test files stay under"
 - **Code:** `test`
 
 ### TEST-13 A passing test may be pruned; a failing one is never weakened
@@ -177,7 +177,7 @@ reviewed: 2026-11-21
   your own") and hid the requests pages make (the mute list, the shell's
   preloaded feeds). Fakes routed by path alone, and a field check reads
   the query and the form alike, so a write sent as a read still passed.
-- **Check:** `test/architecture/test_hygiene_test.dart` "each test double is defined once" "no test double is copied into a second file" "no test double stands in for an app repository"
+- **Check:** `test/architecture/layering_and_hygiene_test.dart` "each test double is defined once" "no test double is copied into a second file" "no test double stands in for an app repository"
 - **Code:** `test/helpers`
 
 ## Test environment traps
@@ -224,7 +224,7 @@ reviewed: 2026-11-21
   database of a case had none of its tables. Awaited in a tear-down, out
   of the fake-async zone that opened the database, a close never returned.
 - **Check:** `test/oauth_service_test.dart`,
-  `test/architecture/test_hygiene_test.dart` "socket tests carry the socket tag",
+  `test/architecture/layering_and_hygiene_test.dart` "socket tests carry the socket tag",
   `test/watch_later_store_test.dart` "default watch-later and history databases answer in a widget test",
   `test/navigation_restoration_test.dart` "a restored pager opens the work it settled on"
 - **Code:** `test/flutter_test_config.dart`,
@@ -271,7 +271,7 @@ reviewed: 2026-11-21
   twenty-odd came back while nothing checked the rule.
   Repository fakes held states no store can hold (a templateless custom
   naming rule, a bare `ja` tag).
-- **Check:** `test/architecture/test_hygiene_test.dart` "no file sets empty preferences of its own"
+- **Check:** `test/architecture/layering_and_hygiene_test.dart` "no file sets empty preferences of its own"
 - **Code:** `test/flutter_test_config.dart`, `test/helpers/test_preferences.dart`, `test/helpers/fake_account.dart`, `test/helpers/fake_settings.dart`, `test/helpers/prompt_host.dart`, `test/helpers/recording_haptics.dart`
 
 ### TEST-11 Waits use fake time
@@ -292,7 +292,7 @@ reviewed: 2026-11-21
   queued on close, with the same timer left. Local wait loops that gave up
   silently hid a condition that never held: a download test waited for
   progress the throttle never showed.
-- **Check:** `test/architecture/test_hygiene_test.dart` "no real sleeps"
+- **Check:** `test/architecture/layering_and_hygiene_test.dart` "no real sleeps"
 - **Code:** `test/helpers/waits.dart`, `test/helpers/history_world.dart`
 
 ### TEST-15 Widget tests fail on what they leave undisposed

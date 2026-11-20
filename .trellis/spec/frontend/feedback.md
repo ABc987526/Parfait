@@ -71,7 +71,7 @@ reviewed: 2026-11-17
   and Android tablets full-width mobile bottom sheets; decoupling
   `useWideOverlay` from `usePointerOverlay` gives touch tablets bounded
   dialogs and side sheets while avoiding pointer-anchored popovers.
-- **Check:** `test/architecture/feedback_channels_test.dart` "app modal overlays funnel through app_overlays.dart", `test/app_overlays_test.dart` "a drag outside closes it on release, one layer only" "useWideOverlay and usePointerOverlay split container shape from pointer anchoring" "wide touch viewports render bounded dialog, side sheet, and dialog popover" "AppDatePickerDialog clamps out-of-range today and returns a local DateTime" "AppAlertDialog mounts FDialog with inner Material for TextField"
+- **Check:** `test/architecture/ui_conventions_test.dart` "app modal overlays funnel through app_overlays.dart", `test/app_overlays_test.dart` "a drag outside closes it on release, one layer only" "useWideOverlay and usePointerOverlay split container shape from pointer anchoring" "wide touch viewports render bounded dialog, side sheet, and dialog popover" "AppDatePickerDialog clamps out-of-range today and returns a local DateTime" "AppAlertDialog mounts FDialog with inner Material for TextField"
 - **Code:** `lib/app/motion/app_overlays.dart`, `lib/app/widgets/app_dialog.dart`, `lib/app/widgets/app_date_picker.dart`
 
 ### FB-03 Each action appears once at a time
@@ -98,7 +98,7 @@ reviewed: 2026-11-17
   host first through `deferAppSnackBar` (errors: `deferErrorSnackBar`).
 - **Why:** The Scaffold path anchored to geometry the floating shell bar
   does not have and read the polluted accessibility flag.
-- **Check:** `test/architecture/feedback_channels_test.dart` "prompts have exactly one host"
+- **Check:** `test/architecture/ui_conventions_test.dart` "prompts have exactly one host"
 - **Code:** `lib/app/widgets/prompt_host.dart`, `lib/app/widgets/app_snack_bar.dart`
 
 ### FB-05 Prompt lifetime, dwell and placement
@@ -174,7 +174,7 @@ reviewed: 2026-11-17
   without haptics.
 - **Why:** User decision; vibration for navigation and background events
   read as feedback for something else.
-- **Check:** `test/architecture/feedback_channels_test.dart` "navigation chrome stays silent" "haptics have exactly one owner"
+- **Check:** `test/architecture/ui_conventions_test.dart` "navigation chrome stays silent" "haptics have exactly one owner"
 - **Code:** `lib/app/haptics/app_haptics.dart`
 
 ### FB-11 Callers name a role, not an effect
@@ -195,7 +195,7 @@ reviewed: 2026-11-17
   `longPress` itself; secondary mouse clicks opening context menus stay silent.
 - **Why:** Raw controls were silent; Material's own long-press feedback
   doubled the app's, and mouse right-clicks do not warrant touch haptics.
-- **Check:** `test/architecture/feedback_channels_test.dart` "selection controls live only in their haptic wrappers", `test/selection_controls_haptics_test.dart`
+- **Check:** `test/architecture/ui_conventions_test.dart` "selection controls live only in their haptic wrappers", `test/selection_controls_haptics_test.dart`
 - **Code:** `lib/app/widgets/settings`, `lib/app/widgets/app_choice_chip.dart`, `lib/app/widgets/feed/desktop_gallery_controls.dart`
 
 ### FB-13 Store mutations vibrate on the settled outcome
@@ -212,7 +212,7 @@ reviewed: 2026-11-17
 - **Rule:** UI code copies with `copyToClipboard(context, text, message:)`:
   write, `success` haptic, then the prompt.
 - **Why:** Copies without confirmation looked like nothing happened.
-- **Check:** `test/architecture/feedback_channels_test.dart` "UI clipboard writes go through copyToClipboard"
+- **Check:** `test/architecture/ui_conventions_test.dart` "UI clipboard writes go through copyToClipboard"
 - **Code:** `lib/app/clipboard.dart`
 
 ### FB-16 Desktop original image clipboard copy uses ImageClipboard and deferAppSnackBar

@@ -18,7 +18,7 @@ reviewed: 2026-11-17
   `setSystemUiMode`.
 - **Why:** Scattered calls left pages with the wrong bar icons after a
   theme switch or a pop.
-- **Check:** `test/architecture/feedback_channels_test.dart` "system UI has exactly one owner"
+- **Check:** `test/architecture/ui_conventions_test.dart` "system UI has exactly one owner"
 - **Code:** `lib/app/system_ui.dart`
 
 ### SYS-02 Override bar style by wrapping, decoupling top and bottom bars when needed

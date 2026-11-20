@@ -40,7 +40,7 @@ reviewed: 2026-10-29
   type names into SnackBars. The "详情" disclosure that replaced it still
   showed users stack-like text and broke the download row's layout
   (11-04).
-- **Check:** `test/architecture/raw_error_text_test.dart` "no raw error text reaches user-facing surfaces", `test/error_details_test.dart` "records an error once however often it is mounted", `test/download_manager_test.dart` "failure aborts the sink, logs the error once and retry re-enqueues"
+- **Check:** `test/architecture/l10n_and_errors_test.dart` "no raw error text reaches user-facing surfaces", `test/error_details_test.dart` "records an error once however often it is mounted", `test/download_manager_test.dart` "failure aborts the sink, logs the error once and retry re-enqueues"
 - **Code:** `lib/app/widgets/errors/error_details.dart`, `lib/core/download/download_manager.dart`
 
 ### ERR-03 One classifier, one error SnackBar
@@ -77,7 +77,7 @@ reviewed: 2026-10-29
 - **Why:** Placeholders smuggled raw errors past ERR-02; a duplicated key
   silently overrides the first; a redundant "unknown error" line reads as
   a second failure.
-- **Check:** `test/architecture/l10n_placeholders_test.dart` "text placeholders are allow-listed with a reason" "arb files define every key once"
+- **Check:** `test/architecture/l10n_and_errors_test.dart` "text placeholders are allow-listed with a reason" "arb files define every key once"
 - **Code:** `lib/l10n`
 
 ### ERR-06 Logs carry metadata, never secrets
@@ -93,5 +93,5 @@ reviewed: 2026-10-29
   drops the quote.
 - **Why:** Debug output is pasted into bug reports. A corrupt stored
   credential's JSON error quoted its tokens (11-04).
-- **Check:** `test/architecture/feedback_channels_test.dart` "diagnostics go through log()", `test/account_store_test.dart` "a corrupt credential fails without quoting the stored secret", `test/error_details_test.dart` "a file error is logged without its path"; the rest of the secrets part is manual.
+- **Check:** `test/architecture/ui_conventions_test.dart` "diagnostics go through log()", `test/account_store_test.dart` "a corrupt credential fails without quoting the stored secret", `test/error_details_test.dart` "a file error is logged without its path"; the rest of the secrets part is manual.
 - **Code:** `lib/core/log.dart`

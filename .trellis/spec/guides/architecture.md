@@ -27,7 +27,7 @@ reviewed: 2026-11-21
 - **Why:** Coupling caller facades and `DesktopCommandBarScope` to
   `routes.dart` pulled ~538 `lib/` files into 102 test files, causing
   slow incremental compiles and 4G local OOM kills.
-- **Check:** `test/architecture/layering_test.dart` "lib import graph respects layering rules (allow-list must shrink to empty)"
+- **Check:** `test/architecture/layering_and_hygiene_test.dart` "lib import graph respects layering rules (allow-list must shrink to empty)"
 - **Code:** `lib/app/navigation/routes.dart`, `lib/app/navigation/route_facade.dart`, `lib/app/window/desktop_command_bar_scope.dart`
 
 ### ARCH-02 Data code lives in core; shared widgets live in app
@@ -39,7 +39,7 @@ reviewed: 2026-11-21
   `_*Status` or `_*Placeholder` widgets that duplicate the component layer.
 - **Why:** Feature-local copies of feed states and follow buttons drifted
   apart and kept their own follow booleans.
-- **Check:** `test/architecture/layering_test.dart`
+- **Check:** `test/architecture/layering_and_hygiene_test.dart`
 - **Code:** `lib/app/widgets`, `lib/core`
 
 ### ARCH-03 Every cross-layer contract has one owner
