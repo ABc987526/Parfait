@@ -60,8 +60,8 @@ class MeAccountHeader extends StatelessWidget {
         PersonCard(
           color: FuncTokens.transparent,
           onTap: value == null
-              ? () => openLogin(context)
-              : () => openMe(context),
+              ? () => unawaited(openLogin(context))
+              : () => unawaited(openMe(context)),
           tapHint: value == null ? null : l10n.meOpenProfile,
           endPadding: PersonCard.padding - EdgeIconButtons.glyphInset,
           trailing: value == null
@@ -312,8 +312,8 @@ class MeCompactAccountHeader extends StatelessWidget {
           onTapHint: value == null ? null : l10n.meOpenProfile,
           child: InkWell(
             onTap: value == null
-                ? () => openLogin(context)
-                : () => openMe(context),
+                ? () => unawaited(openLogin(context))
+                : () => unawaited(openMe(context)),
             child: Padding(
               padding: const EdgeInsetsDirectional.fromSTEB(
                 FuncSpacing.md,

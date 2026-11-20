@@ -715,7 +715,7 @@ void main() {
   });
 
   test(
-    'PackageInfo is read through packageInfoProvider, not build FutureBuilder',
+    'build() never constructs FutureBuilder(future: PackageInfo.fromPlatform())',
     () {
       final pattern = RegExp(
         r'FutureBuilder[\s\S]{0,200}PackageInfo\.fromPlatform\s*\(',
@@ -728,8 +728,9 @@ void main() {
         hits,
         isEmpty,
         reason:
-            'Read packageInfoProvider instead of constructing FutureBuilder('
-            'future: PackageInfo.fromPlatform()) in build():\n${hits.join('\n')}',
+            'Use packageInfoProvider in widget builds instead of constructing '
+            'FutureBuilder(future: PackageInfo.fromPlatform()):\n'
+            '${hits.join('\n')}',
       );
     },
   );

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/rendering.dart' show RenderAbstractViewport;
@@ -310,21 +311,28 @@ class IllustDetailScrollController {
     double targetMetaOffset, {
     required bool Function() isMounted,
   }) {
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await _walkLazyNarrowScrollUntil(
-        isMounted,
-        () => infoAnchorKey.currentContext != null,
-      );
-      if (_disposed || !isMounted() || !narrowScroll.hasClients) return;
-      updateNarrowInfoStartOffset();
-      final infoStart = narrowInfoStartOffset;
-      if (infoStart == null) return;
-      final target = (infoStart + targetMetaOffset).clamp(
-        0.0,
-        narrowScroll.position.maxScrollExtent,
-      );
-      narrowScroll.jumpTo(target);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(_runNarrowMetaSync(targetMetaOffset, isMounted: isMounted));
     });
+  }
+
+  Future<void> _runNarrowMetaSync(
+    double targetMetaOffset, {
+    required bool Function() isMounted,
+  }) async {
+    await _walkLazyNarrowScrollUntil(
+      isMounted,
+      () => infoAnchorKey.currentContext != null,
+    );
+    if (_disposed || !isMounted() || !narrowScroll.hasClients) return;
+    updateNarrowInfoStartOffset();
+    final infoStart = narrowInfoStartOffset;
+    if (infoStart == null) return;
+    final target = (infoStart + targetMetaOffset).clamp(
+      0.0,
+      narrowScroll.position.maxScrollExtent,
+    );
+    narrowScroll.jumpTo(target);
   }
 
   Future<void> scrollToInfo({required bool Function() isMounted}) async {
@@ -350,33 +358,51 @@ class IllustDetailScrollController {
   }) {
     if (_revealScheduled || _disposed) return;
     _revealScheduled = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       _revealScheduled = false;
-      if (_disposed || !isMounted()) return;
-      final index = imageIndex;
-      if (index <= 0) return;
-      final layout = IllustFirstImageLayout.of(
-        getContext(),
-        entity,
-        expanded: isPagesExpanded(),
-      );
-      if (index >= layout.shownPages) {
-        onExpandPages();
-        await WidgetsBinding.instance.endOfFrame;
-        if (_disposed || !isMounted()) return;
-      }
-      await _walkLazyNarrowScrollUntil(isMounted, () {
-        final page = pageKeys[index]?.currentContext;
-        return page != null && page.mounted;
-      });
-      if (_disposed || !isMounted()) return;
-      final page = pageKeys[index]?.currentContext;
-      if (page == null || !page.mounted) return;
-      await Scrollable.ensureVisible(
-        page,
-        duration: MotionTokens.resolve(page, MotionTokens.spatial),
+      unawaited(
+        _runNarrowReveal(
+          getContext: getContext,
+          isMounted: isMounted,
+          entity: entity,
+          isPagesExpanded: isPagesExpanded,
+          onExpandPages: onExpandPages,
+        ),
       );
     });
+  }
+
+  Future<void> _runNarrowReveal({
+    required BuildContext Function() getContext,
+    required bool Function() isMounted,
+    required IllustEntity entity,
+    required bool Function() isPagesExpanded,
+    required VoidCallback onExpandPages,
+  }) async {
+    if (_disposed || !isMounted()) return;
+    final index = imageIndex;
+    if (index <= 0) return;
+    final layout = IllustFirstImageLayout.of(
+      getContext(),
+      entity,
+      expanded: isPagesExpanded(),
+    );
+    if (index >= layout.shownPages) {
+      onExpandPages();
+      await WidgetsBinding.instance.endOfFrame;
+      if (_disposed || !isMounted()) return;
+    }
+    await _walkLazyNarrowScrollUntil(isMounted, () {
+      final page = pageKeys[index]?.currentContext;
+      return page != null && page.mounted;
+    });
+    if (_disposed || !isMounted()) return;
+    final page = pageKeys[index]?.currentContext;
+    if (page == null || !page.mounted) return;
+    await Scrollable.ensureVisible(
+      page,
+      duration: MotionTokens.resolve(page, MotionTokens.spatial),
+    );
   }
 
   /// The image at the top of the single column right now, read directly from
