@@ -157,12 +157,19 @@ reviewed: 2026-10-26
   isolated temporary `.part` file under a per-album, per-transfer directory
   and commit into `PHPhotoLibrary` via `parfait/ios_photos` (`saveImage`) on
   `finalize()`, cleaning staging files in a `finally` block; permission
-  denials or native failures raise an error rather than faking success.
+  denials or native failures raise an error rather than faking success. When
+  an album name is passed, `IosPhotosBridge` requests `.readWrite` photo library
+  authorization, serializes album lookup/creation on `albumQueue`, and adds
+  created assets to a matching or newly created `.albumRegular`
+  `PHAssetCollection` via `PHAssetCollectionChangeRequest`. `DownloadDestinationPage`
+  hides the Android SAF folder option on iOS and uses desktop folder/subfolder
+  copy on Windows/macOS/Linux.
 - **Why:** iOS does not expose a shared writable Pictures folder or MediaStore
   API; staging keeps chunked writes and resume anchors working without
-  leaving half-written assets in the Photos library.
-- **Check:** `test/windows_capability_test.dart` "IosPhotoLibraryMediaStoreSession stages chunks, commits via channel, and resumes detached .part"
-- **Code:** `lib/core/platform/ios_photo_library.dart`, `ios/Runner/AppDelegate.swift`
+  leaving half-written assets in the Photos library, while native album
+  placement avoids dropping custom-album destinations on iOS.
+- **Check:** `test/windows_capability_test.dart` "IosPhotoLibraryMediaStoreSession stages chunks, commits via channel, and resumes detached .part"; `test/phase1_platform_fidelity_test.dart` "DownloadDestinationPage hides SAF on iOS and shows desktop folder copy and macOS bookmark label"
+- **Code:** `lib/core/platform/ios_photo_library.dart`, `ios/Runner/AppDelegate.swift`, `ios/Runner/Info.plist`, `lib/features/settings/pages/download_destination_page.dart`, `lib/features/settings/settings_helpers.dart`
 
 ### DL-14 macOS sandboxed tree destinations require security-scoped bookmarks
 - **Rule:** When `supportsSecurityScopedBookmarks` is enabled, picked custom
@@ -170,7 +177,9 @@ reviewed: 2026-10-26
   as `treeUri`, wrap I/O with reference-counted `startAccess`/`stopAccess`,
   and embed the token in resume locators. Missing or stale/denied bookmarks
   throw an explicit error instead of silently falling back to raw paths.
+  `safTreeDisplayName` / `isMacosSecurityBookmark` render a readable localized
+  label instead of exposing raw base64 in settings UI.
 - **Why:** Under macOS App Sandbox, raw paths outside Downloads lose read/write
   access after app restart or outside user-selected single-use sessions.
-- **Check:** `test/windows_capability_test.dart` "MacosBookmarkDirectoryPicker and sink factory require bookmarks and pair startAccess/stopAccess"
-- **Code:** `lib/core/platform/desktop_file_sink.dart`, `macos/Runner/MainFlutterWindow.swift`
+- **Check:** `test/windows_capability_test.dart` "MacosBookmarkDirectoryPicker and sink factory require bookmarks and pair startAccess/stopAccess"; `test/phase1_platform_fidelity_test.dart` "DownloadDestinationPage hides SAF on iOS and shows desktop folder copy and macOS bookmark label"
+- **Code:** `lib/core/platform/desktop_file_sink.dart`, `macos/Runner/MainFlutterWindow.swift`, `lib/features/settings/saf_tree_name.dart`, `lib/features/settings/pages/download_destination_page.dart`

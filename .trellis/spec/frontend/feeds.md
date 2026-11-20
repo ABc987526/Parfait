@@ -217,7 +217,11 @@ reviewed: 2026-11-18
 ## Pull to refresh
 
 ### FEED-07 PullToRefresh is the only refresh wrapper
-- **Rule:** Feeds refresh through `PullToRefresh`, with
+- **Rule:** Feeds refresh through `PullToRefresh`, rendering the unified
+  minimalist `SakuraRefreshIndicator` ring (`MotionTokens.refreshSpin`) across
+  all five platforms (with `brandHairline` track, `colorScheme.primary` round
+  arc, and reduced-motion stillness), and `FeedTail` / `FeedLoading` use
+  `AppSpinner` (`brandHairline` track, `StrokeCap.round`). `PullToRefresh` runs
   `clamping: false` for ordinary lists: the whole list follows the finger
   down and the header shows above it. A tab body inside a
   `NestedScrollView` passes `isNested: true` and starts its list with
@@ -228,7 +232,8 @@ reviewed: 2026-11-18
   on the outer scroll. Nothing wraps the whole `NestedScrollView`; its
   outer physics is `NestedRefreshOuterPhysics`, which holds the outer
   scroll while the user drags a feed's header out.
-- **Why:** Per-page wrappers diverged; under clamping the reversed pull is
+- **Why:** Per-page wrappers diverged, and Material's white floating disc felt
+  dated on desktop/iOS and over dark feeds; under clamping the reversed pull is
   not real overscroll, so the indicator stayed pinned while the list
   moved. A clamping header keeps the feed at its top, so the coordinator
   gave a reversed pull to the outer scroll first: the profile header
@@ -241,7 +246,7 @@ reviewed: 2026-11-18
   header's height off the outer scroll without a layout, so a profile
   header pushed up during a refresh jumped open on the next drag.
 - **Check:** `test/pull_to_refresh_test.dart` "the shared wrapper refreshes a nested scroll view once", `test/user_profile_test.dart` "a reversed pull retracts the indicator before the header collapses" "a header pushed up during a refresh stays when it ends"
-- **Code:** `lib/app/pull_to_refresh.dart`, `lib/features/profile/user_page.dart`, `lib/features/profile/profile_illust_feed.dart`, `pubspec.yaml`
+- **Code:** `lib/app/pull_to_refresh.dart`, `lib/app/widgets/app_spinner.dart`, `lib/app/widgets/feed/feed_states.dart`, `lib/features/profile/user_page.dart`, `lib/features/profile/profile_illust_feed.dart`, `pubspec.yaml`
 
 ### FEED-08 The indicator follows observable outcomes
 - **Rule:** A reversed pull moves the indicator back with the finger, and

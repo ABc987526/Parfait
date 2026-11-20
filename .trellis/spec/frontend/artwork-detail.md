@@ -235,8 +235,12 @@ reviewed: 2026-11-18
   expanding to the full stage forwards `heroScope` and `pagerSource`. For pushed
   detail routes, when `AppBreakpoints.useTwoPaneDetailOf` holds (`>= 480dp` tall
   and foldable `book`/`tabletop` or `>= 600dp` wide with `height / width < 1.2`),
-  `AdaptiveTwoPane` pairs the `AmbientWash` image pager (haloed back glyph and
-  `DetailPageCounter`, never unisolated `BackdropFilter` discs/docks) with a
+  `AdaptiveTwoPane` pairs the `AmbientWash` image pager (haloed `BackButtonIcon` and
+  `DetailPageCounter`, never unisolated `BackdropFilter` discs/docks;
+  `DetailImagePager` exposes pointer-hover haloed prev/next controls,
+  mouse-wheel paging, and inspector-safe `HardwareKeyboard`
+  `ArrowLeft`/`ArrowRight` paging while leaving `Shift+Arrow` to
+  `IllustDetailPagerPage`) with a
   pinned `340–460dp` metadata pane (hinge-aligned on foldables, pointer-resizable
   under a stable `Stack`). On large flat screens (`>= 960×600`),
   `FuncPage(boundedOverlayOnWide: true)` and `DetailOverlayFrame` float the
@@ -251,7 +255,7 @@ reviewed: 2026-11-18
   scanning without sacrificing history or detail features, while hinge-aware
   panes, rail-synced modal scrims, consistent close affordances, and unblurred
   stages keep foldables and desktop animations cohesive.
-- **Check:** `test/layout_breakpoints_test.dart` "two-pane detail needs a landscape area at least medium wide" "the secondary column stays between its bounds" "renders primary and secondary side by side" "AdaptiveTwoPane avoids vertical book hinge including rail" "AdaptiveTwoPane splits vertically on tabletop hinge" "AdaptiveTwoPane pointer handle resizes and saves ratio"; `test/illust_detail_actions_test.dart` "splits into image pager and meta column" "a layout switch fades the page in rather than swapping it"; `test/illust_detail_pager_test.dart` "an image pager at its last page hands the swipe to the work pager" "an image pager at its first image hands a backward swipe to the work pager, then follows the finger" "a two-pane stand-in paints the grid image on the stage"; `test/responsive_layout_test.dart` "PC standard grid keeps 3 columns at 1280px inspector width"; `test/home_branch_stack_test.dart` "ShellRail dims behind bounded DetailOverlayFrame and dismisses on tap"
+- **Check:** `test/layout_breakpoints_test.dart` "two-pane detail needs a landscape area at least medium wide" "the secondary column stays between its bounds" "renders primary and secondary side by side" "AdaptiveTwoPane avoids vertical book hinge including rail" "AdaptiveTwoPane splits vertically on tabletop hinge" "AdaptiveTwoPane pointer handle resizes and saves ratio"; `test/illust_detail_actions_test.dart` "splits into image pager and meta column" "a layout switch fades the page in rather than swapping it"; `test/illust_detail_pager_test.dart` "an image pager at its last page hands the swipe to the work pager" "an image pager at its first image hands a backward swipe to the work pager, then follows the finger" "a two-pane stand-in paints the grid image on the stage"; `test/responsive_layout_test.dart` "PC standard grid keeps 3 columns at 1280px inspector width"; `test/home_branch_stack_test.dart` "ShellRail dims behind bounded DetailOverlayFrame and dismisses on tap"; `test/phase1_platform_fidelity_test.dart` "DetailImagePager supports hover arrows, mouse wheel, and unfocused arrow keys"
 - **Code:** `lib/app/layout/app_breakpoints.dart`, `lib/app/layout/two_pane.dart`, `lib/app/layout/window_layout_spec.dart`, `lib/app/navigation/func_page.dart`, `lib/app/widgets/feed/feed_grid.dart`, `lib/app/widgets/feed/desktop_inspector_scope.dart`, `lib/features/illust/detail/widgets/desktop_gallery_inspector.dart`, `lib/features/illust/detail/widgets/detail_overlay_frame.dart`, `lib/features/illust/detail/illust_detail_page.dart`, `lib/features/illust/detail/illust_detail_content.dart`, `lib/features/illust/detail/widgets/detail_image_pager.dart`, `lib/features/illust/detail/illust_detail_pager_page.dart`
 
 ### DETAIL-18 Single-column detail text keeps the article width

@@ -9,7 +9,7 @@ applies_to:
   - lib/app/widgets/feed/illust_card*.dart
   - lib/features/illust/**
   - android/app/src/main/AndroidManifest.xml
-reviewed: 2026-11-18
+reviewed: 2026-11-20
 ---
 
 # Page transitions, back gesture and Hero flights
@@ -90,9 +90,9 @@ reviewed: 2026-11-18
   route following the gesture had to gate itself on branch visibility
   (parked branches keep an `isCurrent` route offstage and popped a page
   the user could not see) and release the Navigator when a commit threw;
-  the back button's path already does both. Upheld 11-05: an in-app
-  preview that shrank the page and the sheet with the finger was
-  tried on a device and reverted; the user found it a worse experience.
+  the back button's path already does both. Upheld 11-05 and 11-20: in-app
+  predictive-back previews clashed with the app's custom slide, Hero, and
+  sheet transitions on device and were reverted.
 - **Check:** `test/func_page_test.dart` "only the visible branch answers the back gesture" "a root-level page owns the gesture over the whole shell"
 - **Code:** `lib/app/navigation/func_page.dart`
 
@@ -287,8 +287,8 @@ reviewed: 2026-11-18
 
 ### TRANS-11 Card rounding lives inside the Hero child
 - **Rule:** The card's corner clip (`IllustHeroCardFrame`) wraps the Hero
-  child (drawing a faint 1dp inner `cocoaHairline` frame on the light theme per
-  THEME-20, none on dark). Only a flight with a card end rounds its corners;
+  child with a clean `ClipRRect(borderRadius: FuncShape.card)` (no inner
+  thumbnail border in either theme per THEME-20). Only a flight with a card end rounds its corners;
   detail ↔ viewer flies square. A card that shows
   only part of the image (the top of a taller one, the middle of a wider
   one) hands its `cropAspect` to the flight, which lays the image out

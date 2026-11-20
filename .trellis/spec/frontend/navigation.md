@@ -349,7 +349,8 @@ reviewed: 2026-11-18
   `labelSmall` compact padding so all four locales fit without ellipsis; `204dp`
   expanded). Without `DesktopCommandBarScope`, the rail includes a header,
   tabs, rule, and bookmarks/downloads shortcuts; under `DesktopCommandBarScope`,
-  it omits duplicate shortcuts and anchors theme/settings
+  it hides the duplicate top expand/collapse header button while keeping
+  bookmarks/downloads shortcuts alongside bottom theme/settings entries
   (`router.go('/settings/all')` with `settingsSelected`). Across both touch
   tablets and PCs, `HomeBranchStack` auto-collapses the rail to `74dp` while
   `(me || settingsSelected)` on `>= 840dp` to preserve `MasterDetailWorkspace`
@@ -458,15 +459,14 @@ reviewed: 2026-11-18
 - **Code:** `lib/app/navigation/keyboard_back.dart`, `lib/app/app.dart`
 
 ### NAV-26 Desktop command bar, macOS menu bar and per-branch forward history
-- **Rule:** On desktop platforms (Windows, macOS, Linux), `AppChrome` mounts
-  the 48dp `DesktopCommandBar` (rail toggle omitted on root-overlay routes without
+- **Rule:** On desktop platforms (Windows, macOS, Linux) when `FormFactorScope` resolves `FormFactor.pc` (`InterfaceForm.touch` hides it), `AppChrome` mounts
+  `DesktopCommandBar` (`48dp` `kDesktopCommandBarHeight` when owning custom title-bar chrome on Windows/macOS; `40dp` `kDesktopCompactCommandBarHeight` without duplicate brand pill, drag spacers, or pre-home bar when `usesSystemTitleBar` is true such as Linux GTK HeaderBar / X11 WM frames) inside `Overlay.wrap` (`Overlay`, enabling hover `Tooltip`s on command-bar controls) (rail toggle omitted on root-overlay routes without
   a visible `ShellRail`, back/forward, refresh, search field
   with `'⌘K'` on macOS / `'Ctrl K'` elsewhere and keyword pills, reverse search,
-  anchored scrim-less `showAppPanel` popovers for `Icons.shield_outlined` R-18/AI
+  anchored scrim-less `showAppPanel` popovers for `AppIcons.shield` R-18/AI
   filters and account switching anchored cleanly below the control bar
   (`FuncSpacing.xs` offset) and merged into a single non-duplicated `Semantics`
   button with drag spacers marked `ExcludeSemantics`, and window drag/caption regions with `2px`
-  (`FuncSpacing.xs` offset), and window drag/caption regions with `2px`
   unmaximized top/right resize borders so Win11 Snap Layouts stay reachable),
   progressively hiding shortcut badge (`< 680dp`), wordmark (`< 600dp`), and
   full search input (`< 500dp` or tight width) while wrapping the routed child
@@ -478,10 +478,14 @@ reviewed: 2026-11-18
   macOS traffic light insets), `_DesktopFallbackChromeStack` omits
   `dragZone` when disabled and probes/yields to child interactive controls,
   and macOS mounts `DesktopMenuBar`. `ForwardHistoryStack` keeps per-branch
-  forward stacks while `KeyboardBack` dedupes back/forward within 120 ms.
-- **Why:** Desktop shells require unified titlebar commands, narrow-window
+  forward stacks while `KeyboardBack` dedupes back/forward within 120 ms and
+  wires cross-platform shortcuts (`Ctrl/Cmd+,` settings, `Ctrl/Cmd+1..5` tabs,
+  `Ctrl/Cmd+B` toggle rail, with `Cmd` primary on both `iOS` and `macOS`).
+- **Why:** Desktop shells require unified titlebar commands, compact non-duplicated
+  toolbars under system title bars (Linux), real command-bar tooltips,
+  respecting `InterfaceForm.touch`, narrow-window
   overflow protection, accessible toolbar nodes, native macOS menus, unclipped
-  dark-stage viewing, and isolated browser-like forward history without double
+  dark-stage viewing, keyboard parity, and isolated browser-like forward history without double
   headers or blocked window caption edges.
-- **Check:** `test/desktop_ux_phase2_test.dart` "DesktopCommandBar chrome, drag regions, header deduplication, and popovers" "DesktopMenuBar restricts to macOS and wires View, Navigation, Bookmarks, Downloads, and Search" "ForwardHistoryStack replays per-branch forward entries and debounces mouse back/forward" "AppChrome isolates Router BlockSemantics so DesktopCommandBar remains reachable in semantics" "wide AppChrome keeps HomePage element and state mounted across ImageViewerPage push and pop" `test/desktop_window_test.dart` "DesktopFallbackWindowChrome omits dragZone when disabled and yields to child buttons on macOS"
+- **Check:** `test/desktop_ux_phase2_test.dart` "DesktopCommandBar chrome, drag regions, header deduplication, and popovers" "DesktopMenuBar restricts to macOS and wires View, Navigation, Bookmarks, Downloads, and Search" "ForwardHistoryStack replays per-branch forward entries and debounces mouse back/forward" "AppChrome isolates Router BlockSemantics so DesktopCommandBar remains reachable in semantics" "wide AppChrome keeps HomePage element and state mounted across ImageViewerPage push and pop"; `test/desktop_window_test.dart` "DesktopFallbackWindowChrome omits dragZone when disabled and yields to child buttons on macOS"; `test/phase1_platform_fidelity_test.dart` "AppChrome hides DesktopCommandBar for touch form, provides Tooltip Overlay, and ShellRail keeps shortcuts" "DesktopCommandBar compacts to 40dp toolbar without duplicate branding when usesSystemTitleBar is true" "KeyboardBack handles Ctrl/Cmd settings, destination digits, rail toggle, and iOS Cmd"
 - **Code:** `lib/app/app.dart`, `lib/app/window/desktop_command_bar.dart`, `lib/app/window/desktop_menu_bar.dart`, `lib/app/window/desktop_title_bar.dart`, `lib/app/navigation/forward_history.dart`, `lib/app/navigation/keyboard_back.dart`, `windows/runner/flutter_window.cpp`

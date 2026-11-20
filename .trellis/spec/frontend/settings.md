@@ -16,20 +16,24 @@ reviewed: 2026-11-18
 
 ## Rows and groups
 
-### SET-01 Rows sit in SettingsGroup cards, never Divider
-- **Rule:** Settings rows go inside `SettingsGroup`, which draws each child
-  as its own `surfaceContainer` card 8dp apart, the gap being the only
-  separator; never a `Divider`, never a hand-built group container.
-  A note on one row is that row's subtitle; a note on the whole group, or
-  on content without a subtitle (a slider, a form), is the group
-  `footer`. So is an empty group's line saying it is empty: never a card
-  of its own. Notes on how to use a setting are not written (PAGE-20).
-  On one page either every group has a title or none does. A leaving
-  `Removable` row stops counting from the exit's first frame.
-- **Why:** User decision: separate cards on settings and the Me dashboard
-  replaced segmented lists and dividers. Notes set apart from their row and a
-  page with one titled group read as unrelated. An empty group's note on
-  a card read as a row to press.
+### SET-01 Rows sit in a unified SettingsGroup card, never Divider
+- **Rule:** Settings rows go inside `SettingsGroup`, which wraps non-empty
+  children inside one unified `SettingsCard` (`surfaceContainer` with
+  `FuncShape.card` corners and a `1dp` `brandHairline` border) and separates
+  adjacent active rows with an animated `1dp` inset `brandHairline`
+  (`EdgeInsetsDirectional.only(start: FuncSpacing.lg)`), never a `Divider` and
+  never a hand-built group container (`BottomBarSettingsPage`'s reorderable list
+  still draws one `SettingsCard` per draggable item `SettingsGroup.rowGap`
+  apart). A note on one row is that row's subtitle; a note on the whole group,
+  or on content without a subtitle (a slider, a form), is the group `footer`.
+  So is an empty group's line saying it is empty: never a card of its own.
+  Notes on how to use a setting are not written (PAGE-20). On one page either
+  every group has a title or none does. A leaving `Removable` row stops
+  counting from the exit's first frame so its hairline closes smoothly.
+- **Why:** One inset grouped card with 1dp hairlines keeps settings and the Me
+  dashboard calm across desktop and mobile without stacked thick card slabs.
+  Notes set apart from their row and a page with one titled group read as
+  unrelated. An empty group's note on a card read as a row to press.
 - **Check:** `test/architecture/settings_rows_test.dart` "SettingsSection is gone from lib/"; `test/muted_items_page_test.dart` "an empty group says it is empty, off the cards"
 - **Code:** `lib/app/widgets/settings/settings_group.dart`
 
@@ -39,17 +43,19 @@ reviewed: 2026-11-18
   edge, never over the title). A longer list is a `SettingsGroup` of
   `SettingsChoiceTile`s, which mark the chosen row with a check and
   `ListTile.selected`, not a radio. A two-way property is a
-  `SettingsControl` switch; on `BottomBarSettingsPage`, locked-on
-  destinations (`shown && onChanged == null`) override local `SwitchTheme`
-  with a muted `0.40` primary-blended track, `onPrimary` thumb, and
-  `lock_outline`/`check` `thumbIcon` while keeping `onChanged: null`
-  (THEME-07), and omit `bottomBarMeLocked` under `DesktopCommandBarScope`.
+  `SettingsControl` backed by `FSwitch`; on `BottomBarSettingsPage`, locked-on
+  destinations (`shown && onChanged == null`) pass `locked: true` and
+  `lockedIcon` (`AppIcons.lock` / `AppIcons.check`) to render a muted `0.40`
+  primary-blended track, `onPrimary` thumb, and lock overlay while keeping
+  `onChanged: null` (THEME-07), and omit `bottomBarMeLocked` under
+  `DesktopCommandBarScope`. Diagnostic result panels in `NetworkProbePage` use
+  `FAccordion` / `FAccordionItem`.
 - **Why:** `RadioListTile` is deprecated in the pinned Flutter, and
   `selected` is what screen readers announce; segmented buttons were
   removed (NAV-17), while locked-on bar destinations needed clear active
   visual state without looking toggleable.
-- **Check:** `test/selection_controls_haptics_test.dart`
-- **Code:** `lib/app/widgets/settings/settings_menu_tile.dart`, `lib/app/widgets/settings/settings_choice_tile.dart`, `lib/features/settings/pages/bottom_bar_settings_page.dart`
+- **Check:** `test/selection_controls_haptics_test.dart`; `test/phase3_forui_bridge_test.dart` "SettingsControl locked mode renders disabled active FSwitch with lock icon"
+- **Code:** `lib/app/widgets/settings/settings_control.dart`, `lib/app/widgets/settings/settings_menu_tile.dart`, `lib/app/widgets/settings/settings_choice_tile.dart`, `lib/features/settings/pages/bottom_bar_settings_page.dart`, `lib/features/settings/network_probe_page.dart`
 
 ### SET-08 Page entries use monochrome icons without color discs
 - **Rule:** A row that opens a settings page from the index (`SettingsTile.topLevel`)
@@ -128,7 +134,10 @@ reviewed: 2026-11-18
 ### SET-06 Each setting has one home page and master-detail layout on wide workspaces
 - **Rule:** `/settings/motion` holds animation speed, reduced motion, press
   feedback and haptic strength (shown on Android and on iOS devices where
-  `hapticsCapabilityProvider` reports `tier != HapticsTier.none`). Credential
+  `hapticsCapabilityProvider` reports `tier != HapticsTier.none`; `Setting.hapticStrength.available`
+  is true on both Android and iOS, while `followSystemColors` and
+  `saveLocationSafFolder` are hidden on iOS in both `Setting.available` and
+  their respective pages). Credential
   export is in account management. History switches and delete-all are in the
   history page's overflow menu; there is no history settings page. The interface
   form (NAV-20) heads `/settings/navigation` and, like haptic strength, exists
@@ -149,11 +158,12 @@ reviewed: 2026-11-18
   `/settings/navigation/bottom-bar`, `/settings/translate/credentials`) map to
   their parent category and scroll the active rail entry into view.
 - **Why:** The same setting on two pages drifted apart; hardwareless iPads omit
-  dead haptic sliders while Taptic iPhones expose them; and unified `280dp`
+  dead haptic sliders while Taptic iPhones expose them (and iOS omits Android
+  Material You system colors and SAF pickers); and unified `280dp`
   master-detail hosting keeps deep-linked settings pages coherent beside the
   collapsed shell rail without double headers or orphaned single-column sheets.
-- **Check:** `test/settings_search_test.dart` "every catalog entry is on its page"; `test/settings_master_detail_test.dart` "wide desktop uses master-detail with nested navigation; below 840dp stays single column"; `test/shared_widgets_test.dart` "MasterDetailWorkspace wraps scrollable masterBody in vertical ScrollEdgeFade"
-- **Code:** `lib/app/widgets/master_detail_workspace.dart`, `lib/app/navigation/route_branches.dart`, `lib/features/settings/settings_catalog.dart`, `lib/features/settings/settings_page.dart`, `lib/features/settings/settings_helpers.dart`, `lib/features/settings/pages/motion_settings_page.dart`
+- **Check:** `test/settings_search_test.dart` "every catalog entry is on its page"; `test/settings_master_detail_test.dart` "wide desktop uses master-detail with nested navigation; below 840dp stays single column"; `test/shared_widgets_test.dart` "MasterDetailWorkspace wraps scrollable masterBody in vertical ScrollEdgeFade"; `test/phase1_platform_fidelity_test.dart` "Setting.available and ThemeSettingsPage adapt haptics and system colors on iOS"
+- **Code:** `lib/app/widgets/master_detail_workspace.dart`, `lib/app/navigation/route_branches.dart`, `lib/features/settings/settings_catalog.dart`, `lib/features/settings/settings_page.dart`, `lib/features/settings/settings_helpers.dart`, `lib/features/settings/pages/motion_settings_page.dart`, `lib/features/settings/pages/theme_settings_page.dart`, `lib/features/settings/pages/download_destination_page.dart`
 
 ## Me tab
 

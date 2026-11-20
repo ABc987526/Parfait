@@ -32,8 +32,10 @@ reviewed: 2026-11-17
 ## Menus and overlays
 
 ### FB-01 Menus are AppMenuButton
-- **Rule:** Overflow and choice menus use `AppMenuButton` / `AppMenuEntry`,
-  never `PopupMenuButton`. A touch outside closes the menu and is consumed;
+- **Rule:** Overflow and choice menus use `AppMenuButton` / `AppMenuEntry`
+  (styling `MenuStyle` with `surfaceContainerHigh`, `brandHairline`,
+  `FuncShape.card`, and `FuncSpacing.xs`), never `PopupMenuButton`. A touch
+  outside closes the menu and is consumed;
   back closes the menu before the page. The panel keeps
   `crossAxisUnconstrained: false` so long labels truncate inside the width
   cap. A menu keeps `FuncSpacing.sm` off the side of the screen it lines
@@ -47,14 +49,19 @@ reviewed: 2026-11-17
 
 ### FB-02 Dialogs and sheets go through app_overlays.dart
 - **Rule:** Dialogs and bottom sheets open through `showAppDialog` /
-  `showAppBottomSheet`; adaptive overlays (`showAppAdaptiveDialog`,
+  `showAppBottomSheet` (`smooth_sheets` `PopupRoute + ModalSheetRouteMixin`
+  hosting `AppBottomSheet` (`Sheet` with `SheetScrollConfiguration`,
+  `BouncingSheetPhysics` or `ClampingSheetPhysics` under reduced motion,
+  `PromptCover` and `_ReleaseDismissBarrier`)); adaptive overlays (`showAppAdaptiveDialog`,
   `showAppAdaptiveSideSheet`, `showAppAdaptivePopover`) split viewport
   geometry from interaction modality: `useWideOverlay` (width >= 600dp
   and height >= 480dp, keeping turned phones on bottom sheets) selects
   bounded centered dialogs or trailing side sheets for tablets as well as
   desktops, while `usePointerOverlay` (width >= 600dp, height >= 480dp,
   and pointer input) limits pointer-anchored popovers to cursor inputs so
-  wide touch viewports fall back to `showAppAdaptiveDialog`. A modal
+  wide touch viewports fall back to `showAppAdaptiveDialog`. `showAppDatePicker`
+  presents `AppDatePickerDialog` backed by `FCalendar.grid` with UTC day
+  clamping, and dialogs use `AppAlertDialog` backed by `FDialog`. A modal
   surface that places itself (the docked search input, NAV-25) uses
   `showAppPanel`, and a pointer menu (PAGE-18) uses `showAppContextMenu`.
   The barrier routes close when a touch that started on the scrim is
@@ -64,8 +71,8 @@ reviewed: 2026-11-17
   and Android tablets full-width mobile bottom sheets; decoupling
   `useWideOverlay` from `usePointerOverlay` gives touch tablets bounded
   dialogs and side sheets while avoiding pointer-anchored popovers.
-- **Check:** `test/architecture/feedback_channels_test.dart` "app modal overlays funnel through app_overlays.dart", `test/app_overlays_test.dart` "a drag outside closes it on release, one layer only" "useWideOverlay and usePointerOverlay split container shape from pointer anchoring" "wide touch viewports render bounded dialog, side sheet, and dialog popover"
-- **Code:** `lib/app/motion/app_overlays.dart`
+- **Check:** `test/architecture/feedback_channels_test.dart` "app modal overlays funnel through app_overlays.dart", `test/app_overlays_test.dart` "a drag outside closes it on release, one layer only" "useWideOverlay and usePointerOverlay split container shape from pointer anchoring" "wide touch viewports render bounded dialog, side sheet, and dialog popover", `test/phase3_forui_bridge_test.dart` "AppDatePickerDialog clamps out-of-range today and returns a local DateTime" "AppAlertDialog mounts FDialog with inner Material for TextField"
+- **Code:** `lib/app/motion/app_overlays.dart`, `lib/app/widgets/app_dialog.dart`, `lib/app/widgets/app_date_picker.dart`
 
 ### FB-03 Each action appears once at a time
 - **Rule:** A menu or sheet lists only actions not already on screen. A
