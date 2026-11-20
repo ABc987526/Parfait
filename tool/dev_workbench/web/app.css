@@ -84,6 +84,7 @@ button {
   background: #0d1218;
   border: 1px solid var(--border);
   font-size: 12px;
+  white-space: pre-line;
 }
 .client-card .badge-on { color: var(--ok); font-weight: 600; }
 .client-card .badge-off { color: var(--warn); font-weight: 600; }

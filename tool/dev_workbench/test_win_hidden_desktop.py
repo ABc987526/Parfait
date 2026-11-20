@@ -53,6 +53,7 @@ class WinHiddenDesktopTests(unittest.TestCase):
         self.assertEqual(to_wsl_path(r"E:\dev\parfait-win"), Path("/mnt/e/dev/parfait-win"))
         self.assertEqual(to_wsl_path("/tmp/already-posix"), Path("/tmp/already-posix"))
         self.assertEqual(ps_single_quote("a'b"), "'a''b'")
+        self.assertEqual(ps_single_quote("a\u2018b\u2019c"), "'a\u2018\u2018b\u2019\u2019c'")
         self.assertIn("--dev-profile=e2e", build_windows_command_line("parfait.exe", ["--dev-profile=e2e"]))
         with self.assertRaises(ValueError):
             build_windows_command_line("   ")

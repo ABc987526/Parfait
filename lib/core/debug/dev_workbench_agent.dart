@@ -84,8 +84,10 @@ class DevWorkbenchAgent {
         'logs': [for (final entry in pendingLogs) entry.toJson()],
       });
       if (response == null || _disposed) return;
+      _loggedTickFailure = false;
       final ack = response['ackSeq'];
-      if (ack is int && ack > _lastAckSeq) {
+      final latestSeq = DevTelemetry.instance.latestSeq;
+      if (ack is int && ack > _lastAckSeq && ack <= latestSeq) {
         _lastAckSeq = ack;
       } else if (pendingLogs.isNotEmpty) {
         _lastAckSeq = pendingLogs.last.seq;

@@ -64,8 +64,14 @@ base class DevFileSharedPreferencesAsyncPlatform
   }
 
   Future<void> _save(Map<String, Object> data) async {
-    _cache = data;
     await _writeJsonAtomic(file, data);
+    _cache = data;
+  }
+
+  Future<void> _mutate(void Function(Map<String, Object> next) update) async {
+    final next = Map<String, Object>.from(await _load());
+    update(next);
+    await _save(next);
   }
 
   @override
@@ -73,55 +79,37 @@ base class DevFileSharedPreferencesAsyncPlatform
     String key,
     String value,
     SharedPreferencesOptions options,
-  ) => _serialized(() async {
-    final data = await _load();
-    data[key] = value;
-    await _save(data);
-  });
+  ) => _serialized(() => _mutate((data) => data[key] = value));
 
   @override
   Future<void> setBool(
     String key,
     bool value,
     SharedPreferencesOptions options,
-  ) => _serialized(() async {
-    final data = await _load();
-    data[key] = value;
-    await _save(data);
-  });
+  ) => _serialized(() => _mutate((data) => data[key] = value));
 
   @override
   Future<void> setDouble(
     String key,
     double value,
     SharedPreferencesOptions options,
-  ) => _serialized(() async {
-    final data = await _load();
-    data[key] = value;
-    await _save(data);
-  });
+  ) => _serialized(() => _mutate((data) => data[key] = value));
 
   @override
   Future<void> setInt(
     String key,
     int value,
     SharedPreferencesOptions options,
-  ) => _serialized(() async {
-    final data = await _load();
-    data[key] = value;
-    await _save(data);
-  });
+  ) => _serialized(() => _mutate((data) => data[key] = value));
 
   @override
   Future<void> setStringList(
     String key,
     List<String> value,
     SharedPreferencesOptions options,
-  ) => _serialized(() async {
-    final data = await _load();
-    data[key] = List<String>.unmodifiable(value);
-    await _save(data);
-  });
+  ) => _serialized(
+    () => _mutate((data) => data[key] = List<String>.unmodifiable(value)),
+  );
 
   @override
   Future<String?> getString(String key, SharedPreferencesOptions options) =>
@@ -143,22 +131,28 @@ base class DevFileSharedPreferencesAsyncPlatform
   Future<List<String>?> getStringList(
     String key,
     SharedPreferencesOptions options,
-  ) => _serialized(() async => (await _load())[key] as List<String>?);
+  ) => _serialized(() async {
+    final value = (await _load())[key] as List<String>?;
+    return value == null ? null : List<String>.from(value);
+  });
 
   @override
   Future<void> clear(
     ClearPreferencesParameters parameters,
     SharedPreferencesOptions options,
-  ) => _serialized(() async {
-    final data = await _load();
-    final allowList = parameters.filter.allowList;
-    if (allowList == null) {
-      data.clear();
-    } else {
-      data.removeWhere((key, _) => allowList.contains(key));
-    }
-    await _save(data);
-  });
+  ) => _serialized(
+    () => _mutate((data) {
+      final allowList = parameters.filter.allowList;
+      if (allowList == null) {
+        data.clear();
+      } else {
+        data.removeWhere((key, _) => allowList.contains(key));
+      }
+    }),
+  );
+
+  static Object _clonePrefValue(Object value) =>
+      value is List<String> ? List<String>.from(value) : value;
 
   @override
   Future<Map<String, Object>> getPreferences(
@@ -167,10 +161,15 @@ base class DevFileSharedPreferencesAsyncPlatform
   ) => _serialized(() async {
     final data = await _load();
     final allowList = parameters.filter.allowList;
-    if (allowList == null) return Map<String, Object>.from(data);
+    if (allowList == null) {
+      return {
+        for (final entry in data.entries)
+          entry.key: _clonePrefValue(entry.value),
+      };
+    }
     return {
       for (final key in allowList)
-        if (data.containsKey(key)) key: data[key]!,
+        if (data.containsKey(key)) key: _clonePrefValue(data[key]!),
     };
   });
 
@@ -394,8 +393,7 @@ Future<void> _writeJsonAtomic(
     }
   }
   await tmp.writeAsString(jsonEncode(data), flush: true);
-  if (isWindows && await file.exists()) {
-    await file.delete();
-  }
+  // Dart's File.rename uses MoveFileExW(MOVEFILE_REPLACE_EXISTING) on Windows
+  // and rename(2) on POSIX, so overwriting directly avoids a crash-loss window.
   await tmp.rename(file.path);
 }

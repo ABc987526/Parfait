@@ -17,11 +17,11 @@ final _apiKeyHeaderPattern = RegExp(
   caseSensitive: false,
 );
 final _querySecretPattern = RegExp(
-  r'''([A-Za-z0-9_.-]*(?:access_?token|refresh_?token|id_?token|code_?verifier|phpsessid|api_?key|apikey|secret|password|token)|(?<![A-Za-z0-9_])(?:code|cookie))\s*=\s*([^\s&"';]+)''',
+  r'''((?:(?<![A-Za-z0-9_.-])[A-Za-z0-9_.-]*(?:access[-_]?token|refresh[-_]?token|id[-_]?token|code[-_]?verifier|phpsessid|api[-_]?key|apikey|secret|password|token)|(?<![A-Za-z0-9_])(?:code|cookie))\s*([:=])\s*)(?!\[REDACTED\])(?:(?:Bearer|Basic|Token|Digest)\s+)?([^\s&"';,}\]]+)''',
   caseSensitive: false,
 );
 final _jsonSecretPattern = RegExp(
-  r'("[A-Za-z0-9_.-]*(?:access_?token|refresh_?token|id_?token|cookie|set-cookie|authorization|x-parfait-workbench-token|api_?key|secret|password|code_?verifier|transfer_?envelope)"\s*:\s*)"([^"\\]*(?:\\.[^"\\]*)*)"',
+  r'("[A-Za-z0-9_.-]*(?:access[-_]?token|refresh[-_]?token|id[-_]?token|token|cookies?|set-cookie|phpsessid|authorization|x-parfait-workbench-token|api[-_]?key|apikey|secret|password|credential|code[-_]?verifier|transfer[-_]?envelope)"\s*:\s*)"([^"\\]*(?:\\.[^"\\]*)*)"',
   caseSensitive: false,
 );
 final _transferEnvelopeB64Pattern = RegExp(
@@ -30,7 +30,10 @@ final _transferEnvelopeB64Pattern = RegExp(
 
 bool _isSensitiveKey(String key) {
   final compact = key.trim().toLowerCase().replaceAll(RegExp(r'[-_]'), '');
-  return compact.contains('token') ||
+  return compact == 'code' ||
+      compact == 'codeverifier' ||
+      compact == 'phpsessid' ||
+      compact.contains('token') ||
       compact.contains('secret') ||
       compact.contains('cookie') ||
       compact.contains('password') ||
@@ -62,12 +65,12 @@ String redactDevText(String input) {
     (m) => '${m.group(1)}: $kRedactedPlaceholder',
   );
   result = result.replaceAllMapped(
-    _querySecretPattern,
-    (m) => '${m.group(1)}=$kRedactedPlaceholder',
-  );
-  result = result.replaceAllMapped(
     _jsonSecretPattern,
     (m) => '${m.group(1)}"$kRedactedPlaceholder"',
+  );
+  result = result.replaceAllMapped(
+    _querySecretPattern,
+    (m) => '${m.group(1)}$kRedactedPlaceholder',
   );
   return result;
 }

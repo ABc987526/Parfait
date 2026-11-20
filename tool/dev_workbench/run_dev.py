@@ -53,15 +53,34 @@ def _ensure_server(
     *,
     allow_emulator_host: bool = False,
 ) -> tuple[dict[str, object], subprocess.Popen[str] | None]:
+    expected_artifacts = str(Path(artifacts_dir).resolve()) if artifacts_dir else None
     existing = _read_session(STATE_FILE)
     if existing and existing.get("port") == port and existing.get("token"):
         pid = existing.get("pid")
         if isinstance(pid, int):
             try:
                 os.kill(pid, 0)
-                return existing, None
             except OSError:
                 pass
+            else:
+                existing_emu = bool(existing.get("allow_emulator_host", False))
+                existing_artifacts = existing.get("artifacts_dir")
+                mismatches: list[str] = []
+                if existing_emu != allow_emulator_host:
+                    mismatches.append(
+                        f"allow_emulator_host (running={existing_emu}, requested={allow_emulator_host})"
+                    )
+                if existing_artifacts != expected_artifacts:
+                    mismatches.append(
+                        f"artifacts_dir (running={existing_artifacts!r}, requested={expected_artifacts!r})"
+                    )
+                if mismatches:
+                    raise RuntimeError(
+                        f"Existing workbench server on port {port} (pid={pid}) has incompatible flags: "
+                        + ", ".join(mismatches)
+                        + ". Stop that process or pass a different --port."
+                    )
+                return existing, None
 
     cmd = [
         sys.executable,
@@ -177,7 +196,17 @@ def main(argv: list[str] | None = None) -> int:
             flush=True,
         )
         if server_proc is not None:
-            server_proc.terminate()
+            print(
+                "Workbench server running for Windows client. Press Ctrl+C to stop.",
+                flush=True,
+            )
+            try:
+                while True:
+                    time.sleep(1.0)
+            except KeyboardInterrupt:
+                pass
+            finally:
+                server_proc.terminate()
         return 0
 
     if args.platform == "windows-hidden":

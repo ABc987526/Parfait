@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
@@ -11,6 +12,8 @@ import 'package:parfait/core/auth/credential.dart';
 import 'package:parfait/core/auth/credential_store.dart';
 import 'package:parfait/core/debug/dev_isolated_stores.dart';
 import 'package:parfait/core/debug/dev_redaction.dart';
+import 'package:parfait/core/download/download_providers.dart';
+import 'package:parfait/core/download/download_request.dart';
 import 'package:parfait/core/history/history_database.dart';
 import 'package:parfait/core/history/history_repository.dart';
 import 'package:parfait/core/localnovel/local_novel_database.dart';
@@ -18,8 +21,8 @@ import 'package:parfait/core/localnovel/local_novel_repository.dart';
 import 'package:parfait/core/paging/feed_database.dart';
 import 'package:parfait/core/paging/feed_snapshot_store.dart';
 import 'package:parfait/core/platform/app_storage_paths.dart';
-import 'package:parfait/core/platform/desktop_file_sink.dart';
 import 'package:parfait/core/platform/dev_webview_environment.dart';
+import 'package:parfait/core/platform/platform_caps.dart';
 import 'package:parfait/core/translation/legacy_translation_cleanup.dart';
 import 'package:parfait/core/translation/translation_credentials.dart';
 import 'package:parfait/core/translation/translation_service.dart';
@@ -27,6 +30,7 @@ import 'package:parfait/core/watchlater/watch_later_database.dart';
 import 'package:parfait/core/watchlater/watch_later_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../helpers/fake_webview.dart';
 import '../../helpers/test_preferences.dart';
 
 void main() {
@@ -89,6 +93,9 @@ void main() {
 
       final container = ProviderContainer(
         overrides: [
+          platformCapsProvider.overrideWithValue(
+            const PlatformCaps(isLinux: true),
+          ),
           appStoragePathsProvider.overrideWithValue(paths),
           credentialStoreProvider.overrideWithValue(
             DevFileCredentialStore(paths.credentialsDir!),
@@ -114,11 +121,17 @@ void main() {
         if (await sandbox.exists()) await sandbox.delete(recursive: true);
       });
 
-      // 1. Preferences
+      // 1. Preferences (including mutable getStringList copy)
       final prefs = SharedPreferencesAsync();
       await prefs.setString('dev_marker', 'isolated_value');
       expect(await prefs.getString('dev_marker'), 'isolated_value');
+      await prefs.setStringList('dev_tags', ['a', 'b']);
+      final tags = await prefs.getStringList('dev_tags');
+      expect(tags, ['a', 'b']);
+      tags!.add('c');
+      expect(await prefs.getStringList('dev_tags'), ['a', 'b']);
       expect(paths.preferencesFile!.existsSync(), isTrue);
+      expect(p.isWithin(devRoot.path, paths.preferencesFile!.path), isTrue);
 
       // 2. Credentials & legacy translation session cleanup
       final credStore = container.read(credentialStoreProvider);
@@ -170,17 +183,45 @@ void main() {
       File(p.join(tempDir.path, 'img.bin')).writeAsStringSync('cache');
       expect(tempDir.path, paths.tempDir!.path);
 
-      // 5. Downloads dir via DesktopFileMediaStoreSession
-      final session = DesktopFileMediaStoreSession(
-        baseDirectory: () async => paths.downloadsDir!,
+      // 5. Downloads dir via real downloadSinkFactoryProvider
+      final factory = container.read(downloadSinkFactoryProvider);
+      final req = DownloadRequest(
+        illustId: 900001,
+        pageIndex: 0,
+        url: Uri.parse('https://i.pximg.net/img-original/img/900001_p0.png'),
+        target: DownloadTarget.illustPage,
       );
-      final handle = await session.begin(
-        displayName: '900001_p0.png',
-        mimeType: 'image/png',
+      final sink = await factory.begin(req, '900001_p0.png');
+      await sink.write([137, 80, 78, 71]);
+      final outUri = Uri.parse(await sink.finalize());
+      expect(p.isWithin(paths.downloadsDir!.path, outUri.toFilePath()), isTrue);
+      expect(p.isWithin(devRoot.path, outUri.toFilePath()), isTrue);
+      expect(p.isWithin(prodRoot.path, outUri.toFilePath()), isFalse);
+
+      // Android keeps MediaStore even when downloadsDir is set; prod desktop
+      // (downloadsDir == null) keeps default non-dev sink factory.
+      final androidContainer = ProviderContainer(
+        overrides: [
+          platformCapsProvider.overrideWithValue(
+            const PlatformCaps(isAndroid: true),
+          ),
+          appStoragePathsProvider.overrideWithValue(paths),
+        ],
       );
-      await handle.write([137, 80, 78, 71]);
-      final outUri = await handle.finalize();
-      expect(outUri.toFilePath(), contains(paths.downloadsDir!.path));
+      final prodDesktopContainer = ProviderContainer(
+        overrides: [
+          platformCapsProvider.overrideWithValue(
+            const PlatformCaps(isLinux: true),
+          ),
+          appStoragePathsProvider.overrideWithValue(
+            const AppStoragePaths.production(),
+          ),
+        ],
+      );
+      addTearDown(androidContainer.dispose);
+      addTearDown(prodDesktopContainer.dispose);
+      expect(androidContainer.read(downloadSinkFactoryProvider), isNotNull);
+      expect(prodDesktopContainer.read(downloadSinkFactoryProvider), isNotNull);
 
       // Sentinel verification: prod files are byte-for-byte & timestamp identical.
       for (final entry in sentinels.entries) {
@@ -232,9 +273,20 @@ void main() {
       expect(setCookieRedacted, isNot(contains('setcookie_val')));
       expect(setCookieRedacted, contains(kRedactedPlaceholder));
 
+      final mapLogRedacted = redactDevText(
+        '{refresh_token: rt_secret, api-key=ak_secret, code-verifier=cv_secret, ok: true}',
+      );
+      expect(mapLogRedacted, isNot(contains('rt_secret')));
+      expect(mapLogRedacted, isNot(contains('ak_secret')));
+      expect(mapLogRedacted, isNot(contains('cv_secret')));
+      expect(mapLogRedacted, contains('ok: true'));
+
       final map = redactDevMap({
         'accessToken': 'abc',
         'refreshToken': 'def',
+        'code_verifier': 'pkce_secret',
+        'code': 'oauth_code_secret',
+        'PHPSESSID': 'sess_secret',
         'cookie': 'PHPSESSID=xyz',
         'Set-Cookie': 'a=b',
         'transferEnvelope': {'cipher': 'secret'},
@@ -246,7 +298,10 @@ void main() {
       for (final secret in [
         'abc',
         'def',
-        'PHPSESSID',
+        'pkce_secret',
+        'oauth_code_secret',
+        'sess_secret',
+        'PHPSESSID=xyz',
         'a=b',
         'secret',
         'wb123',
@@ -395,6 +450,39 @@ void main() {
         retireLegacyTranslationData(trStore, isWindowsOverride: true),
         throwsStateError,
       );
+
+      // Retry after failure succeeds, populates current/resolveForWebView,
+      // and passes the isolated dev webview2 userDataFolder.
+      String? capturedFolder;
+      final fakeEnv = WebViewEnvironment.fromPlatform(
+        platform: FakeInAppWebViewPlatform()
+            .createPlatformWebViewEnvironmentStatic(),
+      );
+      final resolved = await DevWebViewEnvironmentHolder.prewarm(paths, (
+        settings,
+      ) async {
+        capturedFolder = settings.userDataFolder;
+        return fakeEnv;
+      }, true);
+      expect(identical(resolved, fakeEnv), isTrue);
+      expect(identical(DevWebViewEnvironmentHolder.current, fakeEnv), isTrue);
+      expect(DevWebViewEnvironmentHolder.initError, isNull);
+      expect(
+        DevWebViewEnvironmentHolder.isUnavailableInDevWindows(
+          isWindowsOverride: true,
+        ),
+        isFalse,
+      );
+      expect(
+        identical(
+          DevWebViewEnvironmentHolder.resolveForWebView(
+            isWindowsOverride: true,
+          ),
+          fakeEnv,
+        ),
+        isTrue,
+      );
+      expect(capturedFolder, paths.webViewUserDataDir!.path);
     },
   );
 }

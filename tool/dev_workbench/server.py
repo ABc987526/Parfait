@@ -521,6 +521,8 @@ class _WorkbenchHandler(BaseHTTPRequestHandler):
                     raise ValueError("unexpected EOF in chunked body")
                 size_str = line.split(b";", 1)[0].strip()
                 chunk_size = int(size_str, 16)
+                if chunk_size < 0:
+                    raise ValueError("negative chunk size")
                 if chunk_size == 0:
                     while True:
                         trailer = self.rfile.readline(65536)
@@ -832,7 +834,14 @@ class _WorkbenchHandler(BaseHTTPRequestHandler):
         self._send_bytes(status, ctype, resp)
 
 
-def write_state_files(port: int, token: str, state_file: Path) -> None:
+def write_state_files(
+    port: int,
+    token: str,
+    state_file: Path,
+    *,
+    allow_emulator_host: bool = False,
+    artifacts_dir: Path | None = None,
+) -> None:
     state_file.parent.mkdir(parents=True, exist_ok=True)
     payload = {
         "host": "127.0.0.1",
@@ -840,6 +849,8 @@ def write_state_files(port: int, token: str, state_file: Path) -> None:
         "url": f"http://127.0.0.1:{port}",
         "token": token,
         "pid": os.getpid(),
+        "allow_emulator_host": allow_emulator_host,
+        "artifacts_dir": str(artifacts_dir.resolve()) if artifacts_dir else None,
     }
     tmp = state_file.with_suffix(".json.tmp")
     fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
@@ -885,7 +896,13 @@ def main(argv: list[str] | None = None) -> int:
         state,
         allow_emulator_host=args.allow_emulator_host,
     )
-    write_state_files(server.bound_port, token, args.state_file)
+    write_state_files(
+        server.bound_port,
+        token,
+        args.state_file,
+        allow_emulator_host=args.allow_emulator_host,
+        artifacts_dir=args.artifacts_dir,
+    )
 
     stop_event = threading.Event()
 

@@ -416,6 +416,29 @@ class _LoginWebViewPageState extends ConsumerState<LoginWebViewPage>
     onReceivedHttpError: _onReceivedHttpError,
   );
 
+  Widget _devWebViewErrorView(BuildContext context) => Center(
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(AppIcons.globeOff, size: 56),
+        const SizedBox(height: FuncSpacing.md),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: FuncSpacing.xl),
+          child: Text(
+            '${DevWebViewEnvironmentHolder.initError ?? 'Dev WebView2 environment unavailable'}',
+            textAlign: TextAlign.center,
+          ),
+        ),
+        const SizedBox(height: FuncSpacing.lg),
+        FilledButton.icon(
+          onPressed: _openExternalBrowser,
+          icon: const Icon(AppIcons.externalLink),
+          label: Text(context.l10n.openInBrowser),
+        ),
+      ],
+    ),
+  );
+
   Widget _webView2Prompt(BuildContext context) => Center(
     child: Column(
       mainAxisSize: MainAxisSize.min,
@@ -538,8 +561,9 @@ class _LoginWebViewPageState extends ConsumerState<LoginWebViewPage>
         children: [
           if (!supportsWebView)
             _externalBrowserView(context)
-          else if (_webView2Missing ||
-              DevWebViewEnvironmentHolder.isUnavailableInDevWindows())
+          else if (DevWebViewEnvironmentHolder.isUnavailableInDevWindows())
+            _devWebViewErrorView(context)
+          else if (_webView2Missing)
             _webView2Prompt(context)
           else
             _webView(),

@@ -422,13 +422,19 @@ class DevWorkbenchHostState extends ConsumerState<DevWorkbenchHost> {
     Map<String, Object?> args = const <String, Object?>{},
   ]) => _dispatchCommand(type, args);
 
+  static num? _parseNumArg(Object? raw) {
+    if (raw is num) return raw;
+    if (raw is String) return num.tryParse(raw.trim());
+    return null;
+  }
+
   Future<Map<String, Object?>> _dispatchCommand(
     String type,
     Map<String, Object?> args,
   ) async {
     switch (type) {
       case 'snapshot':
-        final afterSeq = (args['afterSeq'] as num?)?.toInt();
+        final afterSeq = _parseNumArg(args['afterSeq'])?.toInt();
         return _buildSnapshot(afterSeq: afterSeq);
       case 'navigate':
         final path = args['path']?.toString() ?? '';
@@ -476,8 +482,8 @@ class DevWorkbenchHostState extends ConsumerState<DevWorkbenchHost> {
               ?.toString(),
         };
       case 'resizeWindow':
-        final w = (args['width'] as num?)?.toDouble();
-        final h = (args['height'] as num?)?.toDouble();
+        final w = _parseNumArg(args['width'])?.toDouble();
+        final h = _parseNumArg(args['height'])?.toDouble();
         if (w == null || h == null) {
           throw ArgumentError('width and height are required');
         }
@@ -630,11 +636,7 @@ class DevWorkbenchHostState extends ConsumerState<DevWorkbenchHost> {
           );
         }
         try {
-          final args = <String, Object?>{};
-          for (final entry in params.entries) {
-            final numVal = num.tryParse(entry.value);
-            args[entry.key] = numVal ?? entry.value;
-          }
+          final args = Map<String, Object?>.from(params);
           final result = await host._dispatchCommand(name, args);
           return developer.ServiceExtensionResponse.result(
             jsonEncode(redactDevMap(result)),
