@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/rendering.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../core/log.dart';
@@ -406,20 +407,23 @@ class DevShellHostState extends State<DevShellHost> {
           displayFeatures: displayFeatures,
         );
 
-        Widget frame = MediaQuery(
-          data: simulatedMedia,
-          child: Theme(
-            data: Theme.of(context).copyWith(platform: targetPlatform),
-            child: WindowEnvironmentOverride(
-              displaySize: preset.logicalSize,
-              targetPlatform: targetPlatform,
-              platformCaps: caps,
-              desktopMetrics: desktopMetrics,
-              desktopActions: DesktopWindowActions.noop,
-              showSimulatedTrafficLights: showMacLights,
-              child: InputModalityScope(
-                initialModality: effectiveModality,
-                child: persistentApp,
+        Widget frame = ProviderScope(
+          overrides: [platformCapsProvider.overrideWithValue(caps)],
+          child: MediaQuery(
+            data: simulatedMedia,
+            child: Theme(
+              data: Theme.of(context).copyWith(platform: targetPlatform),
+              child: WindowEnvironmentOverride(
+                displaySize: preset.logicalSize,
+                targetPlatform: targetPlatform,
+                platformCaps: caps,
+                desktopMetrics: desktopMetrics,
+                desktopActions: DesktopWindowActions.noop,
+                showSimulatedTrafficLights: showMacLights,
+                child: InputModalityScope(
+                  initialModality: effectiveModality,
+                  child: persistentApp,
+                ),
               ),
             ),
           ),

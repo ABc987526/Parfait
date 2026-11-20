@@ -150,4 +150,117 @@ void main() {
     expect(find.byType(LoginPage), findsNWidgets(2));
     expect(result.router.state.extra, isA<AccountCallbackRoute>());
   });
+
+  testWidgets(
+    'subscribing before readInitial delivers queued cold-start and follow-up links in order exactly once',
+    (tester) async {
+      // Mirrors IosIntentBridge / MacosIntentBridge queueing when two links
+      // arrive before Dart mounts ExternalIntentBridge (which subscribes to
+      // onNewIntent before calling readInitial).
+      final bridge = _QueuedIntentSource([
+        RoutedAndroidIntent(
+          IntentRouter.route(Uri.parse('pixiv://illusts/111')),
+        ),
+        RoutedAndroidIntent(IntentRouter.route(Uri.parse('pixiv://users/222'))),
+      ]);
+      addTearDown(bridge.dispose);
+
+      final visited = <String>[];
+      final router = createPixivRouter(initialLocation: '/recommended');
+      addTearDown(router.dispose);
+      router.routerDelegate.addListener(() {
+        final path = router.state.uri.path;
+        if (visited.isEmpty || visited.last != path) visited.add(path);
+      });
+
+      await seedAccounts(const [testerAccount], currentId: testerAccount.id);
+      await tester.pumpWidget(
+        localizedRouterApp(
+          router,
+          overrides: [
+            ...accountProviderOverrides(
+              credentialStore: FakeCredentialStore(
+                values: const {
+                  '100': Credential(
+                    accessToken: 'a-100',
+                    refreshToken: 'r-100',
+                  ),
+                },
+              ),
+            ),
+          ],
+          builder: (context, child) => promptHostBuilder(
+            context,
+            ExternalIntentBridge(
+              router: router,
+              intentSource: bridge,
+              child: child!,
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 350));
+
+      expect(bridge.events, ['onListen', 'readInitial', 'flush:1']);
+      expect(
+        visited.where(
+          (p) => p.contains('/illust/111') || p.contains('/user/222'),
+        ),
+        ['/recommended/illust/111', '/recommended/user/222'],
+      );
+    },
+  );
+}
+
+class _QueuedIntentSource implements AndroidIntentSource {
+  _QueuedIntentSource(List<AndroidIntentResult> incoming)
+    : _initial = incoming.first,
+      _pending = incoming.skip(1).toList() {
+    _controller = StreamController<AndroidIntentResult>(
+      onListen: () {
+        events.add('onListen');
+        _listening = true;
+        _flushIfReady();
+      },
+    );
+  }
+
+  AndroidIntentResult? _initial;
+  final List<AndroidIntentResult> _pending;
+  bool _initialConsumed = false;
+  bool _listening = false;
+  final List<String> events = [];
+  late final StreamController<AndroidIntentResult> _controller;
+
+  void _flushIfReady() {
+    if ((!_initialConsumed && _initial != null) ||
+        !_listening ||
+        _pending.isEmpty) {
+      return;
+    }
+    final queued = List<AndroidIntentResult>.of(_pending);
+    _pending.clear();
+    events.add('flush:${queued.length}');
+    scheduleMicrotask(() {
+      for (final item in queued) {
+        if (!_controller.isClosed) _controller.add(item);
+      }
+    });
+  }
+
+  @override
+  Future<AndroidIntentResult> readInitial() async {
+    events.add('readInitial');
+    _initialConsumed = true;
+    final current = _initial;
+    _initial = null;
+    _flushIfReady();
+    return current ?? const IgnoredAndroidIntent('test: none');
+  }
+
+  @override
+  Stream<AndroidIntentResult> get onNewIntent => _controller.stream;
+
+  Future<void> dispose() => _controller.close();
 }

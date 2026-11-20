@@ -6,9 +6,8 @@ library;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../auth/account_store.dart';
 import '../entity/comment_entity.dart';
-import '../mutation/mutation_boundary.dart';
+import '../mutation/account_scoped_mutation_store.dart';
 import '../mutation/mutation_models.dart';
 import '../network/api_error.dart';
 import 'comment_models.dart';
@@ -55,45 +54,13 @@ class _CommentStoreState {
 
 /// Account-scoped canonical store for comment entities, thread indexes and
 /// mutation ownership.
-class _CommentStore extends Notifier<_CommentStoreState> {
-  final MutationLedger _ledger = MutationLedger();
-  MutationBoundary? _boundary;
-  bool _built = false;
-  bool _disposeRegistered = false;
-
+class _CommentStore extends Notifier<_CommentStoreState>
+    with AccountScopedMutationStore<_CommentStoreState> {
   @override
   _CommentStoreState build() {
-    if (_ledger.isDisposed) {
-      _ledger.reopen();
-      _disposeRegistered = false;
-    }
-    ref.watch(
-      accountStoreProvider.select((async) {
-        final account = async.value;
-        // C1: the stable account id is the invalidate boundary; a token
-        // refresh or profile metadata update keeps the same store valid.
-        return account?.usableCurrent?.id;
-      }),
-    );
-    final current = readMutationBoundary(ref);
-    if (_boundary != null && !sameMutationBoundary(_boundary, current)) {
-      _invalidateBoundary(current, settleState: false);
-    }
-    _boundary = current;
-    if (!_disposeRegistered) {
-      _disposeRegistered = true;
-      ref.onDispose(() {
-        _ledger.dispose();
-        _built = false;
-      });
-    }
-    _built = true;
+    initAccountBoundary();
     return _CommentStoreState();
   }
-
-  int revisionNow() => _ledger.revisionNow;
-
-  List<MutationDiscardEvent> get discardEvents => _ledger.discardEvents;
 
   CommentEntity? get(int commentId) => state.get(commentId);
 
@@ -161,8 +128,8 @@ class _CommentStore extends Notifier<_CommentStoreState> {
     if (rootCommentId == null && parentCommentId != null) {
       throw const FormatException('root send cannot have a parent id');
     }
-    final boundary = _requireBoundary();
-    final envelope = _ledger.begin(
+    final boundary = requireBoundary();
+    final envelope = ledger.begin(
       boundary: boundary,
       entityType: 'comment',
       entityId: '${kind.name}:$workId:${parentCommentId ?? 'root'}',
@@ -198,7 +165,7 @@ class _CommentStore extends Notifier<_CommentStoreState> {
       parentCommentId: operation.parentCommentId,
       rootCommentId: operation.rootCommentId ?? comment.id,
     );
-    _ledger.finish(operation.envelope);
+    ledger.finish(operation.envelope);
     _setMutation(
       operation.key,
       CommentMutation(
@@ -231,9 +198,9 @@ class _CommentStore extends Notifier<_CommentStoreState> {
     final cancelled =
         error is ApiCancelled || operation.cancelToken.isCancelled;
     if (cancelled) {
-      _ledger.discard(operation.envelope, MutationDiscardReason.cancelled);
+      ledger.discard(operation.envelope, MutationDiscardReason.cancelled);
     } else {
-      _ledger.finish(operation.envelope);
+      ledger.finish(operation.envelope);
     }
     _setMutation(
       operation.key,
@@ -254,7 +221,7 @@ class _CommentStore extends Notifier<_CommentStoreState> {
     )) {
       return false;
     }
-    _ledger.discard(operation.envelope, MutationDiscardReason.cancelled);
+    ledger.discard(operation.envelope, MutationDiscardReason.cancelled);
     _setMutation(
       operation.key,
       CommentMutation(
@@ -269,8 +236,8 @@ class _CommentStore extends Notifier<_CommentStoreState> {
   /// Starts a delete operation keyed by the server comment ID.
   CommentDeleteOperation? beginDelete(int commentId) {
     _requirePositive(commentId, 'commentId');
-    final boundary = _requireBoundary();
-    final envelope = _ledger.begin(
+    final boundary = requireBoundary();
+    final envelope = ledger.begin(
       boundary: boundary,
       entityType: 'comment',
       entityId: '$commentId',
@@ -298,7 +265,7 @@ class _CommentStore extends Notifier<_CommentStoreState> {
       return;
     }
     final target = state.entities[operation.commentId];
-    _ledger.finish(operation.envelope);
+    ledger.finish(operation.envelope);
     _setMutation(
       operation.key,
       CommentMutation(
@@ -322,9 +289,9 @@ class _CommentStore extends Notifier<_CommentStoreState> {
     final cancelled =
         error is ApiCancelled || operation.cancelToken.isCancelled;
     if (cancelled) {
-      _ledger.discard(operation.envelope, MutationDiscardReason.cancelled);
+      ledger.discard(operation.envelope, MutationDiscardReason.cancelled);
     } else {
-      _ledger.finish(operation.envelope);
+      ledger.finish(operation.envelope);
     }
     _setMutation(
       operation.key,
@@ -345,7 +312,7 @@ class _CommentStore extends Notifier<_CommentStoreState> {
     )) {
       return false;
     }
-    _ledger.discard(operation.envelope, MutationDiscardReason.cancelled);
+    ledger.discard(operation.envelope, MutationDiscardReason.cancelled);
     _setMutation(
       operation.key,
       CommentMutation(
@@ -383,50 +350,20 @@ class _CommentStore extends Notifier<_CommentStoreState> {
     MutationEnvelope envelope, {
     required String key,
     required CommentMutationKind kind,
-  }) {
-    if (!_ledger.isActive(envelope)) return false;
-    final current = readMutationBoundary(ref);
-    _boundary = current;
-    final reason = mutationBoundaryReason(envelope, current);
-    if (reason != null) {
-      _ledger.discard(envelope, reason);
-      _setCancelledEnvelope(key, envelope, kind);
-      return false;
-    }
-    final mutation = state.mutations[key];
-    if (mutation == null ||
-        mutation.envelope != envelope ||
-        mutation.kind != kind ||
-        !mutation.pending) {
-      _ledger.discard(envelope, MutationDiscardReason.stale);
-      return false;
-    }
-    return true;
-  }
+  }) => ownsMutation(
+    envelope,
+    isPendingOwner: () {
+      final mutation = state.mutations[key];
+      return mutation != null &&
+          mutation.envelope == envelope &&
+          mutation.kind == kind &&
+          mutation.pending;
+    },
+    onBoundaryCancelled: () => _setCancelledEnvelope(key, envelope, kind),
+  );
 
-  MutationBoundary _requireBoundary() {
-    final current = readMutationBoundary(ref);
-    if (current == null) {
-      throw const ApiUnauthorized('no signed-in account');
-    }
-    if (_boundary != null && !sameMutationBoundary(_boundary, current)) {
-      _invalidateBoundary(current, settleState: _built);
-    }
-    _boundary = current;
-    return current;
-  }
-
-  void _invalidateBoundary(
-    MutationBoundary? current, {
-    required bool settleState,
-  }) {
-    final reason = _boundary == null || current == null
-        ? MutationDiscardReason.accountChanged
-        : _boundary!.accountId != current.accountId
-        ? MutationDiscardReason.accountChanged
-        : MutationDiscardReason.accountChanged;
-    _ledger.cancelAll(reason);
-    if (!settleState) return;
+  @override
+  void settlePendingOnBoundaryInvalidated() {
     final next = <String, CommentMutation>{};
     for (final entry in state.mutations.entries) {
       final mutation = entry.value;

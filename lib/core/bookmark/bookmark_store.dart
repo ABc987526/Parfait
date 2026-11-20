@@ -5,8 +5,7 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../auth/account_store.dart';
-import '../mutation/mutation_boundary.dart';
+import '../mutation/account_scoped_mutation_store.dart';
 import '../mutation/mutation_models.dart';
 import '../network/api_error.dart';
 import 'bookmark_models.dart';
@@ -17,60 +16,13 @@ import 'bookmark_models.dart';
 /// it was created. The shared ledger owns dedupe, cancellation and stale
 /// response telemetry; this store owns only confirmed bookmark state and the
 /// UI-visible lifecycle.
-class BookmarkStore extends Notifier<Map<BookmarkKey, BookmarkEntry>> {
-  final MutationLedger _ledger = MutationLedger();
-  MutationBoundary? _boundary;
-
-  /// The revision the current account boundary began at: remote snapshots
-  /// captured before it belong to the previous account and are dropped.
-  int _boundaryRevision = 0;
-  Object _boundaryToken = Object();
-  bool _built = false;
-  bool _disposeRegistered = false;
-
+class BookmarkStore extends Notifier<Map<BookmarkKey, BookmarkEntry>>
+    with AccountScopedMutationStore<Map<BookmarkKey, BookmarkEntry>> {
   @override
   Map<BookmarkKey, BookmarkEntry> build() {
-    // Riverpod may rebuild a Notifier after an async dependency transitions
-    // from loading to data while retaining the Notifier instance.  A ledger
-    // disposed by the previous provider lifecycle must not make the new
-    // authenticated boundary permanently reject every operation.
-    if (_ledger.isDisposed) {
-      _ledger.reopen();
-      _disposeRegistered = false;
-    }
-    ref.watch(
-      accountStoreProvider.select((async) {
-        final account = async.value;
-        // C1: the stable account id is the invalidate boundary; a token
-        // refresh or profile metadata update keeps the same store valid.
-        return account?.usableCurrent?.id;
-      }),
-    );
-    final current = readMutationBoundary(ref);
-    if (_boundary != null && !sameMutationBoundary(_boundary, current)) {
-      _invalidateBoundary(current, settleState: false);
-    }
-    _boundary = current;
-    _boundaryToken = Object();
-    if (!_disposeRegistered) {
-      _disposeRegistered = true;
-      ref.onDispose(() {
-        _ledger.dispose();
-        _built = false;
-      });
-    }
-    _built = true;
+    initAccountBoundary();
     return {};
   }
-
-  /// A new object for each build, i.e. each account boundary (A → B → A
-  /// gives a third). Read it after [entryOf]: reading the state brings a
-  /// pending rebuild in.
-  Object get boundaryToken => _boundaryToken;
-
-  int revisionNow() => _ledger.revisionNow;
-
-  List<MutationDiscardEvent> get discardEvents => _ledger.discardEvents;
 
   BookmarkEntry? entryOf(BookmarkKey key) => state[key];
 
@@ -89,8 +41,8 @@ class BookmarkStore extends Notifier<Map<BookmarkKey, BookmarkEntry>> {
     BookmarkRestrict restrict,
     List<String> tags,
   ) {
-    final boundary = _requireBoundary();
-    final envelope = _ledger.begin(
+    final boundary = requireBoundary();
+    final envelope = ledger.begin(
       boundary: boundary,
       entityType: key.type.name,
       entityId: '${key.type.name}:${key.id}',
@@ -150,7 +102,7 @@ class BookmarkStore extends Notifier<Map<BookmarkKey, BookmarkEntry>> {
     if (!_owns(operation)) return;
     final added = operation.kind == BookmarkOpKind.add;
     final wish = state[operation.key]?.wish;
-    _ledger.finish(operation.envelope);
+    ledger.finish(operation.envelope);
     state = {
       ...state,
       operation.key: BookmarkEntry(
@@ -176,9 +128,9 @@ class BookmarkStore extends Notifier<Map<BookmarkKey, BookmarkEntry>> {
         operation.isCancelled ||
         previous?.wish != (operation.kind == BookmarkOpKind.add);
     if (cancelled) {
-      _ledger.discard(operation.envelope, MutationDiscardReason.cancelled);
+      ledger.discard(operation.envelope, MutationDiscardReason.cancelled);
     } else {
-      _ledger.finish(operation.envelope);
+      ledger.finish(operation.envelope);
     }
     if (previous == null || previous.pending?.envelope != operation.envelope) {
       return;
@@ -199,7 +151,7 @@ class BookmarkStore extends Notifier<Map<BookmarkKey, BookmarkEntry>> {
   /// Explicitly cancels a pending operation owned by a page/lifecycle.
   bool cancel(BookmarkOp operation) {
     if (!_owns(operation)) return false;
-    _ledger.discard(operation.envelope, MutationDiscardReason.cancelled);
+    ledger.discard(operation.envelope, MutationDiscardReason.cancelled);
     final previous = state[operation.key];
     if (previous?.pending?.envelope != operation.envelope) return false;
     state = {
@@ -254,7 +206,7 @@ class BookmarkStore extends Notifier<Map<BookmarkKey, BookmarkEntry>> {
     Iterable<BookmarkSnapshot> snapshots, {
     int? snapshotRevision,
   }) {
-    if (snapshotRevision != null && snapshotRevision < _boundaryRevision) {
+    if (snapshotRevision != null && snapshotRevision < boundaryRevision) {
       return;
     }
     Map<BookmarkKey, BookmarkEntry>? next;
@@ -306,48 +258,15 @@ class BookmarkStore extends Notifier<Map<BookmarkKey, BookmarkEntry>> {
     );
   }
 
-  bool _owns(BookmarkOp operation) {
-    if (!_ledger.isActive(operation.envelope)) return false;
-    final current = readMutationBoundary(ref);
-    _boundary = current;
-    final reason = mutationBoundaryReason(operation.envelope, current);
-    if (reason != null) {
-      _ledger.discard(operation.envelope, reason);
-      _setCancelled(operation);
-      return false;
-    }
-    final entry = state[operation.key];
-    if (entry?.pending?.envelope != operation.envelope) {
-      _ledger.discard(operation.envelope, MutationDiscardReason.stale);
-      return false;
-    }
-    return true;
-  }
+  bool _owns(BookmarkOp operation) => ownsMutation(
+    operation.envelope,
+    isPendingOwner: () =>
+        state[operation.key]?.pending?.envelope == operation.envelope,
+    onBoundaryCancelled: () => _setCancelled(operation),
+  );
 
-  MutationBoundary _requireBoundary() {
-    final current = readMutationBoundary(ref);
-    if (current == null) {
-      throw const ApiUnauthorized('no signed-in account');
-    }
-    if (_boundary != null && !sameMutationBoundary(_boundary, current)) {
-      _invalidateBoundary(current, settleState: _built);
-    }
-    _boundary = current;
-    return current;
-  }
-
-  void _invalidateBoundary(
-    MutationBoundary? current, {
-    required bool settleState,
-  }) {
-    final reason = _boundary == null || current == null
-        ? MutationDiscardReason.accountChanged
-        : _boundary!.accountId != current.accountId
-        ? MutationDiscardReason.accountChanged
-        : MutationDiscardReason.accountChanged;
-    _boundaryRevision = _ledger.advance();
-    _ledger.cancelAll(reason);
-    if (!settleState) return;
+  @override
+  void settlePendingOnBoundaryInvalidated() {
     final next = <BookmarkKey, BookmarkEntry>{...state};
     for (final item in next.entries) {
       if (!item.value.isUnsettled) continue;

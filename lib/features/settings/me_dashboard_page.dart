@@ -11,7 +11,6 @@ import 'package:flutter/rendering.dart'
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
-import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../app/format/app_format.dart';
 import '../../app/icons/app_icons.dart';
@@ -43,6 +42,7 @@ import '../../app/widgets/settings_load_error.dart';
 import '../../app/window/desktop_command_bar_scope.dart'
     show DesktopCommandBarScope;
 import '../../core/auth/account.dart';
+import '../../core/platform/package_info_provider.dart';
 import '../../core/auth/account_store.dart';
 import '../../core/bookmark/bookmark_models.dart';
 import '../../core/download/download_providers.dart';
@@ -2047,17 +2047,12 @@ class _MeFollowingPaneState extends ConsumerState<_MeFollowingPane> {
   }
 }
 
-class _MeVersionSummary extends StatelessWidget {
+class _MeVersionSummary extends ConsumerWidget {
   const _MeVersionSummary();
 
   @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<PackageInfo>(
-      future: PackageInfo.fromPlatform(),
-      builder: (context, snapshot) {
-        final info = snapshot.data;
-        return Text(info?.version ?? '—');
-      },
-    );
+  Widget build(BuildContext context, WidgetRef ref) {
+    final version = ref.watch(packageInfoProvider).asData?.value.version;
+    return Text(version ?? '—');
   }
 }

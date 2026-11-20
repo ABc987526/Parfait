@@ -93,6 +93,7 @@ class DownloadManager {
   }
 
   final Map<String, _Job> _jobs = {};
+  final Map<String, _Job> _jobsById = {};
   final Map<String, _DownloadGroup> _groups = {};
   final Set<Future<void>> _activeRuns = {};
   final StreamController<DownloadEvent> _events =
@@ -237,7 +238,7 @@ class DownloadManager {
     // The anchor must be attached before _schedule() runs the job: _run
     // reads it synchronously before its first await (D8).
     job.resumeAnchor = resumed?.resumeAnchor;
-    _jobs[key] = job;
+    _putJob(job);
     _notifyChange();
     _persist(job);
     _schedule();
@@ -471,6 +472,9 @@ class DownloadManager {
       for (final removed in restored)
         (removed.index, MapEntry(removed.job.key, removed.job)),
     ]);
+    for (final removed in restored) {
+      _jobsById[removed.job.id] = removed.job;
+    }
     final missingGroups = {
       for (final removed in restored)
         if (removed.group case final group? when !_groups.containsKey(group.id))
@@ -531,6 +535,7 @@ class DownloadManager {
   /// to the existing recovery scan.
   void _retire(_Job job) {
     _jobs.remove(job.key);
+    _jobsById.remove(job.id);
     final groupId = job.snapshot.groupId;
     final group = groupId == null ? null : _groups[groupId];
     if (group != null) {
@@ -691,7 +696,7 @@ class DownloadManager {
           failureKind: DownloadFailureKind.ownership,
         );
         if (cleanupOk) job.pendingOutputId = null;
-        _jobs[record.dedupeKey] = job;
+        _putJob(job);
         _notifyChange();
         _registerRecoveredGroup(job);
         _complete(
@@ -716,7 +721,7 @@ class DownloadManager {
           failureKind: DownloadFailureKind.ownership,
         );
         if (cleanupOk) job.pendingOutputId = null;
-        _jobs[record.dedupeKey] = job;
+        _putJob(job);
         _notifyChange();
         _registerRecoveredGroup(job);
         _complete(
@@ -749,7 +754,7 @@ class DownloadManager {
             : record.failureKind,
       );
       if (cleanupOk) job.pendingOutputId = null;
-      _jobs[record.dedupeKey] = job;
+      _putJob(job);
       _notifyChange();
       _registerRecoveredGroup(job);
       _persist(job);
@@ -837,12 +842,12 @@ class DownloadManager {
     }
   }
 
-  _Job? _findById(String taskId) {
-    for (final job in _jobs.values) {
-      if (job.id == taskId) return job;
-    }
-    return null;
+  void _putJob(_Job job) {
+    _jobs[job.key] = job;
+    _jobsById[job.id] = job;
   }
+
+  _Job? _findById(String taskId) => _jobsById[taskId];
 
   String _identityKey(
     DownloadRequest request,
@@ -993,7 +998,7 @@ class DownloadManager {
   }) async {
     _checkOwner(job);
     final contentLength = response.contentLength;
-    _update(
+    _notifyProgress(
       job,
       job.snapshot.copyWith(
         // A 206 body carries only the remaining bytes; the task's total and
@@ -1015,10 +1020,10 @@ class DownloadManager {
       final now = _now();
       if (now.difference(lastEmit) >= progressThrottle) {
         lastEmit = now;
-        _update(job, job.snapshot.copyWith(receivedBytes: received));
+        _notifyProgress(job, job.snapshot.copyWith(receivedBytes: received));
       }
     }
-    _update(job, job.snapshot.copyWith(receivedBytes: received));
+    _notifyProgress(job, job.snapshot.copyWith(receivedBytes: received));
     await closeResponse();
     if (job.cancelToken.isCancelled) {
       throw const DownloadCancelledException();
@@ -1460,6 +1465,13 @@ class DownloadManager {
       DownloadStatus.canceled ||
       DownloadStatus.orphaned => false,
     };
+  }
+
+  /// Updates the in-memory snapshot and notifies listeners without rewriting
+  /// the durable recovery store (used for high-frequency streaming progress).
+  void _notifyProgress(_Job job, DownloadTaskSnapshot snapshot) {
+    job.applySnapshot(snapshot.copyWith(resumeAnchor: job.resumeAnchor));
+    _notifyChange();
   }
 
   void _update(_Job job, DownloadTaskSnapshot snapshot) {
