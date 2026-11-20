@@ -93,7 +93,7 @@ reviewed: 2026-11-18
   A platform without a `dynamic_color` implementation keeps this fallback.
 - **Why:** `dynamic_color` has no iOS implementation; an uncaught platform
   exception on startup would leave the app unthemed.
-- **Check:** `test/system_colors_test.dart` "a platform without a dynamic colour plugin has no system colours"
+- **Check:** `test/replica_theme_test.dart` "a platform without a dynamic colour plugin has no system colours"
 - **Code:** `lib/app/theme/system_colors.dart`
 
 ### THEME-06 Text keeps 4.5:1 on every surface tier

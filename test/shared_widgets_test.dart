@@ -1,8 +1,11 @@
+import 'dart:math' as math;
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forui/forui.dart';
 import 'package:material_ui/material_ui.dart';
 
+import 'package:parfait/app/layout/card_columns.dart';
 import 'package:parfait/app/layout/content_widths.dart';
 import 'package:parfait/app/motion/removal.dart';
 import 'package:parfait/app/pull_to_refresh.dart';
@@ -11,9 +14,12 @@ import 'package:parfait/app/theme/func_semantic_tokens.dart';
 import 'package:parfait/app/theme/replica_theme.dart';
 import 'package:parfait/app/widgets/app_progress_bar.dart';
 import 'package:parfait/app/widgets/app_slider.dart';
+import 'package:parfait/app/widgets/app_snack_bar.dart';
 import 'package:parfait/app/widgets/app_spinner.dart';
 import 'package:parfait/app/widgets/app_tab_bar.dart';
 import 'package:parfait/app/widgets/app_top_bar.dart';
+import 'package:parfait/app/widgets/entity_row.dart';
+import 'package:parfait/app/widgets/feed/feed_grid.dart';
 import 'package:parfait/app/widgets/feed/feed_states.dart';
 import 'package:parfait/app/widgets/func_bottom_nav.dart';
 import 'package:parfait/app/widgets/master_detail_workspace.dart';
@@ -26,6 +32,7 @@ import 'package:parfait/core/network/network_restore_signal.dart';
 import 'package:parfait/core/paging/paged_feed_controller.dart';
 import 'package:parfait/features/settings/settings_catalog.dart';
 import 'helpers/localized_app.dart';
+import 'helpers/prompt_host.dart';
 import 'helpers/view_size.dart';
 
 void main() {
@@ -583,4 +590,140 @@ void main() {
       expect(find.byType(FProgress), findsOneWidget);
     },
   );
+
+  testWidgets('app snackbars are exposed as live regions', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        child: localizedApp(
+          locale: null,
+          builder: promptHostBuilder,
+          body: Builder(
+            builder: (context) => TextButton(
+              onPressed: () => showAppSnackBar(context, 'Saved'),
+              child: const Text('Show'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Show'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 250));
+
+    expect(find.bySemanticsLabel('Saved'), findsOneWidget);
+    expect(
+      tester.getSemantics(find.bySemanticsLabel('Saved')),
+      isSemantics(label: 'Saved', isLiveRegion: true),
+    );
+  });
+
+  group('EntityRow', () {
+    Widget host(Widget child) => MaterialApp(home: Scaffold(body: child));
+
+    testWidgets('tap and long-press reach the row', (tester) async {
+      var taps = 0;
+      var longPresses = 0;
+      await tester.pumpWidget(
+        host(
+          EntityRow(
+            leading: const SizedBox(width: 48),
+            title: 'Pressable',
+            onTap: () => taps++,
+            onLongPress: () => longPresses++,
+          ),
+        ),
+      );
+      await tester.tap(find.text('Pressable'));
+      await tester.longPress(find.text('Pressable'));
+      expect(taps, 1);
+      expect(longPresses, 1);
+    });
+
+    testWidgets('progress slot honors the null vs zero boundary', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        host(
+          const EntityRow(leading: SizedBox(width: 48), title: 'No progress'),
+        ),
+      );
+      expect(find.byType(AppProgressBar), findsNothing);
+
+      await tester.pumpWidget(
+        host(
+          const EntityRow(
+            leading: SizedBox(width: 48),
+            title: 'At the start',
+            progress: 0,
+          ),
+        ),
+      );
+      final indicator = tester.widget<AppProgressBar>(
+        find.byType(AppProgressBar),
+      );
+      expect(indicator.value, 0);
+    });
+  });
+
+  group('sliver cache ramp', () {
+    for (final grid in [false, true]) {
+      testWidgets(
+        'a ${grid ? 'grid' : 'card list'} that jumps far fills the screen in its first frame',
+        (tester) async {
+          setViewSize(tester, const Size(400, 800));
+          final controller = ScrollController();
+          addTearDown(controller.dispose);
+          Widget card(BuildContext context, int index) => _RampCard(index);
+          await tester.pumpWidget(
+            ProviderScope(
+              child: MaterialApp(
+                home: CustomScrollView(
+                  controller: controller,
+                  scrollCacheExtent: kFeedCacheExtent,
+                  slivers: [
+                    if (grid)
+                      IllustFeedGrid(itemCount: 200, itemBuilder: card)
+                    else
+                      SliverCardList(itemCount: 200, itemBuilder: card),
+                  ],
+                ),
+              ),
+            ),
+          );
+          await tester.pumpAndSettle();
+          Iterable<(int, Rect)> shown() =>
+              [
+                for (final card in tester.widgetList<_RampCard>(
+                  find.byType(_RampCard),
+                ))
+                  (card.index, tester.getRect(find.byWidget(card))),
+              ].where(
+                (card) => card.$2.overlaps(Offset.zero & const Size(400, 800)),
+              );
+          final before = shown().map((card) => card.$1).reduce(math.max);
+
+          controller.jumpTo(3000);
+          await tester.pump();
+          expect(
+            shown().map((card) => card.$1),
+            everyElement(greaterThan(before)),
+          );
+          expect(
+            shown().map((card) => card.$2.bottom),
+            contains(greaterThanOrEqualTo(800 - FuncSpacing.md)),
+          );
+          await tester.pumpAndSettle();
+        },
+      );
+    }
+  });
+}
+
+class _RampCard extends StatelessWidget {
+  const _RampCard(this.index);
+
+  final int index;
+
+  @override
+  Widget build(BuildContext context) => const SizedBox(height: 100);
 }

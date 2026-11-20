@@ -24,7 +24,7 @@ reviewed: 2026-10-29
   `json_read.dart`.
 - **Why:** An empty feed on a parse failure reads as "no works" and hides
   an API change.
-- **Check:** `test/illust_store_test.dart` "page parse errors surface as ApiParseError, not empty success", `test/related_illust_repository_test.dart` "malformed envelope raises ApiParseError"
+- **Check:** `test/illust_store_test.dart` "page parse errors surface as ApiParseError, not empty success", `test/illust_detail_controller_test.dart` "malformed envelope raises ApiParseError"
 - **Code:** `lib/core/network/api_error.dart`, `lib/core/entity/json_read.dart`
 
 ### ERR-02 Users never see raw exception text
@@ -53,7 +53,7 @@ reviewed: 2026-10-29
 - **Why:** Per-page classification disagreed about the same failure and
   left no durable trace for support. Unlabelled, five 503 SnackBars read
   as five crashes in a user's crash.log (10-26).
-- **Check:** `test/error_category_test.dart` "categorizeError puts each error in its category", `test/error_details_test.dart` "shows action + category and records the raw error"
+- **Check:** `test/error_details_test.dart` "categorizeError puts each error in its category" "shows action + category and records the raw error"
 - **Code:** `lib/core/errors/error_category.dart`, `lib/core/logging/crash_log.dart`
 
 ### ERR-04 Download rows read their failure from `failureKind`
@@ -93,5 +93,5 @@ reviewed: 2026-10-29
   drops the quote.
 - **Why:** Debug output is pasted into bug reports. A corrupt stored
   credential's JSON error quoted its tokens (11-04).
-- **Check:** `test/architecture/feedback_channels_test.dart` "diagnostics go through log()", `test/credential_store_test.dart` "a corrupt credential fails without quoting the stored secret", `test/crash_log_test.dart` "a file error is logged without its path"; the rest of the secrets part is manual.
+- **Check:** `test/architecture/feedback_channels_test.dart` "diagnostics go through log()", `test/account_store_test.dart` "a corrupt credential fails without quoting the stored secret", `test/error_details_test.dart` "a file error is logged without its path"; the rest of the secrets part is manual.
 - **Code:** `lib/core/log.dart`

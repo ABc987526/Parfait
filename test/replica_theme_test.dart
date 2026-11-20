@@ -356,6 +356,15 @@ void main() {
 
       expect(await read(), isNull);
     });
+
+    test(
+      'a platform without a dynamic colour plugin has no system colours',
+      () async {
+        // With no mock handler registered, the channel throws
+        // MissingPluginException and the provider reads it as "no palette".
+        expect(await read(), isNull);
+      },
+    );
   });
 
   group('Forui theme bridge', () {

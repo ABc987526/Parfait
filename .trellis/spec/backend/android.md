@@ -63,7 +63,7 @@ reviewed: 2026-11-14
   answers `disabled` for every method except `getCapability` and
   `getPlatformInfo`.
 - **Why:** Dart reads these maps and the `disabled` code as they are.
-- **Check:** `test/updater_flavor_contract_test.dart` "each flavor owns the same updater channel with different capability"
+- **Check:** `test/updater_manifest_test.dart` "each flavor owns the same updater channel with different capability"
 - **Code:** `android/app/src/github`, `android/app/src/fdroid`
 
 ### DROID-04 SAF create ignores ownerId

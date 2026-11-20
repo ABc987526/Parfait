@@ -182,7 +182,7 @@ reviewed: 2026-11-18
   visit to ranking, new works, an author or the settings to 13–25 ms.
   A detail page's first frame is its push. Data landing or a page
   appended later built the half screen in one frame (13.7–16.8 ms).
-- **Check:** `test/sliver_cache_ramp_test.dart`; when each frame builds the cache area is manual (TEST-12)
+- **Check:** `test/shared_widgets_test.dart` "sliver cache ramp"; when each frame builds the cache area is manual (TEST-12)
 - **Code:** `lib/app/layout/deferred_cache_scroll_view.dart`, `lib/app/layout/sliver_cache_ramp.dart`, `lib/app/motion/hero_transition.dart`, `lib/features/illust/detail/illust_detail_content.dart`
 
 ### FEED-21 A built card rebuilds only when its own inputs change
