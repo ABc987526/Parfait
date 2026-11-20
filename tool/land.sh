@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
 # Land a pull request using the repository's required noreply author identity,
-# verify the merge commit author, and fast-forward local main.
+# verify the merge commit author, fast-forward local main, and sync dev when
+# landing a dev -> main milestone PR.
 #
-# Usage: tool/land.sh [<pr-number>] [--wait [--all-checks] | --auto]
-#   <pr-number>   Pull request number (defaults to the current branch's PR).
-#   --wait        Wait for required CI checks, merge, verify author, sync main (default).
-#   --all-checks  With --wait, also wait for every pull_request workflow run on the head commit.
-#   --auto        Enable GitHub auto-merge with the noreply author email and exit.
+# Usage: tool/land.sh [<pr-number>] [--wait [--all-checks] | --auto] [--sync] [--delete-local]
+#   <pr-number>     Pull request number (defaults to the current branch's PR).
+#   --wait          Wait for required CI checks, merge, verify author, sync main (default).
+#   --all-checks    With --wait, also wait for the latest run of every pull_request workflow on the head commit.
+#   --auto          Enable GitHub auto-merge with the noreply author email and exit.
+#   --sync          If the PR is BEHIND main, merge origin/main into the PR branch locally and push before waiting.
+#   --delete-local  After landing, delete the merged local branch (never deletes main or dev).
 set -euo pipefail
 
 NOREPLY_EMAIL="70460628+Lopution@users.noreply.github.com"
@@ -18,11 +21,15 @@ usage() {
 pr=""
 mode="wait"
 all_checks=0
+do_sync=0
+delete_local=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --wait) mode="wait" ;;
     --all-checks) all_checks=1 ;;
     --auto) mode="auto" ;;
+    --sync) do_sync=1 ;;
+    --delete-local) delete_local=1 ;;
     -h | --help)
       usage
       exit 0
@@ -68,6 +75,17 @@ read_pr_state() {
     --jq '[.state, (.mergeStateStatus // "UNKNOWN"), .headRefName, .headRefOid] | @tsv'
 }
 
+find_worktree_for_branch() {
+  local target_branch="$1" found_wt="" current_wt="" line
+  while IFS= read -r line; do
+    case "$line" in
+      "worktree "*) current_wt="${line#worktree }" ;;
+      "branch refs/heads/$target_branch") found_wt="$current_wt" ;;
+    esac
+  done < <(git worktree list --porcelain)
+  printf '%s' "$found_wt"
+}
+
 pr_tsv="$(read_pr_state)"
 IFS=$'\t' read -r state merge_state head_ref head_oid <<<"$pr_tsv"
 
@@ -90,19 +108,46 @@ else
     done
   fi
 
+  if [[ "$merge_state" == "BEHIND" && "$do_sync" -eq 1 ]]; then
+    branch_wt="$(find_worktree_for_branch "$head_ref")"
+    if [[ -z "$branch_wt" ]]; then
+      echo "land: --sync requires branch '$head_ref' to be checked out in a worktree" >&2
+      exit 1
+    fi
+    if [[ -n "$(git -C "$branch_wt" status --porcelain)" ]]; then
+      echo "land: --sync refused because worktree '$branch_wt' ($head_ref) is dirty" >&2
+      exit 1
+    fi
+    echo "land: PR #$pr ($head_ref) is BEHIND main; merging origin/main locally and pushing..."
+    git -C "$branch_wt" fetch origin main
+    git -C "$branch_wt" merge --no-edit origin/main
+    git -C "$branch_wt" push origin "$head_ref"
+    expected_oid="$(git -C "$branch_wt" rev-parse HEAD)"
+    for _ in $(seq 1 10); do
+      sleep 2
+      pr_tsv="$(read_pr_state)"
+      IFS=$'\t' read -r state merge_state head_ref head_oid <<<"$pr_tsv"
+      if [[ "$head_oid" == "$expected_oid" ]]; then
+        break
+      fi
+    done
+  fi
+
   case "$merge_state" in
     BEHIND | DIRTY)
-      echo "land: PR #$pr ($head_ref) is $merge_state relative to main; run 'git fetch origin main && git merge origin/main && git push' first (never gh pr update-branch)" >&2
+      echo "land: PR #$pr ($head_ref) is $merge_state relative to main; run 'git fetch origin main && git merge origin/main && git push' first (or pass --sync for BEHIND; never gh pr update-branch)" >&2
       exit 1
       ;;
   esac
 
   if [[ "$mode" == "auto" ]]; then
-    if ! gh pr merge "$pr" --auto --merge --author-email "$NOREPLY_EMAIL"; then
+    if ! gh pr merge "$pr" --auto --merge \
+      --match-head-commit "$head_oid" \
+      --author-email "$NOREPLY_EMAIL"; then
       echo "land: failed to enable auto-merge (check repo allow_auto_merge or PR state)" >&2
       exit 1
     fi
-    echo "land: auto-merge enabled for PR #$pr ($head_ref) with author $NOREPLY_EMAIL"
+    echo "land: auto-merge enabled for PR #$pr ($head_ref @ ${head_oid:0:8}) with author $NOREPLY_EMAIL"
     exit 0
   fi
 
@@ -128,15 +173,17 @@ else
   gh run watch "$ci_run_id" --interval 15 --exit-status
 
   if [[ "$all_checks" -eq 1 ]]; then
+    # Watch only the latest run per workflow on head_oid (ignore superseded retries).
     other_runs_raw="$(
-      gh run list -c "$head_oid" -e pull_request \
-        --json databaseId -q '.[].databaseId'
+      gh run list -c "$head_oid" -e pull_request -L 50 \
+        --json databaseId,workflowDatabaseId,createdAt \
+        -q 'group_by(.workflowDatabaseId) | map(max_by(.createdAt) | .databaseId) | .[]'
     )"
     if [[ -n "$other_runs_raw" ]]; then
       mapfile -t other_runs <<<"$other_runs_raw"
       for run_id in "${other_runs[@]}"; do
         if [[ -n "$run_id" && "$run_id" != "$ci_run_id" ]]; then
-          echo "land: watching workflow run $run_id..."
+          echo "land: watching latest workflow run $run_id..."
           gh run watch "$run_id" --interval 15 --exit-status
         fi
       done
@@ -145,8 +192,10 @@ else
 
   gh pr checks "$pr" --required
 
-  echo "land: merging PR #$pr ($head_ref)..."
-  gh pr merge "$pr" --merge --author-email "$NOREPLY_EMAIL"
+  echo "land: merging PR #$pr ($head_ref @ ${head_oid:0:8})..."
+  gh pr merge "$pr" --merge \
+    --match-head-commit "$head_oid" \
+    --author-email "$NOREPLY_EMAIL"
 fi
 
 merge_sha="$(gh pr view "$pr" --json mergeCommit -q '.mergeCommit.oid // empty')"
@@ -170,15 +219,7 @@ if [[ "$author_email" != "$NOREPLY_EMAIL" ]] ||
   exit 1
 fi
 
-main_wt=""
-current_wt=""
-while IFS= read -r line; do
-  case "$line" in
-    "worktree "*) current_wt="${line#worktree }" ;;
-    "branch refs/heads/main") main_wt="$current_wt" ;;
-  esac
-done < <(git worktree list --porcelain)
-
+main_wt="$(find_worktree_for_branch main)"
 if [[ -n "$main_wt" ]]; then
   if [[ -z "$(git -C "$main_wt" status --porcelain)" ]]; then
     git -C "$main_wt" merge --ff-only origin/main
@@ -187,6 +228,34 @@ if [[ -n "$main_wt" ]]; then
   fi
 else
   git fetch origin main:main
+fi
+
+# When landing the long-lived dev branch, fast-forward local & remote dev
+# to the merge commit on main so dev never drifts behind main.
+if [[ "$head_ref" == "dev" ]]; then
+  git fetch origin dev 2>/dev/null || true
+  if git rev-parse --verify --quiet refs/remotes/origin/dev >/dev/null &&
+    git merge-base --is-ancestor refs/remotes/origin/dev origin/main 2>/dev/null; then
+    dev_wt="$(find_worktree_for_branch dev)"
+    if [[ -n "$dev_wt" ]]; then
+      if [[ -z "$(git -C "$dev_wt" status --porcelain)" ]]; then
+        git -C "$dev_wt" merge --ff-only origin/main
+        git -C "$dev_wt" push origin dev
+      else
+        echo "land: warning: dev worktree at $dev_wt is dirty; skipped dev sync" >&2
+      fi
+    else
+      git fetch origin main:dev
+      git push origin dev
+    fi
+  else
+    echo "land: warning: origin/dev already has newer commits than origin/main; sync dev manually with 'git checkout dev && git merge origin/main && git push origin dev'" >&2
+  fi
+elif [[ "$delete_local" -eq 1 && "$head_ref" != "main" ]]; then
+  branch_wt="$(find_worktree_for_branch "$head_ref")"
+  if [[ -z "$branch_wt" ]] && git show-ref --verify --quiet "refs/heads/$head_ref"; then
+    git branch -d "$head_ref" || true
+  fi
 fi
 
 short_merge="$(git rev-parse --short "$merge_sha")"

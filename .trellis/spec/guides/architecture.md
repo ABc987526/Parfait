@@ -5,20 +5,30 @@ applies_to:
   - tool/gen_app_icon.py
   - tool/build_readme_assets.py
   - tool/gen_l10n_lookup.py
-reviewed: 2026-10-12
+reviewed: 2026-11-21
 ---
 
 # Architecture and ownership
 
-### ARCH-01 Imports follow the three layers
+### ARCH-01 Imports follow the three layers and keep compile graphs narrow
 - **Rule:** `lib/core` imports only `lib/core`; `lib/app` imports `core`
-  and `app`; `lib/features` imports `core`, `app` and, for other features,
-  only the `lib/app/navigation/routes.dart` facade. That facade is the one
-  approved cycle. The test's allow-list only shrinks.
-- **Why:** Features importing each other's pages grew cycles and gave one
-  feature ownership of another's widgets.
+  and `app`; `lib/features` imports `core`, `app`, and never another
+  feature. Only router/workspace assembly facades
+  (`lib/app/navigation/routes.dart`, `lib/app/navigation/me_workspace_facade.dart`)
+  may import `lib/features/**`: `routes.dart` is imported only by
+  `lib/app/app.dart` and `lib/app/external_intent_bridge.dart` (R6) and
+  must not re-export `lib/features/**` (R7); `me_workspace_facade.dart` is
+  imported only by `lib/features/settings/me_dashboard_page.dart`. Callers
+  navigate through the zero-feature libraries `route_facade.dart`,
+  `route_search_facade.dart`, `route_extras.dart`, and
+  `route_query_codecs.dart`. `lib/app/window/desktop_command_bar.dart` is
+  imported only by `lib/app/app.dart` (R8); pages and shared widgets use
+  `desktop_command_bar_scope.dart`. The test's allow-list stays empty.
+- **Why:** Coupling caller facades and `DesktopCommandBarScope` to
+  `routes.dart` pulled ~538 `lib/` files into 102 test files, causing
+  slow incremental compiles and 4G local OOM kills.
 - **Check:** `test/architecture/layering_test.dart` "lib import graph respects layering rules (allow-list must shrink to empty)"
-- **Code:** `lib/app/navigation/routes.dart`
+- **Code:** `lib/app/navigation/routes.dart`, `lib/app/navigation/route_facade.dart`, `lib/app/window/desktop_command_bar_scope.dart`
 
 ### ARCH-02 Data code lives in core; shared widgets live in app
 - **Rule:** Entities, repositories, controllers and stores go in
