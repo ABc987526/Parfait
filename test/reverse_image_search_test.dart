@@ -773,7 +773,7 @@ void main() {
 
     File write(String name, {int size = 10}) {
       final file = File('${tempDir.path}/$name');
-      file.writeAsBytesSync(List.filled(size, 0x42));
+      file.writeAsBytesSync(Uint8List(size));
       return file;
     }
 

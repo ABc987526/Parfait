@@ -130,9 +130,11 @@ const _widgetFfiDbAllowList = <String>{
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
+const _packagePrefix = 'package:$_package/';
+
 String? _resolveUri(String fromFile, String uri) {
-  if (uri.startsWith('package:$_package/')) {
-    final cand = 'lib/${uri.substring(_package.length + 8)}';
+  if (uri.startsWith(_packagePrefix)) {
+    final cand = 'lib/${uri.substring(_packagePrefix.length)}';
     return File(cand).existsSync() ? cand : null;
   }
   if (uri.startsWith('package:') || uri.startsWith('dart:')) return null;

@@ -151,17 +151,25 @@ def lib_added_code_lines(base_ref: str) -> int:
     diff = git('diff', '-U0', '--no-renames', base_ref, '--', 'lib/')
     added = 0
     active_counted = False
+    in_hunk = False
     for line in diff.splitlines():
-        if line.startswith('+++ b/'):
+        if line.startswith('diff --git '):
+            active_counted = False
+            in_hunk = False
+            continue
+        if not in_hunk and line.startswith('+++ b/'):
             path = line[6:]
             active_counted = (
                 path.endswith('.dart') and not GENERATED_LIB.fullmatch(path)
             )
             continue
-        if line.startswith('+++ '):
+        if not in_hunk and line.startswith('+++ '):
             active_counted = False
             continue
-        if active_counted and line.startswith('+') and not line.startswith('+++'):
+        if line.startswith('@@ '):
+            in_hunk = True
+            continue
+        if in_hunk and active_counted and line.startswith('+'):
             if is_code_line(line[1:]):
                 added += 1
     untracked = git('ls-files', '--others', '--exclude-standard', '--', 'lib/').splitlines()

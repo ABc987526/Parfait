@@ -195,7 +195,10 @@ reviewed: 2026-11-21
   route smokes, and router table coverage on every PR; the full Cartesian
   `matrix` tag runs in `.github/workflows/nightly-matrix.yml` nightly, on
   demand, and on PRs touching `lib/l10n/**`, `lib/app/navigation/route*.dart`,
-  `lib/app/theme/**`, or `test/locale_layout/**`. `tool/test_shards.py --check`
+  `lib/app/theme/**`, `test/locale_layout/**`,
+  `test/helpers/locale_layout.dart`, `test/helpers/route_smoke.dart`,
+  `test/review/**`, `dart_test.yaml`, or
+  `.github/workflows/nightly-matrix.yml`. `tool/test_shards.py --check`
   warns above 10 unrecorded files in `tool/test_durations.json` and fails
   above 20. Pushes to `dev` run a fast affected-test pass and pushes to
   `main` rely on the strict PR gate. Locally `tool/gate.sh` runs static

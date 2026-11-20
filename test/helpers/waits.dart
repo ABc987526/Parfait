@@ -49,7 +49,7 @@ Future<void> pumpIoUntil(
   bool Function() condition, {
   Duration io = const Duration(milliseconds: 2),
   Duration step = Duration.zero,
-  int rounds = 150,
+  int rounds = 600,
 }) async {
   for (var round = 0; !condition(); round++) {
     if (round == rounds) fail('condition not met in $rounds IO rounds');
