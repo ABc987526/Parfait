@@ -156,8 +156,8 @@ void main() {
   });
 
   localeLayoutMatrix('lists: history', (tester, locale, profile) async {
-    await tester.runAsync(() async {
-      final repository = await openHistoryRepository([
+    final (repository, container) = (await tester.runAsync(() async {
+      final repo = await openHistoryRepository([
         for (var id = 1; id <= 4; id++)
           historyRecord(
             id,
@@ -166,18 +166,17 @@ void main() {
                 : HistoryContentType.illust,
           ),
       ]);
-      final container = await makeHistoryWorld(repository);
-      await tester.pumpWidget(
-        localeLayoutApp(
-          locale: locale,
-          container: container,
-          home: const HistoryPage(),
-        ),
-      );
-      // The first page loads on the real event loop.
-      await Future<void>.delayed(const Duration(milliseconds: 100));
-      await tester.pump();
-    });
+      final c = await makeHistoryWorld(repo);
+      return (repo, c);
+    }))!;
+    await tester.pumpWidget(
+      localeLayoutApp(
+        locale: locale,
+        container: container,
+        home: const HistoryPage(),
+      ),
+    );
+    await settleHistory(tester, repository);
     await _expectSettled(tester, locale, profile);
   });
 

@@ -8,7 +8,7 @@ import 'package:parfait/core/novel/novel_store.dart';
 
 import 'helpers/fake_account.dart';
 import 'helpers/memory_feed_snapshot_store.dart';
-import 'helpers/illust_fixtures.dart';
+import 'helpers/novel_ranking_fixture.dart';
 
 Future<(ProviderContainer, NovelRankingFixture)> _makeWorld({
   NovelRankingFixture? fixture,

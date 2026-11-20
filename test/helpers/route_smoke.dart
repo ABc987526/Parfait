@@ -159,77 +159,86 @@ Future<void> smokeScene(
   bool? content,
 }) async {
   final world = (await tester.runAsync(() => ReviewWorld.open(setup)))!;
-  await reviewScene(tester, () async {
-    final router = await pumpReviewApp(
-      tester,
-      world: world,
-      location: location,
-      locale: smokeLocale,
-      brightness: brightness,
-      textScale: textScale ?? profile.textScale,
-      device: device ?? smokeDevice(profile),
-      fontFamilyFallback: layoutFontFallback,
-    );
-    var rest = await settleReview(tester, settle: !timeout);
-    void expectIntact(String at) {
-      expectLocaleLayoutIntact(tester, locale: smokeLocale, profile: profile);
-      expect(router.state.uri.toString(), at, reason: 'opened $location');
-    }
-
-    void expectContent() {
-      if (content == null) return;
-      final messages = LocaleMessages.of(smokeLocale);
-      final nothing = [
-        for (final element in find.byType(RichText).evaluate())
-          if (messages.keyOf(
-                (element.renderObject! as RenderParagraph).text.toPlainText(),
-              )
-              case final key? when _nothing.hasMatch(key))
-            key,
-      ];
-      final reason = '$location shows $nothing';
-      if (content) {
-        expect(
-          nothing.where((key) => !_sectionHints.contains(key)),
-          isEmpty,
-          reason: reason,
-        );
-        expect(
-          _showsPastBars(),
-          isTrue,
-          reason: '$location shows nothing past its bars',
-        );
-      } else {
-        expect(nothing, isNotEmpty, reason: reason);
+  await reviewScene(
+    tester,
+    semantics: false,
+    onDispose: world.container.dispose,
+    () async {
+      final router = await pumpReviewApp(
+        tester,
+        world: world,
+        location: location,
+        locale: smokeLocale,
+        brightness: brightness,
+        textScale: textScale ?? profile.textScale,
+        device: device ?? smokeDevice(profile),
+        fontFamilyFallback: layoutFontFallback,
+      );
+      var rest = await settleReview(tester, settle: !timeout);
+      void expectIntact(String at) {
+        expectLocaleLayoutIntact(tester, locale: smokeLocale, profile: profile);
+        expect(router.state.uri.toString(), at, reason: 'opened $location');
       }
-    }
 
-    expectIntact(location);
-    if (timeout) {
-      // Requests sent once the first gave up wait out their own timeout:
-      // the ranking then warms the tabs next to the one on screen.
-      for (var round = 0; round < 3; round++) {
-        await tester.pump(
-          PixivHttpClient.defaultRequestTimeout + const Duration(seconds: 1),
-        );
-        rest = await settleReview(tester);
-        if (rest) break;
+      void expectContent() {
+        if (content == null) return;
+        final messages = LocaleMessages.of(smokeLocale);
+        final nothing = [
+          for (final element in find.byType(RichText).evaluate())
+            if (messages.keyOf(
+                  (element.renderObject! as RenderParagraph).text.toPlainText(),
+                )
+                case final key? when _nothing.hasMatch(key))
+              key,
+        ];
+        final reason = '$location shows $nothing';
+        if (content) {
+          expect(
+            nothing.where((key) => !_sectionHints.contains(key)),
+            isEmpty,
+            reason: reason,
+          );
+          expect(
+            _showsPastBars(),
+            isTrue,
+            reason: '$location shows nothing past its bars',
+          );
+        } else {
+          expect(nothing, isNotEmpty, reason: reason);
+        }
       }
+
       expectIntact(location);
-    }
-    expect(rest, isTrue, reason: '$location never came to rest');
-    expectContent();
-    if (!back) return;
-    final matches = _flatten(
-      router.routerDelegate.currentConfiguration.matches,
-    );
-    if (matches.length < 2) return;
-    final parent = matches[matches.length - 2].matchedLocation;
-    await tester.binding.handlePopRoute();
-    await settleReview(tester);
-    expect(router.state.matchedLocation, parent, reason: 'back from $location');
-    expectLocaleLayoutIntact(tester, locale: smokeLocale, profile: profile);
-  });
+      if (timeout) {
+        // Requests sent once the first gave up wait out their own timeout:
+        // the ranking then warms the tabs next to the one on screen.
+        for (var round = 0; round < 3; round++) {
+          await tester.pump(
+            PixivHttpClient.defaultRequestTimeout + const Duration(seconds: 1),
+          );
+          rest = await settleReview(tester);
+          if (rest) break;
+        }
+        expectIntact(location);
+      }
+      expect(rest, isTrue, reason: '$location never came to rest');
+      expectContent();
+      if (!back) return;
+      final matches = _flatten(
+        router.routerDelegate.currentConfiguration.matches,
+      );
+      if (matches.length < 2) return;
+      final parent = matches[matches.length - 2].matchedLocation;
+      await tester.binding.handlePopRoute();
+      await settleReview(tester);
+      expect(
+        router.state.matchedLocation,
+        parent,
+        reason: 'back from $location',
+      );
+      expectLocaleLayoutIntact(tester, locale: smokeLocale, profile: profile);
+    },
+  );
 }
 
 /// Keys of the messages a page shows in place of what it opened for.

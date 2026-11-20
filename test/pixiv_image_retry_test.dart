@@ -72,17 +72,20 @@ Future<void> _pump(
       ),
     ),
   );
-  await _settle(tester);
+  await _awaitRequests(tester, pipeline, 1);
 }
 
-/// Lets real IO and image decoding finish, then flushes frames. The
-/// worker's hops (handshake, disk lookup, fetch, commit, result) each need
-/// a real turn and a pump.
-Future<void> _settle(WidgetTester tester) async {
-  for (var i = 0; i < 12; i++) {
-    await tester.runAsync(
-      () => Future<void>.delayed(const Duration(milliseconds: 20)),
-    );
+/// Waits on real IO until [pipeline] has served at least [expected] requests
+/// and the widget tree finishes handling the reply.
+Future<void> _awaitRequests(
+  WidgetTester tester,
+  _Pipeline pipeline,
+  int expected,
+) async {
+  await pumpIoUntil(tester, () => pipeline.requests >= expected);
+  // Let the worker reply and UI error/placeholder state land.
+  for (var i = 0; i < 4; i++) {
+    await tester.runAsync(() => Future<void>.delayed(Duration.zero));
     await tester.pump();
   }
 }
@@ -127,17 +130,13 @@ void main() {
         await tester.pump(const Duration(milliseconds: 900));
         expect(network.requests, 1);
         await tester.pump(const Duration(milliseconds: 100));
-        await _settle(tester);
+        await _awaitRequests(tester, network, 2);
         expect(network.requests, 2);
         expect(find.byIcon(AppIcons.illustBroken), findsNothing);
 
         await tester.pump(const Duration(seconds: 3));
-        await _settle(tester);
+        await pumpIoUntil(tester, () => _painted(tester));
         expect(network.requests, 3);
-        // Reading the file and decoding it are real IO.
-        for (var i = 0; i < 20 && !_painted(tester); i++) {
-          await _settle(tester);
-        }
         expect(_painted(tester), isTrue);
         expect(find.byIcon(AppIcons.illustBroken), findsNothing);
       });
@@ -157,7 +156,7 @@ void main() {
           tester,
           () => _painted(tester),
           step: const Duration(milliseconds: 100),
-          rounds: 120,
+          rounds: 200,
         );
         expect(network.requests, 3, reason: 'not answered from the disk');
       });
@@ -167,13 +166,18 @@ void main() {
       ) async {
         final network = pipeline()..script = (_) => _Outcome.transient;
         await _pump(tester, network);
+        var expected = 1;
         for (final wait in const [1, 3, 8]) {
           await tester.pump(Duration(seconds: wait));
-          await _settle(tester);
+          await _awaitRequests(tester, network, ++expected);
         }
         expect(network.requests, 4);
         await tester.pump(const Duration(seconds: 30));
         expect(network.requests, 4);
+        await pumpIoUntil(
+          tester,
+          () => find.byTooltip('重新加载图片').evaluate().isNotEmpty,
+        );
         expect(find.byTooltip('重新加载图片'), findsOneWidget);
       });
 
@@ -182,11 +186,15 @@ void main() {
       ) async {
         final network = pipeline()..script = (_) => _Outcome.notFound;
         await _pump(tester, network);
+        await pumpIoUntil(
+          tester,
+          () => find.byIcon(UiIcons.refresh).evaluate().isNotEmpty,
+        );
         await tester.pump(const Duration(seconds: 30));
         expect(network.requests, 1);
 
         await tester.tap(find.byIcon(UiIcons.refresh));
-        await _settle(tester);
+        await _awaitRequests(tester, network, 2);
         expect(network.requests, 2);
       });
 
@@ -220,17 +228,31 @@ void main() {
               _ => outcome,
             };
       await _pump(tester, network);
+      var expected = 1;
       for (final wait in const [1, 3, 8]) {
         await tester.pump(Duration(seconds: wait));
-        await _settle(tester);
+        if (outcome == _Outcome.transient) {
+          await _awaitRequests(tester, network, ++expected);
+        }
       }
+      await pumpIoUntil(
+        tester,
+        () => find.byIcon(UiIcons.refresh).evaluate().isNotEmpty,
+      );
       final asked = network.requests;
       ProviderScope.containerOf(
           tester.element(find.byType(PixivImage)),
         ).read(networkRestoreSignalProvider.notifier)
         ..observe(offlineNetworkIdentity)
         ..observe('wifi');
-      await _settle(tester);
+      if (reloads) {
+        await _awaitRequests(tester, network, asked + 1);
+      } else {
+        for (var i = 0; i < 4; i++) {
+          await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+          await tester.pump();
+        }
+      }
       expect(network.requests, asked + (reloads ? 1 : 0));
       if (!reloads) return;
       // The retries start over: the failed reload tries again on its own.

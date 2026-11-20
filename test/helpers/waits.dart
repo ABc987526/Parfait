@@ -47,9 +47,9 @@ Future<void> pumpUntil(
 Future<void> pumpIoUntil(
   WidgetTester tester,
   bool Function() condition, {
-  Duration io = const Duration(milliseconds: 20),
+  Duration io = const Duration(milliseconds: 2),
   Duration step = Duration.zero,
-  int rounds = 60,
+  int rounds = 150,
 }) async {
   for (var round = 0; !condition(); round++) {
     if (round == rounds) fail('condition not met in $rounds IO rounds');

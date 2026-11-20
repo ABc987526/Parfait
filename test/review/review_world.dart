@@ -31,7 +31,6 @@ import 'package:parfait/core/localnovel/local_novel_repository.dart';
 import 'package:parfait/core/watchlater/watch_later_database.dart';
 import 'package:parfait/core/watchlater/watch_later_repository.dart';
 import 'package:parfait/core/watchlater/watch_later_store.dart';
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:parfait/core/illust/illust_detail_controller.dart';
 import 'package:parfait/core/network/http_client_providers.dart';
 import 'package:parfait/core/network/pixiv_http_client.dart';
@@ -53,6 +52,11 @@ import '../helpers/settings_world.dart';
 import '../helpers/test_preferences.dart';
 import 'review_device.dart';
 import 'review_fixtures.dart';
+
+Uint8List? _cachedPixivisionArticle;
+Uint8List _pixivisionArticleBytes() => _cachedPixivisionArticle ??= File(
+  'test/fixtures/pixivision/article_10943.html',
+).readAsBytesSync();
 
 /// One API response for a path the review world serves.
 typedef ReviewResponder = FutureOr<http.Response> Function(Uri url);
@@ -147,19 +151,21 @@ class ReviewWorld {
         for (var i = 0; i < 3; i++) downloadRequest(200 + 10 * g + i),
       ]);
     }
-    // Every local store opens here, inside runAsync: sqflite's reply port
-    // binds to the zone that opens the database, and one first opened by
-    // a page in the fake zone never hears back from its close.
-    final tmp = Directory.systemTemp.createTempSync('review-stores-');
-    addTearDown(() => tmp.delete(recursive: true));
-    final watchDb = WatchLaterDatabase(
-      factory: databaseFactoryFfi,
-      databasePath: '${tmp.path}/watchlater.db',
-    );
-    final novelDb = LocalNovelDatabase(
-      factory: databaseFactoryFfi,
-      databasePath: '${tmp.path}/localnovels.db',
-    );
+    // Local stores default to databaseFactoryFfiNoIsolate + in-memory SQLite
+    // under FLUTTER_TEST, avoiding per-scene disk temp dirs and isolate IPC.
+    // Only allocate a temp directory when local novel files or a real isolate
+    // disk cache are actually requested.
+    Directory? tmp;
+    Directory ensureTmp() {
+      return tmp ??= (() {
+        final dir = Directory.systemTemp.createTempSync('review-stores-');
+        addTearDown(() => dir.delete(recursive: true));
+        return dir;
+      })();
+    }
+
+    final watchDb = WatchLaterDatabase();
+    final novelDb = LocalNovelDatabase();
     await (watchDb.database, novelDb.database).wait;
     addTearDown(() => (watchDb.close(), novelDb.close()).wait);
     final watchRepo = WatchLaterRepository(database: watchDb);
@@ -171,7 +177,7 @@ class ReviewWorld {
       await novelRepo.importBytes(
         fileName: 'local novel $i.txt',
         bytes: utf8.encode('local novel $i ' * 200),
-        targetDir: tmp,
+        targetDir: ensureTmp(),
       );
     }
 
@@ -198,9 +204,7 @@ class ReviewWorld {
       signedInAccounts,
       currentId: signedInAccounts.firstOrNull?.id,
     );
-    final pixivisionArticle = await File(
-      'test/fixtures/pixivision/article_10943.html',
-    ).readAsBytes();
+    final pixivisionArticle = _pixivisionArticleBytes();
     final clientRef = <PixivHttpClient?>[null];
     final historyRepo = await openHistoryRepository(history);
 
@@ -268,7 +272,7 @@ class ReviewWorld {
               ? _realIsolateImageWorker(
                   chunkSize: imageChunkSize,
                   chunkDelay: imageChunkDelay,
-                  cacheDir: '${tmp.path}/image-cache',
+                  cacheDir: '${ensureTmp().path}/image-cache',
                 )
               : inProcessImageWorker(
                   () => ReviewImageHttpClient(

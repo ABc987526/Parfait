@@ -27,7 +27,7 @@ import 'package:parfait/app/theme/func_semantic_tokens.dart';
 
 import 'helpers/connectivity_channels.dart';
 import 'helpers/image_network.dart';
-import 'helpers/illust_detail_page_support.dart' show RecordingShareService;
+import 'helpers/recording_share_service.dart';
 import 'helpers/spotlight_world.dart';
 import 'helpers/prompt_host.dart';
 import 'helpers/localized_app.dart';

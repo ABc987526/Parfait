@@ -27,7 +27,7 @@ import 'helpers/recording_haptics.dart';
 import 'helpers/card_world.dart';
 import 'helpers/fake_account.dart';
 import 'helpers/illust_fixtures.dart';
-import 'helpers/illust_detail_page_support.dart' show RecordingShareService;
+import 'helpers/recording_share_service.dart';
 import 'helpers/prompt_host.dart';
 import 'helpers/localized_app.dart';
 import 'package:parfait/app/icons/ui_icons.dart';
