@@ -1,7 +1,23 @@
-part of 'routes.dart';
+import 'dart:async';
+
+import 'package:go_router/go_router.dart';
+import 'package:material_ui/material_ui.dart';
+
+import '../../core/illust/ranking_repository.dart';
+import '../../core/illust/recommended_repository.dart';
+import '../../core/new/new_feed_models.dart';
+import '../../core/novel/novel_repository.dart';
+import '../../core/search/search_models.dart';
+import '../../core/search/search_shortcut.dart';
+import '../../l10n/context.dart';
+import '../widgets/app_snack_bar.dart';
+import 'docked_search_contract.dart';
+import 'route_extras.dart';
+import 'route_facade.dart';
+import 'route_query_codecs.dart';
 
 String _searchPath(BuildContext context, String leaf) =>
-    _searchLeafPath(_stackRootOf(_livePathOf(GoRouter.of(context))), leaf);
+    _searchLeafPath(stackRootOf(livePathOf(GoRouter.of(context))), leaf);
 
 /// Search leaves live under the search branch itself and under every other
 /// branch's `/search`.
@@ -21,10 +37,10 @@ Future<void> openSearchInput(
   Rect? Function()? anchor,
 }) async {
   final router = GoRouter.of(context);
-  final root = _stackRootOf(_livePathOf(router));
+  final root = stackRootOf(livePathOf(router));
   final trigger = anchor?.call();
-  if (trigger != null && _hasRail(context)) {
-    final outcome = await showDockedSearch(
+  if (trigger != null && hasShellRail(context)) {
+    final outcome = await presentDockedSearch(
       context,
       anchor: trigger,
       anchorOf: anchor,
@@ -49,7 +65,7 @@ Future<void> openSearchInput(
         assert(pushStaysInStack(router, location));
         await router.push<void>(
           location,
-          extra: _SearchInputDraft(
+          extra: SearchInputDraft(
             keyword: keyword,
             type: type,
             illustFilters: illustFilters,
@@ -61,7 +77,7 @@ Future<void> openSearchInput(
     }
     return;
   }
-  await _push(context, _searchInputLocationFor(root, initialKeyword, type));
+  await pushRoute(context, _searchInputLocationFor(root, initialKeyword, type));
 }
 
 /// The result page's query field (R9): on the wide shell the docked input
@@ -74,12 +90,12 @@ Future<void> editSearchFromResults(
   required SearchResultType type,
 }) async {
   final trigger = anchor?.call();
-  if (trigger == null || !_hasRail(context)) {
+  if (trigger == null || !hasShellRail(context)) {
     return swapToSearchInput(context, keyword: keyword, type: type);
   }
   final router = GoRouter.of(context);
-  final root = _stackRootOf(_livePathOf(router));
-  final outcome = await showDockedSearch(
+  final root = stackRootOf(livePathOf(router));
+  final outcome = await presentDockedSearch(
     context,
     anchor: trigger,
     anchorOf: anchor,
@@ -101,7 +117,7 @@ Future<void> editSearchFromResults(
       assert(pushStaysInStack(router, location));
       await router.pushReplacement<void>(
         location,
-        extra: _SearchInputDraft(
+        extra: SearchInputDraft(
           keyword: keyword,
           type: type,
           illustFilters: illustFilters,
@@ -127,14 +143,15 @@ Future<void> swapToSearchInput(
   BuildContext context, {
   required String keyword,
   required SearchResultType type,
-}) => _pushReplacement(context, _searchInputLocation(context, keyword, type));
+}) =>
+    pushReplacementRoute(context, _searchInputLocation(context, keyword, type));
 
 String _searchInputLocation(
   BuildContext context,
   String keyword,
   SearchResultType type,
 ) => _searchInputLocationFor(
-  _stackRootOf(GoRouter.of(context).state.uri.path),
+  stackRootOf(GoRouter.of(context).state.uri.path),
   keyword,
   type,
 );
@@ -155,7 +172,7 @@ void replaceRankingMode(
 ) {
   final location = Uri(
     path: '/ranking',
-    queryParameters: _rankingQueryParameters(mode.name, date),
+    queryParameters: rankingQueryParameters(mode.name, date),
   ).toString();
   context.replace(location);
 }
@@ -169,8 +186,8 @@ void replaceNovelRankingMode(
   DateTime? date,
 ) {
   final location = Uri(
-    path: '${_currentStackRoot(context)}/novel-ranking',
-    queryParameters: _rankingQueryParameters(mode.name, date),
+    path: '${currentStackRoot(context)}/novel-ranking',
+    queryParameters: rankingQueryParameters(mode.name, date),
   ).toString();
   context.replace(location);
 }
@@ -195,7 +212,7 @@ void replaceNewFeed(BuildContext context, NewFeedScope scope) {
 /// [replaceNovelRankingMode].
 void replaceNewNovelScope(BuildContext context, NewFeedScope scope) {
   final location = Uri(
-    path: '${_currentStackRoot(context)}/new-novels',
+    path: '${currentStackRoot(context)}/new-novels',
     queryParameters: {'scope': scope.name},
   ).toString();
   context.replace(location);
@@ -213,7 +230,7 @@ Future<void> openSearchResults(
   final router = GoRouter.of(context);
   await _moveToSearchResults(
     router,
-    _stackRootOf(router.state.uri.path),
+    stackRootOf(router.state.uri.path),
     query,
     replaceCurrent: replaceCurrent,
   );
@@ -241,7 +258,7 @@ Future<void> _moveToSearchResults(
   }
   final location = Uri(
     path: _searchLeafPath(root, 'results'),
-    queryParameters: _searchQueryParameters(query),
+    queryParameters: searchQueryParameters(query),
   ).toString();
   assert(pushStaysInStack(router, location));
   if (replaceCurrent) {
@@ -282,9 +299,9 @@ String _shortcutLocation(String root, SearchShortcut shortcut) {
 Future<void> swapToSearchShortcut(
   BuildContext context,
   SearchShortcut shortcut,
-) => _pushReplacement(
+) => pushReplacementRoute(
   context,
-  _shortcutLocation(_currentStackRoot(context), shortcut),
+  _shortcutLocation(currentStackRoot(context), shortcut),
 );
 
 void replaceSearchResults(BuildContext context, SearchQuery query) {
@@ -295,7 +312,7 @@ void replaceSearchResults(BuildContext context, SearchQuery query) {
   }
   final location = Uri(
     path: _searchPath(context, 'results'),
-    queryParameters: _searchQueryParameters(query),
+    queryParameters: searchQueryParameters(query),
   ).toString();
   unawaited(GoRouter.of(context).replace<void>(location));
 }

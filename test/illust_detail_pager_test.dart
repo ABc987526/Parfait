@@ -13,7 +13,7 @@ import 'package:parfait/app/motion/motion_tokens.dart';
 import 'package:parfait/app/pixiv_image.dart';
 import 'package:parfait/core/entity/illust_entity.dart';
 import 'package:parfait/core/image/image_worker_providers.dart';
-import 'package:parfait/app/navigation/routes.dart';
+import 'package:parfait/app/navigation/route_extras.dart';
 import 'package:parfait/app/widgets/feed/feed_grid.dart';
 import 'package:parfait/core/entity/illust_store.dart';
 import 'package:parfait/core/history/history_repository.dart';

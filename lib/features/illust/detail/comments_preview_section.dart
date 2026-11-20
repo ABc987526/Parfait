@@ -2,7 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../app/format/app_format.dart';
-import '../../../app/navigation/routes.dart';
+import '../../../app/navigation/route_facade.dart';
 import '../../../app/person_avatar.dart';
 import '../../../app/pixiv_image.dart';
 import '../../../app/theme/func_semantic_tokens.dart';

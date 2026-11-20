@@ -38,7 +38,7 @@ import 'helpers/settings_world.dart' show RecordingTranslationEngine;
 import 'helpers/view_size.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
-import 'package:parfait/app/navigation/routes.dart';
+import 'package:parfait/app/navigation/route_extras.dart';
 import 'package:parfait/features/home/recommended/recommended_home_page.dart';
 import 'helpers/illust_detail_page_support.dart';
 import 'package:parfait/app/layout/input_modality.dart';

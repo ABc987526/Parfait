@@ -4,7 +4,7 @@ import 'package:flutter/gestures.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../navigation/routes.dart';
+import '../navigation/route_facade.dart';
 import 'errors/error_details.dart';
 import 'expandable_text.dart';
 import '../../core/entity/illust_caption.dart';

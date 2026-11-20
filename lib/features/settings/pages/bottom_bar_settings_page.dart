@@ -8,7 +8,7 @@ import '../../../app/widgets/app_top_bar.dart';
 import '../../../app/widgets/func_bottom_nav.dart';
 import '../../../app/widgets/settings/settings_control.dart';
 import '../../../app/widgets/settings/settings_group.dart';
-import '../../../app/window/desktop_command_bar.dart'
+import '../../../app/window/desktop_command_bar_scope.dart'
     show DesktopCommandBarScope;
 import '../../../core/navigation/home_destination.dart';
 import '../../../core/settings/arrangement.dart';

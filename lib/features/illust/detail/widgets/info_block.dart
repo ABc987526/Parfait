@@ -7,7 +7,7 @@ import '../../../../app/clipboard.dart';
 import '../../../../app/format/app_format.dart';
 import '../../../../app/layout/form_factor.dart';
 import '../../../../app/layout/input_modality.dart';
-import '../../../../app/navigation/routes.dart';
+import '../../../../app/navigation/route_facade.dart';
 import '../../../../app/theme/func_semantic_tokens.dart';
 import '../../../../app/widgets/author_summary.dart';
 import '../../../../app/widgets/edge_icon_buttons.dart';
@@ -75,20 +75,7 @@ class InfoBlock extends StatelessWidget {
   /// for [entity] under [context], for [FeedTextWarmup]: the text a
   /// detail page shapes in the frame that builds it.
   static List<WarmText> warmTexts(BuildContext context, IllustEntity entity) =>
-      [
-        _Title.warmText(context, entity.title),
-        ...AuthorSummary.warmTexts(
-          context,
-          name: entity.user.name,
-          account: _handle(entity.user),
-        ),
-        for (final tag in entity.tags)
-          TagChip.warmText(
-            context,
-            label: tag.name,
-            translated: tag.translatedName,
-          ),
-      ];
+      illustDetailWarmTexts(context, entity);
 
   @override
   Widget build(BuildContext context) {
@@ -618,22 +605,6 @@ class _Title extends StatelessWidget {
 
   static TextStyle _style(BuildContext context) =>
       FuncSemanticTokens.of(context).workTitle;
-
-  /// [title] as the [SelectableText] lays it out on the page's Material:
-  /// an editable paragraph with a strut taken from its style, in the UI
-  /// locale.
-  static WarmText warmText(BuildContext context, String title) {
-    final style = warmStyle(
-      context,
-      _style(context),
-      inherited: Theme.of(context).textTheme.bodyMedium,
-    );
-    return (
-      span: TextSpan(text: title, style: style),
-      locale: Localizations.maybeLocaleOf(context),
-      strutStyle: const StrutStyle().inheritFromTextStyle(style),
-    );
-  }
 
   @override
   Widget build(BuildContext context) => Text(title, style: _style(context));

@@ -9,7 +9,7 @@ import '../../app/haptics/app_haptics.dart';
 import '../../app/layout/deferred_cache_scroll_view.dart';
 import '../../app/layout/input_modality.dart';
 import '../../app/motion/removal.dart';
-import '../../app/navigation/routes.dart';
+import '../../app/widgets/feed/desktop_inspectable_gallery.dart';
 import '../../app/pull_to_refresh.dart';
 import '../../app/widgets/app_top_bar.dart';
 import '../../app/widgets/errors/error_details.dart';

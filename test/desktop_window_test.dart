@@ -7,7 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:parfait/app/layout/form_factor.dart';
 import 'package:parfait/app/motion/motion_tokens.dart';
-import 'package:parfait/app/navigation/routes.dart';
+import 'package:parfait/app/navigation/route_facade.dart';
 import 'package:parfait/app/system_ui.dart';
 import 'package:parfait/app/theme/replica_theme.dart';
 import 'package:parfait/app/widgets/app_top_bar.dart';

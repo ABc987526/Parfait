@@ -1,12 +1,37 @@
-part of 'routes.dart';
+import 'dart:async';
 
-/// Navigation facade — the only file in the app allowed to import feature
-/// pages from more than one feature. Callers pass ids and typed query objects;
-/// durable navigation state is encoded in go_router paths and queries.
-///
-/// Every page that can host a detail/user/tag push has the common routes
-/// mounted under it: the five home tabs and the root-level reverse-image and
-/// settings pages. Pushes stay inside the stack the user is looking at.
+import 'package:go_router/go_router.dart';
+import 'package:material_ui/material_ui.dart';
+
+import '../../core/bookmark/bookmark_models.dart';
+import '../../core/entity/comment_entity.dart';
+import '../../core/entity/illust_entity.dart';
+import '../../core/navigation/home_destination.dart';
+import '../../core/reverse_image/image_input.dart';
+import '../../core/settings/app_settings.dart';
+import '../../core/user/user_repository.dart';
+import '../../l10n/context.dart';
+import '../haptics/app_haptics.dart';
+import '../image_tier_cache.dart';
+import '../layout/form_factor.dart';
+import '../pixiv_image.dart';
+import '../theme/func_semantic_tokens.dart';
+import '../widgets/app_snack_bar.dart';
+import '../widgets/author_summary.dart';
+import '../widgets/feed/feed_text_warmup.dart';
+import '../widgets/feed/illust_pager_source.dart';
+import '../widgets/tag_chips.dart';
+import '../window/desktop_command_bar_scope.dart';
+import 'route_extras.dart';
+import 'route_query_codecs.dart';
+import 'viewer_session.dart';
+
+export 'route_extras.dart'
+    show IllustRouteExtra, ImageViewerRouteExtra, NovelRouteExtra;
+
+/// Navigation facade — lightweight, zero-feature-page library for callers to
+/// push typed locations onto `GoRouter` without pulling the full router table
+/// (`routes.dart`) into their compile unit.
 const _branchRoots = <String>[
   '/recommended',
   '/ranking',
@@ -19,19 +44,75 @@ const _overlayRoots = <String>['/me', '/reverse-image', '/downloads'];
 
 const _stackRoots = <String>[..._branchRoots, ..._overlayRoots];
 
-String? _stackRootOf(String path) {
+String livePathOf(GoRouter router) {
+  try {
+    return router.state.uri.path;
+  } on Object {
+    final config = router.routerDelegate.currentConfiguration;
+    if (config.isNotEmpty) return config.uri.path;
+    return router.routeInformationProvider.value.uri.path;
+  }
+}
+
+String? stackRootOf(String path) {
   for (final root in _stackRoots) {
     if (path == root || path.startsWith('$root/')) return root;
   }
   return null;
 }
 
-String _currentStackRoot(BuildContext context) {
-  final path = _livePathOf(GoRouter.of(context));
-  return _stackRootOf(path) ?? '/recommended';
+String currentStackRoot(BuildContext context) {
+  final path = livePathOf(GoRouter.of(context));
+  return stackRootOf(path) ?? '/recommended';
 }
 
-Future<void> _push(
+/// Whether the shell shows the rail at this window's width.
+bool hasShellRail(BuildContext context) =>
+    FormFactor.of(context).hasRail(MediaQuery.sizeOf(context).width);
+
+/// Opens the download tasks screen from process-level triggers (tray menu).
+void openDownloadsFromRouter(GoRouter router, {bool? rail}) {
+  final path = livePathOf(router);
+  if (_isPreHomePath(path)) return;
+  if (path == '/downloads' || path.endsWith('/downloads')) return;
+  final effectiveRail = rail ?? _hasRailFromRouter(router);
+  unawaited(
+    router.push<void>(
+      appPageLocation(router, 'downloads', rail: effectiveRail),
+    ),
+  );
+}
+
+bool _isPreHomePath(String path) =>
+    path == '/' ||
+    path == '/splash' ||
+    path == '/user-agreement' ||
+    path == '/welcome' ||
+    path.startsWith('/welcome/') ||
+    path == '/login' ||
+    path.startsWith('/login/');
+
+bool _hasRailFromRouter(GoRouter router) {
+  final navContext = router.routerDelegate.navigatorKey.currentContext;
+  if (navContext == null) return false;
+  return FormFactor.of(navContext).hasRail(MediaQuery.sizeOf(navContext).width);
+}
+
+/// Where an app-level page ([leaf]: `me`, `downloads`) opens. Beside a
+/// [rail], inside the branch on screen, so the rail stays; over everything on
+/// the root navigator on a phone, or while a root page (the viewer) is on top.
+String appPageLocation(GoRouter router, String leaf, {required bool rail}) {
+  if (rail) {
+    final root = stackRootOf(router.state.uri.path);
+    final inBranch = '$root/$leaf';
+    if (_branchRoots.contains(root) && pushStaysInStack(router, inBranch)) {
+      return inBranch;
+    }
+  }
+  return '/$leaf';
+}
+
+Future<void> pushRoute(
   BuildContext context,
   String location, {
   Object? extra,
@@ -48,7 +129,7 @@ Future<void> _push(
 /// runs the normal entrance transition. `context.replace` keeps the key and
 /// swaps without one — right for updating a page's own query, wrong for
 /// moving on to a different page.
-Future<void> _pushReplacement(BuildContext context, String location) async {
+Future<void> pushReplacementRoute(BuildContext context, String location) async {
   final router = GoRouter.of(context);
   assert(
     pushStaysInStack(router, location),
@@ -60,12 +141,11 @@ Future<void> _pushReplacement(BuildContext context, String location) async {
 /// Branch locations must be pushed from their own visible branch stack. A
 /// branch push from an overlay, another branch, or a root-level page such as
 /// the viewer would create a second shell or bury the target below that page.
-@visibleForTesting
 bool pushStaysInStack(GoRouter router, String location) {
-  final target = _stackRootOf(Uri.parse(location).path);
+  final target = stackRootOf(Uri.parse(location).path);
   if (target == null || !_branchRoots.contains(target)) return true;
   final current = router.routerDelegate.currentConfiguration;
-  final currentRoot = _stackRootOf(current.uri.path);
+  final currentRoot = stackRootOf(current.uri.path);
   if (currentRoot == null) {
     // Standalone root-level hosts (for example a deep-link test router) do
     // not have a shell branch to preserve; their root search route is safe.
@@ -85,9 +165,9 @@ Future<void> openIllust(
   int? heroImageDecodeWidth,
   IllustPagerSource? pagerSource,
 }) async {
-  await _push(
+  await pushRoute(
     context,
-    '${_currentStackRoot(context)}/illust/$illustId',
+    '${currentStackRoot(context)}/illust/$illustId',
     extra: IllustRouteExtra(
       entity: initialEntity,
       heroScope: heroScope,
@@ -103,22 +183,52 @@ Future<void> openIllust(
 List<WarmText> illustDetailWarmTexts(
   BuildContext context,
   IllustEntity entity,
-) => InfoBlock.warmTexts(context, entity);
+) {
+  final titleStyle = warmStyle(
+    context,
+    FuncSemanticTokens.of(context).workTitle,
+    inherited: Theme.of(context).textTheme.bodyMedium,
+  );
+  final account = entity.user.account.isEmpty
+      ? null
+      : '@${entity.user.account}';
+  return [
+    (
+      span: TextSpan(text: entity.title, style: titleStyle),
+      locale: Localizations.maybeLocaleOf(context),
+      strutStyle: const StrutStyle().inheritFromTextStyle(titleStyle),
+    ),
+    ...AuthorSummary.warmTexts(
+      context,
+      name: entity.user.name,
+      account: account,
+    ),
+    for (final tag in entity.tags)
+      TagChip.warmText(
+        context,
+        label: tag.name,
+        translated: tag.translatedName,
+      ),
+  ];
+}
 
 Future<void> openUser(BuildContext context, int userId) async {
-  await _push(context, '${_currentStackRoot(context)}/user/$userId');
+  await pushRoute(context, '${currentStackRoot(context)}/user/$userId');
 }
 
 Future<void> openIllustSeries(BuildContext context, int seriesId) async {
-  await _push(context, '${_currentStackRoot(context)}/series/$seriesId');
+  await pushRoute(context, '${currentStackRoot(context)}/series/$seriesId');
 }
 
 Future<void> openNovelSeries(BuildContext context, int seriesId) async {
-  await _push(context, '${_currentStackRoot(context)}/novel-series/$seriesId');
+  await pushRoute(
+    context,
+    '${currentStackRoot(context)}/novel-series/$seriesId',
+  );
 }
 
 Future<void> openSpotlight(BuildContext context) async {
-  await _push(context, '${_currentStackRoot(context)}/spotlight');
+  await pushRoute(context, '${currentStackRoot(context)}/spotlight');
 }
 
 Future<void> openSpotlightArticle(
@@ -127,10 +237,10 @@ Future<void> openSpotlightArticle(
   String? articleUrl,
 }) async {
   final location = Uri(
-    path: '${_currentStackRoot(context)}/spotlight/article/$articleId',
+    path: '${currentStackRoot(context)}/spotlight/article/$articleId',
     queryParameters: {'url': ?articleUrl},
   ).toString();
-  await _push(context, location);
+  await pushRoute(context, location);
 }
 
 /// Own-profile tabs another page can open the profile on (the "me"
@@ -142,34 +252,14 @@ Future<void> openMe(BuildContext context, {MeTab? tab}) async {
   // showing (the settings branch included) instead of switching branches.
   await context.push<void>(
     Uri(
-      path: _appPageLocation(
+      path: appPageLocation(
         GoRouter.of(context),
         'me',
-        rail: _hasRail(context),
+        rail: hasShellRail(context),
       ),
       queryParameters: tab == null ? null : {'tab': tab.name},
     ).toString(),
   );
-}
-
-/// Whether the shell shows the rail at this window's width.
-bool _hasRail(BuildContext context) =>
-    FormFactor.of(context).hasRail(MediaQuery.sizeOf(context).width);
-
-/// Where an app-level page ([leaf]: `me`, `downloads`) opens. Beside a
-/// [rail], inside the branch on screen, so the rail stays (the reason the
-/// root overlay had, that the settings branch stays reachable while the
-/// profile cannot load, holds there by itself); over everything on the
-/// root navigator on a phone, or while a root page (the viewer) is on top.
-String _appPageLocation(GoRouter router, String leaf, {required bool rail}) {
-  if (rail) {
-    final root = _stackRootOf(router.state.uri.path);
-    final inBranch = '$root/$leaf';
-    if (_branchRoots.contains(root) && pushStaysInStack(router, inBranch)) {
-      return inBranch;
-    }
-  }
-  return '/$leaf';
 }
 
 /// App settings are the fifth home destination: opening them switches the
@@ -199,9 +289,9 @@ Future<void> openNovel(
   int novelId, {
   int? atPixivPage,
 }) async {
-  await _push(
+  await pushRoute(
     context,
-    '${_currentStackRoot(context)}/novel/$novelId',
+    '${currentStackRoot(context)}/novel/$novelId',
     extra: atPixivPage == null
         ? null
         : NovelRouteExtra(atPixivPage: atPixivPage),
@@ -209,7 +299,7 @@ Future<void> openNovel(
 }
 
 Future<void> openNovelRanking(BuildContext context) async {
-  await _push(context, '${_currentStackRoot(context)}/novel-ranking');
+  await pushRoute(context, '${currentStackRoot(context)}/novel-ranking');
 }
 
 /// From the novel ranking to the illust ranking without stacking a second
@@ -217,7 +307,7 @@ Future<void> openNovelRanking(BuildContext context) async {
 /// in another stack (a link) goes to the ranking branch.
 void openIllustRanking(BuildContext context) {
   final router = GoRouter.of(context);
-  if (_currentStackRoot(context) == '/ranking' && router.canPop()) {
+  if (currentStackRoot(context) == '/ranking' && router.canPop()) {
     router.pop();
   } else {
     router.go('/ranking');
@@ -225,17 +315,17 @@ void openIllustRanking(BuildContext context) {
 }
 
 Future<void> openNewNovels(BuildContext context) async {
-  await _push(context, '${_currentStackRoot(context)}/new-novels');
+  await pushRoute(context, '${currentStackRoot(context)}/new-novels');
 }
 
 /// Download tasks are an app-level page on the current stack.
 Future<void> openDownloadTasks(BuildContext context) async {
-  await _push(
+  await pushRoute(
     context,
-    _appPageLocation(
+    appPageLocation(
       GoRouter.of(context),
       'downloads',
-      rail: _hasRail(context),
+      rail: hasShellRail(context),
     ),
   );
 }
@@ -247,7 +337,7 @@ void showDownloadSubmittedSnackBar(
   bool alreadyQueued = false,
 }) {
   final router = GoRouter.maybeOf(context);
-  final rail = _hasRail(context);
+  final rail = hasShellRail(context);
   final l10n = context.l10n;
   if (!alreadyQueued) AppHaptics.success();
   showAppSnackBar(
@@ -259,7 +349,7 @@ void showDownloadSubmittedSnackBar(
             label: l10n.downloadViewResult,
             onPressed: () => unawaited(
               router.push<void>(
-                _appPageLocation(router, 'downloads', rail: rail),
+                appPageLocation(router, 'downloads', rail: rail),
               ),
             ),
           ),
@@ -272,23 +362,26 @@ void openHomeDestination(BuildContext context, HomeDestination destination) =>
     StatefulNavigationShell.of(context).goBranch(destination.branchIndex);
 
 Future<void> openWatchLater(BuildContext context) async {
-  await _push(context, '${_currentStackRoot(context)}/watchlater');
+  await pushRoute(context, '${currentStackRoot(context)}/watchlater');
 }
 
 Future<void> openWatchlist(BuildContext context) async {
-  await _push(context, '${_currentStackRoot(context)}/watchlist');
+  await pushRoute(context, '${currentStackRoot(context)}/watchlist');
 }
 
 Future<void> openNovelMarkers(BuildContext context) async {
-  await _push(context, '${_currentStackRoot(context)}/novel-markers');
+  await pushRoute(context, '${currentStackRoot(context)}/novel-markers');
 }
 
 Future<void> openLocalNovels(BuildContext context) async {
-  await _push(context, '${_currentStackRoot(context)}/local-novels');
+  await pushRoute(context, '${currentStackRoot(context)}/local-novels');
 }
 
 Future<void> openLocalNovelReader(BuildContext context, int localId) async {
-  await _push(context, '${_currentStackRoot(context)}/local-novels/$localId');
+  await pushRoute(
+    context,
+    '${currentStackRoot(context)}/local-novels/$localId',
+  );
 }
 
 Future<void> openBookmarkTags(
@@ -297,13 +390,13 @@ Future<void> openBookmarkTags(
   required UserRestrict restrict,
 }) async {
   final location = Uri(
-    path: '${_currentStackRoot(context)}/bookmarks/tags',
+    path: '${currentStackRoot(context)}/bookmarks/tags',
     queryParameters: {
       'kind': kind.name,
-      'restrict': _bookmarkRestrictFromUser(restrict).name,
+      'restrict': bookmarkRestrictFromUser(restrict).name,
     },
   ).toString();
-  await _push(context, location);
+  await pushRoute(context, location);
 }
 
 Future<void> openBookmarkTagFeed(
@@ -313,17 +406,17 @@ Future<void> openBookmarkTagFeed(
   required BookmarkRestrict restrict,
 }) async {
   final location = Uri(
-    path: '${_currentStackRoot(context)}/bookmarks/tag',
+    path: '${currentStackRoot(context)}/bookmarks/tag',
     queryParameters: {'tag': tag, 'kind': kind.name, 'restrict': restrict.name},
   ).toString();
-  await _push(context, location);
+  await pushRoute(context, location);
 }
 
 Future<void> openReverseImageSearch(
   BuildContext context, {
   ReverseImageInputReference? initialReference,
 }) async {
-  await _push(context, '/reverse-image', extra: initialReference);
+  await pushRoute(context, '/reverse-image', extra: initialReference);
 }
 
 /// Pre-hides `DesktopCommandBar` synchronously before pushing a viewer route so
@@ -377,7 +470,7 @@ Future<void> openImageViewer(
       entity.viewerUrlAt(page, quality),
       tierKey: entity.imageTierKeyAt(page),
       tier: quality.tier,
-      memCacheWidth: ImageViewerPage.previewDecodeWidth(context),
+      memCacheWidth: viewerPreviewDecodeWidth(context),
       priority: ImageFetchPriority.foreground,
       // A context that unmounts mid-push (branch switch racing the tap)
       // makes the deferred precache throw — best-effort, so swallow.
@@ -385,9 +478,9 @@ Future<void> openImageViewer(
   );
   await _pushWithHiddenCommandBar(
     context,
-    () => _push(
+    () => pushRoute(
       context,
-      '${_currentStackRoot(context)}/illust/${entity.id}/viewer/$page'
+      '${currentStackRoot(context)}/illust/${entity.id}/viewer/$page'
       '?quality=${quality.code}',
       extra: ImageViewerRouteExtra(
         urls: entity.viewerUrls(quality),
@@ -410,9 +503,9 @@ Future<void> openIllustViewer(
   beginImageViewerSession();
   await _pushWithHiddenCommandBar(
     context,
-    () => _push(
+    () => pushRoute(
       context,
-      '${_currentStackRoot(context)}/illust/$illustId/viewer/$page'
+      '${currentStackRoot(context)}/illust/$illustId/viewer/$page'
       '?quality=${quality.code}',
     ),
   );
@@ -426,9 +519,9 @@ Future<void> openNovelImage(
   beginImageViewerSession();
   await _pushWithHiddenCommandBar(
     context,
-    () => _push(
+    () => pushRoute(
       context,
-      '${_currentStackRoot(context)}/novel/$novelId/image/$imageId',
+      '${currentStackRoot(context)}/novel/$novelId/image/$imageId',
     ),
   );
 }
@@ -441,7 +534,7 @@ void replaceImageViewerPage(
   ImageViewerRouteExtra? extra,
 }) {
   context.replace(
-    '${_currentStackRoot(context)}/illust/$illustId/viewer/$page'
+    '${currentStackRoot(context)}/illust/$illustId/viewer/$page'
     '?quality=${quality.code}',
     extra: extra,
   );
@@ -449,15 +542,18 @@ void replaceImageViewerPage(
 
 Future<void> openIllustComments(BuildContext context, int illustId) async {
   if (illustId <= 0) return;
-  await _push(
+  await pushRoute(
     context,
-    '${_currentStackRoot(context)}/illust/$illustId/comments',
+    '${currentStackRoot(context)}/illust/$illustId/comments',
   );
 }
 
 Future<void> openNovelComments(BuildContext context, int novelId) async {
   if (novelId <= 0) return;
-  await _push(context, '${_currentStackRoot(context)}/novel/$novelId/comments');
+  await pushRoute(
+    context,
+    '${currentStackRoot(context)}/novel/$novelId/comments',
+  );
 }
 
 Future<void> openCommentReplies(
@@ -468,16 +564,16 @@ Future<void> openCommentReplies(
     CommentWorkKind.illust => 'illust',
     CommentWorkKind.novel => 'novel',
   };
-  await _push(
+  await pushRoute(
     context,
-    '${_currentStackRoot(context)}/$workPath/${rootComment.workId}'
+    '${currentStackRoot(context)}/$workPath/${rootComment.workId}'
     '/comments/${rootComment.id}',
     extra: rootComment,
   );
 }
 
 Future<void> openHistory(BuildContext context) async {
-  await _push(context, '${_currentStackRoot(context)}/history');
+  await pushRoute(context, '${currentStackRoot(context)}/history');
 }
 
 Future<void> openLogin(
@@ -493,43 +589,16 @@ Future<void> openLogin(
     path: '/login',
     queryParameters: queryParameters.isEmpty ? null : queryParameters,
   ).toString();
-  await _push(context, location);
+  await pushRoute(context, location);
 }
 
 Future<void> openProfileEdit(BuildContext context, int userId) async {
-  await _push(context, '${_currentStackRoot(context)}/profile/$userId/edit');
+  await pushRoute(context, '${currentStackRoot(context)}/profile/$userId/edit');
 }
 
 Future<void> openTagSearch(BuildContext context, String keyword) async {
-  await _push(
+  await pushRoute(
     context,
-    '${_currentStackRoot(context)}/tag/${Uri.encodeComponent(keyword)}',
+    '${currentStackRoot(context)}/tag/${Uri.encodeComponent(keyword)}',
   );
 }
-
-/// Cross-feature profile feed builders exposed through the route facade
-/// so settings workspaces do not import `features/profile/` directly (`ARCH-01`).
-Widget profileFilterBar({
-  BookmarkEntityType? kind,
-  ValueChanged<BookmarkEntityType>? onKindChanged,
-  required UserRestrict restrict,
-  required ValueChanged<UserRestrict> onRestrictChanged,
-  String? tag,
-  ValueChanged<String?>? onTagChanged,
-}) => ProfileFilterBar(
-  kind: kind,
-  onKindChanged: onKindChanged,
-  restrict: restrict,
-  onRestrictChanged: onRestrictChanged,
-  tag: tag,
-  onTagChanged: onTagChanged,
-);
-
-Widget profileIllustFeed(ProfileFeedKey feedKey) =>
-    ProfileIllustFeed(feedKey: feedKey);
-
-Widget profileNovelFeed(ProfileFeedKey feedKey) =>
-    ProfileNovelFeed(feedKey: feedKey);
-
-Widget profileUserFeed(ProfileFeedKey feedKey) =>
-    ProfileUserFeed(feedKey: feedKey);

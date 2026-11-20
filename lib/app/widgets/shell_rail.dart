@@ -9,7 +9,7 @@ import '../layout/form_factor.dart';
 import '../motion/motion_tokens.dart';
 import '../theme/func_semantic_tokens.dart';
 import '../theme/func_tokens.dart';
-import '../window/desktop_command_bar.dart';
+import '../window/desktop_command_bar_scope.dart';
 import '../window/desktop_title_bar.dart';
 import 'fit_label.dart';
 import 'func_bottom_nav.dart';

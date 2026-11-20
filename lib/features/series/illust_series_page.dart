@@ -13,7 +13,8 @@ import '../../app/widgets/feed/feed_grid.dart';
 import '../../app/widgets/feed/feed_states.dart';
 import '../../app/widgets/skeleton/list_skeletons.dart';
 import '../../app/widgets/smooth_wheel_scroll.dart';
-import '../../app/navigation/routes.dart';
+import '../../app/navigation/route_facade.dart';
+import '../../app/widgets/feed/desktop_inspectable_gallery.dart';
 import '../../app/pixiv_image.dart';
 import '../../app/widgets/author_row.dart';
 import '../../app/widgets/edge_icon_buttons.dart';
@@ -35,7 +36,7 @@ import '../../app/theme/func_semantic_tokens.dart';
 import '../../app/layout/card_columns.dart';
 import '../../app/layout/content_widths.dart';
 import '../../app/widgets/feed/load_more_listener.dart';
-import '../../app/window/desktop_command_bar.dart';
+import '../../app/window/desktop_command_bar_scope.dart';
 import '../../app/icons/app_icons.dart';
 import '../../app/icons/ui_icons.dart';
 

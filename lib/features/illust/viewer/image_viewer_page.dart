@@ -18,7 +18,8 @@ import '../../../app/motion/app_overlays.dart';
 import '../../../app/motion/motion_tokens.dart';
 import '../../../app/navigation/home_shell_metrics.dart';
 import '../../../app/navigation/route_animation.dart';
-import '../../../app/navigation/routes.dart';
+import '../../../app/navigation/route_facade.dart';
+import '../../../app/navigation/viewer_session.dart';
 import '../../../app/motion/hero_transition.dart';
 import '../../../app/person_avatar.dart';
 import '../../../app/pixiv_image.dart';
@@ -44,7 +45,7 @@ import '../../../app/widgets/artwork_controls.dart';
 import '../../../app/widgets/entity_row.dart' show EntityBadge;
 import '../../../app/widgets/feed/feed_states.dart' show FeedLoading;
 import '../../../app/widgets/errors/error_details.dart';
-import '../../../app/window/desktop_command_bar.dart';
+import '../../../app/window/desktop_command_bar_scope.dart';
 import '../../../app/window/desktop_title_bar.dart';
 import '../../../l10n/context.dart';
 import '../../../app/theme/func_semantic_tokens.dart';
@@ -52,32 +53,12 @@ import '../detail/widgets/detail_page_counter.dart' show PageCountPill;
 import '../../../app/icons/app_icons.dart';
 import '../../../app/icons/ui_icons.dart';
 
-export '../../../app/window/desktop_command_bar.dart'
+export '../../../app/navigation/viewer_session.dart'
+    show beginImageViewerSession, debugResetViewerSession;
+export '../../../app/window/desktop_command_bar_scope.dart'
     show DesktopCommandBarScope;
 
 part 'image_viewer_chrome.dart';
-
-/// Whether the viewer chrome (top bar + bottom bar) is visible. This is
-/// session-level state (revision ①): it deliberately survives page turns,
-/// keyboard turns, page-sheet jumps and `replaceImageViewerPage` route
-/// swaps — the user asked for an immersive view and it stays immersive
-/// until they ask otherwise. Per-page state (zoom/pan) resets normally.
-bool _viewerSessionChromeVisible = true;
-
-/// A fresh viewer session opens with the chrome visible (PRD R4's
-/// 「默认可见」; design §2.3 scopes the holder to the viewer entry).
-/// `openImageViewer` is the session entry — in-session page swaps go
-/// through `replaceImageViewerPage` and must not reset this.
-void beginImageViewerSession() {
-  _viewerSessionChromeVisible = true;
-}
-
-/// Test hook: resets the session-level viewer state so widget tests are
-/// independent of each other's chrome toggles.
-@visibleForTesting
-void debugResetViewerSession() {
-  _viewerSessionChromeVisible = true;
-}
 
 /// Fullscreen horizontal viewer replicating beta56 ImageScalePage
 /// (R3): `n / total` counter in the top bar, horizontal paging, per-page zoom clamped to
@@ -143,10 +124,7 @@ class ImageViewerPage extends ConsumerStatefulWidget {
 
   /// The decode width of a page's preview; [openImageViewer] warms the same.
   static int previewDecodeWidth(BuildContext context) =>
-      PixivImage.decodeWidthFor(
-        HomeShellChrome.contentSizeOf(context).width * previewScale,
-        devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
-      );
+      viewerPreviewDecodeWidth(context);
 
   @override
   ConsumerState<ImageViewerPage> createState() => _ImageViewerPageState();
@@ -217,7 +195,7 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
       : viewer.urls.length;
 
   bool get _chromeVisible =>
-      _viewerSessionChromeVisible || _pointerChromeRevealed;
+      viewerSessionChromeVisible || _pointerChromeRevealed;
 
   @override
   void initState() {
@@ -240,7 +218,7 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
     WidgetsBinding.instance.addPostFrameCallback(
       (_) => _prefetchNeighbours(_activePage),
     );
-    if (!_viewerSessionChromeVisible) _setSystemChrome(visible: false);
+    if (!viewerSessionChromeVisible) _setSystemChrome(visible: false);
   }
 
   @override
@@ -340,7 +318,7 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
     _zoomCurve.dispose();
     _zoomController.dispose();
     _pageController.dispose();
-    if (!_viewerSessionChromeVisible) _setSystemChrome(visible: true);
+    if (!viewerSessionChromeVisible) _setSystemChrome(visible: true);
     super.dispose();
   }
 
@@ -467,11 +445,11 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
   void _setChromeVisible(bool visible) {
     _chromeHideTimer?.cancel();
     _pointerChromeRevealed = false;
-    if (_viewerSessionChromeVisible == visible) {
+    if (viewerSessionChromeVisible == visible) {
       setState(() {});
       return;
     }
-    _viewerSessionChromeVisible = visible;
+    viewerSessionChromeVisible = visible;
     _setSystemChrome(visible: visible);
     setState(() {});
   }
@@ -496,7 +474,7 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
       changed = true;
     }
     _chromeHotzoneHovered = inHotzone;
-    if (!_viewerSessionChromeVisible) {
+    if (!viewerSessionChromeVisible) {
       if (!_pointerChromeRevealed) {
         _pointerChromeRevealed = true;
         changed = true;
@@ -504,9 +482,7 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
       _chromeHideTimer?.cancel();
       if (!inHotzone) {
         _chromeHideTimer = Timer(const Duration(seconds: 2), () {
-          if (!mounted ||
-              _chromeHotzoneHovered ||
-              _viewerSessionChromeVisible) {
+          if (!mounted || _chromeHotzoneHovered || viewerSessionChromeVisible) {
             return;
           }
           if (_pointerChromeRevealed) {

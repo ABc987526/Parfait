@@ -9,7 +9,7 @@ import '../../../l10n/context.dart';
 import '../../haptics/app_haptics.dart';
 import '../../layout/app_breakpoints.dart';
 import '../../theme/func_semantic_tokens.dart';
-import '../../window/desktop_command_bar.dart';
+import '../../window/desktop_command_bar_scope.dart';
 import '../app_menu_button.dart';
 import '../settings/persist_settings.dart';
 import 'desktop_inspector_scope.dart';

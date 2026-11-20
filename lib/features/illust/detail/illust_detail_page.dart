@@ -63,9 +63,10 @@ import 'widgets/illust_series_section.dart';
 import 'widgets/info_block.dart';
 import 'widgets/page_image.dart';
 import 'ugoira_viewer.dart';
-import '../../../app/navigation/routes.dart';
+import '../../../app/navigation/route_facade.dart';
 import '../../../app/widgets/app_snack_bar.dart';
 import '../../../app/widgets/errors/error_details.dart';
+import '../../../app/widgets/feed/desktop_inspector_scope.dart';
 import '../../../l10n/context.dart';
 import '../../../app/navigation/home_shell_metrics.dart';
 import '../../../app/layout/app_breakpoints.dart';
@@ -77,16 +78,11 @@ import '../../../app/widgets/smooth_wheel_scroll.dart';
 import '../../../app/widgets/comment_composer.dart';
 import '../../../app/icons/app_icons.dart';
 import '../../../app/icons/ui_icons.dart';
+
+export '../../../app/widgets/feed/desktop_inspector_scope.dart'
+    show IllustEmbeddedBackController;
+
 part 'illust_detail_content.dart';
-
-/// Coordinates system back / Esc inside an embedded [IllustDetailPage] so an
-/// active sub-mode (page download selection or comment composer) dismisses
-/// before its outer host closes the inspector pane.
-class IllustEmbeddedBackController {
-  bool Function()? _handler;
-
-  bool handleBack() => _handler?.call() ?? false;
-}
 
 class IllustDetailPage extends ConsumerStatefulWidget {
   const IllustDetailPage({
@@ -234,7 +230,7 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
   @override
   void initState() {
     super.initState();
-    widget.embeddedBackController?._handler = _handleEmbeddedBack;
+    widget.embeddedBackController?.handler = _handleEmbeddedBack;
     _narrowScroll
       ..addListener(_updateImmersion)
       ..addListener(_schedulePagesToggleCheck)
@@ -246,10 +242,10 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
   void didUpdateWidget(IllustDetailPage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.embeddedBackController != widget.embeddedBackController) {
-      if (oldWidget.embeddedBackController?._handler == _handleEmbeddedBack) {
-        oldWidget.embeddedBackController?._handler = null;
+      if (oldWidget.embeddedBackController?.handler == _handleEmbeddedBack) {
+        oldWidget.embeddedBackController?.handler = null;
       }
-      widget.embeddedBackController?._handler = _handleEmbeddedBack;
+      widget.embeddedBackController?.handler = _handleEmbeddedBack;
     }
   }
 
@@ -603,8 +599,8 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
 
   @override
   void dispose() {
-    if (widget.embeddedBackController?._handler == _handleEmbeddedBack) {
-      widget.embeddedBackController?._handler = null;
+    if (widget.embeddedBackController?.handler == _handleEmbeddedBack) {
+      widget.embeddedBackController?.handler = null;
     }
     unawaited(_downloadEvents?.cancel());
     _narrowScroll.dispose();

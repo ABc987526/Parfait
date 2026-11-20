@@ -12,7 +12,7 @@ import '../../app/pixiv_image.dart';
 import '../../app/widgets/app_dialog.dart';
 import '../../app/widgets/app_top_bar.dart';
 import '../../app/widgets/feed/feed_states.dart';
-import '../../app/window/desktop_command_bar.dart';
+import '../../app/window/desktop_command_bar_scope.dart';
 import '../../core/platform/platform_caps.dart';
 import '../../core/reverse_image/desktop_image_input.dart';
 import '../../core/auth/account_store.dart';

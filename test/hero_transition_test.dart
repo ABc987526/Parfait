@@ -7,7 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:http/http.dart' as http;
 import 'package:parfait/app/navigation/func_page.dart';
-import 'package:parfait/app/navigation/routes.dart';
+import 'package:parfait/app/navigation/route_extras.dart';
 import 'package:parfait/app/pixiv_image.dart';
 import 'package:parfait/app/motion/hero_transition.dart';
 import 'package:parfait/core/debug/hero_anomaly_log.dart';

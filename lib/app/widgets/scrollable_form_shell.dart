@@ -5,7 +5,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../layout/app_breakpoints.dart';
 import '../layout/content_widths.dart';
-import '../window/desktop_command_bar.dart' show DesktopCommandBarScope;
+import '../window/desktop_command_bar_scope.dart' show DesktopCommandBarScope;
 import 'ambient_wash.dart';
 import 'app_top_bar.dart' show EmbeddedHeaderScope;
 import 'replica_scaffold.dart';

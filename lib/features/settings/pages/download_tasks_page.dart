@@ -14,7 +14,7 @@ import '../../../app/layout/input_modality.dart';
 import '../../../app/motion/app_overlays.dart';
 import '../../../app/motion/removal.dart';
 import '../../../app/motion/state_icon_switcher.dart';
-import '../../../app/navigation/routes.dart';
+import '../../../app/navigation/route_facade.dart';
 import '../../../app/pixiv_image.dart';
 import '../../../app/theme/func_semantic_tokens.dart';
 import '../../../app/widgets/app_dialog.dart';

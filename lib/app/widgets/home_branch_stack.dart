@@ -19,12 +19,12 @@ import '../motion/still_work.dart';
 import '../motion/swipe_paging.dart';
 import '../pull_to_refresh.dart';
 import '../navigation/home_shell_metrics.dart';
-import '../navigation/routes.dart';
+import '../navigation/route_facade.dart';
 import 'func_bottom_nav.dart';
 import 'prompt_anchor.dart';
 import 'settings/persist_settings.dart';
 import 'shell_rail.dart';
-import '../window/desktop_command_bar.dart' show DesktopCommandBarScope;
+import '../window/desktop_command_bar_scope.dart' show DesktopCommandBarScope;
 
 const _settingsSubPathSegments = <String>{
   'all',

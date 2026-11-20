@@ -24,7 +24,7 @@ import '../../../../core/illust/illust_download_controller.dart';
 import '../../../../core/settings/app_settings.dart';
 import '../../../../core/settings/settings_controller.dart';
 import '../../../../l10n/context.dart';
-import '../../../../app/navigation/routes.dart';
+import '../../../../app/navigation/route_facade.dart';
 import '../../../../app/theme/func_semantic_tokens.dart';
 import '../../../../app/icons/app_icons.dart';
 import '../../../../app/icons/ui_icons.dart';

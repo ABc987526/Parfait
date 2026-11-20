@@ -3,7 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import '../layout/app_breakpoints.dart';
 import '../navigation/home_shell_metrics.dart';
 import '../theme/func_semantic_tokens.dart';
-import '../window/desktop_command_bar.dart' show DesktopCommandBarScope;
+import '../window/desktop_command_bar_scope.dart' show DesktopCommandBarScope;
 import 'app_top_bar.dart' show EmbeddedHeaderScope;
 import 'scroll_edge_fade.dart';
 

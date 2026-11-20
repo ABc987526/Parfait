@@ -19,7 +19,7 @@ import '../../motion/hero_transition.dart';
 import '../../motion/motion_tokens.dart';
 import '../smooth_wheel_scroll.dart';
 import '../../motion/press_scale.dart';
-import '../../navigation/routes.dart';
+import '../../navigation/route_facade.dart';
 import '../../pixiv_image.dart';
 import '../../image_tier_cache.dart';
 import '../../widgets/bookmark_switch_button.dart';

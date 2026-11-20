@@ -3,10 +3,10 @@ import 'dart:async';
 import 'package:material_ui/material_ui.dart';
 
 import '../../app/layout/content_widths.dart';
-import '../../app/navigation/routes.dart';
+import '../../app/navigation/route_search_facade.dart';
 import '../../app/theme/func_semantic_tokens.dart';
 import '../../app/widgets/app_top_bar.dart';
-import '../../app/window/desktop_command_bar.dart';
+import '../../app/window/desktop_command_bar_scope.dart';
 import '../../core/search/search_models.dart';
 import '../../l10n/context.dart';
 import 'search_filter_labels.dart';
