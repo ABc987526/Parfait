@@ -81,7 +81,7 @@
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Save illustrations, manga, and animations to your photo library.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Select an image from your photo library for reverse image search or profile avatar.</string>
+	<string>Select images from your photo library and organize saved artworks into custom albums.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UISupportedInterfaceOrientations</key>

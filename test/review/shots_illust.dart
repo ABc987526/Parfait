@@ -7,6 +7,7 @@ import 'package:parfait/app/widgets/tag_chips.dart';
 
 import 'review_support.dart';
 import 'package:parfait/app/icons/app_icons.dart';
+import 'package:parfait/app/icons/ui_icons.dart';
 
 /// Illust detail, viewer, comments and replies — the deep pages off feeds.
 void main() {
@@ -103,7 +104,7 @@ void main() {
     location: detail,
     variants: overflowVariants,
     before: (tester, router) async {
-      await tester.tap(find.byIcon(Icons.more_vert));
+      await tester.tap(find.byIcon(UiIcons.more));
     },
   );
   // Below the info: the comment preview and the author's other works.

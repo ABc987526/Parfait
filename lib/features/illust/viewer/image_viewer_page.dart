@@ -50,6 +50,7 @@ import '../../../l10n/context.dart';
 import '../../../app/theme/func_semantic_tokens.dart';
 import '../detail/widgets/detail_page_counter.dart' show PageCountPill;
 import '../../../app/icons/app_icons.dart';
+import '../../../app/icons/ui_icons.dart';
 
 export '../../../app/window/desktop_command_bar.dart'
     show DesktopCommandBarScope;
@@ -873,7 +874,7 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
             },
           ),
           DisplayAction(
-            icon: Icons.arrow_back,
+            icon: UiIcons.arrowBack,
             label: MaterialLocalizations.of(context).backButtonTooltip,
             onSelected: _imperativePop,
           ),
@@ -1039,7 +1040,7 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
                                       (_stageHovered || _chromeVisible) &&
                                       _activePage > 0,
                                   alignment: AlignmentDirectional.centerStart,
-                                  icon: Icons.chevron_left,
+                                  icon: UiIcons.chevronLeft,
                                   tooltip: MaterialLocalizations.of(
                                     context,
                                   ).previousPageTooltip,
@@ -1051,7 +1052,7 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
                                       (_stageHovered || _chromeVisible) &&
                                       _activePage + 1 < _pageCount,
                                   alignment: AlignmentDirectional.centerEnd,
-                                  icon: Icons.chevron_right,
+                                  icon: UiIcons.chevronRight,
                                   tooltip: MaterialLocalizations.of(
                                     context,
                                   ).nextPageTooltip,
@@ -1445,10 +1446,10 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
                           child: CircularProgressIndicator(strokeWidth: 2),
                         ),
                         IllustPageSaveState.exist => const Icon(
-                          Icons.check_circle,
+                          UiIcons.checkCircle,
                         ),
                         IllustPageSaveState.error => const Icon(
-                          Icons.error_outline,
+                          UiIcons.errorOutline,
                         ),
                         _ => const Icon(AppIcons.download),
                       },

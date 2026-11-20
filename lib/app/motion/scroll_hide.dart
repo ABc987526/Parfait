@@ -49,9 +49,24 @@ class ScrollHideTracker {
         if (scrolling) {
           _dragged = false;
           _lastDelta = 0;
+          // If the scrollable shrank to zero scroll range while chrome was
+          // hidden, reveal it on the first user scroll so it can never be
+          // trapped off screen.
+          if (metrics.maxScrollExtent <= metrics.minScrollExtent &&
+              visibility.value < 1.0) {
+            return false;
+          }
           return null;
         }
         return _settle(visibility);
+      case OverscrollNotification(:final overscroll, :final dragDetails)
+          when _userScroll &&
+              dragDetails != null &&
+              overscroll < 0 &&
+              metrics.pixels <= metrics.minScrollExtent + 0.5 &&
+              visibility.value < 1.0:
+        // Pulling down while already at the top edge reveals hidden chrome.
+        return false;
       case ScrollUpdateNotification(:final scrollDelta?, :final dragDetails)
           when _userScroll && travel > 0:
         if (dragDetails != null) _dragged = true;

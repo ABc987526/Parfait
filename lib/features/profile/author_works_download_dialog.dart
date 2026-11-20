@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:material_ui/material_ui.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../app/widgets/app_dialog.dart';
+import '../../app/widgets/app_spinner.dart';
 import '../../app/widgets/errors/error_details.dart';
 import '../../core/download/author_works_enumerator.dart';
 import '../../core/errors/error_category.dart';
@@ -125,22 +127,19 @@ class _AuthorWorksDownloadDialogState
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     return switch (_phase) {
-      _Phase.enumerating => AlertDialog(
+      _Phase.enumerating => AppAlertDialog(
         title: Text(l10n.downloadAuthorWorksTitle),
         content: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const SizedBox.square(
-              dimension: 20,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
+            const AppSpinner(size: 20, strokeWidth: 2),
             const SizedBox(width: FuncSpacing.lg),
             Flexible(child: Text(l10n.downloadAuthorEnumerating(_scanned))),
           ],
         ),
         actions: [TextButton(onPressed: _cancel, child: Text(l10n.cancel))],
       ),
-      _Phase.confirming => AlertDialog(
+      _Phase.confirming => AppAlertDialog(
         title: Text(l10n.downloadAuthorWorksTitle),
         content: Builder(
           builder: (context) {
@@ -181,7 +180,7 @@ class _AuthorWorksDownloadDialogState
           ),
         ],
       ),
-      _Phase.failed => AlertDialog(
+      _Phase.failed => AppAlertDialog(
         title: Text(l10n.downloadAuthorWorksTitle),
         content: _error == null
             ? Text(l10n.downloadAuthorEmpty)

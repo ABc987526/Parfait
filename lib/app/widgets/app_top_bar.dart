@@ -2,7 +2,6 @@ import 'package:material_ui/material_ui.dart';
 
 import 'package:flutter/foundation.dart';
 
-import '../layout/form_factor.dart';
 import '../motion/hero_transition.dart'
     show HeroChrome, LiftableBar, LiftableShadow;
 import '../motion/motion_tokens.dart';
@@ -212,52 +211,21 @@ class _AppTopBarState extends State<AppTopBar> {
     final theme = Theme.of(context);
     final barTheme = theme.appBarTheme;
     final tokens = theme.extension<FuncSemanticTokens>();
-    final isDark = theme.brightness == Brightness.dark;
     final desktopOwned = DesktopCommandBarScope.isActiveOf(context);
-    final hasRail = FormFactor.of(context).hasRail(MediaQuery.widthOf(context));
     final flatWorkspace =
         (embedded || desktopOwned) && widget.immersion == null;
-    final useBrandedHeader =
-        !embedded &&
-        !hasRail &&
-        tokens != null &&
-        widget.backgroundColor == null &&
-        widget.immersion == null &&
-        !desktopOwned;
-    final Color? brandedSurface = useBrandedHeader
-        ? tokens.brandedHeaderSurface
-        : null;
-    final Color? brandedForeground = useBrandedHeader
-        ? tokens.brandedHeaderForeground
-        : null;
-    final brandedIconButtonTheme = !useBrandedHeader
-        ? null
-        : IconButtonThemeData(
-            style: IconButton.styleFrom(
-              foregroundColor: tokens.brandedHeaderForeground,
-              disabledForegroundColor: tokens.brandedHeaderForeground
-                  .withValues(alpha: 0.48),
-            ).merge(theme.iconButtonTheme.style),
-          );
     final surface = widget.backgroundColor != null
         ? widget.backgroundColor!
         : flatWorkspace
         ? theme.scaffoldBackgroundColor
-        : brandedSurface ??
-              barTheme.backgroundColor ??
-              theme.colorScheme.surface;
-    final foreground =
-        brandedForeground ??
-        barTheme.foregroundColor ??
-        theme.colorScheme.onSurface;
+        : barTheme.backgroundColor ?? theme.colorScheme.surface;
+    final foreground = barTheme.foregroundColor ?? theme.colorScheme.onSurface;
     final immersed = drawn < 1;
     // Over artwork the controls take the shared artwork look; it fades
     // back to the theme's as the bar's surface takes over.
     final lift = immersed && widget.overArtwork ? 1 - drawn : 0.0;
     final liftedIcons = lift == 0
-        ? (brandedForeground == null
-              ? null
-              : IconThemeData(color: brandedForeground))
+        ? null
         : IconThemeData.lerp(
             IconThemeData(color: foreground),
             ArtworkControls.iconTheme(context, halo: surface),
@@ -312,17 +280,23 @@ class _AppTopBarState extends State<AppTopBar> {
     }
     // AppBar wraps leading and actions in its own IconButtonTheme derived from
     // iconTheme/actionsIconTheme (dropping disabledForegroundColor), so apply
-    // brandedIconButtonTheme inside those slots as well as on the outer Theme.
-    if (brandedIconButtonTheme != null) {
-      if (leading != null) {
-        leading = IconButtonTheme(data: brandedIconButtonTheme, child: leading);
-      }
-      if (actions != null) {
-        actions = [
-          for (final action in actions)
-            IconButtonTheme(data: brandedIconButtonTheme, child: action),
-        ];
-      }
+    // explicit 0.48 disabled alpha inside those slots without touching the
+    // global IconButtonTheme (which would override IconTheme.merge elsewhere).
+    final barIconColor = liftedIcons?.color ?? foreground;
+    final barIconButtonTheme = IconButtonThemeData(
+      style: IconButton.styleFrom(
+        foregroundColor: barIconColor,
+        disabledForegroundColor: barIconColor.withValues(alpha: 0.48),
+      ).merge(theme.iconButtonTheme.style),
+    );
+    if (leading != null) {
+      leading = IconButtonTheme(data: barIconButtonTheme, child: leading);
+    }
+    if (actions != null) {
+      actions = [
+        for (final action in actions)
+          IconButtonTheme(data: barIconButtonTheme, child: action),
+      ];
     }
     // A tab row standing in the title is the bar's leading content, not a
     // heading: there is no title text to mark, and the tabs stay tabs.
@@ -386,21 +360,18 @@ class _AppTopBarState extends State<AppTopBar> {
                 ? theme.scaffoldBackgroundColor
                 : immersed
                 ? surface.withValues(alpha: surface.a * drawn)
-                : brandedSurface),
+                : null),
         foregroundColor: flatWorkspace && widget.backgroundColor == null
             ? theme.colorScheme.onSurface
             : immersed
             ? foreground
-            : brandedForeground,
+            : null,
         titleTextStyle: flatWorkspace && widget.backgroundColor == null
             ? theme.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.w700,
                 color: theme.colorScheme.onSurface,
               )
-            : brandedForeground == null
-            ? null
-            : (barTheme.titleTextStyle ?? theme.textTheme.titleMedium)
-                  ?.copyWith(color: brandedForeground),
+            : null,
         iconTheme: liftedIcons,
         actionsIconTheme: liftedIcons,
         shape: tokens != null && flatWorkspace
@@ -409,8 +380,7 @@ class _AppTopBarState extends State<AppTopBar> {
         // Decouple status-bar icon contrast (estimated from the actual top
         // header fill so dynamic colors stay legible) from the bottom system
         // navigation bar, which always follows the page brightness.
-        systemOverlayStyle:
-            immersed || useBrandedHeader || widget.backgroundColor != null
+        systemOverlayStyle: immersed || widget.backgroundColor != null
             ? funcSystemBarsStyle(
                 immersed
                     ? theme.brightness
@@ -430,36 +400,12 @@ class _AppTopBarState extends State<AppTopBar> {
               child: toolbar,
             ),
           );
-    final themedToolbar = !useBrandedHeader
-        ? sizedToolbar
-        : Theme(
-            data: theme.copyWith(
-              tabBarTheme: theme.tabBarTheme.copyWith(
-                labelColor: isDark
-                    ? theme.colorScheme.primary
-                    : tokens.brandedHeaderForeground,
-                unselectedLabelColor: tokens.brandedHeaderTabUnselected,
-                indicatorColor: isDark
-                    ? theme.colorScheme.primary
-                    : tokens.brandedHeaderForeground,
-              ),
-              textButtonTheme: TextButtonThemeData(
-                style: TextButton.styleFrom(
-                  foregroundColor: tokens.brandedHeaderForeground,
-                  disabledForegroundColor: tokens.brandedHeaderForeground
-                      .withValues(alpha: 0.50),
-                ).merge(theme.textButtonTheme.style),
-              ),
-              iconButtonTheme: brandedIconButtonTheme,
-            ),
-            child: sizedToolbar,
-          );
     if (widget.entrance == null) {
-      return themedToolbar;
+      return sizedToolbar;
     }
     return HeroChrome(
       holdable: () => !widget.occludesContent,
-      child: _entering(themedToolbar),
+      child: _entering(sizedToolbar),
     );
   }
 }
@@ -487,6 +433,7 @@ class ScrollEdgeShadow extends StatelessWidget {
       context,
       MotionSpring.effectsFast,
     );
+    final tokens = FuncSemanticTokens.of(context);
     return Stack(
       fit: StackFit.passthrough,
       clipBehavior: Clip.none,
@@ -497,9 +444,22 @@ class ScrollEdgeShadow extends StatelessWidget {
               opacity: visible ? 1 : 0,
               duration: duration,
               curve: curve,
-              child: LiftableShadow(
-                shadows: FuncSemanticTokens.of(context).topBarShadow,
-                visible: visible,
+              child: Stack(
+                fit: StackFit.expand,
+                clipBehavior: Clip.none,
+                children: [
+                  LiftableShadow(
+                    shadows: tokens.topBarShadow,
+                    visible: visible,
+                  ),
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: -1,
+                    height: 1,
+                    child: ColoredBox(color: tokens.brandHairline),
+                  ),
+                ],
               ),
             ),
           ),

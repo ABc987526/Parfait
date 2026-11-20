@@ -18,6 +18,7 @@ import '../l10n/context.dart';
 import 'layout/content_widths.dart';
 import 'widgets/errors/error_details.dart';
 import 'theme/func_semantic_tokens.dart';
+import 'icons/ui_icons.dart';
 
 /// Cold-start router driven by real settings and account state.
 ///
@@ -484,7 +485,7 @@ class _StartupError extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.error_outline, size: 48),
+                const Icon(UiIcons.errorOutline, size: 48),
                 const SizedBox(height: FuncSpacing.lg),
                 Text(text('accountReadFailed')),
                 const SizedBox(height: FuncSpacing.sm),

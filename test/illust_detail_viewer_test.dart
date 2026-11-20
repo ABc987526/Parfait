@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'package:parfait/app/layout/input_modality.dart';
+import 'package:parfait/app/motion/app_overlays.dart';
 import 'package:parfait/core/download/download_providers.dart';
 import 'package:parfait/core/download/download_task.dart';
 import 'package:parfait/app/motion/drag_to_dismiss.dart';
@@ -23,6 +24,7 @@ import 'helpers/localized_app.dart';
 import 'helpers/view_size.dart';
 import 'helpers/waits.dart';
 import 'package:parfait/app/icons/app_icons.dart';
+import 'package:parfait/app/icons/ui_icons.dart';
 
 // §7 screen-reader representative paths — the three priority surfaces
 // (author header, artwork viewer, comment composer). These are widget-tree
@@ -352,14 +354,14 @@ void main() {
       );
       expect(manager.tasks.single.status, DownloadStatus.succeeded);
       await tester.pump();
-      expect(find.byIcon(Icons.check_circle), findsOneWidget);
+      expect(find.byIcon(UiIcons.checkCircle), findsOneWidget);
       // The exist state also disables the button (detail-page badge
       // semantics carried over).
       expect(
         tester
             .widget<IconButton>(
               find.ancestor(
-                of: find.byIcon(Icons.check_circle),
+                of: find.byIcon(UiIcons.checkCircle),
                 matching: find.byType(IconButton),
               ),
             )
@@ -640,7 +642,7 @@ void main() {
           kind: PointerDeviceKind.mouse,
         );
         await tester.pumpAndSettle();
-        expect(find.byType(BottomSheet), findsNothing);
+        expect(find.byType(AppBottomSheet), findsNothing);
         await tester.tap(find.text('2').last, kind: PointerDeviceKind.mouse);
         await tester.pumpAndSettle();
         expect(find.text('2 / 2'), findsOneWidget);

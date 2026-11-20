@@ -48,6 +48,7 @@ import '../../app/theme/func_semantic_tokens.dart';
 import '../../app/widgets/settings/persist_settings.dart';
 import '../../app/widgets/feed/load_more_listener.dart';
 import '../../app/icons/app_icons.dart';
+import '../../app/icons/ui_icons.dart';
 
 /// The three rows of the history page's overflow menu.
 enum _HistoryMenuAction { recordLocal, recordPixiv, deleteAll }
@@ -250,7 +251,7 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                     onPressed: accountId == null
                         ? null
                         : () => _selectAll(accountId),
-                    icon: const Icon(Icons.select_all),
+                    icon: const Icon(UiIcons.selectAll),
                   ),
                   IconButton(
                     tooltip: context.l10n.historyDelete,

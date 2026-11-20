@@ -9,6 +9,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:parfait/app/haptics/haptics_driver.dart';
+import 'package:parfait/app/motion/app_overlays.dart';
+import 'package:parfait/app/widgets/app_dialog.dart';
 import 'package:parfait/core/localnovel/local_novel_database.dart';
 import 'package:parfait/core/localnovel/local_novel_repository.dart';
 import 'package:parfait/core/localnovel/local_novel_store.dart';
@@ -23,6 +25,7 @@ import 'helpers/localized_app.dart';
 import 'helpers/prompt_host.dart';
 import 'helpers/waits.dart';
 import 'package:parfait/app/icons/app_icons.dart';
+import 'package:parfait/app/icons/ui_icons.dart';
 
 Widget _app(Widget child) => localizedApp(locale: null, home: child);
 
@@ -240,19 +243,19 @@ void main() {
     );
     await _pumpUntil(tester, find.text('My Story'));
 
-    await tester.tap(find.byIcon(Icons.more_vert));
+    await tester.tap(find.byIcon(UiIcons.more));
     await tester.pumpAndSettle();
     // A row-anchored menu with the one action, not a bottom sheet.
-    expect(find.byType(BottomSheet), findsNothing);
+    expect(find.byType(AppBottomSheet), findsNothing);
     expect(find.widgetWithIcon(MenuItemButton, AppIcons.trash), findsOneWidget);
 
     await tester.tap(find.byIcon(AppIcons.trash));
     await tester.pumpAndSettle();
     // The menu closed and the shared confirm dialog (showAppDialog →
-    // AlertDialog) is up — its opening fired the explicit vibration;
+    // AppAlertDialog) is up — its opening fired the explicit vibration;
     // the neutral overflow menu itself stayed silent.
     expect(find.byType(MenuItemButton), findsNothing);
-    expect(find.byType(AlertDialog), findsOneWidget);
+    expect(find.byType(AppAlertDialog), findsOneWidget);
     expect(haptics.roles, [HapticRole.confirm]);
     expect(
       find.text('Delete "My Story"? The local file will be removed too.'),
@@ -264,7 +267,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('My Story'), findsOneWidget);
 
-    await tester.tap(find.byIcon(Icons.more_vert));
+    await tester.tap(find.byIcon(UiIcons.more));
     await tester.pumpAndSettle();
     await tester.tap(find.byIcon(AppIcons.trash));
     await tester.pumpAndSettle();

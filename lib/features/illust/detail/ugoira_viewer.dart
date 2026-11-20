@@ -38,6 +38,7 @@ import '../../../app/widgets/app_snack_bar.dart';
 import '../../../l10n/context.dart';
 import '../../../app/theme/func_semantic_tokens.dart';
 import '../../../app/icons/app_icons.dart';
+import '../../../app/icons/ui_icons.dart';
 
 /// Inline beta56-compatible Ugoira surface. The cover, play affordance and
 /// paused overlay stay in the detail page; ZIP/decode/export resources are
@@ -772,7 +773,7 @@ class _UgoiraViewerState extends ConsumerState<UgoiraViewer>
         onLongPress: () {},
         actions: [
           DisplayAction(
-            icon: playing ? Icons.pause : Icons.play_arrow,
+            icon: playing ? UiIcons.pause : UiIcons.play,
             label: playing
                 ? l10n.pauseDownload
                 : scheduler == null
@@ -967,7 +968,7 @@ class _UgoiraSpeedButton extends StatelessWidget {
           MenuItemButton(
             onPressed: () => onSelected(option),
             leadingIcon: option == speed
-                ? const Icon(Icons.check, size: 18)
+                ? const Icon(UiIcons.check, size: 18)
                 : const SizedBox(width: 18),
             child: Text(_format(option)),
           ),
@@ -1046,7 +1047,7 @@ class _ExportButton extends StatelessWidget {
     } else if (status == UgoiraExportStatus.failed) {
       tooltip = l10n.retry;
       icon = Icon(
-        Icons.error_outline,
+        UiIcons.errorOutline,
         color: Theme.of(context).colorScheme.error,
       );
       onPressed = onExport;

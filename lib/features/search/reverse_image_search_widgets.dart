@@ -48,12 +48,12 @@ class _TaskHeader extends StatelessWidget {
         child: CircularProgressIndicator(strokeWidth: 2),
       ),
       ReverseImageFlowStatus.failure => Icon(
-        Icons.error_outline,
+        UiIcons.errorOutline,
         size: 16,
         color: Theme.of(context).colorScheme.error,
       ),
       ReverseImageFlowStatus.success => Icon(
-        Icons.check_circle_outline,
+        UiIcons.checkCircle,
         size: 16,
         color: Theme.of(context).colorScheme.primary,
       ),
@@ -73,7 +73,7 @@ class _TaskHeader extends StatelessWidget {
     final failed = state.engineFailures.containsKey(state.engine);
     final input = state.input;
     Widget chip({Widget? trailing}) => Chip(
-      avatar: failed ? const Icon(Icons.error_outline, size: 16) : null,
+      avatar: failed ? const Icon(UiIcons.errorOutline, size: 16) : null,
       label: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -94,7 +94,7 @@ class _TaskHeader extends StatelessWidget {
             value: engineSpec.engine,
             label: engineSpec.displayName,
             icon: state.engineFailures.containsKey(engineSpec.engine)
-                ? Icons.error_outline
+                ? UiIcons.errorOutline
                 : null,
             enabled: input == null || engineSpec.supportsInput(input),
             checked: engineSpec.engine == state.engine,
@@ -105,7 +105,7 @@ class _TaskHeader extends StatelessWidget {
         child: InkWell(
           onTap: toggle,
           customBorder: const StadiumBorder(),
-          child: chip(trailing: const Icon(Icons.arrow_drop_down, size: 18)),
+          child: chip(trailing: const Icon(UiIcons.dropdown, size: 16)),
         ),
       ),
     );
@@ -335,7 +335,7 @@ class _ControlledSauceNaoWebViewState
           },
         ),
         if (_progress != null && _progress! < 1.0)
-          LinearProgressIndicator(value: _progress, minHeight: 2),
+          AppProgressBar(value: _progress, minHeight: 2),
       ],
     );
   }
@@ -409,7 +409,7 @@ class _UploadInAppWebViewState extends State<_UploadInAppWebView> {
                         context,
                       ).closeButtonTooltip,
                       onPressed: () => setState(() => _showUploadHint = false),
-                      icon: const Icon(Icons.close),
+                      icon: const Icon(UiIcons.close),
                     ),
                   ],
                 ),
@@ -445,7 +445,7 @@ class _UploadInAppWebViewState extends State<_UploadInAppWebView> {
                 },
               ),
               if (_progress != null && _progress! < 1.0)
-                LinearProgressIndicator(value: _progress, minHeight: 2),
+                AppProgressBar(value: _progress, minHeight: 2),
             ],
           ),
         ),
@@ -475,7 +475,11 @@ class _ExternalWebFallback extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(AppIcons.externalLink, size: 56),
+            Icon(
+              AppIcons.externalLink,
+              size: 48,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
             const SizedBox(height: FuncSpacing.md),
             Text(message, textAlign: TextAlign.center),
             const SizedBox(height: FuncSpacing.lg),
@@ -500,7 +504,7 @@ Widget _webViewErrorBody(BuildContext context, String error) {
     child: Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Icon(Icons.error_outline, size: 56),
+        const Icon(UiIcons.errorOutline, size: 56),
         const SizedBox(height: FuncSpacing.md),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: FuncSpacing.xl),

@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:parfait/app/theme/func_semantic_tokens.dart';
 import 'package:parfait/app/widgets/app_menu_button.dart';
 import 'helpers/view_size.dart';
+import 'package:parfait/app/icons/ui_icons.dart';
 
 const _entries = [
   AppMenuEntry(value: 'share', label: 'Share', icon: Icons.share_outlined),
@@ -67,7 +68,7 @@ Future<void> _pump(
 }
 
 Future<void> _open(WidgetTester tester) async {
-  await tester.tap(find.byIcon(Icons.more_vert));
+  await tester.tap(find.byIcon(UiIcons.more));
   await tester.pumpAndSettle();
   expect(find.text('Share'), findsOneWidget);
 }
@@ -188,7 +189,7 @@ void main() {
     expect(find.text('Share'), findsNothing);
     // The context sits at the button, not at the menu or the page.
     final box = anchor!.findRenderObject()! as RenderBox;
-    final buttonCenter = tester.getCenter(find.byIcon(Icons.more_vert));
+    final buttonCenter = tester.getCenter(find.byIcon(UiIcons.more));
     expect(
       (box.localToGlobal(Offset.zero) & box.size).contains(buttonCenter),
       isTrue,

@@ -8,6 +8,8 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../app/motion/app_overlays.dart';
+import '../../app/widgets/app_dialog.dart';
+import '../../app/widgets/app_progress_bar.dart';
 import '../../app/widgets/app_snack_bar.dart';
 import '../../app/widgets/app_top_bar.dart';
 import '../../app/widgets/web_navigation_guard.dart';
@@ -25,6 +27,7 @@ import 'login_session_restart.dart';
 import 'login_webview_error_card.dart';
 import '../../app/theme/func_semantic_tokens.dart';
 import '../../app/icons/app_icons.dart';
+import '../../app/icons/ui_icons.dart';
 
 /// OAuth login WebView.
 ///
@@ -358,7 +361,7 @@ class _LoginWebViewPageState extends ConsumerState<LoginWebViewPage>
   Future<void> _showManualCallbackDialog(BuildContext context) async {
     final submitted = await showAppDialog<String>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
+      builder: (dialogContext) => AppAlertDialog(
         title: Text(context.l10n.loginPasteCallback),
         content: TextField(
           controller: _callbackController,
@@ -516,7 +519,7 @@ class _LoginWebViewPageState extends ConsumerState<LoginWebViewPage>
               onPressed: () => unawaited(_showManualCallbackDialog(context)),
             ),
           IconButton(
-            icon: const Icon(Icons.close),
+            icon: const Icon(UiIcons.close),
             tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
             onPressed: () => Navigator.of(context).pop(false),
           ),
@@ -524,7 +527,7 @@ class _LoginWebViewPageState extends ConsumerState<LoginWebViewPage>
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(2),
           child: _progress != null && _progress! < 1.0
-              ? LinearProgressIndicator(value: _progress, minHeight: 2)
+              ? AppProgressBar(value: _progress, minHeight: 2)
               : const SizedBox(height: FuncSpacing.xxs),
         ),
       ),

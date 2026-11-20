@@ -30,6 +30,7 @@ import '../../l10n/context.dart';
 import '../../app/theme/func_semantic_tokens.dart';
 import '../../app/widgets/feed/load_more_listener.dart';
 import '../../app/icons/app_icons.dart';
+import '../../app/icons/ui_icons.dart';
 
 /// 追更列表: manga and novel series segments (`/v1/watchlist/*`).
 /// A tile shows a "new content" badge while its `latest_content_id` is
@@ -256,7 +257,7 @@ class _WatchlistEntryTile extends ConsumerWidget {
       onTap: canOpen ? () => unawaited(_viewLatest(context, ref)) : null,
       trailing: Builder(
         builder: (buttonContext) => IconButton(
-          icon: const Icon(Icons.more_vert),
+          icon: const Icon(UiIcons.more),
           tooltip: MaterialLocalizations.of(buttonContext).showMenuTooltip,
           onPressed: () => _openActions(buttonContext, ref),
         ),
@@ -357,7 +358,7 @@ class _WatchlistEntryTile extends ConsumerWidget {
                   },
                 ),
               ListTile(
-                leading: const Icon(Icons.remove_circle_outline),
+                leading: const Icon(UiIcons.removeCircle),
                 title: Text(sheetContext.l10n.watchlistRemove),
                 onTap: () {
                   Navigator.of(sheetContext).pop();

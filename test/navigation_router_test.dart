@@ -29,6 +29,7 @@ import 'package:parfait/features/settings/settings_page.dart';
 import 'package:parfait/app/widgets/app_tab_bar.dart';
 import 'package:parfait/app/widgets/app_top_bar.dart';
 import 'package:parfait/app/widgets/func_bottom_nav.dart';
+import 'package:parfait/app/widgets/settings/settings_control.dart';
 import 'package:parfait/app/widgets/search_field_button.dart';
 import 'package:parfait/features/settings/me_dashboard_page.dart';
 import 'package:parfait/core/navigation/home_destination.dart';
@@ -41,6 +42,7 @@ import 'helpers/settings_world.dart';
 import 'helpers/view_size.dart';
 import 'helpers/pixiv_router.dart';
 import 'helpers/prompt_host.dart';
+import 'package:parfait/app/icons/ui_icons.dart';
 
 /// The shell's own bar, while it is on stage.
 final _shellBar = find.descendant(
@@ -834,10 +836,10 @@ void main() {
       await settle(tester);
       Finder row(HomeDestination d) => find.ancestor(
         of: find.byIcon(homeDestinationIcon(d)),
-        matching: find.byType(SwitchListTile),
+        matching: find.byType(SettingsControl),
       );
-      SwitchListTile tile(HomeDestination d) =>
-          tester.widget<SwitchListTile>(row(d));
+      SettingsControl tile(HomeDestination d) =>
+          tester.widget<SettingsControl>(row(d));
 
       expect(tile(HomeDestination.me).onChanged, isNull, reason: 'locked');
       await tester.tap(row(HomeDestination.ranking));
@@ -855,7 +857,7 @@ void main() {
         HomeDestination.search,
       );
 
-      await tester.tap(find.byIcon(Icons.restart_alt));
+      await tester.tap(find.byIcon(UiIcons.reset));
       await settle(tester);
       expect((await stored()).homeArrangement, isNull);
       expect(tile(HomeDestination.recommended).value, isTrue);

@@ -217,6 +217,7 @@ List<PlatformMenuItem> buildDesktopPlatformMenus({
       menus: [
         PlatformMenuItem(
           label: railExpanded ? l10n.railCollapse : l10n.railExpand,
+          shortcut: const SingleActivator(LogicalKeyboardKey.keyB, meta: true),
           onSelected: preHome || !canToggleRail ? null : onToggleRail,
         ),
         PlatformMenuItemGroup(

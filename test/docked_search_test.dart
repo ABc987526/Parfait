@@ -27,6 +27,7 @@ import 'helpers/prompt_host.dart';
 import 'helpers/search_world.dart';
 import 'helpers/test_preferences.dart';
 import 'helpers/view_size.dart';
+import 'package:parfait/app/icons/ui_icons.dart';
 
 /// The app's shell at [location] on [view], signed in with [search]'s API.
 /// Esc and prompts are wired the way the app does it, so the panel's
@@ -447,7 +448,7 @@ void main() {
         expect(
           find.descendant(
             of: find.byType(HeaderRefresh),
-            matching: find.byIcon(Icons.refresh),
+            matching: find.byIcon(UiIcons.refresh),
           ),
           findsOneWidget,
           reason: path,
@@ -462,7 +463,7 @@ void main() {
       expect(
         find.descendant(
           of: find.byType(HeaderRefresh),
-          matching: find.byIcon(Icons.refresh),
+          matching: find.byIcon(UiIcons.refresh),
         ),
         findsNothing,
       );

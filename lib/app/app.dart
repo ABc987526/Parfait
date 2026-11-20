@@ -34,6 +34,7 @@ import 'system_ui.dart';
 import 'navigation/keyboard_back.dart';
 import 'navigation/routes.dart';
 import 'startup_gate.dart';
+import 'theme/forui_theme_bridge.dart';
 import 'theme/replica_theme.dart';
 import 'theme/system_colors.dart';
 import 'window/desktop_command_bar.dart';
@@ -41,6 +42,7 @@ import 'window/desktop_menu_bar.dart';
 import 'window/desktop_title_bar.dart';
 import 'touch_exploration_scope.dart';
 import 'widgets/prompt_host.dart';
+import 'widgets/settings/persist_settings.dart';
 import 'widgets/settings_load_error.dart';
 import 'window/desktop_window.dart';
 import '../l10n/context.dart';
@@ -338,11 +340,6 @@ class _AppChromeState extends ConsumerState<AppChrome> {
   @override
   Widget build(BuildContext context) {
     final platform = Theme.of(context).platform;
-    final usesCommandBar =
-        !kIsWeb &&
-        (platform == TargetPlatform.windows ||
-            platform == TargetPlatform.macOS ||
-            platform == TargetPlatform.linux);
     return DesktopSystemBarsScope(
       controller: _systemBars,
       child: DesktopWindowBinding(
@@ -360,161 +357,224 @@ class _AppChromeState extends ConsumerState<AppChrome> {
               // them this theme until they move to material_ui.
               // ignore: deprecated_member_use
               child: MaterialUiCompatibilityBridge(
-                child: TouchExplorationScope(
-                  child: DesktopWindowFrame(
-                    suppressOverlayBar: usesCommandBar,
-                    // Above the bridge so intent failures can prompt from its own
-                    // context; below the motion, touch-exploration, and desktop
-                    // chrome scopes it reads.
-                    child: PromptHost(
-                      key: widget.promptHostKey,
-                      accessibility: ref.watch(appAccessibilityProvider),
-                      child: ExternalIntentBridge(
-                        router: widget.router,
-                        intentSource: widget.intentSource,
-                        child: KeyboardBack(
-                          router: widget.router,
-                          child: usesCommandBar
-                              ? Builder(
-                                  builder: (frameContext) {
-                                    final chrome = DesktopChromeMetrics.maybeOf(
-                                      frameContext,
-                                    );
-                                    final isFullScreen =
-                                        chrome?.isFullScreen ?? false;
-                                    return DesktopMenuBar(
-                                      settings: widget.settings,
-                                      router: widget.router,
-                                      child: DesktopCommandBarScope(
-                                        active: true,
-                                        controller: _commandBar,
-                                        child: ValueListenableBuilder<bool>(
-                                          valueListenable: _commandBar.hidden,
-                                          builder: (context, commandBarHidden, _) {
-                                            final showCommandBar =
-                                                !isFullScreen &&
-                                                !commandBarHidden;
-                                            return Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.stretch,
-                                              children: [
-                                                if (showCommandBar)
-                                                  DesktopCommandBar(
-                                                    settings: widget.settings,
-                                                    router: widget.router,
+                child: ForuiThemeHost(
+                  child: TouchExplorationScope(
+                    child: Builder(
+                      builder: (scopeContext) {
+                        final form = FormFactor.of(scopeContext);
+                        final usesCommandBar =
+                            !kIsWeb &&
+                            form == FormFactor.pc &&
+                            (platform == TargetPlatform.windows ||
+                                platform == TargetPlatform.macOS ||
+                                platform == TargetPlatform.linux);
+                        return DesktopWindowFrame(
+                          suppressOverlayBar: usesCommandBar,
+                          // Above the bridge so intent failures can prompt from its own
+                          // context; below the motion, touch-exploration, and desktop
+                          // chrome scopes it reads.
+                          child: PromptHost(
+                            key: widget.promptHostKey,
+                            accessibility: ref.watch(appAccessibilityProvider),
+                            child: ExternalIntentBridge(
+                              router: widget.router,
+                              intentSource: widget.intentSource,
+                              child: Builder(
+                                builder: (promptContext) => KeyboardBack(
+                                  router: widget.router,
+                                  onToggleRail: form == FormFactor.pc
+                                      ? () {
+                                          final size = MediaQuery.sizeOf(
+                                            promptContext,
+                                          );
+                                          if (!form.canToggleRail(
+                                            size.width,
+                                            height: size.height,
+                                          )) {
+                                            return;
+                                          }
+                                          final railChoice =
+                                              ref.read(railExpandedProvider) ??
+                                              widget.settings.railExpanded;
+                                          final railExpanded = form
+                                              .railExpanded(
+                                                size.width,
+                                                height: size.height,
+                                                choice: railChoice,
+                                              );
+                                          unawaited(
+                                            persistSettings(
+                                              promptContext,
+                                              () => ref
+                                                  .read(
+                                                    settingsProvider.notifier,
+                                                  )
+                                                  .setRailExpanded(
+                                                    !railExpanded,
                                                   ),
-                                                Expanded(
-                                                  // Isolate Router's ModalBarrier BlockSemantics
-                                                  // so earlier sibling DesktopCommandBar stays reachable.
-                                                  child: Semantics(
-                                                    container: true,
-                                                    explicitChildNodes: true,
-                                                    child: Builder(
-                                                      builder: (contentContext) {
-                                                        final innerChrome =
-                                                            DesktopChromeMetrics.maybeOf(
-                                                              contentContext,
-                                                            );
-                                                        final fallbackCustomChrome =
-                                                            commandBarHidden &&
-                                                            innerChrome !=
-                                                                null &&
-                                                            innerChrome
-                                                                .hasCustomChrome;
-                                                        final preserveTopForButtons =
-                                                            fallbackCustomChrome &&
-                                                            innerChrome
-                                                                .showCustomButtons;
-                                                        final contentChild =
-                                                            preserveTopForButtons
-                                                            ? MediaQuery(
-                                                                data: MediaQuery.of(contentContext).copyWith(
-                                                                  padding:
-                                                                      MediaQuery.paddingOf(
+                                            ),
+                                          );
+                                        }
+                                      : null,
+                                  child: usesCommandBar
+                                      ? Builder(
+                                          builder: (frameContext) {
+                                            final chrome =
+                                                DesktopChromeMetrics.maybeOf(
+                                                  frameContext,
+                                                );
+                                            final isFullScreen =
+                                                chrome?.isFullScreen ?? false;
+                                            return DesktopMenuBar(
+                                              settings: widget.settings,
+                                              router: widget.router,
+                                              child: DesktopCommandBarScope(
+                                                active: true,
+                                                controller: _commandBar,
+                                                child: ValueListenableBuilder<bool>(
+                                                  valueListenable:
+                                                      _commandBar.hidden,
+                                                  builder: (context, commandBarHidden, _) {
+                                                    final showCommandBar =
+                                                        !isFullScreen &&
+                                                        !commandBarHidden;
+                                                    return Overlay.wrap(
+                                                      child: Column(
+                                                        crossAxisAlignment:
+                                                            CrossAxisAlignment
+                                                                .stretch,
+                                                        children: [
+                                                          if (showCommandBar)
+                                                            DesktopCommandBar(
+                                                              settings: widget
+                                                                  .settings,
+                                                              router:
+                                                                  widget.router,
+                                                            ),
+                                                          Expanded(
+                                                            // Isolate Router's ModalBarrier BlockSemantics
+                                                            // so earlier sibling DesktopCommandBar stays reachable.
+                                                            child: Semantics(
+                                                              container: true,
+                                                              explicitChildNodes:
+                                                                  true,
+                                                              child: Builder(
+                                                                builder: (contentContext) {
+                                                                  final innerChrome =
+                                                                      DesktopChromeMetrics.maybeOf(
                                                                         contentContext,
-                                                                      ).copyWith(
-                                                                        top: math.max(
-                                                                          MediaQuery.paddingOf(
-                                                                            contentContext,
-                                                                          ).top,
-                                                                          innerChrome
-                                                                              .titleBarHeight,
-                                                                        ),
-                                                                      ),
-                                                                  viewPadding:
-                                                                      MediaQuery.viewPaddingOf(
-                                                                        contentContext,
-                                                                      ).copyWith(
-                                                                        top: math.max(
-                                                                          MediaQuery.viewPaddingOf(
-                                                                            contentContext,
-                                                                          ).top,
-                                                                          innerChrome
-                                                                              .titleBarHeight,
-                                                                        ),
-                                                                      ),
-                                                                ),
-                                                                child: widget
-                                                                    .child,
-                                                              )
-                                                            : MediaQuery.removePadding(
-                                                                context:
-                                                                    contentContext,
-                                                                removeTop: true,
-                                                                child: widget
-                                                                    .child,
-                                                              );
-                                                        if (innerChrome ==
-                                                            null) {
-                                                          return KeyedSubtree(
-                                                            key:
-                                                                _routerSubtreeKey,
-                                                            child: contentChild,
-                                                          );
-                                                        }
-                                                        final scopedChrome = innerChrome.copyWith(
-                                                          titleBarHeight:
-                                                              preserveTopForButtons
-                                                              ? innerChrome
-                                                                    .titleBarHeight
-                                                              : 0,
-                                                          leadingInset:
-                                                              showCommandBar
-                                                              ? 0
-                                                              : innerChrome
-                                                                    .leadingInset,
-                                                          trailingInset:
-                                                              preserveTopForButtons
-                                                              ? innerChrome
-                                                                    .trailingInset
-                                                              : 0,
-                                                          child: contentChild,
-                                                        );
-                                                        return DesktopFallbackWindowChrome(
-                                                          enabled:
-                                                              fallbackCustomChrome,
-                                                          chrome: innerChrome,
-                                                          child: KeyedSubtree(
-                                                            key:
-                                                                _routerSubtreeKey,
-                                                            child: scopedChrome,
+                                                                      );
+                                                                  final fallbackCustomChrome =
+                                                                      commandBarHidden &&
+                                                                      innerChrome !=
+                                                                          null &&
+                                                                      innerChrome
+                                                                          .hasCustomChrome;
+                                                                  final preserveTopForButtons =
+                                                                      fallbackCustomChrome &&
+                                                                      innerChrome
+                                                                          .showCustomButtons;
+                                                                  final contentChild =
+                                                                      preserveTopForButtons
+                                                                      ? MediaQuery(
+                                                                          data:
+                                                                              MediaQuery.of(
+                                                                                contentContext,
+                                                                              ).copyWith(
+                                                                                padding:
+                                                                                    MediaQuery.paddingOf(
+                                                                                      contentContext,
+                                                                                    ).copyWith(
+                                                                                      top: math.max(
+                                                                                        MediaQuery.paddingOf(
+                                                                                          contentContext,
+                                                                                        ).top,
+                                                                                        innerChrome.titleBarHeight,
+                                                                                      ),
+                                                                                    ),
+                                                                                viewPadding:
+                                                                                    MediaQuery.viewPaddingOf(
+                                                                                      contentContext,
+                                                                                    ).copyWith(
+                                                                                      top: math.max(
+                                                                                        MediaQuery.viewPaddingOf(
+                                                                                          contentContext,
+                                                                                        ).top,
+                                                                                        innerChrome.titleBarHeight,
+                                                                                      ),
+                                                                                    ),
+                                                                              ),
+                                                                          child:
+                                                                              widget.child,
+                                                                        )
+                                                                      : MediaQuery.removePadding(
+                                                                          context:
+                                                                              contentContext,
+                                                                          removeTop:
+                                                                              true,
+                                                                          child:
+                                                                              widget.child,
+                                                                        );
+                                                                  if (innerChrome ==
+                                                                      null) {
+                                                                    return KeyedSubtree(
+                                                                      key:
+                                                                          _routerSubtreeKey,
+                                                                      child:
+                                                                          contentChild,
+                                                                    );
+                                                                  }
+                                                                  final scopedChrome = innerChrome.copyWith(
+                                                                    titleBarHeight:
+                                                                        preserveTopForButtons
+                                                                        ? innerChrome
+                                                                              .titleBarHeight
+                                                                        : 0,
+                                                                    leadingInset:
+                                                                        showCommandBar
+                                                                        ? 0
+                                                                        : innerChrome
+                                                                              .leadingInset,
+                                                                    trailingInset:
+                                                                        preserveTopForButtons
+                                                                        ? innerChrome
+                                                                              .trailingInset
+                                                                        : 0,
+                                                                    child:
+                                                                        contentChild,
+                                                                  );
+                                                                  return DesktopFallbackWindowChrome(
+                                                                    enabled:
+                                                                        fallbackCustomChrome,
+                                                                    chrome:
+                                                                        innerChrome,
+                                                                    child: KeyedSubtree(
+                                                                      key:
+                                                                          _routerSubtreeKey,
+                                                                      child:
+                                                                          scopedChrome,
+                                                                    ),
+                                                                  );
+                                                                },
+                                                              ),
+                                                            ),
                                                           ),
-                                                        );
-                                                      },
-                                                    ),
-                                                  ),
+                                                        ],
+                                                      ),
+                                                    );
+                                                  },
                                                 ),
-                                              ],
+                                              ),
                                             );
                                           },
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                )
-                              : widget.child,
-                        ),
-                      ),
+                                        )
+                                      : widget.child,
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ),
                 ),

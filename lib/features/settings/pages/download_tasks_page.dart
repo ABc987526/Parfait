@@ -17,7 +17,9 @@ import '../../../app/motion/state_icon_switcher.dart';
 import '../../../app/navigation/routes.dart';
 import '../../../app/pixiv_image.dart';
 import '../../../app/theme/func_semantic_tokens.dart';
+import '../../../app/widgets/app_dialog.dart';
 import '../../../app/widgets/app_menu_button.dart';
+import '../../../app/widgets/app_progress_bar.dart';
 import '../../../app/widgets/app_top_bar.dart';
 import '../../../app/widgets/display_actions.dart';
 import '../../../app/widgets/errors/error_details.dart';
@@ -32,6 +34,7 @@ import '../../../core/errors/error_category.dart';
 import '../../../l10n/context.dart';
 import 'download_task_presentation.dart';
 import '../../../app/icons/app_icons.dart';
+import '../../../app/icons/ui_icons.dart';
 
 part 'download_task_rows.dart';
 
@@ -301,7 +304,7 @@ class _DownloadTasksPageState extends ConsumerState<DownloadTasksPage> {
     AppHaptics.confirm();
     final confirmed = await showAppDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
+      builder: (dialogContext) => AppAlertDialog(
         title: Text(title),
         content: Text(body),
         actions: [
@@ -403,7 +406,7 @@ class _DownloadTasksPageState extends ConsumerState<DownloadTasksPage> {
                   IconButton(
                     tooltip: context.l10n.selectAll,
                     onPressed: _selectAll,
-                    icon: const Icon(Icons.select_all),
+                    icon: const Icon(UiIcons.selectAll),
                   ),
                   IconButton(
                     // Batch-cancel applies to in-flight selections;
@@ -412,14 +415,14 @@ class _DownloadTasksPageState extends ConsumerState<DownloadTasksPage> {
                     onPressed: selectedNonTerminal.isEmpty
                         ? null
                         : _cancelSelected,
-                    icon: const Icon(Icons.cancel_outlined),
+                    icon: const Icon(UiIcons.cancelCircle),
                   ),
                   IconButton(
                     tooltip: context.l10n.downloadRemoveRecord,
                     onPressed: selectedTerminal.isEmpty
                         ? null
                         : _dismissSelected,
-                    icon: const Icon(Icons.remove_circle_outline),
+                    icon: const Icon(UiIcons.removeCircle),
                   ),
                 ],
               )

@@ -33,6 +33,7 @@ import 'helpers/test_preferences.dart';
 import 'helpers/localized_app.dart';
 import 'helpers/waits.dart';
 import 'package:parfait/app/icons/app_icons.dart';
+import 'package:parfait/app/icons/ui_icons.dart';
 
 Future<ProviderContainer> _apiContainer({
   SharedPreferencesAsyncPlatform? platform,
@@ -254,8 +255,8 @@ void main() {
     expect(find.byIcon(AppIcons.share), findsOneWidget);
     expect(find.byIcon(AppIcons.textDecrease), findsOneWidget);
     // Adjacent navigation from the webview payload rides the bottom bar.
-    expect(find.byIcon(Icons.chevron_left), findsOneWidget);
-    expect(find.byIcon(Icons.chevron_right), findsOneWidget);
+    expect(find.byIcon(UiIcons.chevronLeft), findsOneWidget);
+    expect(find.byIcon(UiIcons.chevronRight), findsOneWidget);
 
     // System back closes the chrome instead of popping the page.
     await tester.binding.handlePopRoute();
@@ -477,7 +478,7 @@ void main() {
     expect(
       tester
           .widget<IconButton>(
-            find.widgetWithIcon(IconButton, Icons.chevron_left),
+            find.widgetWithIcon(IconButton, UiIcons.chevronLeft),
           )
           .onPressed,
       isNull,
@@ -485,7 +486,7 @@ void main() {
     expect(
       tester
           .widget<IconButton>(
-            find.widgetWithIcon(IconButton, Icons.chevron_right),
+            find.widgetWithIcon(IconButton, UiIcons.chevronRight),
           )
           .onPressed,
       isNull,

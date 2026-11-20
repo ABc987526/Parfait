@@ -1,8 +1,14 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:material_ui/material_ui.dart';
+import 'package:parfait/app/theme/forui_theme_bridge.dart';
 import 'package:parfait/l10n/app_localizations.dart';
 import 'package:parfait/l10n/app_localizations_delegates.dart';
+
+TransitionBuilder _withForui(TransitionBuilder? builder) => (context, child) {
+  final built = builder == null ? child! : builder(context, child);
+  return ForuiThemeHost(child: built);
+};
 
 /// The locale widget tests render in unless they test another.
 const zhCN = Locale('zh', 'CN');
@@ -29,7 +35,7 @@ Widget localizedApp({
       localizationsDelegates: appLocalizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       locale: locale,
-      builder: builder,
+      builder: _withForui(builder),
       theme: theme,
       navigatorKey: navigatorKey,
       scrollBehavior: scrollBehavior,
@@ -54,7 +60,7 @@ Widget localizedRouterApp(
     localizationsDelegates: appLocalizationsDelegates,
     supportedLocales: AppLocalizations.supportedLocales,
     locale: locale,
-    builder: builder,
+    builder: _withForui(builder),
     theme: theme,
     scrollBehavior: scrollBehavior,
     routerConfig: router,

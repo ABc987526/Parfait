@@ -21,6 +21,7 @@ import '../../window/desktop_command_bar.dart';
 import '../app_snack_bar.dart';
 import '../errors/error_details.dart';
 import '../../icons/app_icons.dart';
+import '../../icons/ui_icons.dart';
 
 bool _isHostOnScreen(BuildContext context) {
   if (!TickerMode.getValuesNotifier(context).value.enabled) return false;
@@ -42,7 +43,7 @@ bool _hasShiftPressed() {
 
 bool _hasPrimaryModifierPressed(TargetPlatform platform) {
   final keys = HardwareKeyboard.instance.logicalKeysPressed;
-  if (platform == TargetPlatform.macOS) {
+  if (platform == TargetPlatform.macOS || platform == TargetPlatform.iOS) {
     return keys.contains(LogicalKeyboardKey.metaLeft) ||
         keys.contains(LogicalKeyboardKey.metaRight);
   }
@@ -482,7 +483,7 @@ class FeedSelectionHeaderStrip extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.check_circle, size: 18, color: colors.primary),
+                  Icon(UiIcons.checkCircle, size: 18, color: colors.primary),
                   const SizedBox(width: FuncSpacing.sm),
                   Expanded(
                     child: Text(
@@ -492,7 +493,7 @@ class FeedSelectionHeaderStrip extends StatelessWidget {
                   ),
                   TextButton.icon(
                     onPressed: controller.selectAll,
-                    icon: const Icon(Icons.select_all, size: 18),
+                    icon: const Icon(UiIcons.selectAll, size: 18),
                     label: Text(l10n.selectAll),
                   ),
                   const SizedBox(width: FuncSpacing.xs),
@@ -543,7 +544,7 @@ class FeedBatchActionBar extends ConsumerWidget {
         final actions = <Widget>[
           TextButton.icon(
             onPressed: controller.selectAll,
-            icon: const Icon(Icons.select_all, size: 18),
+            icon: const Icon(UiIcons.selectAll, size: 18),
             label: Text(l10n.selectAll),
           ),
           TextButton.icon(
@@ -578,7 +579,7 @@ class FeedBatchActionBar extends ConsumerWidget {
           ),
           IconButton(
             onPressed: controller.clearSelection,
-            icon: const Icon(Icons.close, size: 18),
+            icon: const Icon(UiIcons.close, size: 18),
             tooltip: l10n.batchClearSelection,
           ),
         ];
@@ -602,7 +603,7 @@ class FeedBatchActionBar extends ConsumerWidget {
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.check_circle, size: 18, color: colors.primary),
+                    Icon(UiIcons.checkCircle, size: 18, color: colors.primary),
                     const SizedBox(width: FuncSpacing.sm),
                     Text(
                       l10n.selectedCount(controller.selectedCount),
@@ -838,8 +839,8 @@ class _FeedSelectableCardDecoratorState
                             padding: const EdgeInsets.all(FuncSpacing.xxs),
                             child: Icon(
                               selected
-                                  ? Icons.check_circle
-                                  : Icons.radio_button_unchecked,
+                                  ? UiIcons.checkCircle
+                                  : UiIcons.circleUnchecked,
                               size: 20,
                               color: selected
                                   ? colors.onPrimary

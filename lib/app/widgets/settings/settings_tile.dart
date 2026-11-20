@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../theme/func_semantic_tokens.dart';
 import 'settings_anchor.dart';
+import '../../icons/ui_icons.dart';
 
 /// A row that opens another page or section; its chevron says so.
 class SettingsTile extends StatelessWidget {
@@ -124,7 +125,7 @@ class SettingsTile extends StatelessWidget {
                 ],
                 trailingBadge,
                 const SizedBox(width: FuncSpacing.xs),
-                const Icon(Icons.chevron_right),
+                const Icon(UiIcons.chevronRight),
               ],
             )
           : trailingTextWidget == null
@@ -144,12 +145,12 @@ class SettingsTile extends StatelessWidget {
               children: [
                 trailingTextWidget,
                 const SizedBox(width: FuncSpacing.xs),
-                const Icon(Icons.chevron_right),
+                const Icon(UiIcons.chevronRight),
               ],
             )
           : trailingTextWidget;
     } else {
-      trailing = showChevron ? const Icon(Icons.chevron_right) : null;
+      trailing = showChevron ? const Icon(UiIcons.chevronRight) : null;
     }
     Widget tile = ListTile(
       selected: selected,

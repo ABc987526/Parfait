@@ -59,7 +59,7 @@ void main() {
     );
   }
 
-  final indicator = find.byType(RefreshProgressIndicator);
+  final indicator = find.byType(SakuraRefreshIndicator);
 
   double scrollOffset(WidgetTester tester) =>
       tester.state<ScrollableState>(find.byType(Scrollable)).position.pixels;

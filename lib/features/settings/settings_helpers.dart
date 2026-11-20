@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../app/layout/content_widths.dart';
 import '../../app/motion/app_overlays.dart';
 import '../../app/theme/func_semantic_tokens.dart';
+import '../../app/widgets/app_dialog.dart';
 import '../../app/widgets/app_top_bar.dart';
 import '../../app/widgets/feed/feed_states.dart';
 import '../../app/widgets/scroll_edge_fade.dart';
@@ -89,7 +90,7 @@ class _DraftGuard extends StatelessWidget {
 Future<bool> confirmDiscardDraft(BuildContext context) async {
   final leave = await showAppDialog<bool>(
     context: context,
-    builder: (dialogContext) => AlertDialog(
+    builder: (dialogContext) => AppAlertDialog(
       title: Text(context.l10n.profileEditLeaveTitle),
       content: Text(context.l10n.profileEditLeaveDetail),
       actions: [
@@ -244,18 +245,26 @@ String downloadDestinationLabel(
   BuildContext context,
   DownloadDestination destination,
 ) {
+  final platform = Theme.of(context).platform;
+  final isDesktop =
+      platform == TargetPlatform.windows ||
+      platform == TargetPlatform.macOS ||
+      platform == TargetPlatform.linux;
   return switch (destination.kind) {
     DownloadDestinationKind.pixivAlbum =>
-      context.l10n.saveLocationPixivAlbum.replaceFirst(
-        '（默认）',
-        '（\u2060默\u2060认\u2060）',
-      ),
+      (isDesktop
+              ? context.l10n.saveLocationDesktopDefaultFolder
+              : context.l10n.saveLocationPixivAlbum)
+          .replaceFirst('（默认）', '（\u2060默\u2060认\u2060）'),
     DownloadDestinationKind.customAlbum =>
-      '${context.l10n.saveLocationCustomAlbum} '
+      '${isDesktop ? context.l10n.saveLocationDesktopCustomSubfolder : context.l10n.saveLocationCustomAlbum} '
           '(${destination.customAlbumName})',
     DownloadDestinationKind.safFolder => switch (destination.safTreeUri) {
       final uri? when uri.isNotEmpty => safTreeDisplayName(context.l10n, uri),
-      _ => context.l10n.saveLocationSafFolder,
+      _ =>
+        isDesktop
+            ? context.l10n.saveLocationDesktopCustomFolder
+            : context.l10n.saveLocationSafFolder,
     },
   };
 }

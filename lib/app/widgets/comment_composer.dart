@@ -20,6 +20,7 @@ import '../../core/settings/keyboard_heights.dart';
 import '../../l10n/context.dart';
 import '../theme/func_semantic_tokens.dart';
 import '../icons/app_icons.dart';
+import '../icons/ui_icons.dart';
 
 const double _panelCellSpacing = 8;
 
@@ -536,7 +537,7 @@ class CommentComposerState extends State<CommentComposer>
                           IconButton(
                             tooltip: context.l10n.commentCancelReply,
                             onPressed: _disabled ? null : widget.onCancelReply,
-                            icon: const Icon(Icons.close, size: 18),
+                            icon: const Icon(UiIcons.close, size: 18),
                           ),
                         ],
                       ),

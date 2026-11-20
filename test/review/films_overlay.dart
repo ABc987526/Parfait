@@ -4,6 +4,7 @@ import 'package:parfait/app/pixiv_image.dart';
 
 import 'review_support.dart';
 import 'package:parfait/app/icons/app_icons.dart';
+import 'package:parfait/app/icons/ui_icons.dart';
 
 /// Dialogs, sheets, menus and prompts opening and closing.
 void main() {
@@ -51,7 +52,7 @@ void main() {
         'The detail overflow menu opening from its button and closing on an '
         'outside tap that does not reach the page underneath.',
     script: (film, router) async {
-      await film.tap(find.byIcon(Icons.more_vert));
+      await film.tap(find.byIcon(UiIcons.more));
       await film.tap(find.text('illust 1000'));
     },
   );
@@ -85,14 +86,14 @@ void main() {
         'follow sit in the name row and the menu leaves them out; once the '
         'header collapses the menu lists them too.',
     script: (film, router) async {
-      await film.tap(find.byIcon(Icons.more_vert));
+      await film.tap(find.byIcon(UiIcons.more));
       await film.tap(find.text('user 99'));
       await film.swipe(
         find.byKey(const ValueKey('profile-stat-following-header')),
         const Offset(0, -500),
         hold: 6,
       );
-      await film.tap(find.byIcon(Icons.more_vert));
+      await film.tap(find.byIcon(UiIcons.more));
       await film.tap(find.text('user 99'));
     },
   );

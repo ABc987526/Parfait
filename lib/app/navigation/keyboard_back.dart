@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../core/navigation/home_destination.dart';
 import '../layout/input_modality.dart';
 import '../layout/window_layout_spec.dart';
 import '../pull_to_refresh.dart';
@@ -110,22 +111,38 @@ class _SearchShortcutAnchorState extends State<SearchShortcutAnchor> {
   Widget build(BuildContext context) => widget.child;
 }
 
+const _digitKeys = [
+  LogicalKeyboardKey.digit1,
+  LogicalKeyboardKey.digit2,
+  LogicalKeyboardKey.digit3,
+  LogicalKeyboardKey.digit4,
+  LogicalKeyboardKey.digit5,
+];
+
 /// Global keyboard, mouse-back, navigation-command, and pointer-modality host
 /// sitting inside `AppChrome` above `Router`.
 ///
 /// * **Back:** `Escape` (unfocuses an `EditableText` first; otherwise pops via
-///   `router`), `Alt+ArrowLeft` (Windows/Linux), `Cmd+[` (macOS), mouse back
+///   `router`), `Alt+ArrowLeft` (Windows/Linux), `Cmd+[` (macOS/iOS), mouse back
 ///   button (`kBackMouseButton`), and `MethodChannel('parfait/navigation_commands')`
 ///   `'back'` calls from Windows `WM_APPCOMMAND`.
-/// * **Search:** `Ctrl/Cmd+F` and `/` when not editing text.
+/// * **Search:** `Ctrl/Cmd+F`, `Ctrl/Cmd+K`, and `/` when not editing text.
+/// * **Navigation & Shell:** `Ctrl/Cmd+,` (settings), `Ctrl/Cmd+1..5` (home tabs),
+///   and `Ctrl/Cmd+B` (toggle rail when expandable).
 /// * **Refresh:** `F5` and `Ctrl/Cmd+R` when not editing text, triggering the
 ///   active [PullToRefresh].
 /// * **Focus-loss modifier guard:** clears stale modifier keys when window
 ///   or app focus is lost and re-syncs when regained.
 class KeyboardBack extends StatefulWidget {
-  const KeyboardBack({super.key, required this.router, required this.child});
+  const KeyboardBack({
+    super.key,
+    required this.router,
+    this.onToggleRail,
+    required this.child,
+  });
 
   final GoRouter router;
+  final VoidCallback? onToggleRail;
   final Widget child;
 
   @override
@@ -281,12 +298,14 @@ class _KeyboardBackState extends State<KeyboardBack>
 
   @override
   Widget build(BuildContext context) {
-    final isMac = Theme.of(context).platform == TargetPlatform.macOS;
+    final platform = Theme.of(context).platform;
+    final isApple =
+        platform == TargetPlatform.macOS || platform == TargetPlatform.iOS;
     final shortcuts = <ShortcutActivator, Intent>{
       const SingleActivator(LogicalKeyboardKey.escape): const _BackIntent(
         unfocusEditing: true,
       ),
-      if (isMac) ...{
+      if (isApple) ...{
         const SingleActivator(LogicalKeyboardKey.bracketLeft, meta: true):
             const _BackIntent(unfocusEditing: false),
         const SingleActivator(LogicalKeyboardKey.bracketRight, meta: true):
@@ -299,6 +318,14 @@ class _KeyboardBackState extends State<KeyboardBack>
             const _SearchIntent(),
         const SingleActivator(LogicalKeyboardKey.keyR, meta: true):
             const _RefreshIntent(),
+        const SingleActivator(LogicalKeyboardKey.comma, meta: true):
+            const _OpenSettingsIntent(),
+        const SingleActivator(LogicalKeyboardKey.keyB, meta: true):
+            const _ToggleRailIntent(),
+        for (var i = 0; i < HomeDestination.values.length; i++)
+          SingleActivator(_digitKeys[i], meta: true): _GoHomeDestinationIntent(
+            i,
+          ),
       } else ...{
         const SingleActivator(LogicalKeyboardKey.arrowLeft, alt: true):
             const _BackIntent(unfocusEditing: false),
@@ -312,6 +339,13 @@ class _KeyboardBackState extends State<KeyboardBack>
             const _SearchIntent(),
         const SingleActivator(LogicalKeyboardKey.keyR, control: true):
             const _RefreshIntent(),
+        const SingleActivator(LogicalKeyboardKey.comma, control: true):
+            const _OpenSettingsIntent(),
+        const SingleActivator(LogicalKeyboardKey.keyB, control: true):
+            const _ToggleRailIntent(),
+        for (var i = 0; i < HomeDestination.values.length; i++)
+          SingleActivator(_digitKeys[i], control: true):
+              _GoHomeDestinationIntent(i),
       },
       const SingleActivator(LogicalKeyboardKey.slash): const _SearchIntent(),
       const SingleActivator(LogicalKeyboardKey.f5): const _RefreshIntent(),
@@ -338,6 +372,12 @@ class _KeyboardBackState extends State<KeyboardBack>
               _SelectAllFeedIntent: _SelectAllFeedAction(widget.router),
               _SearchIntent: _SearchAction(widget.router),
               _RefreshIntent: _RefreshAction(widget.router),
+              _OpenSettingsIntent: _OpenSettingsAction(widget.router),
+              _ToggleRailIntent: _ToggleRailAction(
+                widget.router,
+                widget.onToggleRail,
+              ),
+              _GoHomeDestinationIntent: _GoHomeDestinationAction(widget.router),
             },
             child: widget.child,
           ),
@@ -351,6 +391,20 @@ class _BackIntent extends Intent {
   const _BackIntent({required this.unfocusEditing});
 
   final bool unfocusEditing;
+}
+
+class _OpenSettingsIntent extends Intent {
+  const _OpenSettingsIntent();
+}
+
+class _ToggleRailIntent extends Intent {
+  const _ToggleRailIntent();
+}
+
+class _GoHomeDestinationIntent extends Intent {
+  const _GoHomeDestinationIntent(this.index);
+
+  final int index;
 }
 
 class _ForwardIntent extends Intent {
@@ -493,6 +547,66 @@ class _RefreshAction extends Action<_RefreshIntent> {
         primaryFocus?.context ??
         router.routerDelegate.navigatorKey.currentContext;
     PullToRefresh.triggerActive(focusContext);
+    return null;
+  }
+}
+
+bool _canUseShellShortcut(GoRouter router) =>
+    !_hasModalOrRootOverlay(router) &&
+    _stackRootOfPath(liveRouterUri(router).path) != null;
+
+class _OpenSettingsAction extends Action<_OpenSettingsIntent> {
+  _OpenSettingsAction(this.router);
+
+  final GoRouter router;
+
+  @override
+  bool isEnabled(_OpenSettingsIntent intent) =>
+      !_isEditingFocused() && _canUseShellShortcut(router);
+
+  @override
+  Object? invoke(_OpenSettingsIntent intent) {
+    if (liveRouterUri(router).path != '/settings/all') {
+      router.go('/settings/all');
+    }
+    return null;
+  }
+}
+
+class _ToggleRailAction extends Action<_ToggleRailIntent> {
+  _ToggleRailAction(this.router, this.onToggleRail);
+
+  final GoRouter router;
+  final VoidCallback? onToggleRail;
+
+  @override
+  bool isEnabled(_ToggleRailIntent intent) =>
+      onToggleRail != null &&
+      !_isEditingFocused() &&
+      _canUseShellShortcut(router);
+
+  @override
+  Object? invoke(_ToggleRailIntent intent) {
+    onToggleRail?.call();
+    return null;
+  }
+}
+
+class _GoHomeDestinationAction extends Action<_GoHomeDestinationIntent> {
+  _GoHomeDestinationAction(this.router);
+
+  final GoRouter router;
+
+  @override
+  bool isEnabled(_GoHomeDestinationIntent intent) =>
+      !_isEditingFocused() && _canUseShellShortcut(router);
+
+  @override
+  Object? invoke(_GoHomeDestinationIntent intent) {
+    if (intent.index < 0 || intent.index >= HomeDestination.values.length) {
+      return null;
+    }
+    router.go(HomeDestination.values[intent.index].rootPath);
     return null;
   }
 }

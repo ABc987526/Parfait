@@ -35,6 +35,7 @@ import 'helpers/localized_app.dart';
 import 'helpers/view_size.dart';
 import 'helpers/pixiv_router.dart';
 import 'helpers/prompt_host.dart';
+import 'package:parfait/app/icons/ui_icons.dart';
 
 /// A split-screen phone height: the "me" dashboard at the root of the
 /// settings branch fits a full phone screen and only scrolls on a short
@@ -896,7 +897,7 @@ void main() {
         ),
       );
       expect(scrimBox.color, const Color(0x990C0B0E));
-      expect(find.byIcon(Icons.close), findsOneWidget);
+      expect(find.byIcon(UiIcons.close), findsOneWidget);
 
       await tester.tap(find.byKey(railScrimKey));
       await tester.pumpAndSettle();

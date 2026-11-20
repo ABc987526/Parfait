@@ -16,6 +16,7 @@ import '../../core/profile/profile_models.dart';
 import '../../l10n/context.dart';
 import '../../app/theme/func_semantic_tokens.dart';
 import '../../app/widgets/feed/load_more_listener.dart';
+import '../../app/icons/ui_icons.dart';
 
 /// Grid padding shared by this feed and `ProfileSkeleton`'s grid block.
 const gridPadding = EdgeInsets.all(FuncSpacing.sm);
@@ -121,7 +122,7 @@ class ProfileIllustFeed extends ConsumerWidget {
                               onLoadMore: controller.retryLoadMore,
                             )
                           : FeedEmpty(
-                              icon: Icons.inbox_outlined,
+                              icon: UiIcons.inbox,
                               title: query.isEmpty
                                   ? context.l10n.profileItemsEmpty
                                   : context.l10n.bookmarkTagFilterEmpty,

@@ -15,6 +15,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../app/motion/app_overlays.dart';
 import '../../../app/motion/reveal.dart';
 import '../../../app/theme/func_semantic_tokens.dart';
+import '../../../app/widgets/app_dialog.dart';
+import '../../../app/widgets/app_progress_bar.dart';
 import '../../../app/widgets/app_snack_bar.dart';
 import '../../../app/widgets/app_top_bar.dart';
 import '../../../app/widgets/edge_icon_buttons.dart';
@@ -34,6 +36,7 @@ import '../../../app/clipboard.dart';
 import '../settings_catalog.dart';
 import '../../../app/layout/content_widths.dart';
 import '../../../app/icons/app_icons.dart';
+import '../../../app/icons/ui_icons.dart';
 
 class AboutSettingsPage extends ConsumerStatefulWidget {
   const AboutSettingsPage({super.key});
@@ -207,7 +210,7 @@ class _AboutSettingsPageState extends ConsumerState<AboutSettingsPage> {
                     subtitle: Text(context.l10n.aboutCheckingUpdate),
                   ),
                   error: (_, _) => SettingsActionTile(
-                    icon: Icons.warning_amber_outlined,
+                    icon: UiIcons.warning,
                     title: Text(context.l10n.aboutCheckUpdate),
                     subtitle: Text(context.l10n.aboutUpdateUnavailable),
                   ),
@@ -304,7 +307,7 @@ class _AboutUpdateSectionState extends State<_AboutUpdateSection> {
         final capability = snapshot.data;
         if (snapshot.hasError || capability == null) {
           return SettingsActionTile(
-            icon: Icons.warning_amber_outlined,
+            icon: UiIcons.warning,
             title: Text(context.l10n.aboutCheckUpdate),
             subtitle: Text(context.l10n.aboutUpdateUnavailable),
           );
@@ -313,7 +316,7 @@ class _AboutUpdateSectionState extends State<_AboutUpdateSection> {
             capability.flavor == UpdateFlavor.fdroid) {
           final android = Theme.of(context).platform == TargetPlatform.android;
           return SettingsActionTile(
-            icon: android ? AppIcons.store : Icons.warning_amber_outlined,
+            icon: android ? AppIcons.store : UiIcons.warning,
             title: Text(context.l10n.aboutCheckUpdate),
             subtitle: Text(
               android
@@ -324,7 +327,7 @@ class _AboutUpdateSectionState extends State<_AboutUpdateSection> {
         }
         if (!capability.enabled) {
           return SettingsActionTile(
-            icon: Icons.warning_amber_outlined,
+            icon: UiIcons.warning,
             title: Text(context.l10n.aboutCheckUpdate),
             subtitle: Text(context.l10n.aboutUpdateUnavailable),
           );
@@ -379,7 +382,7 @@ class _AboutUpdateSectionState extends State<_AboutUpdateSection> {
         ),
         Reveal(
           child: _checking || _applying
-              ? const SettingsGroupContent(child: LinearProgressIndicator())
+              ? const SettingsGroupContent(child: AppProgressBar())
               : null,
         ),
         Reveal(
@@ -398,9 +401,9 @@ class _AboutUpdateSectionState extends State<_AboutUpdateSection> {
                 : () => _confirmAndApply(context, release),
             icon: Icon(
               _applying
-                  ? Icons.close
+                  ? UiIcons.close
                   : release == null
-                  ? Icons.refresh
+                  ? UiIcons.refresh
                   : AppIcons.download,
             ),
             label: Text(
@@ -461,7 +464,7 @@ class _AboutUpdateSectionState extends State<_AboutUpdateSection> {
   ) async {
     final confirmed = await showAppDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (context) => AppAlertDialog(
         title: Text(context.l10n.aboutUpdateConfirmTitle),
         content: Text(context.l10n.aboutUpdateConfirmDetail),
         actions: [

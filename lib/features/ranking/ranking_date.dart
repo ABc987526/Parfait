@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 
 import '../../app/format/app_format.dart';
+import '../../app/motion/app_overlays.dart';
 import '../../app/theme/func_semantic_tokens.dart';
 import '../../app/widgets/edge_icon_buttons.dart';
 import '../../core/illust/ranking_repository.dart';
@@ -15,7 +16,7 @@ Future<void> pickRankingDate(
   required ValueChanged<DateTime> onPicked,
 }) async {
   final lastDate = rankingLastDate();
-  final picked = await showDatePicker(
+  final picked = await showAppDatePicker(
     context: context,
     firstDate: rankingFirstDate,
     lastDate: lastDate,

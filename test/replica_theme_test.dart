@@ -100,43 +100,67 @@ void main() {
     }
   });
 
+  test('header tokens use clean canvas and keep >= 4.5:1 contrast', () {
+    for (final brightness in Brightness.values) {
+      for (final systemColors in [
+        null,
+        ColorScheme.fromSeed(
+          seedColor: const Color(0xFF2E7D32),
+          brightness: brightness,
+        ),
+        ColorScheme.fromSeed(
+          seedColor: const Color(0xFFFFB300),
+          brightness: brightness,
+        ),
+      ]) {
+        final theme = replicaTheme(brightness, systemColors: systemColors);
+        final tokens = theme.extension<FuncSemanticTokens>()!;
+        final surface = tokens.brandedHeaderSurface;
+        expect(surface, tokens.canvas);
+        expect(tokens.brandedHeaderForeground, theme.colorScheme.onSurface);
+        expect(
+          tokens.brandedHeaderTabUnselected,
+          theme.colorScheme.onSurfaceVariant,
+        );
+        final selectedTab = theme.colorScheme.primary;
+        expect(
+          contrastRatio(tokens.brandedHeaderForeground, surface),
+          greaterThanOrEqualTo(4.5),
+          reason: '$brightness brandedHeaderForeground on $surface',
+        );
+        expect(
+          contrastRatio(selectedTab, surface),
+          greaterThanOrEqualTo(4.5),
+          reason: '$brightness selected tab on $surface',
+        );
+        expect(
+          contrastRatio(tokens.brandedHeaderTabUnselected, surface),
+          greaterThanOrEqualTo(4.5),
+          reason: '$brightness brandedHeaderTabUnselected on $surface',
+        );
+      }
+    }
+  });
+
   test(
-    'compact branded header keeps >= 4.5:1 for title, selected tab, and unselected tab',
+    'overlays and progress indicators share brandHairline across themes',
     () {
+      Color borderColor(ShapeBorder? s) =>
+          (s! as RoundedRectangleBorder).side.color;
       for (final brightness in Brightness.values) {
-        for (final systemColors in [
-          null,
-          ColorScheme.fromSeed(
-            seedColor: const Color(0xFF2E7D32),
-            brightness: brightness,
-          ),
-          ColorScheme.fromSeed(
-            seedColor: const Color(0xFFFFB300),
-            brightness: brightness,
-          ),
+        final theme = replicaTheme(brightness);
+        final tokens = theme.extension<FuncSemanticTokens>()!;
+        for (final color in [
+          borderColor(theme.dialogTheme.shape),
+          borderColor(theme.bottomSheetTheme.shape),
+          theme.menuTheme.style!.side!.resolve({})!.color,
+          borderColor(theme.popupMenuTheme.shape),
+          theme.progressIndicatorTheme.linearTrackColor,
+          theme.progressIndicatorTheme.circularTrackColor,
         ]) {
-          final theme = replicaTheme(brightness, systemColors: systemColors);
-          final tokens = theme.extension<FuncSemanticTokens>()!;
-          final surface = tokens.brandedHeaderSurface;
-          final selectedTab = brightness == Brightness.dark
-              ? theme.colorScheme.primary
-              : tokens.brandedHeaderForeground;
-          expect(
-            contrastRatio(tokens.brandedHeaderForeground, surface),
-            greaterThanOrEqualTo(4.5),
-            reason: '$brightness brandedHeaderForeground on $surface',
-          );
-          expect(
-            contrastRatio(selectedTab, surface),
-            greaterThanOrEqualTo(4.5),
-            reason: '$brightness selected tab on $surface',
-          );
-          expect(
-            contrastRatio(tokens.brandedHeaderTabUnselected, surface),
-            greaterThanOrEqualTo(4.5),
-            reason: '$brightness brandedHeaderTabUnselected on $surface',
-          );
+          expect(color, tokens.brandHairline);
         }
+        expect(theme.progressIndicatorTheme.strokeCap, StrokeCap.round);
       }
     },
   );
@@ -209,40 +233,53 @@ void main() {
     }
   });
 
-  test('a system palette replaces only the accent roles', () {
-    for (final brightness in Brightness.values) {
-      final system = ColorScheme.fromSeed(
-        seedColor: const Color(0xFF2E7D32),
-        brightness: brightness,
-      );
-      final base = replicaTheme(brightness);
-      final theme = replicaTheme(brightness, systemColors: system);
-      final scheme = theme.colorScheme;
+  test(
+    'a system palette drives accent, surface ladder, and semantic tokens',
+    () {
+      for (final brightness in Brightness.values) {
+        final system = ColorScheme.fromSeed(
+          seedColor: const Color(0xFF2E7D32),
+          brightness: brightness,
+        );
+        final base = replicaTheme(brightness);
+        final theme = replicaTheme(brightness, systemColors: system);
+        final scheme = theme.colorScheme;
 
-      expect(scheme.primary, system.primary);
-      expect(scheme.onPrimary, system.onPrimary);
-      expect(scheme.primaryContainer, system.primaryContainer);
-      expect(scheme.onPrimaryContainer, system.onPrimaryContainer);
-      expect(scheme.inversePrimary, system.inversePrimary);
-      expect(scheme.surfaceTint, system.surfaceTint);
-      // Neutrals keep the app's ladder and text colors.
-      expect(_surfaces(scheme), _surfaces(base.colorScheme));
-      expect(scheme.onSurface, base.colorScheme.onSurface);
-      expect(scheme.secondary, base.colorScheme.secondary);
-      // Every pink-by-default slot follows the scheme.
-      expect(theme.primaryColor, system.primary);
-      expect(theme.tabBarTheme.labelColor, system.primary);
-      expect(theme.tabBarTheme.indicatorColor, system.primary);
-      final tokens = theme.extension<FuncSemanticTokens>()!;
-      expect(tokens.brand, system.primary);
-      expect(tokens.onBrand, system.onPrimary);
-      expect(
-        theme.filledButtonTheme.style!.backgroundColor!.resolve({}),
-        system.primary,
-      );
-      expect(theme.appBarTheme.backgroundColor, theme.scaffoldBackgroundColor);
-    }
-  });
+        expect(scheme.primary, system.primary);
+        expect(scheme.onPrimary, system.onPrimary);
+        expect(scheme.primaryContainer, system.primaryContainer);
+        expect(scheme.onPrimaryContainer, system.onPrimaryContainer);
+        expect(scheme.inversePrimary, system.inversePrimary);
+        expect(scheme.surfaceTint, system.surfaceTint);
+        // Dynamic color drives the full surface ladder and neutral roles so
+        // wallpaper tinting reaches canvases, bars, cards, and controls.
+        expect(_surfaces(scheme), _surfaces(system));
+        expect(_surfaces(scheme), isNot(_surfaces(base.colorScheme)));
+        expect(scheme.onSurface, system.onSurface);
+        expect(scheme.onSurfaceVariant, system.onSurfaceVariant);
+        expect(scheme.secondary, system.secondary);
+        expect(scheme.secondaryContainer, system.secondaryContainer);
+        // Every pink-by-default slot follows the scheme.
+        expect(theme.primaryColor, system.primary);
+        expect(theme.tabBarTheme.labelColor, system.primary);
+        expect(theme.tabBarTheme.indicatorColor, system.primary);
+        final tokens = theme.extension<FuncSemanticTokens>()!;
+        expect(tokens.brand, system.primary);
+        expect(tokens.onBrand, system.onPrimary);
+        expect(tokens.canvas, system.surface);
+        expect(tokens.surface, system.surfaceContainer);
+        expect(tokens.surfaceRaised, system.surfaceContainerHigh);
+        expect(
+          theme.filledButtonTheme.style!.backgroundColor!.resolve({}),
+          system.primary,
+        );
+        expect(
+          theme.appBarTheme.backgroundColor,
+          theme.scaffoldBackgroundColor,
+        );
+      }
+    },
+  );
 
   group('systemColorSchemesProvider', () {
     TestWidgetsFlutterBinding.ensureInitialized();

@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:parfait/app/motion/removal.dart';
+import 'package:parfait/app/widgets/app_dialog.dart';
 import 'package:parfait/app/widgets/settings/settings_group.dart';
 import 'package:parfait/core/mute/mute_store.dart';
 import 'package:parfait/features/settings/pages/muted_items_page.dart';
@@ -139,7 +140,7 @@ void main() {
     await _settle(tester);
     expect(find.text('已解除屏蔽'), findsOneWidget);
     // No confirmation step: the unmute already landed (D5).
-    expect(find.byType(AlertDialog), findsNothing);
+    expect(find.byType(AppAlertDialog), findsNothing);
     expect(container.read(muteStoreProvider).tags, isEmpty);
 
     await tester.tap(promptAction('撤销'));

@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:material_ui/material_ui.dart';
 
 import 'review_support.dart';
 import 'package:parfait/app/icons/app_icons.dart';
+import 'package:parfait/app/icons/ui_icons.dart';
 
 /// Inserting and deleting with prompts: bookmark undo on a branch home and
 /// on a secondary page, removing a download, unmuting.
@@ -43,7 +43,7 @@ void main() {
         'action; the row itself opens the work): the row collapses and the '
         'rows below move up.',
     script: (film, router) async {
-      await film.tap(find.byIcon(Icons.remove_circle_outline).first);
+      await film.tap(find.byIcon(UiIcons.removeCircle).first);
     },
   );
 
@@ -57,7 +57,7 @@ void main() {
         'every frame (ux3 #8).',
     script: (film, router) async {
       await film.tap(find.textContaining('批量下载'));
-      await film.tap(find.byIcon(Icons.remove_circle_outline).last);
+      await film.tap(find.byIcon(UiIcons.removeCircle).last);
     },
   );
 

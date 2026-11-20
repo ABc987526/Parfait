@@ -8,6 +8,7 @@ import '../../app/layout/app_breakpoints.dart';
 import '../../app/motion/app_overlays.dart';
 import '../../app/motion/reveal.dart';
 import '../../app/theme/func_semantic_tokens.dart';
+import '../../app/widgets/app_dialog.dart';
 import '../../app/widgets/feed/feed_states.dart';
 import '../../app/widgets/replica_button.dart';
 import '../../app/widgets/replica_scaffold.dart';
@@ -143,7 +144,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   Future<void> _openLoginWebview({bool create = false}) async {
     final confirmed = await showAppDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (context) => AppAlertDialog(
         title: Text(context.l10n.loginProxyNoticeTitle),
         content: Text(context.l10n.loginProxyNoticeBody),
         actions: [

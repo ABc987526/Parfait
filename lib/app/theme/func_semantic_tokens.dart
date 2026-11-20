@@ -76,64 +76,52 @@ class FuncSemanticTokens extends ThemeExtension<FuncSemanticTokens> {
     required Color brand,
     required Color onBrand,
     Color? accent,
-    Color? brandedHeader,
+    Color? canvas,
+    Color? surface,
+    Color? surfaceRaised,
+    Color? contentPrimary,
+    Color? contentSecondary,
+    Color? divider,
   }) {
     final dark = brightness == Brightness.dark;
-    final text = dark ? FuncTokens.darkText : FuncTokens.lightText;
-    final textSecondary = dark
-        ? FuncTokens.darkTextSecondary
-        : FuncTokens.lightTextSecondary;
+    final resolvedCanvas =
+        canvas ??
+        (dark ? FuncTokens.darkBackground : FuncTokens.lightBackground);
+    final resolvedSurface =
+        surface ??
+        (dark ? FuncTokens.darkContainer : FuncTokens.lightContainer);
+    final resolvedSurfaceRaised =
+        surfaceRaised ??
+        (dark ? FuncTokens.darkContainerHigh : FuncTokens.lightContainerHigh);
+    final text =
+        contentPrimary ?? (dark ? FuncTokens.darkText : FuncTokens.lightText);
+    final textSecondary =
+        contentSecondary ??
+        (dark ? FuncTokens.darkTextSecondary : FuncTokens.lightTextSecondary);
+    final resolvedDivider =
+        divider ?? (dark ? FuncTokens.darkDivider : FuncTokens.lightDivider);
     final inkAccent = accent ?? brand;
-    Color lightHeaderSurface() {
-      var candidate =
-          brandedHeader ??
-          Color.lerp(inkAccent, FuncTokens.darkBackground, 0.18)!;
-      while (candidate.computeLuminance() > 0.115) {
-        candidate = Color.lerp(candidate, FuncTokens.darkBackground, 0.2)!;
-      }
-      return candidate;
-    }
-
-    final resolvedHeaderSurface = dark
-        ? Color.alphaBlend(
-            inkAccent.withValues(alpha: 0.14),
-            FuncTokens.darkBackground,
-          )
-        : lightHeaderSurface();
-    final resolvedHeaderForeground = dark
-        ? FuncTokens.darkText
-        : FuncTokens.white;
-    final resolvedHeaderTabUnselected = dark
-        ? Color.lerp(FuncTokens.darkTextSecondary, FuncTokens.darkText, 0.35)!
-        : Color.alphaBlend(
-            FuncTokens.white.withValues(alpha: 0.82),
-            resolvedHeaderSurface,
-          );
     return FuncSemanticTokens(
-      canvas: dark ? FuncTokens.darkBackground : FuncTokens.lightBackground,
-      surface: dark ? FuncTokens.darkContainer : FuncTokens.lightContainer,
-      surfaceRaised: dark
-          ? FuncTokens.darkContainerHigh
-          : FuncTokens.lightContainerHigh,
+      canvas: resolvedCanvas,
+      surface: resolvedSurface,
+      surfaceRaised: resolvedSurfaceRaised,
       surfaceOverlay: FuncTokens.surfaceOverlay,
-      divider: dark ? FuncTokens.darkDivider : FuncTokens.lightDivider,
+      divider: resolvedDivider,
       barShadow: dark ? FuncTokens.darkBarShadow : FuncTokens.lightBarShadow,
       layerLift: dark ? FuncTokens.darkLayerLift : FuncTokens.lightLayerLift,
       cardLift: dark ? FuncTokens.darkCardLift : FuncTokens.lightCardLift,
       contentPrimary: text,
       contentSecondary: textSecondary,
-      contentTertiary: dark
-          ? FuncTokens.darkText.withValues(alpha: 0.35)
-          : FuncTokens.lightText.withValues(alpha: 0.35),
+      contentTertiary: text.withValues(alpha: 0.35),
       brand: brand,
       onBrand: onBrand,
       brandTintWeak: brand.withValues(alpha: dark ? 0.12 : 0.08),
       brandTint: brand.withValues(alpha: dark ? 0.18 : 0.13),
       brandTintStroke: inkAccent.withValues(alpha: dark ? 0.28 : 0.22),
       brandHairline: inkAccent.withValues(alpha: dark ? 0.16 : 0.11),
-      brandedHeaderSurface: resolvedHeaderSurface,
-      brandedHeaderForeground: resolvedHeaderForeground,
-      brandedHeaderTabUnselected: resolvedHeaderTabUnselected,
+      brandedHeaderSurface: resolvedCanvas,
+      brandedHeaderForeground: text,
+      brandedHeaderTabUnselected: textSecondary,
       danger: dark ? FuncTokens.darkError : FuncTokens.lightError,
       success: dark ? FuncTokens.darkSuccess : FuncTokens.lightSuccess,
       warning: dark ? FuncTokens.darkWarning : FuncTokens.lightWarning,

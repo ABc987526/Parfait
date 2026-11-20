@@ -14,6 +14,7 @@ import '../app_menu_button.dart';
 import '../settings/persist_settings.dart';
 import 'desktop_inspector_scope.dart';
 import '../../icons/app_icons.dart';
+import '../../icons/ui_icons.dart';
 
 /// Shared desktop gallery header controls (**NAV-17**): compact `"current ▾"`
 /// menu buttons for desktop detail presentation (`DesktopDetailMode`) and
@@ -187,7 +188,8 @@ class _GalleryMenuControl<T> extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                const Icon(Icons.arrow_drop_down),
+                const SizedBox(width: FuncSpacing.xs),
+                const Icon(UiIcons.dropdown, size: 16),
               ],
             ),
           ),

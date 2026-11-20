@@ -10,11 +10,6 @@ abstract final class FuncTokens {
   static const Color lightAccent = Color(0xFFB44673);
   static const Color darkAccent = Color(0xFFEBA6C6);
 
-  /// Deepened Mika cherry-rose surface for compact phone top bars, calibrated
-  /// so both pure white titles/selected tabs (6.66:1) and warm sakura
-  /// unselected tab labels (5.03:1) clear WCAG AA 4.5:1.
-  static const Color lightBrandedHeader = Color(0xFF9E3661);
-
   /// Selection (`primaryContainer` / `onPrimaryContainer`): Mika's hair
   /// midtone (#F5D6E4) under deep rose (#6D3047) on light; deep rose (#5C3443)
   /// under hair highlight (#FEE8F3) on dark.

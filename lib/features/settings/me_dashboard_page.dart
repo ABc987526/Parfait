@@ -64,6 +64,7 @@ import 'pages/download_tasks_page.dart';
 import 'settings_catalog.dart';
 import 'settings_helpers.dart';
 import 'settings_page.dart' show settingsPageIcons;
+import '../../app/icons/ui_icons.dart';
 
 enum _MeSection {
   bookmarks,
@@ -1035,7 +1036,7 @@ class _RecentHistoryState extends ConsumerState<_RecentHistory>
                     ),
                   ),
                   Icon(
-                    Icons.chevron_right,
+                    UiIcons.chevronRight,
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
                 ],

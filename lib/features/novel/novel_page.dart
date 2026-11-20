@@ -41,6 +41,7 @@ import 'novel_reader.dart';
 import 'novel_reader_stage.dart';
 import '../../app/theme/func_semantic_tokens.dart';
 import '../../app/icons/app_icons.dart';
+import '../../app/icons/ui_icons.dart';
 
 final _novelDetailProvider = FutureProvider.autoDispose
     .family<NovelEntity, int>((ref, novelId) async {
@@ -596,7 +597,7 @@ class _SeriesLink extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              Icon(Icons.chevron_right, size: 20, color: variant),
+              Icon(UiIcons.chevronRight, size: 20, color: variant),
             ],
           ),
         ),

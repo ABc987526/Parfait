@@ -8,6 +8,7 @@ import '../../app/motion/app_overlays.dart';
 import '../../app/navigation/routes.dart';
 import '../../app/theme/func_semantic_tokens.dart';
 import '../../app/theme/func_tokens.dart';
+import '../../app/widgets/app_dialog.dart';
 import '../../app/widgets/app_snack_bar.dart';
 import '../../app/widgets/app_tab_bar.dart';
 import '../../app/widgets/display_actions.dart';
@@ -31,6 +32,7 @@ import 'search_filter_sheet.dart';
 import 'search_section_header.dart';
 import 'search_text.dart';
 import '../../app/icons/app_icons.dart';
+import '../../app/icons/ui_icons.dart';
 
 /// Search input with the three beta56 result tabs and cancellable
 /// suggestions, shared by the full input page and the docked panel (R10).
@@ -285,7 +287,7 @@ class SearchInputEngineState extends ConsumerState<SearchInputEngine>
           tooltip: context.l10n.searchClear,
           style: IconButton.styleFrom(foregroundColor: iconColor),
           onPressed: _clear,
-          icon: Icon(Icons.clear, color: iconColor),
+          icon: Icon(UiIcons.close, color: iconColor),
         );
       },
     );
@@ -503,7 +505,7 @@ class _SearchInputBody extends ConsumerWidget {
                 IconButton(
                   tooltip: context.l10n.searchSuggestionFill,
                   onPressed: () => complete(suggestion.keyword),
-                  icon: const Icon(Icons.north_west),
+                  icon: const Icon(UiIcons.fillSuggestion),
                 ),
               ],
             ),
@@ -613,7 +615,7 @@ class _SearchStart extends ConsumerWidget {
                         onLongPress: () => fillWithHaptic(tag.name),
                         actions: [
                           DisplayAction(
-                            icon: Icons.north_west,
+                            icon: UiIcons.fillSuggestion,
                             label: l10n.searchSuggestionFill,
                             onSelected: () => fillWithHaptic(tag.name),
                           ),
@@ -652,7 +654,7 @@ class _SearchStart extends ConsumerWidget {
     final l10n = context.l10n;
     final confirmed = await showAppDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (context) => AppAlertDialog(
         content: Text(l10n.searchHistoryClearConfirm),
         actions: [
           TextButton(
@@ -698,7 +700,7 @@ class _HistoryChip extends StatelessWidget {
           onLongPress: onLongPress,
           actions: [
             DisplayAction(
-              icon: Icons.north_west,
+              icon: UiIcons.fillSuggestion,
               label: context.l10n.searchSuggestionFill,
               onSelected: onLongPress,
             ),

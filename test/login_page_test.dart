@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:parfait/app/widgets/app_dialog.dart';
 import 'package:parfait/app/widgets/replica_button.dart';
 import 'package:parfait/core/settings/app_settings.dart';
 import 'package:parfait/features/login/login_page.dart';
@@ -190,7 +191,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // The proxy notice stays a dialog on every breakpoint (D7).
-      final dialog = find.byType(AlertDialog);
+      final dialog = find.byType(AppAlertDialog);
       expect(dialog, findsOneWidget);
       expect(find.text('提示'), findsOneWidget);
       expect(find.text('取消'), findsOneWidget);

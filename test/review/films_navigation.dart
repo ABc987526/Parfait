@@ -1,10 +1,10 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:material_ui/material_ui.dart';
 import 'package:parfait/app/motion/hero_rect_clip.dart';
 import 'package:parfait/app/pixiv_image.dart';
 
 import 'review_support.dart';
+import 'package:parfait/app/icons/ui_icons.dart';
 
 /// Route pushes and pops, branch switches and re-tap to top.
 void main() {
@@ -452,7 +452,7 @@ Future<void> _tapBackOrClose(FilmRecorder film, Finder back) {
   final hitBack = back.hitTestable();
   final target = hitBack.evaluate().isNotEmpty
       ? hitBack.last
-      : find.byIcon(Icons.close).hitTestable().last;
+      : find.byIcon(UiIcons.close).hitTestable().last;
   return film.tap(target);
 }
 

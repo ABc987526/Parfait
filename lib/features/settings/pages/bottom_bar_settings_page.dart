@@ -4,7 +4,6 @@ import 'package:material_ui/material_ui.dart';
 import '../../../app/haptics/app_haptics.dart';
 import '../../../app/motion/reveal.dart';
 import '../../../app/theme/func_semantic_tokens.dart';
-import '../../../app/theme/func_tokens.dart';
 import '../../../app/widgets/app_top_bar.dart';
 import '../../../app/widgets/func_bottom_nav.dart';
 import '../../../app/widgets/settings/settings_control.dart';
@@ -18,6 +17,7 @@ import '../../../l10n/context.dart';
 import '../settings_helpers.dart';
 import '../../../app/layout/content_widths.dart';
 import '../../../app/icons/app_icons.dart';
+import '../../../app/icons/ui_icons.dart';
 
 /// Which destinations sit on the bottom bar, in what order. Those on the
 /// bar come first and move by their handle (screen readers get move
@@ -127,7 +127,7 @@ class _BottomBarEditorState extends ConsumerState<_BottomBarEditor> {
                 onPressed: draft == HomeDestination.defaultArrangement
                     ? null
                     : () => _save(HomeDestination.defaultArrangement),
-                icon: const Icon(Icons.restart_alt),
+                icon: const Icon(UiIcons.reset),
                 label: Text(l10n.restoreDefault),
               ),
             ),
@@ -219,7 +219,7 @@ class _ShownRow extends StatelessWidget {
             child: SizedBox.square(
               dimension: handleExtent,
               child: Icon(
-                Icons.drag_handle,
+                UiIcons.dragHandle,
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
@@ -244,7 +244,7 @@ class _DestinationSwitch extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final desktopOwned = DesktopCommandBarScope.isActiveOf(context);
-    Widget control = SettingsControl(
+    return SettingsControl(
       title: Text(homeDestinationLabel(context, destination)),
       subtitle: destination.hideable || desktopOwned
           ? null
@@ -252,55 +252,8 @@ class _DestinationSwitch extends StatelessWidget {
       secondary: Icon(homeDestinationIcon(destination)),
       value: shown,
       onChanged: onChanged,
+      locked: shown && onChanged == null,
+      lockedIcon: destination.hideable ? UiIcons.check : AppIcons.lock,
     );
-    if (shown && onChanged == null) {
-      final scheme = Theme.of(context).colorScheme;
-      final baseTheme = SwitchTheme.of(context);
-      final iconColor =
-          scheme.brightness == Brightness.dark &&
-              scheme.onPrimary.computeLuminance() > 0.5
-          ? scheme.primaryContainer
-          : scheme.primary;
-      control = SwitchTheme(
-        data: baseTheme.copyWith(
-          trackColor: WidgetStateProperty.resolveWith((states) {
-            if (states.contains(WidgetState.disabled) &&
-                states.contains(WidgetState.selected)) {
-              return Color.alphaBlend(
-                scheme.primary.withValues(alpha: 0.40),
-                scheme.surfaceContainerHighest,
-              );
-            }
-            return baseTheme.trackColor?.resolve(states);
-          }),
-          thumbColor: WidgetStateProperty.resolveWith((states) {
-            if (states.contains(WidgetState.disabled) &&
-                states.contains(WidgetState.selected)) {
-              return scheme.onPrimary;
-            }
-            return baseTheme.thumbColor?.resolve(states);
-          }),
-          trackOutlineColor: WidgetStateProperty.resolveWith((states) {
-            if (states.contains(WidgetState.disabled) &&
-                states.contains(WidgetState.selected)) {
-              return FuncTokens.transparent;
-            }
-            return baseTheme.trackOutlineColor?.resolve(states);
-          }),
-          thumbIcon: WidgetStateProperty.resolveWith((states) {
-            if (states.contains(WidgetState.disabled) &&
-                states.contains(WidgetState.selected)) {
-              return Icon(
-                destination.hideable ? Icons.check : AppIcons.lock,
-                color: iconColor,
-              );
-            }
-            return baseTheme.thumbIcon?.resolve(states);
-          }),
-        ),
-        child: control,
-      );
-    }
-    return control;
   }
 }

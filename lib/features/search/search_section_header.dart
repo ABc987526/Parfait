@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 
 import '../../app/theme/func_semantic_tokens.dart';
+import '../../app/icons/ui_icons.dart';
 
 /// A section title on search surfaces. With [onTap] the whole row is one
 /// target (at least 48dp tall) ending in [action] and a chevron; a
@@ -45,7 +46,7 @@ class SearchSectionHeader extends StatelessWidget {
                   color: theme.colorScheme.primary,
                 ),
               ),
-              Icon(Icons.chevron_right, color: theme.colorScheme.primary),
+              Icon(UiIcons.chevronRight, color: theme.colorScheme.primary),
             ],
             ?trailing,
           ],

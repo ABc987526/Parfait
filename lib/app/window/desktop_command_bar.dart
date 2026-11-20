@@ -25,9 +25,21 @@ import '../theme/func_tokens.dart';
 import '../widgets/replica_switch_tile.dart';
 import '../widgets/settings/persist_settings.dart';
 import 'desktop_title_bar.dart';
+import '../icons/ui_icons.dart';
 
-/// Unified height of the desktop architectural command header.
+/// Unified height of the desktop architectural command header when it owns the
+/// custom window title bar (Windows / macOS).
 const double kDesktopCommandBarHeight = 48.0;
+
+/// Compact height of the desktop command toolbar when the OS already draws a
+/// native system title bar (e.g. Linux GTK HeaderBar / X11 WM frame).
+const double kDesktopCompactCommandBarHeight = 40.0;
+
+/// Effective rendered height of [DesktopCommandBar] for [chrome].
+double desktopCommandBarHeightFor(DesktopChromeMetrics? chrome) =>
+    (chrome?.usesSystemTitleBar ?? false)
+    ? kDesktopCompactCommandBarHeight
+    : kDesktopCommandBarHeight;
 
 const _preHomePrefixes = ['/welcome', '/login'];
 const _preHomeExact = {'', '/', '/splash', '/user-agreement'};
@@ -375,8 +387,12 @@ class _DesktopCommandBarState extends ConsumerState<DesktopCommandBar> {
       if (signature == _lastRegionSignature) return;
       _lastRegionSignature = signature;
       final publishWithHeight = currentActions.onRegionsWithHeightChanged;
+      final publishedHeight =
+          !currentChrome.isFullScreen && !currentChrome.usesSystemTitleBar
+          ? kDesktopCommandBarHeight
+          : 0.0;
       if (publishWithHeight != null) {
-        publishWithHeight(regions, kDesktopCommandBarHeight);
+        publishWithHeight(regions, publishedHeight);
       } else {
         currentActions.onRegionsChanged(regions);
       }
@@ -424,13 +440,16 @@ class _DesktopCommandBarState extends ConsumerState<DesktopCommandBar> {
       rootNavigator: true,
     ).overlay?.context.findRenderObject();
     if (overlayObject is! RenderBox || !overlayObject.hasSize) return;
+    final barHeight = desktopCommandBarHeightFor(
+      DesktopChromeMetrics.maybeOf(context),
+    );
     final initialAnchor =
         _globalRectOf(anchorKey) ??
         Rect.fromLTWH(
           overlayObject.size.width - FuncSpacing.xxl,
           0,
           0,
-          kDesktopCommandBarHeight,
+          barHeight,
         );
     await showAppPanel<void>(
       context: navContext,
@@ -601,7 +620,7 @@ class _DesktopCommandBarState extends ConsumerState<DesktopCommandBar> {
                       ),
                       trailing: account.id == currentId
                           ? Icon(
-                              Icons.check,
+                              UiIcons.check,
                               color: Theme.of(
                                 popoverContext,
                               ).colorScheme.primary,
@@ -658,6 +677,11 @@ class _DesktopCommandBarState extends ConsumerState<DesktopCommandBar> {
 
     final uri = liveRouterUri(widget.router);
     final isPreHome = _isPreHomePath(uri.path);
+    final usesSystemTitleBar = chrome?.usesSystemTitleBar ?? false;
+    if (usesSystemTitleBar && isPreHome) {
+      return const SizedBox.shrink();
+    }
+    final barHeight = desktopCommandBarHeightFor(chrome);
     final windowSize = MediaQuery.sizeOf(context);
     final history = ForwardHistoryStack.ofRouter(widget.router);
     final leadingInset = chrome?.leadingInset ?? 0;
@@ -685,7 +709,7 @@ class _DesktopCommandBarState extends ConsumerState<DesktopCommandBar> {
     final searchWidth = (windowSize.width * 0.27).clamp(210.0, 360.0);
     final showShortcutBadge = windowSize.width >= 680;
     final showBrandWordmark = windowSize.width >= 600;
-    final showBrandPill = windowSize.width >= 500;
+    final showBrandPill = !usesSystemTitleBar && windowSize.width >= 500;
     final compactWindow = windowSize.width < 500;
     final leadingGap = compactWindow ? FuncSpacing.sm : FuncSpacing.md;
     final estimatedLeft =
@@ -716,7 +740,7 @@ class _DesktopCommandBarState extends ConsumerState<DesktopCommandBar> {
           border: Border(bottom: BorderSide(color: tokens.brandHairline)),
         ),
         child: SizedBox(
-          height: kDesktopCommandBarHeight,
+          height: barHeight,
           child: Stack(
             fit: StackFit.expand,
             clipBehavior: Clip.none,
@@ -727,11 +751,9 @@ class _DesktopCommandBarState extends ConsumerState<DesktopCommandBar> {
                   if (leadingInset > 0)
                     SizedBox(
                       width: leadingInset,
-                      height: kDesktopCommandBarHeight,
+                      height: barHeight,
                       child: showSimulatedTrafficLights
-                          ? const SimulatedMacTrafficLights(
-                              height: kDesktopCommandBarHeight,
-                            )
+                          ? SimulatedMacTrafficLights(height: barHeight)
                           : null,
                     ),
                   SizedBox(width: leadingGap),
@@ -817,7 +839,7 @@ class _DesktopCommandBarState extends ConsumerState<DesktopCommandBar> {
                             onPressed: historyState.canGoBack
                                 ? () => unawaited(history.goBack())
                                 : null,
-                            icon: const Icon(Icons.arrow_back),
+                            icon: const Icon(UiIcons.arrowBack),
                           ),
                           _commandIconButton(
                             context,
@@ -829,7 +851,7 @@ class _DesktopCommandBarState extends ConsumerState<DesktopCommandBar> {
                             onPressed: historyState.canGoForward
                                 ? () => unawaited(history.goForward())
                                 : null,
-                            icon: const Icon(Icons.arrow_forward),
+                            icon: const Icon(UiIcons.arrowForward),
                           ),
                         ],
                       ),
@@ -843,12 +865,19 @@ class _DesktopCommandBarState extends ConsumerState<DesktopCommandBar> {
                       tooltip: l10n.refresh,
                       onPressed: () =>
                           PullToRefresh.triggerActive(_navContext()),
-                      icon: const Icon(Icons.refresh),
+                      icon: const Icon(UiIcons.refresh),
                     ),
                   ],
-                  Expanded(
-                    child: _DragSpacer(key: _leftDragKey, actions: actions),
-                  ),
+                  if (usesSystemTitleBar)
+                    const Spacer()
+                  else
+                    Expanded(
+                      child: _DragSpacer(
+                        key: _leftDragKey,
+                        height: barHeight,
+                        actions: actions,
+                      ),
+                    ),
                   if (!isPreHome)
                     compactSearch
                         ? SearchShortcutAnchor(
@@ -904,6 +933,7 @@ class _DesktopCommandBarState extends ConsumerState<DesktopCommandBar> {
                                 onTrigger: () => unawaited(_openSearch(uri)),
                                 child: _SearchCommandPill(
                                   key: _searchPillKey,
+                                  height: usesSystemTitleBar ? 30 : 32,
                                   hint: l10n.searchHint,
                                   keyword: keywordText,
                                   reverseTooltip: l10n.searchReverseImage,
@@ -921,9 +951,16 @@ class _DesktopCommandBarState extends ConsumerState<DesktopCommandBar> {
                               ),
                             ),
                           ),
-                  Expanded(
-                    child: _DragSpacer(key: _rightDragKey, actions: actions),
-                  ),
+                  if (usesSystemTitleBar)
+                    const Spacer()
+                  else
+                    Expanded(
+                      child: _DragSpacer(
+                        key: _rightDragKey,
+                        height: barHeight,
+                        actions: actions,
+                      ),
+                    ),
                   if (!isPreHome) ...[
                     if (contextAction != null) ...[
                       contextAction,
@@ -1005,7 +1042,7 @@ class _DesktopCommandBarState extends ConsumerState<DesktopCommandBar> {
                   child: KeyedSubtree(
                     key: _captionButtonsKey,
                     child: DesktopWindowCaptionButtons(
-                      height: kDesktopCommandBarHeight,
+                      height: barHeight,
                       isMaximized: chrome?.isMaximized ?? false,
                       isActive: chrome?.isActive ?? true,
                       nativeHoveredButton: hostMetrics.hoveredButton,
@@ -1025,8 +1062,9 @@ class _DesktopCommandBarState extends ConsumerState<DesktopCommandBar> {
 }
 
 class _DragSpacer extends StatelessWidget {
-  const _DragSpacer({super.key, required this.actions});
+  const _DragSpacer({super.key, required this.height, required this.actions});
 
+  final double height;
   final DesktopWindowActions? actions;
 
   @override
@@ -1036,7 +1074,7 @@ class _DragSpacer extends StatelessWidget {
         behavior: HitTestBehavior.opaque,
         onPanStart: actions == null ? null : (_) => actions!.onStartDragging(),
         onDoubleTap: actions?.onTitleBarDoubleClick,
-        child: const SizedBox(height: kDesktopCommandBarHeight),
+        child: SizedBox(height: height),
       ),
     );
   }
@@ -1045,6 +1083,7 @@ class _DragSpacer extends StatelessWidget {
 class _SearchCommandPill extends StatelessWidget {
   const _SearchCommandPill({
     super.key,
+    required this.height,
     required this.hint,
     required this.keyword,
     required this.reverseTooltip,
@@ -1053,6 +1092,7 @@ class _SearchCommandPill extends StatelessWidget {
     required this.onTapReverse,
   });
 
+  final double height;
   final String hint;
   final String keyword;
   final String reverseTooltip;
@@ -1079,7 +1119,7 @@ class _SearchCommandPill extends StatelessWidget {
       ),
       clipBehavior: Clip.antiAlias,
       child: SizedBox(
-        height: 32,
+        height: height,
         child: Row(
           children: [
             Expanded(

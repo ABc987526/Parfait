@@ -321,7 +321,7 @@ class ShellRail extends StatelessWidget {
           ),
           gap: FuncSpacing.sm,
         ),
-        if (!hideHeader && (onBookmarks != null || onDownloads != null)) ...[
+        if (onBookmarks != null || onDownloads != null) ...[
           Container(
             width: _ruleWidth,
             height: 1,
@@ -422,8 +422,8 @@ class ShellRail extends StatelessWidget {
     final fit = LabelFit.group(
       labels: [
         for (final d in destinations) d.label,
-        if (!hideHeader && onBookmarks != null) l10n.railBookmarks,
-        if (!hideHeader && onDownloads != null) l10n.railDownloads,
+        if (onBookmarks != null) l10n.railBookmarks,
+        if (onDownloads != null) l10n.railDownloads,
         if (hideHeader && onToggleTheme != null) themeLabel,
         if (hideHeader && onSettings != null) l10n.settingsTitle,
       ],
@@ -526,7 +526,7 @@ class ShellRail extends StatelessWidget {
           gap: FuncSpacing.xs,
           stretch: true,
         ),
-        if (!hideHeader && (onBookmarks != null || onDownloads != null)) ...[
+        if (onBookmarks != null || onDownloads != null) ...[
           Divider(
             height: FuncSpacing.xl,
             indent: FuncSpacing.lg,

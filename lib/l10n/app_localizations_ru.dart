@@ -1060,6 +1060,26 @@ class AppLocalizationsRu extends AppLocalizations {
   String get saveLocationUriCopied => 'URI папки скопирован';
 
   @override
+  String get saveLocationDesktopFolder => 'Папка по умолчанию';
+
+  @override
+  String get saveLocationDesktopDefaultFolder => 'Папка Parfait (по умолчанию)';
+
+  @override
+  String get saveLocationDesktopCustomSubfolder => 'Имя подпапки';
+
+  @override
+  String get saveLocationDesktopCustomFolder =>
+      'Выбранная папка (системный выбор)';
+
+  @override
+  String get saveLocationMacosBookmarkLabel =>
+      'Разрешённая папка (закладка песочницы macOS)';
+
+  @override
+  String get saveLocationPathCopied => 'Путь к папке скопирован';
+
+  @override
   String get namingPreset => 'Пресет имени файла';
 
   @override
@@ -3054,6 +3074,10 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get spotlightChallengeFailed =>
       'pixivision сейчас требует проверки или прокси';
+
+  @override
+  String get spotlightExternalBrowserHint =>
+      'Встроенная проверка браузера недоступна на этой платформе. Откройте статью во внешнем браузере.';
 
   @override
   String get spotlightCategoryAll => 'Все';

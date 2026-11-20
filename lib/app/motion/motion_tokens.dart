@@ -153,6 +153,10 @@ abstract final class MotionTokens {
   /// completes; the list retracts right after.
   static const refreshIndicatorExit = Duration(milliseconds: 200);
 
+  /// Pull-to-refresh: continuous rotation period of [SakuraRefreshIndicator]
+  /// while a refresh is in flight.
+  static const refreshSpin = Duration(milliseconds: 900);
+
   /// The particle burst around a heart that was just added.
   static const bookmarkBurst = Duration(milliseconds: 450);
 

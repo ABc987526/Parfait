@@ -48,6 +48,7 @@ import 'pages/translation_credentials_page.dart';
 import 'settings_catalog.dart';
 import 'settings_helpers.dart';
 import '../../app/icons/app_icons.dart';
+import '../../app/icons/ui_icons.dart';
 
 export 'pages/about_settings_page.dart';
 export 'pages/account_settings_page.dart';
@@ -410,7 +411,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           if (query.isNotEmpty)
             IconButton(
               tooltip: context.l10n.searchClear,
-              icon: Icon(Icons.close, size: compact ? 18 : null),
+              icon: Icon(UiIcons.close, size: compact ? 18 : null),
               onPressed: () => setState(_query.clear),
             ),
         ],

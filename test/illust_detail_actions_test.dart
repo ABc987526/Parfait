@@ -46,6 +46,7 @@ import 'helpers/localized_app.dart';
 import 'helpers/pixiv_router.dart';
 import 'helpers/prompt_host.dart';
 import 'package:parfait/app/icons/app_icons.dart';
+import 'package:parfait/app/icons/ui_icons.dart';
 
 /// A phone short enough that the sections under the info block start
 /// below the fold.
@@ -858,7 +859,7 @@ void main() {
       expect(inspectorBar, findsOneWidget);
       final bar = tester.getRect(inspectorBar);
       expect(bar.left, greaterThanOrEqualTo(pager.right));
-      expect(find.byIcon(Icons.more_vert), findsOneWidget);
+      expect(find.byIcon(UiIcons.more), findsOneWidget);
     });
 
     testWidgets('tabletop hinge splits artwork above inspector action bar', (

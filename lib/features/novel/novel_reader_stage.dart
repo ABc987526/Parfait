@@ -39,6 +39,7 @@ import '../../app/theme/func_semantic_tokens.dart';
 import '../../app/widgets/app_choice_chip.dart';
 import '../../app/widgets/app_slider.dart';
 import '../../app/icons/app_icons.dart';
+import '../../app/icons/ui_icons.dart';
 part 'novel_reader_stage_widgets.dart';
 
 /// How far the reader's faint text (the bottom progress hint, an image's
@@ -563,11 +564,7 @@ class _NovelReaderStageState extends ConsumerState<NovelReaderStage>
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(
-                                    Icons.more_horiz,
-                                    size: 18,
-                                    color: cueFg,
-                                  ),
+                                  Icon(UiIcons.more, size: 18, color: cueFg),
                                   const SizedBox(width: FuncSpacing.xs),
                                   Text(
                                     l10n.novelShowToolbar,
@@ -930,7 +927,7 @@ class _NovelReaderStageState extends ConsumerState<NovelReaderStage>
                             // system back gesture (chrome-first); this control
                             // always leaves.
                             onPressed: () => Navigator.of(context).pop(),
-                            icon: const Icon(Icons.arrow_back),
+                            icon: const BackButtonIcon(),
                           ),
                         ),
                   middle: ownsBack
@@ -1042,7 +1039,7 @@ class _NovelReaderStageState extends ConsumerState<NovelReaderStage>
                       middle: OutlinedButton.icon(
                         onPressed: () => _showProgressSheet(context),
                         iconAlignment: IconAlignment.end,
-                        icon: const Icon(Icons.expand_less),
+                        icon: const Icon(UiIcons.expandLess),
                         label: Text(
                           '${_page + 1}/$_pageCount · ${percent.round()}%',
                           semanticsLabel: l10n.novelReadingProgress,

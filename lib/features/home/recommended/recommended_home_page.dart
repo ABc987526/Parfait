@@ -23,6 +23,7 @@ import '../../../app/widgets/home_branch_stack.dart';
 import '../../../app/widgets/novel_entry.dart';
 import '../../../app/widgets/page_header.dart';
 import '../../../app/widgets/skeleton/illust_grid_skeleton.dart';
+import '../../../app/widgets/skeleton/list_skeletons.dart';
 import '../../../app/widgets/smooth_wheel_scroll.dart';
 import '../../../app/widgets/tab_swipe_switcher.dart';
 import '../../../app/widgets/user_preview_row.dart';
@@ -272,6 +273,20 @@ class _RecommendedFeedView extends ConsumerWidget {
   final RecommendedContentType type;
   final ScrollController scrollController;
 
+  Widget _initialSkeleton(BuildContext context) => switch (type) {
+    RecommendedContentType.novel => NovelListSkeleton(
+      label: context.l10n.contentLoading,
+    ),
+    RecommendedContentType.user => UserListSkeleton(
+      label: context.l10n.contentLoading,
+    ),
+    RecommendedContentType.illust ||
+    RecommendedContentType.manga => IllustGridSkeleton(
+      label: context.l10n.contentLoading,
+      padding: _gridPadding,
+    ),
+  };
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final key = (type: type);
@@ -303,10 +318,7 @@ class _RecommendedFeedView extends ConsumerWidget {
     final feedAsync = ref.watch(recommendedFeedProvider(key));
 
     return feedAsync.when(
-      loading: () => IllustGridSkeleton(
-        label: context.l10n.contentLoading,
-        padding: _gridPadding,
-      ),
+      loading: () => _initialSkeleton(context),
       error: (error, _) => FeedError(
         title: context.l10n.recommendedLoadFailed,
         error: error,
@@ -324,10 +336,7 @@ class _RecommendedFeedView extends ConsumerWidget {
           );
         }
         if (feed.showInitialSpinner) {
-          return IllustGridSkeleton(
-            label: context.l10n.contentLoading,
-            padding: _gridPadding,
-          );
+          return _initialSkeleton(context);
         }
         final controller = ref.read(recommendedFeedProvider(key).notifier);
         // User recommendations are not filtered: an empty page there is

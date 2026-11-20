@@ -1059,6 +1059,26 @@ class AppLocalizationsEn extends AppLocalizations {
   String get saveLocationUriCopied => 'Folder URI copied';
 
   @override
+  String get saveLocationDesktopFolder => 'Default folder';
+
+  @override
+  String get saveLocationDesktopDefaultFolder => 'Parfait folder (default)';
+
+  @override
+  String get saveLocationDesktopCustomSubfolder => 'Custom subfolder name';
+
+  @override
+  String get saveLocationDesktopCustomFolder =>
+      'Custom directory (system folder picker)';
+
+  @override
+  String get saveLocationMacosBookmarkLabel =>
+      'Authorized folder (macOS sandbox bookmark)';
+
+  @override
+  String get saveLocationPathCopied => 'Folder path copied';
+
+  @override
   String get namingPreset => 'File naming preset';
 
   @override
@@ -3070,6 +3090,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get spotlightChallengeFailed =>
       'pixivision currently needs verification or a proxy';
+
+  @override
+  String get spotlightExternalBrowserHint =>
+      'In-app browser verification isn\'t available on this platform. Open the article in your browser instead.';
 
   @override
   String get spotlightCategoryAll => 'All';

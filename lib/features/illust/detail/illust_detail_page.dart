@@ -76,6 +76,7 @@ import '../../../app/layout/two_pane.dart';
 import '../../../app/widgets/smooth_wheel_scroll.dart';
 import '../../../app/widgets/comment_composer.dart';
 import '../../../app/icons/app_icons.dart';
+import '../../../app/icons/ui_icons.dart';
 part 'illust_detail_content.dart';
 
 /// Coordinates system back / Esc inside an embedded [IllustDetailPage] so an
@@ -371,9 +372,10 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
   /// bar down on its own read as a second, smaller exit under the page's
   /// fade.
   void _onRouteStatus(AnimationStatus status) {
-    // Only the first forward is the page entering.
-    final entering = status == AnimationStatus.forward && !_entered;
-    if (!entering && !status.isCompleted) return;
+    // Only the initial entry reveals chrome; later route status transitions
+    // (such as a cancelled back gesture) must leave scroll-hidden chrome alone.
+    if (_entered) return;
+    if (status != AnimationStatus.forward && !status.isCompleted) return;
     _entered = true;
     _topBarEntrance.forward();
     if (!_touchExploration) {
@@ -852,7 +854,7 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
         IconButton(
           tooltip: l10n.selectAll,
           onPressed: () => _selectAllPages(entity),
-          icon: const Icon(Icons.select_all),
+          icon: const Icon(UiIcons.selectAll),
         ),
         IconButton(
           tooltip: l10n.downloadSelectedPages,
@@ -937,7 +939,7 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
         if (isModalOverlay && (!twoPane || !rendersContent))
           IconButton(
             tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
-            icon: const Icon(Icons.close),
+            icon: const Icon(UiIcons.close),
             onPressed: () => unawaited(Navigator.maybePop(context)),
           ),
       ],
@@ -981,7 +983,7 @@ class _IllustDetailPageState extends ConsumerState<IllustDetailPage>
           IconButton(
             key: const ValueKey('desktop-inspector-close'),
             tooltip: l10n.profileShareClose,
-            icon: const Icon(Icons.close, size: 19),
+            icon: const Icon(UiIcons.close, size: 19),
             onPressed: widget.onCloseInspector,
           ),
       ],

@@ -41,6 +41,7 @@ import 'helpers/localized_app.dart';
 import 'helpers/view_size.dart';
 import 'helpers/waits.dart';
 import 'package:parfait/app/icons/app_icons.dart';
+import 'package:parfait/app/icons/ui_icons.dart';
 
 class _RecordingOpener implements OutboundUrlOpener {
   final urls = <String>[];
@@ -506,7 +507,7 @@ void main() {
         // Selecting, the badge sits as far into the image's top as into its
         // end: the toolbar does not reach the image.
         await longPressImage(tester);
-        final mark = tester.getRect(find.byIcon(Icons.radio_button_unchecked));
+        final mark = tester.getRect(find.byIcon(UiIcons.circleUnchecked));
         final image = tester.getRect(hero);
         expect(mark.top - image.top, closeTo(image.right - mark.right, 0.5));
       },
@@ -698,9 +699,7 @@ void main() {
 
       // Under the toolbar, page 1's badge keeps that inset below the bar.
       await longPressImage(tester);
-      final mark = tester.getRect(
-        find.byIcon(Icons.radio_button_unchecked).first,
-      );
+      final mark = tester.getRect(find.byIcon(UiIcons.circleUnchecked).first);
       expect(mark.top - kToolbarHeight, closeTo(390 - mark.right, 0.5));
     });
   });

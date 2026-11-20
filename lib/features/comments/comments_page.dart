@@ -8,6 +8,7 @@ import '../../app/haptics/app_haptics.dart';
 import '../../app/motion/app_overlays.dart';
 import '../../app/motion/removal.dart';
 import '../../app/navigation/routes.dart';
+import '../../app/widgets/app_dialog.dart';
 import '../../app/widgets/app_top_bar.dart';
 import '../../app/widgets/feed/feed_states.dart';
 import '../../app/pull_to_refresh.dart';
@@ -160,7 +161,7 @@ class _CommentsPageState extends ConsumerState<CommentsPage> {
   Future<void> _confirmAndDelete(CommentEntity comment) async {
     final confirmed = await showAppDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (context) => AppAlertDialog(
         title: Text(context.l10n.commentDelete),
         content: Text(context.l10n.commentDeleteConfirm),
         actions: [
@@ -331,7 +332,7 @@ class _CommentRepliesPageState extends ConsumerState<CommentRepliesPage> {
   Future<void> _confirmAndDelete(CommentEntity comment) async {
     final confirmed = await showAppDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (context) => AppAlertDialog(
         title: Text(context.l10n.commentDelete),
         content: Text(context.l10n.commentDeleteConfirm),
         actions: [

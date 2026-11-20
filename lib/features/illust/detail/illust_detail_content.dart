@@ -513,12 +513,12 @@ extension _IllustDetailContent on _IllustDetailPageState {
                                       : localizations.backButtonTooltip,
                                   onPressed: () =>
                                       unawaited(Navigator.maybePop(context)),
-                                  icon: Icon(
-                                    isModalOverlay
-                                        ? Icons.close
-                                        : Icons.arrow_back,
-                                    size: 20,
-                                  ),
+                                  icon: isModalOverlay
+                                      ? const Icon(UiIcons.close, size: 20)
+                                      : IconTheme.merge(
+                                          data: const IconThemeData(size: 20),
+                                          child: const BackButtonIcon(),
+                                        ),
                                 );
                               },
                             ),
@@ -809,7 +809,7 @@ extension _IllustDetailContent on _IllustDetailPageState {
                 IconButton(
                   key: const ValueKey('desktop-inspector-close'),
                   tooltip: l10n.profileShareClose,
-                  icon: const Icon(Icons.close, size: 19),
+                  icon: const Icon(UiIcons.close, size: 19),
                   onPressed: widget.onCloseInspector,
                 ),
             ],
@@ -946,7 +946,7 @@ class _PagesToggleButton extends StatelessWidget {
             minimumSize: const Size.fromHeight(kMinInteractiveDimension),
           ),
           onPressed: onPressed,
-          icon: Icon(expanded ? Icons.expand_less : Icons.expand_more),
+          icon: Icon(expanded ? UiIcons.expandLess : UiIcons.expandMore),
           iconAlignment: IconAlignment.end,
           label: Text(
             expanded
@@ -1016,7 +1016,7 @@ class _DetailMoreMenu extends ConsumerWidget {
       ),
       _DetailMenuAction.selectPages => AppMenuEntry(
         value: action,
-        icon: Icons.checklist_outlined,
+        icon: UiIcons.checklist,
         label: l10n.downloadSelectPages,
       ),
       _DetailMenuAction.info => AppMenuEntry(

@@ -34,6 +34,7 @@ import '../../app/layout/card_columns.dart';
 import '../../app/widgets/feed/load_more_listener.dart';
 import '../../app/widgets/edge_icon_buttons.dart';
 import '../../app/icons/app_icons.dart';
+import '../../app/icons/ui_icons.dart';
 
 /// Beta56 New page for one content [type]: scope tabs over that type's
 /// feeds, the same shape as the ranking pages. The illust page is the
@@ -331,7 +332,7 @@ class _NewFeedBody extends ConsumerWidget {
         }
         if (feed.isEmptyAndReady) {
           return FeedEmpty(
-            icon: Icons.inbox_outlined,
+            icon: UiIcons.inbox,
             title: context.l10n.newEmpty,
             retryLabel: context.l10n.refresh,
             onRefresh: () =>

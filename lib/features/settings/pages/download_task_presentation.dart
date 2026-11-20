@@ -5,6 +5,7 @@ import '../../../core/download/download_task.dart';
 import '../../../core/format/byte_size.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../app/icons/app_icons.dart';
+import '../../../app/icons/ui_icons.dart';
 
 /// How a download row or group header reads at a glance (design §4.1).
 /// The persisted lifecycle folds into these states: `finalizing` reads as
@@ -76,14 +77,14 @@ String downloadVisualText(AppLocalizations l10n, DownloadVisualState state) =>
 
 /// Status icon; color alone never carries meaning (the text stays).
 IconData downloadVisualIcon(DownloadVisualState state) => switch (state) {
-  DownloadVisualState.queued => Icons.schedule,
+  DownloadVisualState.queued => UiIcons.clock,
   DownloadVisualState.running => AppIcons.downloading,
   DownloadVisualState.processing ||
-  DownloadVisualState.canceling => Icons.hourglass_top,
-  DownloadVisualState.succeeded => Icons.check_circle,
-  DownloadVisualState.paused => Icons.pause_circle,
-  DownloadVisualState.retryable => Icons.error_outline,
-  DownloadVisualState.failed => Icons.error,
+  DownloadVisualState.canceling => UiIcons.hourglass,
+  DownloadVisualState.succeeded => UiIcons.checkCircle,
+  DownloadVisualState.paused => UiIcons.pauseCircle,
+  DownloadVisualState.retryable => UiIcons.errorOutline,
+  DownloadVisualState.failed => UiIcons.errorFatal,
   DownloadVisualState.canceled => AppIcons.banFilled,
 };
 

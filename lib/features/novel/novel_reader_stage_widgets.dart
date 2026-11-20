@@ -352,7 +352,7 @@ class _ReaderSheetHeader extends StatelessWidget {
           tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
           onPressed: onClose,
           visualDensity: VisualDensity.compact,
-          icon: const Icon(Icons.close),
+          icon: const Icon(UiIcons.close),
         ),
       ],
     );
@@ -527,7 +527,7 @@ class _SeriesBarRow extends StatelessWidget {
         leading: IconButton(
           tooltip: context.l10n.novelPrevious,
           onPressed: onPrevious,
-          icon: const Icon(Icons.chevron_left),
+          icon: const Icon(UiIcons.chevronLeft),
         ),
         middle: center,
         trailing: Row(
@@ -537,7 +537,7 @@ class _SeriesBarRow extends StatelessWidget {
             IconButton(
               tooltip: context.l10n.novelNext,
               onPressed: onNext,
-              icon: const Icon(Icons.chevron_right),
+              icon: const Icon(UiIcons.chevronRight),
             ),
           ],
         ),

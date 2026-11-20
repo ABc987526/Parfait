@@ -11,10 +11,12 @@ import '../../../core/network/network_restore_signal.dart';
 import '../../../core/paging/paged_feed_controller.dart';
 import '../../../l10n/context.dart';
 import '../../motion/state_fade.dart';
+import '../app_spinner.dart';
 import '../app_top_bar.dart';
 import '../errors/error_details.dart';
 import '../../theme/func_semantic_tokens.dart';
 import '../../icons/app_icons.dart';
+import '../../icons/ui_icons.dart';
 
 /// Shared feed-tail widget: load-more spinner, load-more error + retry,
 /// "continue" once automatic paging paused, and the exhausted marker.
@@ -49,7 +51,7 @@ class FeedTail extends StatelessWidget {
       return const Center(
         child: Padding(
           padding: EdgeInsets.all(FuncSpacing.lg),
-          child: CircularProgressIndicator(),
+          child: AppSpinner(size: 20),
         ),
       );
     }
@@ -94,7 +96,7 @@ class FeedTail extends StatelessWidget {
           child: TextButton.icon(
             key: const Key('feed-continue-loading'),
             onPressed: onRetry,
-            icon: const Icon(Icons.expand_more),
+            icon: const Icon(UiIcons.expandMore),
             label: Text(context.l10n.feedContinueLoading),
           ),
         ),
@@ -131,7 +133,7 @@ class FeedLoading extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          CircularProgressIndicator(semanticsLabel: label),
+          AppSpinner(semanticsLabel: label),
           if (label != null) ...[
             const SizedBox(height: FuncSpacing.md),
             Text(label!, style: Theme.of(context).textTheme.bodySmall),
@@ -148,7 +150,7 @@ class FeedLoading extends StatelessWidget {
 class FeedEmpty extends StatelessWidget {
   const FeedEmpty({
     super.key,
-    this.icon = Icons.inbox_outlined,
+    this.icon = UiIcons.inbox,
     required this.title,
     this.detail,
     this.error,
@@ -293,7 +295,7 @@ class FeedAllHidden extends StatelessWidget {
       title: l10n.feedAllHidden,
       error: error,
       actionLabel: l10n.feedContinueLoading,
-      actionIcon: Icons.expand_more,
+      actionIcon: UiIcons.expandMore,
       onAction: onLoadMore,
     );
     // A failed load the user asked for retries once the network is back.
@@ -516,7 +518,7 @@ class StateActionButton extends StatelessWidget {
     super.key,
     required this.label,
     required this.onPressed,
-    this.icon = Icons.refresh,
+    this.icon = UiIcons.refresh,
   });
 
   final String label;

@@ -7,6 +7,7 @@ import 'func_tokens.dart';
 /// M3's opacities for a disabled control's content and its container.
 const _disabledContentAlpha = 0.38;
 const _disabledContainerAlpha = 0.12;
+const _disabledActionAlpha = 0.48;
 
 /// How high the layers above a page float: menus, dialogs, modal sheets
 /// and prompts (THEME-20).
@@ -17,9 +18,11 @@ const double _layerElevation = 6;
 /// The app leaves it null and keeps the engine's system fallback chain
 /// behind the platform font.
 ///
-/// [systemColors] is the platform accent palette (dynamic color); only the
-/// accent roles are taken from it — neutrals stay on FuncTokens so every
-/// surface tier keeps the app's ladder.
+/// [systemColors] is the platform dynamic color scheme (wallpaper / system
+/// accent); when provided, both accent roles and the full M3 surface/container
+/// and neutral ladder follow it so wallpaper tinting applies across canvases,
+/// bars, cards, and controls. Without it, neutrals stay on Mika's FuncTokens
+/// ladder.
 ///
 /// The default accent is split: `colorScheme.primary` paints text, icons
 /// and indicators (a deeper rose on the light page, where the brand pink
@@ -32,30 +35,41 @@ ThemeData replicaTheme(
   List<String>? fontFamilyFallback,
 }) {
   final dark = brightness == Brightness.dark;
-  final background = dark
-      ? FuncTokens.darkBackground
-      : FuncTokens.lightBackground;
-  final containerLow = dark
-      ? FuncTokens.darkContainerLow
-      : FuncTokens.lightContainerLow;
-  final container = dark ? FuncTokens.darkContainer : FuncTokens.lightContainer;
-  final containerHigh = dark
-      ? FuncTokens.darkContainerHigh
-      : FuncTokens.lightContainerHigh;
-  final containerHighest = dark
-      ? FuncTokens.darkContainerHighest
-      : FuncTokens.lightContainerHighest;
-  final inverseSurface = dark
-      ? FuncTokens.darkInverseSurface
-      : FuncTokens.lightInverseSurface;
-  final onInverseSurface = dark
-      ? FuncTokens.darkOnInverseSurface
-      : FuncTokens.lightOnInverseSurface;
-  final text = dark ? FuncTokens.darkText : FuncTokens.lightText;
-  final subdued = dark ? FuncTokens.darkSubdued : FuncTokens.lightSubdued;
-  final textSecondary = dark
-      ? FuncTokens.darkTextSecondary
-      : FuncTokens.lightTextSecondary;
+  final background =
+      systemColors?.surface ??
+      (dark ? FuncTokens.darkBackground : FuncTokens.lightBackground);
+  final containerLowest = systemColors?.surfaceContainerLowest ?? background;
+  final containerLow =
+      systemColors?.surfaceContainerLow ??
+      (dark ? FuncTokens.darkContainerLow : FuncTokens.lightContainerLow);
+  final container =
+      systemColors?.surfaceContainer ??
+      (dark ? FuncTokens.darkContainer : FuncTokens.lightContainer);
+  final containerHigh =
+      systemColors?.surfaceContainerHigh ??
+      (dark ? FuncTokens.darkContainerHigh : FuncTokens.lightContainerHigh);
+  final containerHighest =
+      systemColors?.surfaceContainerHighest ??
+      (dark
+          ? FuncTokens.darkContainerHighest
+          : FuncTokens.lightContainerHighest);
+  final inverseSurface =
+      systemColors?.inverseSurface ??
+      (dark ? FuncTokens.darkInverseSurface : FuncTokens.lightInverseSurface);
+  final onInverseSurface =
+      systemColors?.onInverseSurface ??
+      (dark
+          ? FuncTokens.darkOnInverseSurface
+          : FuncTokens.lightOnInverseSurface);
+  final text =
+      systemColors?.onSurface ??
+      (dark ? FuncTokens.darkText : FuncTokens.lightText);
+  final subdued =
+      systemColors?.outlineVariant ??
+      (dark ? FuncTokens.darkSubdued : FuncTokens.lightSubdued);
+  final textSecondary =
+      systemColors?.onSurfaceVariant ??
+      (dark ? FuncTokens.darkTextSecondary : FuncTokens.lightTextSecondary);
 
   final accent =
       systemColors?.primary ??
@@ -87,24 +101,24 @@ ThemeData replicaTheme(
         systemColors?.inversePrimary ??
         (dark ? FuncTokens.darkInversePrimary : FuncTokens.lightInversePrimary),
     surfaceTint: systemColors?.surfaceTint ?? seeded.surfaceTint,
-    secondary: textSecondary,
+    secondary: systemColors?.secondary ?? textSecondary,
     surface: background,
-    surfaceContainerLowest: background,
+    surfaceContainerLowest: containerLowest,
     surfaceContainerLow: containerLow,
     surfaceContainer: container,
     surfaceContainerHigh: containerHigh,
     surfaceContainerHighest: containerHighest,
     onPrimary: onBrand,
-    secondaryContainer: containerHighest,
-    onSecondary: background,
-    onSecondaryContainer: text,
+    secondaryContainer: systemColors?.secondaryContainer ?? containerHighest,
+    onSecondary: systemColors?.onSecondary ?? background,
+    onSecondaryContainer: systemColors?.onSecondaryContainer ?? text,
     onSurface: text,
     onSurfaceVariant: textSecondary,
     inverseSurface: inverseSurface,
     onInverseSurface: onInverseSurface,
     // Borders/dividers keep the faint subdued alpha; only text uses the
     // readable secondary color.
-    outline: subdued,
+    outline: systemColors?.outline ?? subdued,
     outlineVariant: subdued,
     error: dark ? FuncTokens.darkError : FuncTokens.lightError,
     onError: dark ? FuncTokens.darkOnError : FuncTokens.white,
@@ -164,6 +178,20 @@ ThemeData replicaTheme(
       // The slots above are new styles; the fallback has to reach them too.
       .apply(fontFamilyFallback: fontFamilyFallback);
 
+  final semanticTokens = FuncSemanticTokens.fromBrightness(
+    brightness,
+    textTheme,
+    brand: brand,
+    onBrand: onBrand,
+    accent: accent,
+    canvas: background,
+    surface: container,
+    surfaceRaised: containerHigh,
+    contentPrimary: text,
+    contentSecondary: textSecondary,
+    divider: systemColors != null ? text.withValues(alpha: 0.12) : null,
+  );
+
   final theme = ThemeData(
     brightness: brightness,
     // Restrained flat state layers replace M3's expanding ripple circle:
@@ -178,18 +206,7 @@ ThemeData replicaTheme(
     // engine's system fallback chain covering scripts it lacks.
     fontFamilyFallback: fontFamilyFallback,
     primaryColor: colorScheme.primary,
-    extensions: [
-      FuncSemanticTokens.fromBrightness(
-        brightness,
-        textTheme,
-        brand: brand,
-        onBrand: onBrand,
-        accent: accent,
-        brandedHeader: systemColors == null
-            ? FuncTokens.lightBrandedHeader
-            : null,
-      ),
-    ],
+    extensions: [semanticTokens],
     // The prompt card (PromptHost) takes its surface, shape, elevation and
     // action color from here; placement and motion are the host's.
     snackBarTheme:
@@ -301,11 +318,7 @@ ThemeData replicaTheme(
       shadowColor: colorScheme.shadow,
       shape: RoundedRectangleBorder(
         borderRadius: FuncShape.dialog,
-        side: dark
-            ? BorderSide(
-                color: colorScheme.outlineVariant.withValues(alpha: 0.45),
-              )
-            : BorderSide.none,
+        side: BorderSide(color: semanticTokens.brandHairline),
       ),
     ),
     bottomSheetTheme: BottomSheetThemeData(
@@ -319,35 +332,38 @@ ThemeData replicaTheme(
       dragHandleColor: colorScheme.onSurfaceVariant,
       shape: RoundedRectangleBorder(
         borderRadius: FuncShape.sheet,
-        side: dark
-            ? BorderSide(
-                color: colorScheme.outlineVariant.withValues(alpha: 0.45),
-              )
-            : BorderSide.none,
+        side: BorderSide(color: semanticTokens.brandHairline),
       ),
     ),
     menuTheme: MenuThemeData(
       style: MenuStyle(
         elevation: const WidgetStatePropertyAll(_layerElevation),
-        side: dark
-            ? WidgetStatePropertyAll(
-                BorderSide(
-                  color: colorScheme.outlineVariant.withValues(alpha: 0.45),
-                ),
-              )
-            : null,
+        side: WidgetStatePropertyAll(
+          BorderSide(color: semanticTokens.brandHairline),
+        ),
       ),
     ),
-    popupMenuTheme: dark
-        ? PopupMenuThemeData(
-            shape: RoundedRectangleBorder(
-              borderRadius: FuncShape.card,
-              side: BorderSide(
-                color: colorScheme.outlineVariant.withValues(alpha: 0.45),
-              ),
-            ),
-          )
-        : null,
+    popupMenuTheme: PopupMenuThemeData(
+      shape: RoundedRectangleBorder(
+        borderRadius: FuncShape.card,
+        side: BorderSide(color: semanticTokens.brandHairline),
+      ),
+    ),
+    progressIndicatorTheme: ProgressIndicatorThemeData(
+      color: colorScheme.primary,
+      linearTrackColor: semanticTokens.brandHairline,
+      circularTrackColor: semanticTokens.brandHairline,
+      strokeCap: StrokeCap.round,
+    ),
+    textButtonTheme: TextButtonThemeData(
+      style: ButtonStyle(
+        foregroundColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.disabled)
+              ? colorScheme.onSurface.withValues(alpha: _disabledActionAlpha)
+              : null,
+        ),
+      ),
+    ),
     // A count badge is an indicator in the brand fill, not M3's error red.
     badgeTheme: BadgeThemeData(backgroundColor: brand, textColor: onBrand),
     // Filled buttons are brand fills; disabled, they take M3's disabled

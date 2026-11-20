@@ -22,12 +22,14 @@ import '../motion/spring_pop.dart';
 import '../theme/func_semantic_tokens.dart';
 import '../theme/func_tokens.dart';
 import '../widgets/errors/error_details.dart';
+import 'app_dialog.dart';
 import '../../l10n/context.dart';
 import '../../l10n/lookup.dart';
 import 'app_choice_chip.dart';
 import 'display_actions.dart';
 import 'settings/settings_control.dart';
 import '../icons/app_icons.dart';
+import '../icons/ui_icons.dart';
 
 String _bookmarkText(BuildContext context, String key) =>
     l10nLookup(context.l10n, key);
@@ -433,7 +435,7 @@ class _BookmarkEditSheetState extends ConsumerState<_BookmarkEditSheet> {
     }
     final leave = await showAppDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
+      builder: (dialogContext) => AppAlertDialog(
         title: Text(context.l10n.profileEditLeaveTitle),
         content: Text(context.l10n.profileEditLeaveDetail),
         actions: [
@@ -604,7 +606,7 @@ class _BookmarkEditSheetState extends ConsumerState<_BookmarkEditSheet> {
           : () => unawaited(_confirm()),
       child: Text(l10n.confirm),
     );
-    Widget sheet = Align(
+    final Widget sheet = Align(
       // heightFactor shrink-wraps vertically: a bare Center would expand to
       // the sheet slot's max height. On expanded surfaces the form column
       // caps at ContentWidths.form and stays centered (parent §5.5).
@@ -653,7 +655,7 @@ class _BookmarkEditSheetState extends ConsumerState<_BookmarkEditSheet> {
                               context,
                             ).closeButtonTooltip,
                             onPressed: () => unawaited(_attemptClose()),
-                            icon: const Icon(Icons.close),
+                            icon: const Icon(UiIcons.close),
                           ),
                         ],
                       ),
@@ -884,30 +886,12 @@ class _BookmarkEditSheetState extends ConsumerState<_BookmarkEditSheet> {
         ),
       ),
     );
-    // Drag-to-dismiss bypasses PopScope entirely: BottomSheet.onClosing
-    // calls Navigator.pop() directly, and imperative pops never consult
-    // popDisposition. While dirty on a bottom sheet, the sheet content claims
-    // vertical drags itself and routes a downward release through the same
-    // _attemptClose confirmation; wide bounded dialogs have no sheet drag.
-    // The detector stays mounted so a draft turning dirty does not rebuild
-    // the form and lose its scroll position.
-    sheet = GestureDetector(
-      behavior: HitTestBehavior.translucent,
-      onVerticalDragEnd: (desktop || _closableFreely)
-          ? null
-          : (details) {
-              if ((details.primaryVelocity ?? 0) > 0) {
-                unawaited(_attemptClose());
-              }
-            },
-      child: sheet,
-    );
     return PopScope(
       canPop: _closableFreely,
       onPopInvokedWithResult: (didPop, _) {
-        // Only maybePop paths (system back, barrier tap) deliver
-        // didPop:false here; our own Navigator.pop() calls bypass the
-        // scope, so confirmed closes cannot recurse back in.
+        // Only maybePop paths (system back, barrier tap, smooth_sheets
+        // swipe-to-dismiss) deliver didPop:false here; our own Navigator.pop()
+        // calls bypass the scope, so confirmed closes cannot recurse back in.
         if (!didPop) unawaited(_attemptClose());
       },
       child: sheet,

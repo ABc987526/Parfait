@@ -2015,6 +2015,42 @@ abstract class AppLocalizations {
   /// **'已复制目录 URI'**
   String get saveLocationUriCopied;
 
+  /// No description provided for @saveLocationDesktopFolder.
+  ///
+  /// In zh, this message translates to:
+  /// **'默认文件夹'**
+  String get saveLocationDesktopFolder;
+
+  /// No description provided for @saveLocationDesktopDefaultFolder.
+  ///
+  /// In zh, this message translates to:
+  /// **'Parfait 文件夹（默认）'**
+  String get saveLocationDesktopDefaultFolder;
+
+  /// No description provided for @saveLocationDesktopCustomSubfolder.
+  ///
+  /// In zh, this message translates to:
+  /// **'自定义子文件夹名称'**
+  String get saveLocationDesktopCustomSubfolder;
+
+  /// No description provided for @saveLocationDesktopCustomFolder.
+  ///
+  /// In zh, this message translates to:
+  /// **'自定义目录（系统目录选择）'**
+  String get saveLocationDesktopCustomFolder;
+
+  /// No description provided for @saveLocationMacosBookmarkLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'已授权目录（macOS 沙盒书签）'**
+  String get saveLocationMacosBookmarkLabel;
+
+  /// No description provided for @saveLocationPathCopied.
+  ///
+  /// In zh, this message translates to:
+  /// **'已复制目录路径'**
+  String get saveLocationPathCopied;
+
   /// No description provided for @namingPreset.
   ///
   /// In zh, this message translates to:
@@ -5674,6 +5710,12 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'pixivision 当前需要验证或代理'**
   String get spotlightChallengeFailed;
+
+  /// No description provided for @spotlightExternalBrowserHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'当前平台不支持内置浏览器验证，请在系统浏览器中查看。'**
+  String get spotlightExternalBrowserHint;
 
   /// No description provided for @spotlightCategoryAll.
   ///

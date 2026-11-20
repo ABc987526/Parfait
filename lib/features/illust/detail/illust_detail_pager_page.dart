@@ -31,6 +31,7 @@ import '../../../core/entity/illust_store.dart';
 import 'detail_page_activity.dart';
 import 'illust_detail_page.dart';
 import 'widgets/info_block.dart';
+import '../../../app/icons/ui_icons.dart';
 
 /// Detail host paged horizontally across a feed's work list: a work
 /// opened from a grid keeps the feed's ordering, and
@@ -520,7 +521,7 @@ class _IllustDetailPagerPageState extends ConsumerState<IllustDetailPagerPage>
                 isStart: true,
                 enabled: index > 0,
                 hovered: _startEdgeHovered,
-                icon: Icons.chevron_left,
+                icon: UiIcons.chevronLeft,
                 tooltip: MaterialLocalizations.of(context).previousPageTooltip,
                 onHoverChanged: (hovered) {
                   if (_startEdgeHovered != hovered) {
@@ -534,7 +535,7 @@ class _IllustDetailPagerPageState extends ConsumerState<IllustDetailPagerPage>
                 isStart: false,
                 enabled: index + 1 < ids.length,
                 hovered: _endEdgeHovered,
-                icon: Icons.chevron_right,
+                icon: UiIcons.chevronRight,
                 tooltip: MaterialLocalizations.of(context).nextPageTooltip,
                 onHoverChanged: (hovered) {
                   if (_endEdgeHovered != hovered) {

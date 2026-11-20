@@ -29,6 +29,7 @@ import '../../l10n/context.dart';
 import '../../l10n/lookup.dart';
 import 'ranking_date.dart';
 import '../../app/icons/app_icons.dart';
+import '../../app/icons/ui_icons.dart';
 
 /// Records the page's mode and ranking day (null is the latest) in the
 /// route.
@@ -469,7 +470,7 @@ class _RankingTabsState<M extends RankingCategory>
       AppMenuEntry(
         value: _TabAction.moveToFront,
         label: l10n.rankingMoveToFront,
-        icon: Icons.first_page,
+        icon: UiIcons.firstPage,
         enabled: index > 0,
       ),
       AppMenuEntry(
@@ -503,7 +504,7 @@ class _RankingTabsState<M extends RankingCategory>
             actions: [
               for (final entry in entries)
                 DisplayAction(
-                  icon: entry.icon ?? Icons.more_horiz,
+                  icon: entry.icon ?? UiIcons.more,
                   label: entry.label,
                   enabled: entry.enabled,
                   onSelected: () =>

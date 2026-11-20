@@ -11,6 +11,7 @@ import '../../core/search/search_models.dart';
 import '../../l10n/context.dart';
 import 'search_filter_labels.dart';
 import 'search_input_engine.dart';
+import '../../app/icons/ui_icons.dart';
 
 /// The full-page search input: the engine in a page's own chrome.
 class SearchInputPage extends StatelessWidget {
@@ -55,7 +56,7 @@ class SearchInputPage extends StatelessWidget {
             ? IconButton(
                 tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
                 onPressed: () => Navigator.of(context).maybePop(),
-                icon: const Icon(Icons.close),
+                icon: const Icon(UiIcons.close),
               )
             : workspaceMode
             ? null

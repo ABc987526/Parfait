@@ -60,6 +60,7 @@ import '../../app/theme/func_semantic_tokens.dart';
 import '../../app/clipboard.dart';
 
 import 'profile_about_tab.dart';
+import '../../app/icons/ui_icons.dart';
 
 part 'profile_tab_body.dart';
 
@@ -655,7 +656,7 @@ class _UserPageState extends ConsumerState<UserPage>
                   key: const ValueKey('profile-stale-error-dismiss'),
                   tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
                   onPressed: () => setState(() => _staleBannerVisible = false),
-                  icon: const Icon(Icons.close),
+                  icon: const Icon(UiIcons.close),
                 ),
               ],
             ),

@@ -98,7 +98,7 @@ class _PageScrubberState extends State<_PageScrubber> {
                   ),
                   // No label: the bubble above is the page indicator, so the
                   // slider's own value indicator would be a second one.
-                  child: AppSlider(
+                  child: AppSlider.scrubber(
                     min: 0,
                     max: (widget.count - 1).toDouble(),
                     divisions: widget.count - 1,
@@ -267,7 +267,7 @@ class _ViewerInfoPanel extends StatelessWidget {
                                 context,
                               ).closeButtonTooltip,
                               onPressed: onClose,
-                              icon: const Icon(Icons.chevron_right),
+                              icon: const Icon(UiIcons.chevronRight),
                             ),
                           ],
                         ),

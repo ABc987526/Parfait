@@ -1037,6 +1037,24 @@ class AppLocalizationsJa extends AppLocalizations {
   String get saveLocationUriCopied => 'フォルダ URI をコピーしました';
 
   @override
+  String get saveLocationDesktopFolder => 'デフォルトフォルダー';
+
+  @override
+  String get saveLocationDesktopDefaultFolder => 'Parfait フォルダー（デフォルト）';
+
+  @override
+  String get saveLocationDesktopCustomSubfolder => 'カスタムサブフォルダー名';
+
+  @override
+  String get saveLocationDesktopCustomFolder => 'カスタムディレクトリ（システム選択）';
+
+  @override
+  String get saveLocationMacosBookmarkLabel => '許可済みフォルダー（macOS サンドボックスブックマーク）';
+
+  @override
+  String get saveLocationPathCopied => 'フォルダーパスをコピーしました';
+
+  @override
   String get namingPreset => 'ファイル名プリセット';
 
   @override
@@ -2990,6 +3008,10 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get spotlightChallengeFailed => 'pixivision は現在、確認またはプロキシを必要としています';
+
+  @override
+  String get spotlightExternalBrowserHint =>
+      'このプラットフォームではアプリ内ブラウザ検証を利用できません。外部ブラウザで開いてください。';
 
   @override
   String get spotlightCategoryAll => 'すべて';

@@ -35,6 +35,7 @@ import '../../core/watchlist/watchlist_store.dart';
 import '../../app/window/desktop_command_bar.dart';
 import '../../l10n/context.dart';
 import '../../app/icons/app_icons.dart';
+import '../../app/icons/ui_icons.dart';
 
 /// One novel series (`/v2/novel/series`): a header with the series' facts
 /// and reading actions, then its novels in series order, each under its
@@ -429,7 +430,7 @@ class _SeriesActions extends ConsumerWidget {
         ? FilledButton.icon(
             key: const ValueKey('novel-series-read'),
             onPressed: () => open(last),
-            icon: const Icon(Icons.play_arrow),
+            icon: const Icon(UiIcons.play),
             label: Text(
               lastOrder == null
                   ? l10n.seriesContinue
@@ -440,7 +441,7 @@ class _SeriesActions extends ConsumerWidget {
         ? FilledButton.icon(
             key: const ValueKey('novel-series-read'),
             onPressed: () => open(first),
-            icon: const Icon(Icons.play_arrow),
+            icon: const Icon(UiIcons.play),
             label: Text(l10n.seriesStartReading),
           )
         : null;

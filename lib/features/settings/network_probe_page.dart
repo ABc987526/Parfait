@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:forui/forui.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
@@ -19,10 +20,12 @@ import '../../core/log.dart';
 import '../../l10n/context.dart';
 import '../../l10n/lookup.dart';
 import 'settings_helpers.dart';
+import '../../app/theme/forui_theme_bridge.dart';
 import '../../app/theme/func_semantic_tokens.dart';
 import '../../app/clipboard.dart';
 import '../../app/layout/content_widths.dart';
 import '../../app/icons/app_icons.dart';
+import '../../app/icons/ui_icons.dart';
 
 String _probeText(BuildContext context, String key) {
   return l10nLookup(context.l10n, key);
@@ -278,7 +281,7 @@ class _NetworkProbePageState extends ConsumerState<NetworkProbePage> {
                       height: 18,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Icon(Icons.play_arrow),
+                  : const Icon(UiIcons.play),
               label: Text(
                 _running
                     ? context.l10n.networkProbeRunning
@@ -492,48 +495,63 @@ class NetworkProbeHostPanel extends StatelessWidget {
                     ),
                   ),
                 ),
-              ExpansionTile(
-                title: Text(context.l10n.networkProbeDetails),
-                tilePadding: EdgeInsets.zero,
-                childrenPadding: EdgeInsets.zero,
-                children: [
-                  if (body.dnsDisagrees)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: FuncSpacing.sm),
-                      child: Text(
-                        context.l10n.networkProbeDnsDiff,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: FuncTokens.networkProbeDnsWarning,
-                        ),
-                      ),
-                    ),
-                  for (final step in body.steps)
-                    Padding(
-                      padding: const EdgeInsets.only(top: FuncSpacing.xxs),
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          _probeStepLine(context, step),
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: step.ok ? null : theme.colorScheme.error,
+              ForuiThemeHost.ensure(
+                context,
+                FAccordion(
+                  children: [
+                    FAccordionItem(
+                      title: Text(context.l10n.networkProbeDetails),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          if (body.dnsDisagrees)
+                            Padding(
+                              padding: const EdgeInsets.only(
+                                bottom: FuncSpacing.sm,
+                              ),
+                              child: Text(
+                                context.l10n.networkProbeDnsDiff,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: FuncTokens.networkProbeDnsWarning,
+                                ),
+                              ),
+                            ),
+                          for (final step in body.steps)
+                            Padding(
+                              padding: const EdgeInsets.only(
+                                top: FuncSpacing.xxs,
+                              ),
+                              child: Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  _probeStepLine(context, step),
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: step.ok
+                                        ? null
+                                        : theme.colorScheme.error,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          const SizedBox(height: FuncSpacing.sm),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton.icon(
+                              onPressed: () => copyToClipboard(
+                                context,
+                                body.toCopyableText(),
+                                message: context.l10n.networkProbeCopied,
+                              ),
+                              icon: const Icon(AppIcons.copy, size: 16),
+                              label: Text(context.l10n.copy),
+                            ),
                           ),
-                        ),
+                        ],
                       ),
                     ),
-                  const SizedBox(height: FuncSpacing.sm),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton.icon(
-                      onPressed: () => copyToClipboard(
-                        context,
-                        body.toCopyableText(),
-                        message: context.l10n.networkProbeCopied,
-                      ),
-                      icon: const Icon(AppIcons.copy, size: 16),
-                      label: Text(context.l10n.copy),
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ],
           ],

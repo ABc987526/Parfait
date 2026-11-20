@@ -1020,6 +1020,24 @@ class AppLocalizationsZh extends AppLocalizations {
   String get saveLocationUriCopied => '已复制目录 URI';
 
   @override
+  String get saveLocationDesktopFolder => '默认文件夹';
+
+  @override
+  String get saveLocationDesktopDefaultFolder => 'Parfait 文件夹（默认）';
+
+  @override
+  String get saveLocationDesktopCustomSubfolder => '自定义子文件夹名称';
+
+  @override
+  String get saveLocationDesktopCustomFolder => '自定义目录（系统目录选择）';
+
+  @override
+  String get saveLocationMacosBookmarkLabel => '已授权目录（macOS 沙盒书签）';
+
+  @override
+  String get saveLocationPathCopied => '已复制目录路径';
+
+  @override
   String get namingPreset => '文件命名预设';
 
   @override
@@ -2963,6 +2981,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get spotlightChallengeFailed => 'pixivision 当前需要验证或代理';
+
+  @override
+  String get spotlightExternalBrowserHint => '当前平台不支持内置浏览器验证，请在系统浏览器中查看。';
 
   @override
   String get spotlightCategoryAll => '全部';

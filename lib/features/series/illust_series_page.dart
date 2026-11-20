@@ -37,6 +37,7 @@ import '../../app/layout/content_widths.dart';
 import '../../app/widgets/feed/load_more_listener.dart';
 import '../../app/window/desktop_command_bar.dart';
 import '../../app/icons/app_icons.dart';
+import '../../app/icons/ui_icons.dart';
 
 /// One illust series: a header (cover/title/author/work count/caption) plus
 /// the paginated episode list (`/v1/illust/series`, newest first). Episodes
@@ -482,7 +483,7 @@ class _SeriesActions extends ConsumerWidget {
         ? FilledButton.icon(
             key: const ValueKey('series-read'),
             onPressed: () => open(recent.illustId),
-            icon: const Icon(Icons.play_arrow),
+            icon: const Icon(UiIcons.play),
             label: Text(
               order == null
                   ? l10n.seriesContinue
@@ -493,7 +494,7 @@ class _SeriesActions extends ConsumerWidget {
         ? FilledButton.icon(
             key: const ValueKey('series-read'),
             onPressed: () => open(first),
-            icon: const Icon(Icons.play_arrow),
+            icon: const Icon(UiIcons.play),
             label: Text(l10n.seriesStartReading),
           )
         : null;

@@ -281,6 +281,18 @@ void main() {
       final cast = tester.widget<LiftableShadow>(
         find.descendant(of: shadow, matching: find.byType(LiftableShadow)),
       );
+      expect(
+        find.descendant(
+          of: shadow,
+          matching: find.byWidgetPredicate(
+            (w) =>
+                w is ColoredBox &&
+                w.color ==
+                    FuncSemanticTokens.of(tester.element(shadow)).brandHairline,
+          ),
+        ),
+        findsOneWidget,
+      );
       // Cast down, over the content under the bar, as the bottom bar's goes up.
       expect(
         cast.shadows.map((s) => s.offset.dy),

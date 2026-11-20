@@ -18,6 +18,7 @@ import '../theme/func_semantic_tokens.dart';
 import 'fit_label.dart';
 import 'settings/persist_settings.dart';
 import '../icons/app_icons.dart';
+import '../icons/ui_icons.dart';
 
 /// What a ranking page puts in its category sheet besides the categories.
 /// Each row closes the sheet before it acts.
@@ -182,7 +183,7 @@ class _RankingCategorySheetState<M extends RankingCategory>
             IconButton(
               tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
               onPressed: () => Navigator.of(context).maybePop(),
-              icon: const Icon(Icons.close),
+              icon: const Icon(UiIcons.close),
             ),
           ],
         ],
@@ -195,7 +196,7 @@ class _RankingCategorySheetState<M extends RankingCategory>
       onPressed: _draft == widget.catalog.defaults
           ? null
           : () => _save(widget.catalog.defaults),
-      icon: const Icon(Icons.restart_alt),
+      icon: const Icon(UiIcons.reset),
       label: Text(l10n.restoreDefault),
     );
     return ConstrainedBox(
@@ -215,6 +216,7 @@ class _RankingCategorySheetState<M extends RankingCategory>
             Flexible(
               child: _SheetBottomScrollFade(
                 child: SingleChildScrollView(
+                  primary: !(_editing && !wide),
                   padding: const EdgeInsets.only(bottom: FuncSpacing.lg),
                   child: SafeArea(
                     top: false,
@@ -285,7 +287,7 @@ class _RankingCategorySheetState<M extends RankingCategory>
           ),
           leading: Icon(page.switchIcon),
           title: Text(page.switchLabel),
-          trailing: const Icon(Icons.chevron_right),
+          trailing: const Icon(UiIcons.chevronRight),
           onTap: () => _closeThen(page.onSwitch),
         ),
         ListTile(
@@ -295,7 +297,7 @@ class _RankingCategorySheetState<M extends RankingCategory>
           leading: const Icon(AppIcons.calendar),
           title: Text(l10n.rankingPickDate),
           subtitle: Text(page.dateLabel),
-          trailing: const Icon(Icons.chevron_right),
+          trailing: const Icon(UiIcons.chevronRight),
           onTap: () => _closeThen(page.onPickDate),
         ),
         _SectionLabel(l10n.rankingMyCategories),
@@ -374,7 +376,7 @@ class _RankingCategorySheetState<M extends RankingCategory>
               label: _label(context, mode),
               tileWidth: size.width,
               blocked: blocked(mode),
-              leadingIcon: Icons.add,
+              leadingIcon: UiIcons.add,
               semanticsHint: l10n.rankingShowCategory,
               onTap: () => _save(draft.show(mode)),
             ),
@@ -830,7 +832,7 @@ class _ShownTile<M extends RankingCategory> extends StatelessWidget {
       label: label,
       tileWidth: size.width,
       blocked: blocked,
-      leadingIcon: onHide == null ? null : Icons.close,
+      leadingIcon: onHide == null ? null : UiIcons.close,
       semanticsHint: onHide == null ? null : l10n.rankingHideCategory,
       onTap: onHide,
     );

@@ -385,11 +385,18 @@ void main() {
         await tester.tap(find.text(modal));
         await tester.pumpAndSettle();
         expect(_opacity(tester, '提示'), 0, reason: modal);
-        // The prompt still sits above in paint order but lets the tap
-        // through to the modal surface, whose scrim closes it.
+        // The prompt still sits above in paint order but lets the tap through:
+        // on the sheet, tapping over the 120dp surface keeps it open while a
+        // scrim tap above closes it; on the centered dialog, `action` itself
+        // sits on the scrim and closes it directly.
         await tester.tapAt(action);
         await tester.pumpAndSettle();
         expect(tapped, isFalse, reason: modal);
+        if (modal == 'sheet') {
+          expect(_opacity(tester, '提示'), 0, reason: modal);
+          await tester.tapAt(const Offset(200, 120));
+          await tester.pumpAndSettle();
+        }
         expect(_opacity(tester, '提示'), 1, reason: modal);
       }
     });

@@ -16,8 +16,9 @@ final _iconButton = RegExp(
   r'(?<![\w.])IconButton(?:\.(?:filled|filledTonal|outlined))?\(',
 );
 
-/// Material filled icons whose outlined twin the app also uses, per file.
-const _filledStates = <String, Set<String>>{};
+/// Raw Material `Icons.*` usages are retired from `lib/` (`THEME-16`): app
+/// chrome uses `AppIcons` (`assets/icon.ttf`) and `UiIcons` (`forui_lucide`).
+final _rawLucide = RegExp(r'(?<![\w.])FLucideIcons\.([a-zA-Z0-9_]+)');
 
 /// Custom [AppIcons] `*Filled` glyphs whose outlined twin the app also uses,
 /// per file: each marks a toggle/task status or an active navigation selection.
@@ -72,7 +73,8 @@ Map<String, String> _sources() => {
   for (final file in Directory('lib').listSync(recursive: true))
     if (file is File &&
         file.path.endsWith('.dart') &&
-        file.path != 'lib/app/icons/app_icons.dart')
+        file.path != 'lib/app/icons/app_icons.dart' &&
+        file.path != 'lib/app/icons/ui_icons.dart')
       file.path: file.readAsStringSync().replaceAll(_comment, ''),
 };
 
@@ -98,25 +100,21 @@ String _topLevelArguments(String src, int start) {
 void main() {
   test('a filled icon with an outlined twin marks a state', () {
     final sources = _sources();
-    final used = {
-      for (final src in sources.values)
-        for (final match in _icon.allMatches(src)) match[1]!,
-    };
-    final filled = <String, Set<String>>{};
+    final rawIcons = <String, Set<String>>{};
     sources.forEach((file, src) {
       for (final match in _icon.allMatches(src)) {
-        final name = match[1]!;
-        if (used.contains('${name}_outlined')) {
-          (filled[file] ??= {}).add(name);
-        }
+        (rawIcons[file] ??= {}).add('Icons.${match[1]}');
+      }
+      for (final match in _rawLucide.allMatches(src)) {
+        (rawIcons[file] ??= {}).add('FLucideIcons.${match[1]}');
       }
     });
     expect(
-      filled,
-      _filledStates,
+      rawIcons,
+      isEmpty,
       reason:
-          'THEME-16 an action uses the outlined icon — the filled one '
-          'marks a state; pin a new state here with what it marks',
+          'THEME-16 app UI uses AppIcons or UiIcons (no raw Material Icons.* '
+          'or unbridged FLucideIcons.* outside lib/app/icons/)',
     );
 
     final usedApp = {

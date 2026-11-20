@@ -17,6 +17,7 @@ import 'card_action.dart';
 import 'illust_card_actions.dart';
 import 'ios_card_context_menu.dart';
 import '../../icons/app_icons.dart';
+import '../../icons/ui_icons.dart';
 
 /// The card's secondary click on a pointer: the registered [CardAction]s as a
 /// context menu beside the pointer (R11). On touch or stylus the same call
@@ -89,9 +90,10 @@ Future<void> showCardActionSheet(BuildContext context, IllustEntity entity) {
             label: entity.title,
             child: ListView(
               shrinkWrap: true,
-              // Scrolls only when it overflows; otherwise a drag on the
-              // actions moves the sheet (see showAppBottomSheet).
-              primary: false,
+              // Scrolls only when it overflows; compact sheets attach to
+              // smooth_sheets' PrimaryScrollController so scrolling back to top
+              // drags the sheet closed cleanly.
+              primary: !wide,
               physics: const ClampingScrollPhysics(),
               children: [
                 _SheetHeader(
@@ -209,7 +211,7 @@ class _SheetHeader extends ConsumerWidget {
             IconButton(
               tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
               onPressed: onClose,
-              icon: const Icon(Icons.close),
+              icon: const Icon(UiIcons.close),
             ),
           ],
         ],

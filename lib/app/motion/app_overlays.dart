@@ -4,15 +4,17 @@ import 'dart:ui' as ui show DisplayFeatureState, DisplayFeatureType;
 import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/gestures.dart' show HitTestResult, PointerUpEvent;
 import 'package:material_ui/material_ui.dart';
+import 'package:smooth_sheets/smooth_sheets.dart';
 
 import '../../core/debug/frame_probe.dart';
 import '../layout/app_breakpoints.dart';
 import '../layout/form_factor.dart';
 import '../layout/input_modality.dart';
 import '../theme/func_semantic_tokens.dart';
+import '../widgets/app_date_picker.dart';
 import '../widgets/prompt_host.dart';
 import '../window/desktop_command_bar.dart'
-    show DesktopCommandBarScope, kDesktopCommandBarHeight;
+    show DesktopCommandBarScope, desktopCommandBarHeightFor;
 import '../window/desktop_title_bar.dart' show DesktopChromeMetrics;
 import 'motion_tokens.dart';
 
@@ -49,20 +51,111 @@ Widget _clampingScroll(BuildContext context, Widget child) =>
       child: child,
     );
 
+Widget _transparentSheetDecoration(BuildContext _, Widget child) =>
+    Material(type: MaterialType.transparency, child: child);
+
+/// Shared modal bottom sheet surface powered by `smooth_sheets`' [Sheet].
+class AppBottomSheet extends StatelessWidget {
+  const AppBottomSheet({
+    super.key,
+    required this.builder,
+    this.backgroundColor,
+    this.isScrollControlled = false,
+    this.showDragHandle = false,
+  });
+
+  final WidgetBuilder builder;
+  final Color? backgroundColor;
+  final bool isScrollControlled;
+  final bool showDragHandle;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final sheetTheme = theme.bottomSheetTheme;
+    final resolvedBg =
+        backgroundColor ??
+        sheetTheme.modalBackgroundColor ??
+        sheetTheme.backgroundColor ??
+        theme.colorScheme.surfaceContainer;
+    final decoration = resolvedBg.a == 0
+        ? const SheetDecorationBuilder(
+            size: SheetSize.fit,
+            builder: _transparentSheetDecoration,
+          )
+        : MaterialSheetDecoration(
+            size: SheetSize.fit,
+            color: resolvedBg,
+            shadowColor: sheetTheme.shadowColor ?? theme.colorScheme.shadow,
+            elevation: sheetTheme.modalElevation ?? 6,
+            shape:
+                sheetTheme.shape ??
+                RoundedRectangleBorder(
+                  borderRadius: FuncShape.sheet,
+                  side: _overlayBorder(context),
+                ),
+            clipBehavior: Clip.antiAlias,
+          );
+
+    Widget content = _clampingScroll(context, builder(context));
+    if (showDragHandle) {
+      final handleColor =
+          sheetTheme.dragHandleColor ??
+          theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.4);
+      content = Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(
+              top: FuncSpacing.md,
+              bottom: FuncSpacing.xs,
+            ),
+            child: Center(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: handleColor,
+                  borderRadius: FuncShape.pill,
+                ),
+                child: const SizedBox(width: 32, height: 4),
+              ),
+            ),
+          ),
+          Flexible(child: content),
+        ],
+      );
+    }
+    if (!isScrollControlled) {
+      content = ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(context).height * 9 / 16,
+        ),
+        child: content,
+      );
+    }
+
+    return Sheet(
+      initialOffset: const SheetOffset(1),
+      snapGrid: const SheetSnapGrid.single(snap: SheetOffset(1)),
+      scrollConfiguration: const SheetScrollConfiguration(
+        scrollSyncMode: SheetScrollHandlingBehavior.always,
+      ),
+      physics: MotionTokens.enabled(context)
+          ? const BouncingSheetPhysics(bounceExtent: 48, resistance: 6)
+          : const ClampingSheetPhysics(),
+      decoration: decoration,
+      child: content,
+    );
+  }
+}
+
 /// App-wide modal bottom sheet entry: one presentation spring and one
 /// reduced-motion gate for every sheet. Under reduced motion the sheet
-/// snaps open via [AnimationStyle.noAnimation] — the state change still
-/// lands, only the slide is removed.
+/// snaps open with [ClampingSheetPhysics] and zero duration — the state change
+/// still lands, only the slide and bounce are removed.
 ///
 /// The scrim closes the sheet when a touch outside it is released there —
 /// a drag counts, not just a tap (see [_ReleaseDismissBarrier]).
-///
-/// Content scrolls clamped, and only when it overflows. The app-wide
-/// bouncing, always-scrollable physics took every vertical drag: the
-/// content rubber-banded inside a panel that never moved, and the sheet
-/// could not be dragged closed. With nothing to scroll, the drag reaches
-/// the sheet. A vertical `ListView` forces always-scrollable physics on
-/// its own — sheet content passes `primary: false` to it.
 Future<T?> showAppBottomSheet<T>({
   required BuildContext context,
   required WidgetBuilder builder,
@@ -72,12 +165,18 @@ Future<T?> showAppBottomSheet<T>({
   bool showDragHandle = false,
   bool useRootNavigator = false,
 }) {
-  // Mirrors showModalBottomSheet's own route construction.
   final navigator = Navigator.of(context, rootNavigator: useRootNavigator);
   final localizations = MaterialLocalizations.of(context);
+  final (enterDuration, enterCurve) = MotionTokens.springCurve(
+    context,
+    MotionSpring.spatialDefault,
+  );
+  final exitDuration = enterDuration == Duration.zero
+      ? Duration.zero
+      : MotionTokens.resolve(context, MotionTokens.sheetExit);
   return navigator.push(
     _AppBottomSheetRoute<T>(
-      builder: (context) => _clampingScroll(context, builder(context)),
+      builder: builder,
       capturedThemes: InheritedTheme.capture(
         from: context,
         to: navigator.context,
@@ -91,7 +190,9 @@ Future<T?> showAppBottomSheet<T>({
       modalBarrierColor: Theme.of(context).bottomSheetTheme.modalBarrierColor,
       showDragHandle: showDragHandle,
       useSafeArea: useSafeArea,
-      sheetAnimationStyle: _sheetAnimationStyle(context),
+      enterDuration: enterDuration,
+      exitDuration: exitDuration,
+      enterCurve: enterCurve,
     ),
   );
 }
@@ -142,15 +243,15 @@ double _desktopCommandBarTopClearance(
   final overlayTop = overlayRo is RenderBox && overlayRo.hasSize
       ? overlayRo.localToGlobal(Offset.zero).dy
       : 0.0;
-  return math.max(0.0, kDesktopCommandBarHeight - overlayTop);
+  return math.max(0.0, desktopCommandBarHeightFor(chrome) - overlayTop);
 }
 
-BorderSide _darkOverlayBorder(BuildContext context) {
+BorderSide _overlayBorder(BuildContext context) {
   final theme = Theme.of(context);
-  if (theme.brightness != Brightness.dark) return BorderSide.none;
-  return BorderSide(
-    color: theme.colorScheme.outlineVariant.withValues(alpha: 0.45),
-  );
+  final hairline =
+      theme.extension<FuncSemanticTokens>()?.brandHairline ??
+      theme.colorScheme.outlineVariant;
+  return BorderSide(color: hairline);
 }
 
 Widget _withTopClearance(double topClearance, Widget child) => topClearance > 0
@@ -236,7 +337,7 @@ Future<T?> showAppAdaptiveDialog<T>({
                   elevation: 6,
                   shape: RoundedRectangleBorder(
                     borderRadius: FuncShape.dialog,
-                    side: _darkOverlayBorder(routeContext),
+                    side: _overlayBorder(routeContext),
                   ),
                   clipBehavior: Clip.antiAlias,
                   child: MediaQuery.removePadding(
@@ -266,6 +367,25 @@ Future<T?> showAppAdaptiveDialog<T>({
               duration: MotionTokens.resolve(context, MotionTokens.dialog),
             )
           : AnimationStyle.noAnimation,
+    ),
+  );
+}
+
+/// Adaptive Forui calendar date picker rendered in an adaptive dialog/sheet
+/// through [showAppAdaptiveDialog] so desktop, tablet and phone share one look.
+Future<DateTime?> showAppDatePicker({
+  required BuildContext context,
+  required DateTime firstDate,
+  required DateTime lastDate,
+  required DateTime initialDate,
+}) {
+  return showAppAdaptiveDialog<DateTime>(
+    context: context,
+    maxWidth: 400,
+    builder: (_) => AppDatePickerDialog(
+      firstDate: firstDate,
+      lastDate: lastDate,
+      initialDate: initialDate,
     ),
   );
 }
@@ -342,7 +462,7 @@ Future<T?> showAppAdaptivePopover<T>({
         elevation: 6,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: _darkOverlayBorder(routeContext),
+          side: _overlayBorder(routeContext),
         ),
         clipBehavior: Clip.antiAlias,
         child: MediaQuery.removePadding(
@@ -436,7 +556,7 @@ Future<T?> showAppAdaptiveSideSheet<T>({
                   borderRadius: BorderRadiusDirectional.horizontal(
                     start: FuncShape.sheet.topLeft,
                   ),
-                  side: _darkOverlayBorder(routeContext),
+                  side: _overlayBorder(routeContext),
                 ),
                 clipBehavior: Clip.antiAlias,
                 child: MediaQuery.removePadding(
@@ -461,21 +581,6 @@ Future<T?> showAppAdaptiveSideSheet<T>({
       reverseDuration: MotionTokens.resolve(context, MotionTokens.sheetExit),
       curve: curve,
     ),
-  );
-}
-
-/// Opens on the [MotionSpring.spatialDefault] spring; closes over Material's
-/// 200 ms exit, which the reversed spring curve accelerates away.
-AnimationStyle _sheetAnimationStyle(BuildContext context) {
-  final (duration, curve) = MotionTokens.springCurve(
-    context,
-    MotionSpring.spatialDefault,
-  );
-  if (duration == Duration.zero) return AnimationStyle.noAnimation;
-  return AnimationStyle(
-    duration: duration,
-    curve: curve,
-    reverseDuration: MotionTokens.resolve(context, MotionTokens.sheetExit),
   );
 }
 
@@ -676,19 +781,86 @@ class _AppDialogRoute<T> extends DialogRoute<T> {
   );
 }
 
-class _AppBottomSheetRoute<T> extends ModalBottomSheetRoute<T> {
+class _AppBottomSheetRoute<T> extends PopupRoute<T>
+    with ModalSheetRouteMixin<T> {
   _AppBottomSheetRoute({
-    required super.builder,
-    super.capturedThemes,
-    super.barrierLabel,
-    super.barrierOnTapHint,
-    super.backgroundColor,
-    super.modalBarrierColor,
-    super.showDragHandle,
-    required super.isScrollControlled,
-    super.useSafeArea,
-    super.sheetAnimationStyle,
-  });
+    required this.builder,
+    required this.capturedThemes,
+    required String? barrierLabel,
+    this.barrierOnTapHint,
+    this.backgroundColor,
+    this.modalBarrierColor,
+    required this.showDragHandle,
+    required this.isScrollControlled,
+    required this.useSafeArea,
+    required this.enterDuration,
+    required this.exitDuration,
+    required this.enterCurve,
+  }) : _barrierLabel = barrierLabel;
+
+  final WidgetBuilder builder;
+  final CapturedThemes capturedThemes;
+  final String? _barrierLabel;
+  final String? barrierOnTapHint;
+  final Color? backgroundColor;
+  final Color? modalBarrierColor;
+  final bool showDragHandle;
+  final bool isScrollControlled;
+  final bool useSafeArea;
+  final Duration enterDuration;
+  final Duration exitDuration;
+  final Curve enterCurve;
+
+  @override
+  Duration get transitionDuration => enterDuration;
+
+  @override
+  Duration get reverseTransitionDuration => exitDuration;
+
+  @override
+  Curve get transitionCurve =>
+      enterDuration == Duration.zero ? Curves.linear : enterCurve;
+
+  @override
+  bool get barrierDismissible => true;
+
+  @override
+  Color get barrierColor => modalBarrierColor ?? Colors.black54;
+
+  @override
+  String? get barrierLabel => _barrierLabel;
+
+  @override
+  bool get swipeDismissible => true;
+
+  @override
+  SwipeDismissSensitivity get swipeDismissSensitivity =>
+      const SwipeDismissSensitivity(
+        minFlingVelocityRatio: 1.5,
+        dismissalOffset: SheetOffset(0.5),
+      );
+
+  @override
+  ModalSheetBarrierBuilder<T>? get barrierBuilder => null;
+
+  @override
+  Widget buildViewport(BuildContext context, Widget child) {
+    final topInset = useSafeArea ? MediaQuery.viewPaddingOf(context).top : 0.0;
+    return capturedThemes.wrap(
+      SheetViewport(
+        padding: EdgeInsets.only(top: topInset),
+        child: child,
+      ),
+    );
+  }
+
+  @override
+  Widget buildSheet(BuildContext context) => AppBottomSheet(
+    builder: builder,
+    backgroundColor: backgroundColor,
+    isScrollControlled: isScrollControlled,
+    showDragHandle: showDragHandle,
+  );
 
   @override
   Widget buildModalBarrier() => PromptCover(
@@ -713,7 +885,9 @@ class _ReleaseDismissBarrier extends StatelessWidget {
   final String? onTapHint;
 
   void _dismiss() {
-    if (route.isCurrent) route.navigator?.maybePop();
+    if (route.isCurrent && !(route.navigator?.userGestureInProgress ?? false)) {
+      route.navigator?.maybePop();
+    }
   }
 
   /// Whether the release landed on the scrim itself. Outside the route's

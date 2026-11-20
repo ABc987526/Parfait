@@ -2,7 +2,7 @@ import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/semantics.dart' show SemanticsAction;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:leak_tracker_flutter_testing/leak_tracker_flutter_testing.dart';
+import 'package:smooth_sheets/smooth_sheets.dart';
 
 import 'package:parfait/app/layout/input_modality.dart';
 import 'package:parfait/app/motion/app_overlays.dart';
@@ -62,11 +62,6 @@ Future<void> _openSheet(BuildContext context) => showAppBottomSheet<void>(
 );
 
 void main() {
-  // Flutter's modal bottom sheet makes a CurvedAnimation on every drag end
-  // and never disposes it.
-  LeakTesting.settings = LeakTesting.settings.withIgnored(
-    notDisposed: {'CurvedAnimation': null},
-  );
   for (final (kind, open) in [
     ('dialog', (BuildContext c) => _openDialog(c)),
     ('sheet', _openSheet),
@@ -379,7 +374,7 @@ void main() {
           kind: PointerDeviceKind.mouse,
         );
         await tester.pumpAndSettle();
-        expect(find.byType(BottomSheet), findsNothing);
+        expect(find.byType(AppBottomSheet), findsNothing);
         final dialogRect = tester.getRect(
           find
               .ancestor(
@@ -493,7 +488,7 @@ void main() {
 
         await tester.tap(find.text('open-dialog'));
         await tester.pumpAndSettle();
-        expect(find.byType(BottomSheet), findsNothing);
+        expect(find.byType(AppBottomSheet), findsNothing);
         final dialogRect = tester.getRect(
           find
               .ancestor(
@@ -509,7 +504,7 @@ void main() {
 
         await tester.tap(find.text('open-popover'));
         await tester.pumpAndSettle();
-        expect(find.byType(BottomSheet), findsNothing);
+        expect(find.byType(AppBottomSheet), findsNothing);
         final popDialogRect = tester.getRect(
           find
               .ancestor(
@@ -524,7 +519,7 @@ void main() {
 
         await tester.tap(find.text('open-side'));
         await tester.pumpAndSettle();
-        expect(find.byType(BottomSheet), findsNothing);
+        expect(find.byType(AppBottomSheet), findsNothing);
         final sideRect = tester.getRect(
           find
               .ancestor(
@@ -535,6 +530,107 @@ void main() {
         );
         expect(sideRect.width, closeTo(380, 0.1));
         expect(sideRect.right, closeTo(tablet.width, 0.1));
+      },
+    );
+
+    testWidgets(
+      'smooth_sheets handles scroll handoff, bounce, reduced motion, 9/16 cap, drag handle and transparent cards',
+      (tester) async {
+        setViewSize(tester, _page);
+        Future<void> pumpSheetHost({
+          required Widget child,
+          bool isScrollControlled = false,
+          bool showDragHandle = false,
+          Color? backgroundColor,
+          bool disableAnimations = false,
+        }) => tester.pumpWidget(
+          MediaQuery(
+            data: MediaQueryData(
+              size: _page,
+              disableAnimations: disableAnimations,
+            ),
+            child: MaterialApp(
+              scrollBehavior: const FuncScrollBehavior(),
+              home: Builder(
+                builder: (context) => TextButton(
+                  onPressed: () => showAppBottomSheet<void>(
+                    context: context,
+                    isScrollControlled: isScrollControlled,
+                    showDragHandle: showDragHandle,
+                    backgroundColor: backgroundColor,
+                    builder: (_) => child,
+                  ),
+                  child: const Text('open-s4'),
+                ),
+              ),
+            ),
+          ),
+        );
+
+        // Overflowing scroll -> return to top -> downward drag closes sheet.
+        await pumpSheetHost(
+          isScrollControlled: false,
+          showDragHandle: true,
+          child: ListView.builder(
+            itemCount: 30,
+            itemBuilder: (_, i) => ListTile(title: Text('item $i')),
+          ),
+        );
+        await tester.tap(find.text('open-s4'));
+        await tester.pumpAndSettle();
+        final sheetRect = tester.getRect(find.byType(AppBottomSheet));
+        expect(sheetRect.height, lessThanOrEqualTo(_page.height * 9 / 16 + 1));
+        expect(
+          tester.widget<Sheet>(find.byType(Sheet)).physics,
+          isA<BouncingSheetPhysics>(),
+        );
+        expect(
+          find.descendant(
+            of: find.byType(AppBottomSheet),
+            matching: find.byWidgetPredicate(
+              (w) => w is SizedBox && w.width == 32 && w.height == 4,
+            ),
+          ),
+          findsOneWidget,
+        );
+
+        // Upward overdrag settles open; scrolling down and back to top then dragging closes.
+        await tester.drag(find.text('item 1'), const Offset(0, -180));
+        await tester.pumpAndSettle();
+        expect(find.byType(AppBottomSheet), findsOneWidget);
+        await tester.drag(find.text('item 4'), const Offset(0, 600));
+        await tester.pumpAndSettle();
+        if (find.byType(AppBottomSheet).evaluate().isNotEmpty) {
+          await tester.drag(find.text('item 1'), const Offset(0, 350));
+          await tester.pumpAndSettle();
+        }
+        expect(find.byType(AppBottomSheet), findsNothing);
+
+        // Reduced motion uses ClampingSheetPhysics & zero-duration snap; transparent skips Material.
+        await pumpSheetHost(
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          disableAnimations: true,
+          child: const SizedBox(height: 160, child: Text('clear-card')),
+        );
+        await tester.tap(find.text('open-s4'));
+        await tester.pump();
+        expect(find.text('clear-card'), findsOneWidget);
+        expect(
+          tester.widget<Sheet>(find.byType(Sheet)).physics,
+          isA<ClampingSheetPhysics>(),
+        );
+        expect(
+          tester
+              .widget<Material>(
+                find.descendant(
+                  of: find.byType(AppBottomSheet),
+                  matching: find.byType(Material),
+                ),
+              )
+              .type,
+          MaterialType.transparency,
+        );
       },
     );
   });

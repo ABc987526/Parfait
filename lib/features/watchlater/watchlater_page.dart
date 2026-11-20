@@ -26,6 +26,7 @@ import '../../core/watchlater/watch_later_store.dart';
 import '../../l10n/context.dart';
 import '../../app/theme/func_semantic_tokens.dart';
 import '../../app/icons/app_icons.dart';
+import '../../app/icons/ui_icons.dart';
 
 /// Local watch-later list: stashed illusts render straight from the stored
 /// payload — no network. Long-pressing a card offers "remove" through the
@@ -207,12 +208,12 @@ class _WatchLaterPageState extends ConsumerState<WatchLaterPage> {
                   IconButton(
                     tooltip: l10n.selectAll,
                     onPressed: () => _selectAll(list),
-                    icon: const Icon(Icons.select_all),
+                    icon: const Icon(UiIcons.selectAll),
                   ),
                   IconButton(
                     tooltip: l10n.cardActionRemoveWatchLater,
                     onPressed: _selected.isEmpty ? null : _removeSelected,
-                    icon: const Icon(Icons.remove_circle_outline),
+                    icon: const Icon(UiIcons.removeCircle),
                   ),
                 ],
               )

@@ -12,6 +12,7 @@ import '../motion/spring_size.dart';
 import '../motion/state_fade.dart';
 import '../theme/func_semantic_tokens.dart';
 import '../icons/app_icons.dart';
+import '../icons/ui_icons.dart';
 
 /// Inline translation for the State that shows the original text: idle →
 /// translating → translations or a failure, shown below the original by a
@@ -225,7 +226,11 @@ class _TranslationFailure extends StatelessWidget {
                   size: _iconSize,
                   color: scheme.onSurfaceVariant,
                 )
-              : Icon(Icons.error_outline, size: _iconSize, color: scheme.error),
+              : Icon(
+                  UiIcons.errorOutline,
+                  size: _iconSize,
+                  color: scheme.error,
+                ),
           const SizedBox(width: FuncSpacing.sm),
           Expanded(
             child: Text(

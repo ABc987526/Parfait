@@ -9,6 +9,7 @@ import '../../app/motion/app_overlays.dart';
 import '../../app/motion/reveal.dart';
 import '../../app/person_avatar.dart';
 import '../../app/pixiv_image.dart';
+import '../../app/widgets/app_dialog.dart';
 import '../../app/widgets/app_top_bar.dart';
 import '../../app/widgets/feed/feed_states.dart';
 import '../../app/window/desktop_command_bar.dart';
@@ -27,6 +28,7 @@ import '../../l10n/context.dart';
 import '../../l10n/lookup.dart';
 import '../../app/theme/func_semantic_tokens.dart';
 import '../../app/icons/app_icons.dart';
+import '../../app/icons/ui_icons.dart';
 
 String _profileEditText(BuildContext context, String key) {
   return l10nLookup(context.l10n, key);
@@ -160,7 +162,7 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
     );
     final leave = await showAppDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (context) => AppAlertDialog(
         title: Text(context.l10n.profileEditLeaveTitle),
         content: Text(context.l10n.profileEditLeaveDetail),
         actions: [
@@ -418,7 +420,7 @@ class _ProfileEditBodyState extends ConsumerState<_ProfileEditBody> {
           Reveal(
             child: switch (state.failure) {
               final failure? => _Notice(
-                icon: Icons.error_outline,
+                icon: UiIcons.errorOutline,
                 text: failure.message,
               ),
               null => null,
@@ -427,7 +429,7 @@ class _ProfileEditBodyState extends ConsumerState<_ProfileEditBody> {
           Reveal(
             child: state.status == ProfileEditStatus.confirmed
                 ? _Notice(
-                    icon: Icons.check_circle_outline,
+                    icon: UiIcons.checkCircle,
                     text: context.l10n.profileEditConfirmed,
                   )
                 : null,

@@ -92,6 +92,10 @@ private enum IosHapticsBridge {
 }
 
 private enum IosPhotosBridge {
+  private static let albumQueue = DispatchQueue(
+    label: "com.parfait.ios_photos.album"
+  )
+
   static func register(with messenger: FlutterBinaryMessenger) {
     let channel = FlutterMethodChannel(
       name: "parfait/ios_photos",
@@ -114,10 +118,14 @@ private enum IosPhotosBridge {
       }
       let mimeType = (args["mimeType"] as? String) ?? "image/jpeg"
       let displayName = args["displayName"] as? String
+      let rawAlbum = (args["album"] as? String)?
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+      let album = (rawAlbum?.isEmpty == false) ? rawAlbum : nil
       saveToPhotoLibrary(
         path: path,
         mimeType: mimeType,
         displayName: displayName,
+        album: album,
         result: result
       )
     }
@@ -127,6 +135,7 @@ private enum IosPhotosBridge {
     path: String,
     mimeType: String,
     displayName: String?,
+    album: String?,
     result: @escaping FlutterResult
   ) {
     let fileURL = URL(fileURLWithPath: path)
@@ -139,50 +148,97 @@ private enum IosPhotosBridge {
       return
     }
 
-    ensureAddAuthorization { authorized in
+    ensureAuthorization(requiresAlbumWrite: album != nil) { authorized in
       guard authorized else {
         result(FlutterError(
           code: "ios_photo_permission_denied",
-          message: "Photo Library add-only permission was denied",
+          message: album != nil
+            ? "Photo Library read-write permission was denied"
+            : "Photo Library add-only permission was denied",
           details: nil
         ))
         return
       }
 
-      var createdLocalIdentifier: String?
-      PHPhotoLibrary.shared().performChanges({
-        let options = PHAssetResourceCreationOptions()
-        if let displayName, !displayName.isEmpty {
-          options.originalFilename = displayName
-        }
-        let request = PHAssetCreationRequest.forAsset()
-        let resourceType: PHAssetResourceType =
-          mimeType.hasPrefix("video/") ? .video : .photo
-        request.addResource(with: resourceType, fileURL: fileURL, options: options)
-        createdLocalIdentifier = request.placeholderForCreatedAsset?.localIdentifier
-      }) { success, error in
-        DispatchQueue.main.async {
-          if success, let localId = createdLocalIdentifier, !localId.isEmpty {
-            result("ph:///\(localId)")
-          } else {
-            result(FlutterError(
-              code: "ios_photo_save_failed",
-              message: error?.localizedDescription ?? "Failed to save asset to Photo Library",
-              details: nil
-            ))
+      albumQueue.async {
+        var createdLocalIdentifier: String?
+        let semaphore = DispatchSemaphore(value: 0)
+        PHPhotoLibrary.shared().performChanges({
+          let options = PHAssetResourceCreationOptions()
+          if let displayName, !displayName.isEmpty {
+            options.originalFilename = displayName
+          }
+          let request = PHAssetCreationRequest.forAsset()
+          let resourceType: PHAssetResourceType =
+            mimeType.hasPrefix("video/") ? .video : .photo
+          request.addResource(
+            with: resourceType,
+            fileURL: fileURL,
+            options: options
+          )
+          let placeholder = request.placeholderForCreatedAsset
+          createdLocalIdentifier = placeholder?.localIdentifier
+          if let album, let placeholder {
+            if let existing = findAlbum(named: album),
+               let albumRequest = PHAssetCollectionChangeRequest(for: existing) {
+              albumRequest.addAssets([placeholder] as NSArray)
+            } else {
+              let albumRequest =
+                PHAssetCollectionChangeRequest.creationRequestForAssetCollection(
+                  withTitle: album
+                )
+              albumRequest.addAssets([placeholder] as NSArray)
+            }
+          }
+        }) { success, error in
+          semaphore.signal()
+          DispatchQueue.main.async {
+            if success, let localId = createdLocalIdentifier, !localId.isEmpty {
+              result("ph:///\(localId)")
+            } else {
+              result(FlutterError(
+                code: "ios_photo_save_failed",
+                message: error?.localizedDescription
+                  ?? "Failed to save asset to Photo Library",
+                details: nil
+              ))
+            }
           }
         }
+        semaphore.wait()
       }
     }
   }
 
-  private static func ensureAddAuthorization(completion: @escaping (Bool) -> Void) {
-    let current = PHPhotoLibrary.authorizationStatus(for: .addOnly)
+  private static func findAlbum(named title: String) -> PHAssetCollection? {
+    let options = PHFetchOptions()
+    options.predicate = NSPredicate(format: "title = %@", title)
+    let collections = PHAssetCollection.fetchAssetCollections(
+      with: .album,
+      subtype: .albumRegular,
+      options: options
+    )
+    var found: PHAssetCollection?
+    collections.enumerateObjects { collection, _, stop in
+      if collection.canPerform(.addContent) {
+        found = collection
+        stop.pointee = true
+      }
+    }
+    return found
+  }
+
+  private static func ensureAuthorization(
+    requiresAlbumWrite: Bool,
+    completion: @escaping (Bool) -> Void
+  ) {
+    let accessLevel: PHAccessLevel = requiresAlbumWrite ? .readWrite : .addOnly
+    let current = PHPhotoLibrary.authorizationStatus(for: accessLevel)
     switch current {
     case .authorized, .limited:
       completion(true)
     case .notDetermined:
-      PHPhotoLibrary.requestAuthorization(for: .addOnly) { status in
+      PHPhotoLibrary.requestAuthorization(for: accessLevel) { status in
         DispatchQueue.main.async {
           completion(status == .authorized || status == .limited)
         }

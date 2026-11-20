@@ -124,6 +124,7 @@ class FuncBottomNav extends StatelessWidget {
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: navTheme.backgroundColor ?? colors.surface,
+          border: Border(top: BorderSide(color: tokens.brandHairline)),
           boxShadow: tokens.barShadow,
         ),
         child: Material(
@@ -633,7 +634,10 @@ class _BranchRootScaffoldState extends ConsumerState<BranchRootScaffold>
 
   /// Popped routes still animating out over the root: a popup does not
   /// drive [_cover], and the root is current again from the pop's start.
-  final _leaving = <Animation<double>>{};
+  /// Tracked by route so entries whose controller never reaches `dismissed`
+  /// (removed or disposed mid-exit) are pruned cleanly instead of locking
+  /// [_covered] true forever.
+  final _leaving = <TransitionRoute<dynamic>, Animation<double>>{};
   bool _covered = false;
   bool _syncScheduled = false;
 
@@ -655,10 +659,21 @@ class _BranchRootScaffoldState extends ConsumerState<BranchRootScaffold>
   void _unsubscribe() {
     if (_observer != null && _route != null) _observer!.unsubscribe(this);
     _cover?.removeStatusListener(_onCoverStatus);
-    for (final leaving in _leaving) {
+    for (final leaving in _leaving.values) {
       leaving.removeStatusListener(_onLeavingStatus);
     }
     _leaving.clear();
+  }
+
+  void _pruneLeaving() {
+    _leaving.removeWhere((route, animation) {
+      final gone =
+          animation.isDismissed ||
+          (!route.isActive && route.overlayEntries.isEmpty);
+      if (!gone) return false;
+      animation.removeStatusListener(_onLeavingStatus);
+      return true;
+    });
   }
 
   /// Fires once on subscribe. A branch stack built in one go — a deep-link
@@ -669,27 +684,32 @@ class _BranchRootScaffoldState extends ConsumerState<BranchRootScaffold>
 
   /// RouteObserver notifies at push and pop start.
   @override
-  void didPushNext() => _scheduleSync();
+  void didPushNext() {
+    _pruneLeaving();
+    _scheduleSync();
+  }
 
   @override
   void didPopNext() {
+    _pruneLeaving();
     final observer = _observer;
     final popping = observer is ExitAwareRouteObserver
         ? observer.popping
         : null;
-    final leaving = popping is TransitionRoute ? popping.animation : null;
-    if (leaving != null && !leaving.isDismissed && _leaving.add(leaving)) {
-      leaving.addStatusListener(_onLeavingStatus);
+    if (popping is TransitionRoute) {
+      final leaving = popping.animation;
+      if (leaving != null &&
+          !leaving.isDismissed &&
+          !_leaving.containsKey(popping)) {
+        _leaving[popping] = leaving;
+        leaving.addStatusListener(_onLeavingStatus);
+      }
     }
     _scheduleSync();
   }
 
   void _onLeavingStatus(AnimationStatus status) {
-    _leaving.removeWhere((leaving) {
-      if (!leaving.isDismissed) return false;
-      leaving.removeStatusListener(_onLeavingStatus);
-      return true;
-    });
+    _pruneLeaving();
     _scheduleSync();
   }
 
@@ -716,6 +736,7 @@ class _BranchRootScaffoldState extends ConsumerState<BranchRootScaffold>
 
   void _sync() {
     if (!mounted) return;
+    _pruneLeaving();
     final route = _route;
     final covered =
         route != null &&

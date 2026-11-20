@@ -4,6 +4,7 @@ import '../../l10n/context.dart';
 import '../navigation/routes.dart';
 import '../theme/func_semantic_tokens.dart';
 import 'author_summary.dart';
+import '../icons/ui_icons.dart';
 
 /// An inline byline: the avatar and name, then a chevron that says the row
 /// opens the author's profile. The whole row is one target at least 48dp
@@ -54,7 +55,7 @@ class AuthorRow extends StatelessWidget {
                 ),
               ),
               Icon(
-                Icons.chevron_right,
+                UiIcons.chevronRight,
                 size: _chevronSize,
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),

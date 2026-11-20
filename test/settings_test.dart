@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:parfait/app/haptics/haptics_driver.dart';
+import 'package:parfait/app/widgets/settings/settings_control.dart';
 import 'package:parfait/core/auth/account.dart';
 import 'package:parfait/core/auth/account_store.dart';
 import 'package:parfait/core/auth/account_transfer.dart';
@@ -207,8 +208,10 @@ void main() {
       );
     }
 
-    SwitchListTile followSwitch(WidgetTester tester) => tester
-        .widget<SwitchListTile>(find.widgetWithText(SwitchListTile, '跟随系统取色'));
+    SettingsControl followSwitch(WidgetTester tester) =>
+        tester.widget<SettingsControl>(
+          find.widgetWithText(SettingsControl, '跟随系统取色'),
+        );
 
     testWidgets('a system palette enables the switch and it persists', (
       tester,

@@ -18,7 +18,6 @@ import '../navigation/func_page.dart' show FuncPage;
 import '../navigation/home_shell_metrics.dart';
 import '../navigation/route_animation.dart';
 import '../theme/func_semantic_tokens.dart';
-import '../theme/func_tokens.dart';
 import '../widgets/app_snack_bar.dart';
 import '../widgets/app_top_bar.dart';
 import 'hero_rect_clip.dart';
@@ -95,20 +94,8 @@ class IllustHeroCardFrame extends StatelessWidget {
   final bool topSquare;
 
   @override
-  Widget build(BuildContext context) {
-    final clipped = ClipRRect(borderRadius: FuncShape.card, child: child);
-    if (Theme.of(context).brightness == Brightness.dark) return clipped;
-    return DecoratedBox(
-      position: DecorationPosition.foreground,
-      decoration: const BoxDecoration(
-        borderRadius: FuncShape.card,
-        border: Border.fromBorderSide(
-          BorderSide(color: FuncTokens.cocoaHairline),
-        ),
-      ),
-      child: clipped,
-    );
-  }
+  Widget build(BuildContext context) =>
+      ClipRRect(borderRadius: FuncShape.card, child: child);
 }
 
 /// Chrome drawn over a Hero image: a card's badges, the detail page's top
@@ -531,10 +518,16 @@ Widget illustHeroFlightShuttleBuilder(
         // the clip follows the page over the card, where one shows.
         final bars = lifted?._bars;
         final cover = lifted?._cover();
-        final clipProgress = bars != null || cover == null
+        // From a dragged shared-element canvas (iOS canvas dismiss), the outer
+        // backdrop is already faded and the detail viewport is scaled down: open
+        // the departure clip to full screen and converge smoothly with flight
+        // progress instead of jumping to `1 - cover` (which would slice the
+        // artwork on frame 1).
+        final clipProgress = bars != null || cover == null || fromDraggedCanvas
             ? progress
             : (cardIsFrom ? cover : 1 - cover);
-        final openFrom = bars != null && cardIsFrom;
+        final openFrom =
+            (bars != null && cardIsFrom) || (fromDraggedCanvas && !cardIsFrom);
         final openTo = bars != null && !cardIsFrom;
         final clipped = HeroRectClip(
           globalRect: _heroFlightClipRect(
@@ -720,6 +713,8 @@ class _LiftedEndpointsState extends State<_LiftedEndpoints> {
         !identical(oldWidget.to, widget.to) ||
         !identical(oldWidget.card, widget.card)) {
       _release();
+      _bars?.dispose();
+      _bars = widget.liftBars?.call();
       _lift();
     }
   }
@@ -749,7 +744,12 @@ class _LiftedEndpointsState extends State<_LiftedEndpoints> {
 
   @override
   void dispose() {
+    // Guarantee LiftableShadow._lifted and HeroBarsCover._covered are always
+    // released even if a post-frame activate callback re-lifted right before
+    // teardown, so FuncBottomNav's LiftableBar can never stay permanently hidden.
+    _release();
     _bars?.dispose();
+    _bars = null;
     super.dispose();
   }
 
@@ -1163,13 +1163,13 @@ Rect _capHeroBottom(Rect rect, Size size, ValueListenable<double>? extent) {
 double _heroBottomEdge(BuildContext heroContext, Size size) {
   if (!_heroIsHomeSide(heroContext)) return size.height;
 
-  // The shell publishes the bar's resting extent through HomeShellChrome —
-  // the same computed value the spacer and SnackBar margin use. Outside
-  // the shell (a plain MaterialApp in tests) fall back to the conservative
-  // constant, matching pre-scope behaviour.
-  final extent = HomeShellChrome.maybeOf(heroContext)?.bottomBarExtent;
-  if (extent != null) {
-    return size.height - extent;
+  // The shell publishes the bar's live visible extent through HomeShellChrome:
+  // when scrolled away (visibleExtent == 0), reserve no bottom bar band.
+  final chrome = HomeShellChrome.maybeOf(heroContext);
+  if (chrome != null) {
+    return (size.height - chrome.bottomBarVisibleExtent.value)
+        .clamp(0.0, size.height)
+        .toDouble();
   }
   return (size.height - _kHomeBottomNavHeight)
       .clamp(0.0, size.height)

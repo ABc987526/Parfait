@@ -276,7 +276,11 @@ enum Setting implements SettingsEntry {
   /// Whether the setting exists on this platform; the page shows the row
   /// under the same condition.
   bool get available => switch (this) {
-    hapticStrength => defaultTargetPlatform == TargetPlatform.android,
+    hapticStrength =>
+      defaultTargetPlatform == TargetPlatform.android ||
+          defaultTargetPlatform == TargetPlatform.iOS,
+    followSystemColors ||
+    saveLocationSafFolder => defaultTargetPlatform != TargetPlatform.iOS,
     interfaceForm || closeToTray || desktopDetailMode => _desktop,
     aboutDisplayRefreshRate =>
       !kIsWeb && defaultTargetPlatform == TargetPlatform.android,

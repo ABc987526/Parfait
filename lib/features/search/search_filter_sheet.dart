@@ -14,6 +14,7 @@ import '../../app/theme/func_semantic_tokens.dart';
 import '../../app/widgets/app_choice_chip.dart';
 import '../../app/widgets/fit_label.dart';
 import '../../app/icons/app_icons.dart';
+import '../../app/icons/ui_icons.dart';
 
 /// What the filter sheet applies: the edited set plus whether the user also
 /// asked to persist it as that type's default ("设为默认").
@@ -145,7 +146,7 @@ class _SearchFilterSheetState extends ConsumerState<_SearchFilterSheet> {
       false;
 
   Future<void> _pickDate({required bool start}) async {
-    final selected = await showDatePicker(
+    final selected = await showAppDatePicker(
       context: context,
       firstDate: DateTime(2007),
       lastDate: DateTime.now(),
@@ -194,6 +195,9 @@ class _SearchFilterSheetState extends ConsumerState<_SearchFilterSheet> {
     final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
     final availableHeight = MediaQuery.heightOf(context) - keyboardInset;
     final wide = useWideOverlay(context);
+    final scrollController = wide
+        ? _scrollController
+        : (PrimaryScrollController.maybeOf(context) ?? _scrollController);
     final theme = Theme.of(context);
     final tokens = FuncSemanticTokens.of(context);
     final footerColor =
@@ -236,7 +240,7 @@ class _SearchFilterSheetState extends ConsumerState<_SearchFilterSheet> {
                         context,
                       ).closeButtonTooltip,
                       onPressed: () => Navigator.of(context).maybePop(),
-                      icon: const Icon(Icons.close),
+                      icon: const Icon(UiIcons.close),
                     ),
                 ],
               ),
@@ -244,9 +248,9 @@ class _SearchFilterSheetState extends ConsumerState<_SearchFilterSheet> {
             Flexible(
               fit: wide ? FlexFit.tight : FlexFit.loose,
               child: _BottomScrollFade(
-                controller: _scrollController,
+                controller: scrollController,
                 child: SingleChildScrollView(
-                  controller: _scrollController,
+                  controller: scrollController,
                   padding: const EdgeInsets.fromLTRB(
                     FuncSpacing.xl,
                     FuncSpacing.xs,
@@ -903,7 +907,7 @@ class _DateFilterTile extends StatelessWidget {
           : IconButton(
               tooltip: context.l10n.searchClear,
               onPressed: onClear,
-              icon: const Icon(Icons.clear),
+              icon: const Icon(UiIcons.close),
             ),
     );
   }

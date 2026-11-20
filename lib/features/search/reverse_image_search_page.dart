@@ -27,6 +27,7 @@ import '../../core/errors/error_category.dart';
 import '../../core/settings/settings_controller.dart';
 import '../../app/navigation/routes.dart';
 import '../../app/widgets/app_menu_button.dart';
+import '../../app/widgets/app_progress_bar.dart';
 import '../../app/widgets/app_snack_bar.dart';
 import '../../app/widgets/errors/error_details.dart';
 import '../../app/widgets/settings/persist_settings.dart';
@@ -38,6 +39,7 @@ import '../../app/widgets/app_choice_chip.dart';
 import '../../app/layout/content_widths.dart';
 import '../../app/window/desktop_command_bar.dart';
 import '../../app/icons/app_icons.dart';
+import '../../app/icons/ui_icons.dart';
 
 part 'reverse_image_search_widgets.dart';
 
@@ -152,7 +154,7 @@ class _ReverseImageSearchPageState
             label: Text(spec.displayName),
             selected: state.engine == spec.engine,
             avatar: state.engineFailures.containsKey(spec.engine)
-                ? const Icon(Icons.error_outline, size: 18)
+                ? const Icon(UiIcons.errorOutline, size: 18)
                 : null,
             tooltip: input != null && !spec.supportsInput(input)
                 ? context.l10n.searchReverseEngineUnsupported
@@ -386,7 +388,7 @@ class _ReverseImageSearchPageState
         held && failure.code == ReverseImageProviderFailureCode.challenge;
     final next = state.nextEngine;
     return _Outcome(
-      icon: Icons.error_outline,
+      icon: UiIcons.errorOutline,
       message: _failureText(context, failure, state.engine),
       primary: challenged
           ? FilledButton.icon(
@@ -397,7 +399,7 @@ class _ReverseImageSearchPageState
           : held
           ? FilledButton.icon(
               onPressed: _search,
-              icon: const Icon(Icons.refresh),
+              icon: const Icon(UiIcons.refresh),
               label: Text(context.l10n.searchReverseRetrySameEngine),
             )
           : FilledButton.icon(

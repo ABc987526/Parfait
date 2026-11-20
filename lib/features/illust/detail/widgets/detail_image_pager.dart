@@ -1,13 +1,19 @@
-import 'package:material_ui/material_ui.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../../app/motion/hero_transition.dart';
 import '../../../../app/motion/motion_tokens.dart';
 import '../../../../app/motion/swipe_paging.dart';
+import '../../../../app/theme/func_semantic_tokens.dart';
+import '../../../../app/theme/func_tokens.dart';
+import '../../../../app/widgets/artwork_controls.dart';
 import '../../../../core/entity/illust_entity.dart';
+import '../detail_page_activity.dart';
+import '../ugoira_viewer.dart';
 import 'detail_page_counter.dart';
 import 'page_image.dart';
-import '../ugoira_viewer.dart';
+import '../../../../app/icons/ui_icons.dart';
 
 /// The two-pane detail page's left pane: a horizontal page pager that keeps
 /// each page fitted (contain) inside the pane height, with the shared
@@ -65,13 +71,14 @@ class _DetailImagePagerState extends State<DetailImagePager>
   late final PageController _controller = PageController(
     initialPage: _clamp(widget.initialPage),
   );
-  final FocusNode _focusNode = FocusNode();
+  final Stopwatch _wheelCooldown = Stopwatch();
 
   /// How far the set is pulled past its first or last image, in pages. The
   /// controller stays between those; the pane slides by this instead.
   final ValueNotifier<double> _overscroll = ValueNotifier(0);
 
   late int _page = _clamp(widget.initialPage);
+  bool _hovered = false;
 
   IllustEntity get entity => widget.entity;
 
@@ -79,6 +86,12 @@ class _DetailImagePagerState extends State<DetailImagePager>
 
   int _clamp(int page) =>
       page.clamp(0, entity.isUgoira ? 0 : entity.pageCount - 1);
+
+  @override
+  void initState() {
+    super.initState();
+    HardwareKeyboard.instance.addHandler(_handleKeyEvent);
+  }
 
   @override
   int get pageCount => _count;
@@ -131,116 +144,217 @@ class _DetailImagePagerState extends State<DetailImagePager>
 
   @override
   void dispose() {
+    HardwareKeyboard.instance.removeHandler(_handleKeyEvent);
     _controller.dispose();
-    _focusNode.dispose();
     _overscroll.dispose();
     super.dispose();
   }
 
-  KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
-    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+  bool _handleKeyEvent(KeyEvent event) {
+    if (!mounted || event is! KeyDownEvent) return false;
+    if (_count < 2) return false;
+    if (!DetailPageActivity.of(context)) return false;
+    if (!TickerMode.valuesOf(context).enabled) return false;
+    final route = ModalRoute.of(context);
+    if (route != null && !route.isCurrent) return false;
+    if (primaryFocus?.context?.findAncestorWidgetOfExactType<EditableText>() !=
+        null) {
+      return false;
+    }
+    final keyboard = HardwareKeyboard.instance;
+    if (keyboard.isControlPressed ||
+        keyboard.isAltPressed ||
+        keyboard.isMetaPressed ||
+        keyboard.isShiftPressed) {
+      return false;
+    }
     final next = switch (event.logicalKey) {
       LogicalKeyboardKey.arrowLeft => _page - 1,
       LogicalKeyboardKey.arrowRight => _page + 1,
       _ => null,
     };
-    if (next == null) return KeyEventResult.ignored;
-    if (next < 0 || next >= entity.pageCount) return KeyEventResult.handled;
+    if (next == null || next < 0 || next >= _count) return false;
     turnPage(context, _controller, next);
-    return KeyEventResult.handled;
+    return true;
+  }
+
+  void _handlePointerSignal(PointerSignalEvent event) {
+    if (!mounted || _count < 2 || event is! PointerScrollEvent) return;
+    final keyboard = HardwareKeyboard.instance;
+    if (keyboard.isControlPressed || keyboard.isMetaPressed) return;
+    final dx = event.scrollDelta.dx;
+    final dy = event.scrollDelta.dy;
+    final useVertical = dy.abs() >= dx.abs();
+    final delta = useVertical ? dy : dx;
+    if (delta == 0) return;
+    if (_wheelCooldown.isRunning && _wheelCooldown.elapsedMilliseconds < 180) {
+      return;
+    }
+    final ltr = Directionality.of(context) == TextDirection.ltr;
+    final forward = useVertical ? delta > 0 : (ltr ? delta > 0 : delta < 0);
+    final next = _page + (forward ? 1 : -1);
+    if (next < 0 || next >= _count) return;
+    _wheelCooldown
+      ..reset()
+      ..start();
+    turnPage(context, _controller, next);
   }
 
   @override
   Widget build(BuildContext context) {
     final count = _count;
     final ltr = Directionality.of(context) == TextDirection.ltr;
-    return Focus(
-      focusNode: _focusNode,
-      autofocus: true,
-      onKeyEvent: _onKeyEvent,
-      child: swipeGestures(
-        yieldsTo: _yieldsTo,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            ValueListenableBuilder<double>(
-              valueListenable: _overscroll,
-              builder: (context, overscroll, child) => FractionalTranslation(
-                translation: Offset(ltr ? -overscroll : overscroll, 0),
-                child: child,
+    final localizations = MaterialLocalizations.of(context);
+    final showButtons = count >= 2 && !widget.downloadMode;
+    return MouseRegion(
+      onEnter: showButtons
+          ? (_) {
+              if (!_hovered) setState(() => _hovered = true);
+            }
+          : null,
+      onExit: showButtons
+          ? (_) {
+              if (_hovered) setState(() => _hovered = false);
+            }
+          : null,
+      child: Listener(
+        onPointerSignal: count >= 2 ? _handlePointerSignal : null,
+        child: swipeGestures(
+          yieldsTo: _yieldsTo,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              ValueListenableBuilder<double>(
+                valueListenable: _overscroll,
+                builder: (context, overscroll, child) => FractionalTranslation(
+                  translation: Offset(ltr ? -overscroll : overscroll, 0),
+                  child: child,
+                ),
+                child: PageView.builder(
+                  controller: _controller,
+                  // The drag is the paging gesture above, which can hand a
+                  // swipe at either end to the enclosing work pager.
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: count,
+                  onPageChanged: _setPage,
+                  itemBuilder: (context, index) {
+                    final child = entity.isUgoira
+                        ? UgoiraViewer(
+                            illustId: entity.id,
+                            previewUrl: entity.imageUrls.large,
+                            detailUrl: widget.detailUrlFor(0),
+                            heroImageUrl: widget.heroImageUrl,
+                            heroTier: widget.heroImageUrl == null
+                                ? null
+                                : entity.imageTierOf(widget.heroImageUrl!),
+                            width: entity.width,
+                            height: entity.height,
+                            // Ugoira has no pages: it never participates in
+                            // the selection mode and keeps its export action
+                            // always visible instead.
+                            heroTag: widget.heroTag,
+                            flightShuttleBuilder:
+                                illustHeroFlightShuttleBuilder,
+                            heroDecodeWidth: widget.heroImageDecodeWidth,
+                            heroPopUrl: widget.heroImageUrl,
+                            heroPopDecodeWidth: widget.heroImageDecodeWidth,
+                            tier: entity.imageTierOf(
+                              widget.detailUrlFor(0) ?? entity.imageUrls.large,
+                            ),
+                          )
+                        : DetailPageImage(
+                            key: ValueKey<Object?>(
+                              'illust-page-${entity.id}-$index',
+                            ),
+                            entity: entity,
+                            index: index,
+                            heroTag: index == 0
+                                ? widget.heroTag
+                                : '${widget.heroTag}-$index',
+                            heroScope: widget.heroScope,
+                            heroImageUrl: index == 0
+                                ? widget.heroImageUrl
+                                : null,
+                            heroImageDecodeWidth: index == 0
+                                ? widget.heroImageDecodeWidth
+                                : null,
+                            detailUrl: widget.detailUrlFor(index),
+                            downloadMode: widget.downloadMode,
+                            selected: widget.selectedPages.contains(index),
+                            onToggleSelect: () => widget.onToggleSelect(index),
+                            onLongPress: widget.onLongPress,
+                          );
+                    // Contain inside the fixed-height pane: AspectRatio picks
+                    // the largest centred box that preserves the page's own
+                    // ratio, so tall pages cannot overflow vertically.
+                    return Center(
+                      child: AspectRatio(
+                        aspectRatio: entity.pageAspectRatioAt(index),
+                        child: child,
+                      ),
+                    );
+                  },
+                ),
               ),
-              child: PageView.builder(
-                controller: _controller,
-                // The drag is the paging gesture above, which can hand a
-                // swipe at either end to the enclosing work pager.
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: count,
-                onPageChanged: _setPage,
-                itemBuilder: (context, index) {
-                  final child = entity.isUgoira
-                      ? UgoiraViewer(
-                          illustId: entity.id,
-                          previewUrl: entity.imageUrls.large,
-                          detailUrl: widget.detailUrlFor(0),
-                          heroImageUrl: widget.heroImageUrl,
-                          heroTier: widget.heroImageUrl == null
-                              ? null
-                              : entity.imageTierOf(widget.heroImageUrl!),
-                          width: entity.width,
-                          height: entity.height,
-                          // Ugoira has no pages: it never participates in
-                          // the selection mode and keeps its export action
-                          // always visible instead.
-                          heroTag: widget.heroTag,
-                          flightShuttleBuilder: illustHeroFlightShuttleBuilder,
-                          heroDecodeWidth: widget.heroImageDecodeWidth,
-                          heroPopUrl: widget.heroImageUrl,
-                          heroPopDecodeWidth: widget.heroImageDecodeWidth,
-                          tier: entity.imageTierOf(
-                            widget.detailUrlFor(0) ?? entity.imageUrls.large,
-                          ),
-                        )
-                      : DetailPageImage(
-                          key: ValueKey<Object?>(
-                            'illust-page-${entity.id}-$index',
-                          ),
-                          entity: entity,
-                          index: index,
-                          heroTag: index == 0
-                              ? widget.heroTag
-                              : '${widget.heroTag}-$index',
-                          heroScope: widget.heroScope,
-                          heroImageUrl: index == 0 ? widget.heroImageUrl : null,
-                          heroImageDecodeWidth: index == 0
-                              ? widget.heroImageDecodeWidth
-                              : null,
-                          detailUrl: widget.detailUrlFor(index),
-                          downloadMode: widget.downloadMode,
-                          selected: widget.selectedPages.contains(index),
-                          onToggleSelect: () => widget.onToggleSelect(index),
-                          onLongPress: widget.onLongPress,
-                        );
-                  // Contain inside the fixed-height pane: AspectRatio picks
-                  // the largest centred box that preserves the page's own
-                  // ratio, so tall pages cannot overflow vertically.
-                  return Center(
-                    child: AspectRatio(
-                      aspectRatio: entity.pageAspectRatioAt(index),
-                      child: child,
-                    ),
-                  );
-                },
+              // The overlay hides itself for single-page works and ugoira
+              // (count collapses to 1 above) and waits out the entry flight.
+              // Selection mode hides it: the page's badge takes the same
+              // top-end corner.
+              if (!widget.downloadMode)
+                Positioned.fill(
+                  child: DetailPageCounter(page: _page, count: count),
+                ),
+              if (showButtons && _page > 0)
+                _pagerArrowButton(
+                  context,
+                  isNext: false,
+                  tooltip: localizations.previousPageTooltip,
+                  onPressed: () => turnPage(context, _controller, _page - 1),
+                ),
+              if (showButtons && _page < count - 1)
+                _pagerArrowButton(
+                  context,
+                  isNext: true,
+                  tooltip: localizations.nextPageTooltip,
+                  onPressed: () => turnPage(context, _controller, _page + 1),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _pagerArrowButton(
+    BuildContext context, {
+    required bool isNext,
+    required String tooltip,
+    required VoidCallback onPressed,
+  }) {
+    final icon = isNext ? UiIcons.chevronRight : UiIcons.chevronLeft;
+    return PositionedDirectional(
+      start: isNext ? null : FuncSpacing.sm,
+      end: isNext ? FuncSpacing.sm : null,
+      top: 0,
+      bottom: 0,
+      child: Center(
+        child: IgnorePointer(
+          ignoring: !_hovered,
+          child: AnimatedOpacity(
+            opacity: _hovered ? 1.0 : 0.0,
+            duration: MotionTokens.resolve(context, MotionTokens.stateFade),
+            curve: MotionTokens.stateFadeCurve,
+            child: ArtworkControls(
+              glyph: FuncTokens.white,
+              halo: const Color(0xCC0C0914),
+              child: IconButton(
+                key: Key(isNext ? 'detail-pager-next' : 'detail-pager-prev'),
+                tooltip: tooltip,
+                onPressed: onPressed,
+                icon: Icon(icon, size: 28),
               ),
             ),
-            // The overlay hides itself for single-page works and ugoira
-            // (count collapses to 1 above) and waits out the entry flight.
-            // Selection mode hides it: the page's badge takes the same
-            // top-end corner.
-            if (!widget.downloadMode)
-              Positioned.fill(
-                child: DetailPageCounter(page: _page, count: count),
-              ),
-          ],
+          ),
         ),
       ),
     );

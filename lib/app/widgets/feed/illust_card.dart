@@ -34,6 +34,7 @@ import 'illust_card_layout.dart';
 import 'muted_cover.dart';
 import '../../haptics/app_haptics.dart';
 import '../../icons/app_icons.dart';
+import '../../icons/ui_icons.dart';
 
 /// Illust preview card replicating beta56 IllustPreviewer semantics:
 /// R-18 top-left, ugoira gif bottom-left, page count top-right, AI
@@ -307,7 +308,7 @@ class _IllustCardBody extends ConsumerWidget {
           onLongPress: own,
           actions: [
             DisplayAction(
-              icon: Icons.checklist_outlined,
+              icon: UiIcons.checklist,
               label: context.l10n.manage,
               onSelected: own,
             ),

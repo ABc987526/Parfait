@@ -2,14 +2,31 @@ import '../../l10n/app_localizations.dart';
 
 final _sdCardVolume = RegExp(r'^[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}$');
 
+/// Whether [value] looks like an opaque macOS security-scoped bookmark
+/// encoded as base64 rather than a filesystem path or Android `content://` URI.
+bool isMacosSecurityBookmark(String value) {
+  if (value.isEmpty) return false;
+  if (value.startsWith('content://') ||
+      value.startsWith('/') ||
+      value.startsWith(r'\\') ||
+      RegExp(r'^[A-Za-z]:[/\\]').hasMatch(value)) {
+    return false;
+  }
+  final compact = value.replaceAll(RegExp(r'[\r\n]'), '');
+  if (compact.startsWith('Ym9v')) return true;
+  return compact.length >= 64 && RegExp(r'^[A-Za-z0-9+/=]+$').hasMatch(compact);
+}
+
 /// Best-effort human label for a persisted SAF tree identifier (R6).
 ///
 /// Android `content://…/tree/<docId>` URIs encode `<volume>:<path>` in the
 /// segment after `tree`: `primary` is internal storage and a `XXXX-XXXX`
-/// volume id is an SD card. Desktop pickers return plain filesystem paths,
-/// which pass through verbatim. Anything unparseable falls back to the
-/// decoded tail — a wrong label is worse than an honest one.
+/// volume id is an SD card. macOS sandbox bookmarks map to a readable label
+/// instead of raw base64, while Windows/Linux paths pass through verbatim.
 String safTreeDisplayName(AppLocalizations l10n, String treeUri) {
+  if (isMacosSecurityBookmark(treeUri)) {
+    return l10n.saveLocationMacosBookmarkLabel;
+  }
   final coordinates = parseSafTreeUri(treeUri);
   if (coordinates == null) return treeUri;
   final volume = coordinates.volume;

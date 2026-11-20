@@ -11,6 +11,7 @@ import '../../app/motion/app_overlays.dart';
 import '../../app/motion/removal.dart';
 import '../../app/navigation/routes.dart';
 import '../../app/pull_to_refresh.dart';
+import '../../app/widgets/app_dialog.dart';
 import '../../app/widgets/app_menu_button.dart';
 import '../../app/widgets/app_snack_bar.dart';
 import '../../app/widgets/app_top_bar.dart';
@@ -213,7 +214,7 @@ class _LocalNovelTile extends ConsumerWidget {
     AppHaptics.confirm();
     final confirmed = await showAppDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
+      builder: (dialogContext) => AppAlertDialog(
         title: Text(context.l10n.localNovelsDelete),
         content: Text(context.l10n.localNovelsDeleteConfirm(novel.title)),
         actions: [

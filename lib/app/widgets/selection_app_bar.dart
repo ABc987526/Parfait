@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../l10n/context.dart';
 import 'app_top_bar.dart';
+import '../icons/ui_icons.dart';
 
 /// The top bar of a list in selection mode: close on the leading edge,
 /// the selection count as the title, batch actions at the end.
@@ -20,7 +21,7 @@ AppTopBar selectionAppBar(
     backgroundColor: Theme.of(context).colorScheme.primaryContainer,
     leading: IconButton(
       tooltip: context.l10n.cancel,
-      icon: const Icon(Icons.close),
+      icon: const Icon(UiIcons.close),
       onPressed: onClose,
     ),
     title: Text('$count', semanticsLabel: context.l10n.selectedCount(count)),

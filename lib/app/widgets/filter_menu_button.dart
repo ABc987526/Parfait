@@ -1,6 +1,8 @@
 import 'package:material_ui/material_ui.dart';
 
 import '../haptics/app_haptics.dart';
+import '../icons/ui_icons.dart';
+import '../theme/func_semantic_tokens.dart';
 import 'app_menu_button.dart';
 
 /// A list filter (D3): an outlined "current value ▾" button over the list
@@ -50,7 +52,7 @@ class FilterMenuButton<T> extends StatelessWidget {
           AppMenuEntry(
             value: _MorePick<T>(),
             label: moreLabel,
-            icon: Icons.more_horiz,
+            icon: UiIcons.more,
           ),
       ],
       onSelected: (_, pick) {
@@ -78,7 +80,8 @@ class FilterMenuButton<T> extends StatelessWidget {
             Flexible(
               child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
             ),
-            const Icon(Icons.arrow_drop_down),
+            const SizedBox(width: FuncSpacing.xs),
+            const Icon(UiIcons.dropdown, size: 16),
           ],
         ),
       ),

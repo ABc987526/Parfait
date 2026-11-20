@@ -16,6 +16,7 @@ import 'errors/error_details.dart';
 import 'inline_translation.dart';
 import 'unmute_undo.dart';
 import '../icons/app_icons.dart';
+import '../icons/ui_icons.dart';
 
 /// Direct tag action menu (R3), opened by a long press on a tag: search,
 /// copy, translate — always offered, a Pixiv translation may be missing or
@@ -87,7 +88,7 @@ Future<void> showTagActionsSheet(
         ),
       if (onMuteMode != null)
         DisplayAction(
-          icon: Icons.playlist_add_check,
+          icon: UiIcons.checklist,
           label: l10n.tagActionMuteMode,
           onSelected: onMuteMode,
         ),
@@ -230,7 +231,7 @@ class _TagActionsState extends ConsumerState<_TagActions>
               ),
             if (onMuteMode != null)
               ListTile(
-                leading: const Icon(Icons.playlist_add_check),
+                leading: const Icon(UiIcons.checklist),
                 title: Text(l10n.tagActionMuteMode),
                 onTap: _closing(onMuteMode),
               ),

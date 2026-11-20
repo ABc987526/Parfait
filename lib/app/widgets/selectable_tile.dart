@@ -6,6 +6,7 @@ import '../../l10n/context.dart';
 import '../motion/state_icon_switcher.dart';
 import '../theme/func_semantic_tokens.dart';
 import 'display_actions.dart';
+import '../icons/ui_icons.dart';
 
 /// A grid tile that becomes a selection unit in a list's management mode
 /// (history, watch later). While [managing], the whole tile toggles on tap
@@ -55,7 +56,7 @@ class SelectableTile extends StatelessWidget {
                   onLongPress: onLongPress!,
                   actions: [
                     DisplayAction(
-                      icon: Icons.checklist_outlined,
+                      icon: UiIcons.checklist,
                       label: context.l10n.manage,
                       onSelected: onLongPress!,
                     ),
@@ -88,7 +89,7 @@ class SelectableTile extends StatelessWidget {
                 child: StateIconSwitcher(
                   value: selected,
                   child: selected
-                      ? Icon(Icons.check_circle, color: colorScheme.primary)
+                      ? Icon(UiIcons.checkCircle, color: colorScheme.primary)
                       : const SizedBox.shrink(),
                 ),
               ),

@@ -27,6 +27,7 @@ import '../../l10n/context.dart';
 import 'banner_sample.dart';
 import 'profile_statistics.dart';
 import '../../app/icons/app_icons.dart';
+import '../../app/icons/ui_icons.dart';
 
 /// Pure geometry snapshot used by [ReplicaProfileHeaderDelegate] and tests.
 @immutable
@@ -1002,7 +1003,7 @@ class _ProfileHeaderMoreButton extends StatelessWidget {
           ? (context, toggle) => ArtworkControls(
               child: IconButton(
                 tooltip: MaterialLocalizations.of(context).showMenuTooltip,
-                icon: const Icon(Icons.more_vert),
+                icon: const Icon(UiIcons.more),
                 onPressed: toggle,
               ),
             )

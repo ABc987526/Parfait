@@ -15,6 +15,7 @@ import 'helpers/localized_app.dart';
 import 'helpers/waits.dart';
 import 'helpers/leak_tracking.dart';
 import 'package:parfait/app/icons/app_icons.dart';
+import 'package:parfait/app/icons/ui_icons.dart';
 
 /// One URL per kind of image: an uncapped decode is recorded app-wide, and
 /// a capped request for a URL with one paints that instead.
@@ -121,7 +122,7 @@ void main() {
         await _pump(tester, network);
         expect(network.requests, 1);
         expect(find.byIcon(AppIcons.illustBroken), findsNothing);
-        expect(find.byIcon(Icons.refresh), findsNothing);
+        expect(find.byIcon(UiIcons.refresh), findsNothing);
 
         await tester.pump(const Duration(milliseconds: 900));
         expect(network.requests, 1);
@@ -184,7 +185,7 @@ void main() {
         await tester.pump(const Duration(seconds: 30));
         expect(network.requests, 1);
 
-        await tester.tap(find.byIcon(Icons.refresh));
+        await tester.tap(find.byIcon(UiIcons.refresh));
         await _settle(tester);
         expect(network.requests, 2);
       });

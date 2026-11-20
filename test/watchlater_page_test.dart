@@ -16,6 +16,7 @@ import 'helpers/fake_account.dart';
 import 'helpers/illust_fixtures.dart';
 import 'helpers/prompt_host.dart';
 import 'helpers/localized_app.dart';
+import 'package:parfait/app/icons/ui_icons.dart';
 
 Widget _app(ProviderContainer container, {InputModality? inputModality}) {
   final page = inputModality == null
@@ -143,7 +144,7 @@ void main() {
     await enterManaging(tester);
 
     final remove = find.ancestor(
-      of: find.byIcon(Icons.remove_circle_outline),
+      of: find.byIcon(UiIcons.removeCircle),
       matching: find.byType(IconButton),
     );
     expect(tester.widget<IconButton>(remove).onPressed, isNull);
@@ -194,7 +195,10 @@ void main() {
       expect(find.text('3'), findsOneWidget);
 
       // Exit managing and re-enter with an empty selection, then test Ctrl+A.
-      await tester.tap(find.byIcon(Icons.close), kind: PointerDeviceKind.mouse);
+      await tester.tap(
+        find.byIcon(UiIcons.close),
+        kind: PointerDeviceKind.mouse,
+      );
       await _settle(tester);
       await tester.tap(
         find.widgetWithText(TextButton, '管理'),

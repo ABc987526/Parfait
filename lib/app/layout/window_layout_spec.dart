@@ -174,15 +174,24 @@ class WindowLayoutSpec {
 
   /// Resolves and subscribes to the full four-dimensional [WindowLayoutSpec].
   static WindowLayoutSpec of(BuildContext context) {
-    final media = MediaQuery.of(context);
+    final size = MediaQuery.sizeOf(context);
+    final safePadding = MediaQuery.paddingOf(context);
+    final features = MediaQuery.displayFeaturesOf(context);
+    final devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
     final env = WindowEnvironmentOverride.maybeOf(context);
     final platform = env?.targetPlatform ?? Theme.of(context).platform;
     final modality =
         InputModalityScope.maybeOf(context) ??
         defaultInputModalityFor(platform);
     final caps = env?.platformCaps ?? PlatformCaps.system();
-    return WindowLayoutSpec.fromMediaQuery(
-      media,
+    final (posture, hingeBounds) = resolveFold(size, features);
+    return WindowLayoutSpec(
+      windowSize: size,
+      widthClass: widthClassFor(size.width),
+      posture: posture,
+      hingeBounds: hingeBounds,
+      safePadding: safePadding,
+      devicePixelRatio: devicePixelRatio,
       inputModality: modality,
       targetPlatform: platform,
       platformCaps: caps,

@@ -1,5 +1,3 @@
-import 'package:flutter/foundation.dart'
-    show TargetPlatform, defaultTargetPlatform;
 import 'package:material_ui/material_ui.dart';
 
 import '../../app/layout/content_widths.dart';
@@ -49,7 +47,10 @@ class UserAgreementPage extends StatelessWidget {
                   (l10n.agreementServiceTitle, l10n.agreementServiceBody),
                   (
                     l10n.agreementAccountTitle,
-                    _accountAgreementBody(l10n.agreementAccountBody),
+                    _accountAgreementBody(
+                      l10n.agreementAccountBody,
+                      Theme.of(context).platform,
+                    ),
                   ),
                   (l10n.agreementUsageTitle, l10n.agreementUsageBody),
                   (l10n.agreementContentTitle, l10n.agreementContentBody),
@@ -98,8 +99,8 @@ class _AgreementSection extends StatelessWidget {
 
 /// Omits the Android 13 clipboard sensitivity clause on non-Android platforms
 /// without altering ARB resources directly.
-String _accountAgreementBody(String body) {
-  if (defaultTargetPlatform == TargetPlatform.android) return body;
+String _accountAgreementBody(String body, TargetPlatform platform) {
+  if (platform == TargetPlatform.android) return body;
   return body
       .replaceFirst('：Android 13 及以上会标记为敏感内容。', '。')
       .replaceFirst(': on Android 13 and later it is marked as sensitive.', '.')

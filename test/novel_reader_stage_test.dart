@@ -11,7 +11,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:parfait/app/layout/content_widths.dart';
 import 'package:parfait/app/layout/input_modality.dart';
+import 'package:parfait/app/motion/app_overlays.dart';
 import 'package:parfait/app/navigation/home_shell_metrics.dart';
+import 'package:parfait/app/widgets/app_slider.dart';
 import 'package:parfait/core/novel/novel_entity.dart';
 import 'package:parfait/core/novel/reader_settings.dart';
 import 'package:parfait/core/settings/shared_preferences.dart';
@@ -28,6 +30,7 @@ import 'helpers/localized_app.dart';
 import 'helpers/test_preferences.dart';
 import 'helpers/view_size.dart';
 import 'package:parfait/app/icons/app_icons.dart';
+import 'package:parfait/app/icons/ui_icons.dart';
 
 /// Stage-level test with a recording progress binding: pins the D1 write
 /// gate — only user-committed turns reach `save`.
@@ -135,7 +138,7 @@ void main() {
 
       // Dragging the slider only moves the preview label — the reader
       // itself never leaves the current page and nothing persists.
-      final slider = find.byType(Slider);
+      final slider = find.byType(AppSlider);
       expect(slider, findsOneWidget);
       final before = find
           .textContaining('·', findRichText: true)
@@ -169,11 +172,11 @@ void main() {
     await tester.tap(find.bySemanticsLabel('阅读进度'));
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
-    final sheet = tester.getRect(find.byType(BottomSheet));
+    final sheet = tester.getRect(find.byType(AppBottomSheet));
     expect(sheet.contains(tester.getCenter(find.text('确定'))), isTrue);
     expect(
       find.descendant(
-        of: find.byType(BottomSheet),
+        of: find.byType(AppBottomSheet),
         matching: find.text('第 1 章'),
       ),
       findsOneWidget,
@@ -189,7 +192,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(
       tester
-          .getRect(find.byType(BottomSheet))
+          .getRect(find.byType(AppBottomSheet))
           .contains(tester.getCenter(find.text('夜间'))),
       isTrue,
     );
@@ -208,7 +211,7 @@ void main() {
     await tester.tap(find.bySemanticsLabel('阅读进度'));
     await tester.pumpAndSettle();
 
-    await tester.drag(find.byType(Slider), const Offset(200, 0));
+    await tester.drag(find.byType(AppSlider), const Offset(200, 0));
     await tester.pump();
     await tester.tap(find.text('取消'));
     await tester.pumpAndSettle();
@@ -547,7 +550,7 @@ void main() {
         kind: PointerDeviceKind.mouse,
       );
       await tester.pumpAndSettle();
-      expect(find.byType(BottomSheet), findsNothing);
+      expect(find.byType(AppBottomSheet), findsNothing);
       final settingsRect = panelRect(find.text('字号'));
       expect(settingsRect.width, lessThanOrEqualTo(380));
       expect(settingsRect.right, greaterThan(700));
@@ -555,11 +558,11 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.tap(
-        find.byIcon(Icons.expand_less),
+        find.byIcon(UiIcons.expandLess),
         kind: PointerDeviceKind.mouse,
       );
       await tester.pumpAndSettle();
-      expect(find.byType(BottomSheet), findsNothing);
+      expect(find.byType(AppBottomSheet), findsNothing);
       final progressRect = panelRect(find.text('阅读进度'));
       expect(progressRect.width, lessThanOrEqualTo(400));
       expect(progressRect.right, closeTo(1100, 1));
@@ -571,7 +574,7 @@ void main() {
         kind: PointerDeviceKind.mouse,
       );
       await tester.pumpAndSettle();
-      expect(find.byType(BottomSheet), findsNothing);
+      expect(find.byType(AppBottomSheet), findsNothing);
       final infoRect = panelRect(find.text('info sheet'));
       expect(infoRect.width, lessThanOrEqualTo(400));
       expect(infoRect.right, closeTo(1100, 1));
@@ -589,7 +592,7 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.text('字号'), findsOneWidget);
-      expect(find.byType(BottomSheet), findsOneWidget);
+      expect(find.byType(AppBottomSheet), findsOneWidget);
       await tester.tapAt(const Offset(20, 20), kind: PointerDeviceKind.mouse);
       await tester.pumpAndSettle();
     },

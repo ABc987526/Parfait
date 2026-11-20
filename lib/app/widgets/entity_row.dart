@@ -6,7 +6,9 @@ import '../format/content_locale.dart';
 import '../layout/card_columns.dart';
 import '../theme/func_semantic_tokens.dart';
 import '../theme/func_tokens.dart';
+import 'app_progress_bar.dart';
 import 'feed/feed_text_warmup.dart';
+import '../icons/ui_icons.dart';
 
 /// Slot-based entity row — the shared object-presentation contract
 /// (roadmap §5.2). The base widget owns identification (cover, title,
@@ -301,7 +303,7 @@ class EntityRow extends StatelessWidget {
                       ],
                       if (progress != null) ...[
                         const SizedBox(height: FuncSpacing.xs),
-                        LinearProgressIndicator(value: progress),
+                        AppProgressBar(value: progress),
                       ],
                     ],
                   ),
@@ -313,7 +315,10 @@ class EntityRow extends StatelessWidget {
               ],
               if (selected) ...[
                 const SizedBox(width: FuncSpacing.sm),
-                Icon(Icons.check_circle, color: colorScheme.onPrimaryContainer),
+                Icon(
+                  UiIcons.checkCircle,
+                  color: colorScheme.onPrimaryContainer,
+                ),
               ],
             ],
           ),

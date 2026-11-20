@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/format/app_format.dart';
 import '../../app/motion/app_overlays.dart';
 import '../../app/theme/func_semantic_tokens.dart';
+import '../../app/widgets/app_dialog.dart';
 import '../../app/widgets/app_top_bar.dart';
 import '../../app/widgets/feed/feed_states.dart';
 import '../../app/widgets/settings/settings_action_tile.dart';
@@ -34,6 +35,7 @@ import 'settings_helpers.dart';
 import 'settings_catalog.dart';
 import '../../app/layout/content_widths.dart';
 import '../../app/icons/app_icons.dart';
+import '../../app/icons/ui_icons.dart';
 
 String _networkText(BuildContext context, String key) {
   return l10nLookup(context.l10n, key);
@@ -498,7 +500,7 @@ class _NetworkAdvancedSettingsPageState
   Future<void> _resetDefaults() async {
     final confirmed = await showAppDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
+      builder: (dialogContext) => AppAlertDialog(
         title: Text(context.l10n.networkAdvancedReset),
         content: Text(context.l10n.networkAdvancedResetConfirm),
         actions: [
@@ -616,7 +618,7 @@ class _NetworkAdvancedSettingsPageState
               SettingsGroup(
                 children: [
                   SettingsActionTile(
-                    icon: Icons.restart_alt,
+                    icon: UiIcons.reset,
                     setting: Setting.networkAdvancedReset,
                     onTap: _resetDefaults,
                   ),
@@ -747,7 +749,7 @@ class _EffectiveRoutesSectionState
         children: [
           Expanded(child: Text(context.l10n.networkEffectiveRoutes)),
           IconButton(
-            icon: const Icon(Icons.refresh, size: 20),
+            icon: const Icon(UiIcons.refresh, size: 20),
             tooltip: context.l10n.refresh,
             onPressed: _refresh,
           ),
@@ -832,7 +834,7 @@ class _ThirdPartyReachabilitySectionState
         children: [
           Expanded(child: Text(context.l10n.networkThirdParty)),
           IconButton(
-            icon: const Icon(Icons.refresh, size: 20),
+            icon: const Icon(UiIcons.refresh, size: 20),
             tooltip: context.l10n.refresh,
             onPressed: _check,
           ),
