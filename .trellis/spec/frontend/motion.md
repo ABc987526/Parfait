@@ -2,10 +2,7 @@
 prefix: MOTION
 applies_to:
   - lib/app/motion/**
-  - lib/app/widgets/smooth_wheel_scroll.dart
-  - lib/app/widgets/home_branch_stack.dart
-  - lib/app/widgets/tab_swipe_switcher.dart
-  - lib/app/widgets/image_load_progress.dart
+  - lib/app/widgets/**
   - lib/core/platform/native_warmup.dart
   - lib/core/platform/app_root_pipeline_owner.dart
   - lib/core/platform/touch_resampler.dart
@@ -57,7 +54,7 @@ reviewed: 2026-11-21
 - **Code:** `lib/app/motion/spring_size.dart`
 
 ### MOTION-14 A state change that moves content animates
-- **Rule:** User-toggled blocks use `Reveal` (enter via `SpringSize` + fade; exit fades non-tappably then closes); same-size view swaps use `StateFade(kind:)` (painting 1/255 alpha on frame 0 and starting the fade next frame so heavy first frames never skip fade-in); mode-changing top bars cross-fade on `MotionTokens.chrome` or `slideChrome`. Small inline control swaps, selection tints, and live typing results stay instant.
+- **Rule:** User-toggled blocks use `Reveal` (enter via `SpringSize` + fade; exit fades non-tappably then closes); same-size view swaps use `StateFade(kind:)` (painting 1/255 alpha on frame 0 and starting the fade next frame so heavy first frames never skip fade-in); mode-changing top bars cross-fade on `MotionTokens.chrome`, while bars replaced by a mode slide out via `slideChrome`. Small inline control swaps, selection tints, and live typing results stay instant.
 - **Why:** Avoided jarring layout pops and skipped fades while keeping micro-interactions crisp.
 - **Check:** `test/motion_test.dart` "fades in, and fades out before the block leaves" "reduced motion hides at once" "a new state paints in its first frame and fades after it"
 - **Code:** `lib/app/motion/reveal.dart`, `lib/app/motion/state_fade.dart`, `lib/app/widgets/app_top_bar.dart`
@@ -163,7 +160,7 @@ reviewed: 2026-11-21
 - **Code:** `lib/app/motion/still_work.dart`, `lib/app/widgets/tab_swipe_switcher.dart`, `lib/app/widgets/home_branch_stack.dart`, `lib/app/navigation/routes.dart`, `lib/features/illust/detail/illust_detail_pager_page.dart`, `lib/core/image/image_worker.dart`, `lib/features/ranking/ranking_tabs.dart`
 
 ### MOTION-23 Pointer input removes touch press delay, wheel inertia and wide slide travel
-- **Rule:** Under `InputModality.pointer`, `PressScale` skips the 100 ms scroll delay; `HomeBranchStack` over `ShellRail` switches branches with 150 ms `MotionTokens.desktopBranchSwitch` fade + 12dp slide (cut under reduced motion); `SmoothWheelScroll` jumps directly (`Duration.zero`) while calling `dispatchWheelUserScroll` so `ScrollHide` bars follow wheel ticks.
+- **Rule:** Under `InputModality.pointer`, `PressScale` skips the 100 ms scroll delay; `HomeBranchStack` over `ShellRail` switches branches with 150 ms `MotionTokens.desktopPageTransition` fade + 12dp slide (cut under reduced motion); `SmoothWheelScroll` jumps directly (`Duration.zero`) while calling `dispatchWheelUserScroll` so `ScrollHide` bars follow wheel ticks.
 - **Why:** Touch tap delays, full-width slides, and synthetic wheel inertia feel sluggish with a mouse.
 - **Check:** `test/motion_test.dart` "Pointer mode skips PressScale 100ms delay and SmoothWheelScroll jumps instantly"; `test/home_branch_stack_test.dart` "desktop ShellRail animates branch switch with 150ms fade+slide"
 - **Code:** `lib/app/motion/press_scale.dart`, `lib/app/motion/motion_tokens.dart`, `lib/app/motion/scroll_hide.dart`, `lib/app/widgets/home_branch_stack.dart`, `lib/app/widgets/smooth_wheel_scroll.dart`

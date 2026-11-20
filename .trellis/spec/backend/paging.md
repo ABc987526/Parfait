@@ -27,7 +27,7 @@ reviewed: 2026-10-30
   `UnimplementedError` to disown one.
 - **Why:** Two fetch contracts let some feeds bypass cancellation and the
   commit gate.
-- **Check:** `test/feed_generation_commit_test.dart` "refresh wins over a late append and drops its entity/cursor commit"
+- **Check:** manual — enforced by PagedFeedController's single abstract fetch hook contract
 - **Code:** `lib/core/paging/paged_feed_controller.dart`
 
 ### PAGING-02 Cancellation is idle, not an error

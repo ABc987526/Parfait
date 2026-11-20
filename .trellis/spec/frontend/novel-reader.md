@@ -84,7 +84,7 @@ reviewed: 2026-11-21
 - **Code:** `lib/features/novel/novel_reader.dart`, `lib/features/novel/novel_reader_views.dart`, `lib/features/novel/novel_reader_stage.dart`, `lib/features/novel/novel_reader_stage_widgets.dart`, `lib/app/widgets/feed/feed_text_warmup.dart`
 
 ### NOVEL-10 The progress hint and pill keep their contrast on every palette
-- **Rule:** The bottom progress hint uses `bodySmall` at `novelReaderHintAlpha` (>= 4.5:1 on every palette), aligned to the centered `ContentWidths.article` column (or constrained to `hingeBounds.left` on `FoldPosture.book`), with an ellipsizing `Flexible` title beside a fixed `page/total · percent%` suffix in `MergeSemantics`. In bottom chrome, the progress readout is an outlined pill (`novelReaderPillOutlineAlpha`, >= 3:1) opening the progress sheet.
+- **Rule:** The bottom progress hint uses `bodySmall` at `novelReaderHintAlpha` (>= 4.5:1 on every palette), aligned to the centered `ContentWidths.article` column (or constrained to `hingeBounds.left` on `FoldPosture.book` when a valid hinge exists), with an ellipsizing `Flexible` title beside a fixed `page/total · percent%` suffix in `MergeSemantics`. In bottom chrome, the progress readout is an outlined pill (`novelReaderPillOutlineAlpha`, >= 3:1) opening the progress sheet.
 - **Why:** Low-alpha text failed contrast, bare text didn't look tappable, and wide/folded footers detached from the text column or crossed hinges.
 - **Check:** `test/novel_reader_settings_test.dart` "the progress hint keeps 4.5:1 and the pill outline 3:1 on every palette"; `test/novel_reader_stage_test.dart` "the immersive progress hint stays on the article column"
 - **Code:** `lib/features/novel/novel_reader_stage.dart`

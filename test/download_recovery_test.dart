@@ -818,7 +818,21 @@ void main() {
       // Zero durable writes during the 10 throttled progress ticks, while
       // in-memory snapshots still notified listeners and pendingOutputId
       // stayed persisted for crash recovery.
-      expect(observedBytes, containsAll(<int>[10, 50, 100]));
+      expect(
+        observedBytes,
+        containsAllInOrder(const <int>[
+          10,
+          20,
+          30,
+          40,
+          50,
+          60,
+          70,
+          80,
+          90,
+          100,
+        ]),
+      );
       expect(store.upsertCount, upsertsBeforeStream);
       expect(store.records.single.pendingMediaStoreId, 42);
 

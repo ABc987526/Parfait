@@ -29,7 +29,7 @@ reviewed: 2026-11-21
 - **Code:** `lib/app/navigation/func_page.dart`, `lib/app/motion/motion_tokens.dart`, `lib/core/settings/app_settings.dart`
 
 ### TRANS-02 iOS edge-swipe gesture and pager coexistence
-- **Rule:** Never install `CupertinoPageTransitionsBuilder` or `CupertinoPageRoute` directly. On iOS only, `FuncPage` attaches a 24dp leading-edge inward back detector gated on `isCurrent`, non-`fullscreenDialog`, active branch `TickerMode`, and `popGestureEnabled` (`canPop`, no `PopScope(canPop: false)`). Android and desktop keep `handleStartBackGesture` false.
+- **Rule:** Never install `CupertinoPageTransitionsBuilder` or `CupertinoPageRoute` directly. On iOS only, `FuncPage` attaches a leading-edge inward back detector within `24dp + safe-area edge padding`, gated on `isCurrent`, non-`fullscreenDialog`, active branch `TickerMode`, and `popGestureEnabled` (`canPop`, no `PopScope(canPop: false)`, and no pending local-history pop). Android and desktop keep `handleStartBackGesture` false.
 - **Why:** Protects horizontal pagers, dirty-form `PopScope` guards (TRANS-03), and offstage branches (TRANS-04) while enabling native iOS swipe-back.
 - **Check:** `test/func_page_test.dart` "iOS edge-swipe pops active visible route from left 24dp edge without stealing pager drags" "iOS edge-swipe respects PopScope dirty-form guard and stays off on offstage branches"
 - **Code:** `lib/app/navigation/func_page.dart`

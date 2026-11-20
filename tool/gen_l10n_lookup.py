@@ -69,7 +69,10 @@ def _render() -> tuple[str, int]:
             check=True,
         ).stdout
         return formatted, len(cases)
-    return raw, len(cases)
+    raise RuntimeError(
+        '`dart` not found on PATH; run with Flutter/Dart SDK available '
+        'so generated output matches dart format.'
+    )
 
 
 def main() -> int:

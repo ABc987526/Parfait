@@ -25,6 +25,7 @@ applies_to:
   - lib/app/layout/card_columns.dart
   - lib/app/layout/content_widths.dart
   - lib/app/widgets/scrollable_form_shell.dart
+  - lib/features/illust/detail/author_works_section.dart
 reviewed: 2026-11-21
 ---
 
@@ -155,7 +156,7 @@ reviewed: 2026-11-21
 - **Code:** `lib/features/settings/pages/muted_items_page.dart`, `lib/core/mute`
 
 ### PAGE-14 Management lists are lazy rows on one surface per group
-- **Rule:** Download tasks render in one flat lazy list keyed by task/group ID (newest submission first; groups share one `SliverSurfaceList`, singletons stay plain; never reparent rows with `GlobalKey`s). Progress bars show only while active; actions stay on the title row while >= 160dp remains for text, aligned on the trailing edge.
+- **Rule:** Download tasks render in one flat lazy list keyed by task/group ID (newest submission first; groups share one `SliverSurfaceList`, singletons stay plain; never reparent rows with `GlobalKey`s). Progress bars show only for unfinished states (`queued`, `running`, `finalizing`, or `canceling`); actions stay on the title row while >= 160dp remains for text, aligned on the trailing edge.
 - **Why:** Avoided eager builds, reparent glitches, wasted lines on phones, and misaligned group actions.
 - **Check:** `test/download_tasks_page_test.dart` "a five-hundred-item list only builds the visible rows" "a group of one is a plain task row" "the newest submission comes first, groups among tasks" "on a phone a finished row keeps remove on its title row" "a collapsed group expands on tap and folds its children in"
 - **Code:** `lib/features/settings/pages/download_tasks_page.dart`, `lib/features/settings/pages/download_task_rows.dart`, `lib/app/widgets/sliver_surface_list.dart`

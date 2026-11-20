@@ -407,23 +407,20 @@ class DevShellHostState extends State<DevShellHost> {
           displayFeatures: displayFeatures,
         );
 
-        Widget frame = ProviderScope(
-          overrides: [platformCapsProvider.overrideWithValue(caps)],
-          child: MediaQuery(
-            data: simulatedMedia,
-            child: Theme(
-              data: Theme.of(context).copyWith(platform: targetPlatform),
-              child: WindowEnvironmentOverride(
-                displaySize: preset.logicalSize,
-                targetPlatform: targetPlatform,
-                platformCaps: caps,
-                desktopMetrics: desktopMetrics,
-                desktopActions: DesktopWindowActions.noop,
-                showSimulatedTrafficLights: showMacLights,
-                child: InputModalityScope(
-                  initialModality: effectiveModality,
-                  child: persistentApp,
-                ),
+        Widget frame = MediaQuery(
+          data: simulatedMedia,
+          child: Theme(
+            data: Theme.of(context).copyWith(platform: targetPlatform),
+            child: WindowEnvironmentOverride(
+              displaySize: preset.logicalSize,
+              targetPlatform: targetPlatform,
+              platformCaps: caps,
+              desktopMetrics: desktopMetrics,
+              desktopActions: DesktopWindowActions.noop,
+              showSimulatedTrafficLights: showMacLights,
+              child: InputModalityScope(
+                initialModality: effectiveModality,
+                child: persistentApp,
               ),
             ),
           ),
@@ -442,6 +439,11 @@ class DevShellHostState extends State<DevShellHost> {
             ],
           );
         }
+
+        frame = ProviderScope(
+          overrides: [platformCapsProvider.overrideWithValue(caps)],
+          child: frame,
+        );
 
         final boundary = RepaintBoundary(
           key: _captureKey,

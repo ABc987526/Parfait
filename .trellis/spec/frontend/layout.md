@@ -53,7 +53,7 @@ reviewed: 2026-11-17
   never `'$label: $value'`. Chinese copy uses full-width punctuation and
   a space between Chinese and Latin words.
 - **Why:** Chinese and Japanese take a full-width colon with no space.
-- **Check:** `test/architecture/l10n_and_errors_test.dart` "arb files define every key once" "text placeholders are allow-listed with a reason"
+- **Check:** manual — code review on ARB and copy strings (labelValue, errorWithReason)
 - **Code:** `lib/l10n`
 
 ### LAYOUT-04 Measure text with the style it paints with

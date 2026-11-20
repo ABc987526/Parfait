@@ -993,6 +993,8 @@ void main() {
 
         await tester.pumpWidget(tree(reduce: false));
         expect(tester.binding.hasScheduledFrame, isTrue);
+        expect(find.byType(SkeletonBone), findsOneWidget);
+        expect(find.byType(ShaderMask), findsNothing);
         expect(find.bySemanticsLabel('Outer loading'), findsOneWidget);
         expect(find.bySemanticsLabel('Nested loading'), findsNothing);
 

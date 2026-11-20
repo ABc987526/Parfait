@@ -21,7 +21,7 @@ reviewed: 2026-11-21
 ## What a test proves
 
 ### TEST-01 A regression test fails on the defect and sits with its behaviour
-- **Rule:** Confirm new regression cases fail against the old code (`git show HEAD:<path>`) before trusting them. Place each case beside the behaviour it belongs to (named for the behaviour, issue number in a comment); add a new group only when none exists.
+- **Rule:** Confirm new regression cases fail against the old code (`git show <pre-fix-ref>:<path>`) before trusting them. Place each case beside the behaviour it belongs to (named for the behaviour, issue number in a comment); add a new group only when none exists.
 - **Why:** Regression tests otherwise passed for unrelated reasons and piled up in incident-named grab bags.
 - **Check:** manual
 - **Code:** `test`
@@ -109,7 +109,7 @@ reviewed: 2026-11-21
 - **Code:** `test/helpers/waits.dart`, `test/helpers/history_world.dart`
 
 ### TEST-15 Widget tests fail on what they leave undisposed
-- **Rule:** Every `flutter_test_config.dart` enables `enableLeakTracking()`, failing on undisposed notifiers, controllers, layers, `ImageInfo`, or animations. Fix `lib/` leaks in `lib/` (QUAL-06); dispose test-owned objects via `addTearDown`; document unavoidable framework/package exemptions in `test/helpers/leak_tracking.dart` or file top. Each case clears live image cache entries (`clearLiveImages`).
+- **Rule:** The root and `locale_layout` `flutter_test_config.dart` files enable `enableLeakTracking()`, failing on undisposed notifiers, controllers, layers, `ImageInfo`, or animations (`architecture` and `review` configs intentionally bypass it). Fix `lib/` leaks in `lib/` (QUAL-06); dispose test-owned objects via `addTearDown`; document unavoidable framework/package exemptions in `test/helpers/leak_tracking.dart` or file top. Each case clears live image cache entries (`clearLiveImages`).
 - **Why:** Catches leaked controllers, animations, and decoded frames automatically without high-memory creation stacks.
 - **Check:** `test/flutter_test_config.dart` "enableLeakTracking();", `test/locale_layout/flutter_test_config.dart` "enableLeakTracking();", `test/helpers/leak_tracking.dart` "LeakTesting.enable" "clearLiveImages"
 - **Code:** `test/helpers/leak_tracking.dart`, `test/flutter_test_config.dart`, `test/locale_layout/flutter_test_config.dart`

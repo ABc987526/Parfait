@@ -18,6 +18,10 @@ applies_to:
   - lib/features/home/**
   - lib/features/search/docked_search.dart
   - lib/features/search/search_input_engine.dart
+  - lib/features/search/search_input_page.dart
+  - lib/features/search/search_page.dart
+  - lib/features/illust/detail/illust_detail_page.dart
+  - lib/features/illust/detail/widgets/detail_overlay_frame.dart
 reviewed: 2026-11-21
 ---
 
@@ -130,7 +134,7 @@ reviewed: 2026-11-21
 ## Top bars, tabs and choices
 
 ### NAV-14 Top tabs are AppTabBar and never shrink
-- **Rule:** Every tab row uses `AppTabBar` at themed text size (measured in `TabBar`'s painted style, LAYOUT-04): equal shares when all fit (`>= 600dp` caps slots at `maxEqualSlotWidth ?? 120dp`, `76dp` on wide profiles, start-aligned; `tabsBesideTitle` always caps); otherwise scrollable with 48dp `ScrollEdgeFade(initialAfter: true)` and compact `FuncSpacing.sm` padding under 420dp.
+- **Rule:** Every tab row uses `AppTabBar` at themed text size (measured in `TabBar`'s painted style, LAYOUT-04): equal shares when all fit (`>= 600dp` caps slots at `maxEqualSlotWidth ?? 120dp`, `76dp` on wide profiles, or the widest label plus padding when wider; start-aligned; `tabsBesideTitle` always caps); otherwise scrollable with 48dp `ScrollEdgeFade(initialAfter: true)` and compact `FuncSpacing.sm` padding under 420dp.
 - **Why:** Shrunk labels broke long locales while uncapped wide shares spread tabs across 1300dp.
 - **Check:** `test/app_tab_bar_test.dart` "a wide row keeps its tabs together at the start" "labels that do not fit scroll from the start at 14sp"
 - **Code:** `lib/app/widgets/app_tab_bar.dart`
