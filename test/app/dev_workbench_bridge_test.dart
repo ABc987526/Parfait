@@ -42,6 +42,15 @@ void main() {
               children: [
                 const Text('DuplicateLabel', key: ValueKey('shared_key')),
                 const Text('007'),
+                const Text('ViewportPrefer'),
+                Transform.translate(
+                  offset: const Offset(4000, 0),
+                  child: const Text('OffscreenOnly'),
+                ),
+                Transform.translate(
+                  offset: const Offset(4000, 0),
+                  child: const Text('ViewportPrefer'),
+                ),
                 const Offstage(
                   offstage: true,
                   child: Text(
@@ -177,6 +186,19 @@ void main() {
         }))['found'],
         isTrue,
       );
+      final offscreenOnly = await state.dispatchDebugCommand('findBounds', {
+        'kind': 'text',
+        'query': 'OffscreenOnly',
+      });
+      expect(offscreenOnly['found'], isTrue);
+      expect((offscreenOnly['centerX'] as num) > 1000, isTrue);
+
+      final viewportPrefer = await state.dispatchDebugCommand('findBounds', {
+        'kind': 'text',
+        'query': 'ViewportPrefer',
+      });
+      expect(viewportPrefer['found'], isTrue);
+      expect((viewportPrefer['centerX'] as num) < 1000, isTrue);
 
       final baseBounds = await state.dispatchDebugCommand('findBounds', {
         'kind': 'key',

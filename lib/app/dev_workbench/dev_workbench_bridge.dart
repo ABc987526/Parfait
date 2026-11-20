@@ -546,7 +546,13 @@ class DevWorkbenchHostState extends ConsumerState<DevWorkbenchHost> {
         (text == null || text.isEmpty)) {
       return {'found': false};
     }
-    Rect? match;
+    final view = WidgetsBinding.instance.platformDispatcher.implicitView;
+    final dpr = view?.devicePixelRatio ?? 1.0;
+    final logicalSize = view == null
+        ? Size.zero
+        : view.physicalSize / (dpr > 0 ? dpr : 1.0);
+    Rect? inViewportMatch;
+    Rect? fallbackMatch;
     void visit(Element element) {
       final widget = element.widget;
       if (widget is Offstage && widget.offstage) return;
@@ -582,22 +588,27 @@ class DevWorkbenchHostState extends ConsumerState<DevWorkbenchHost> {
         final ro = element.renderObject;
         if (ro is RenderBox && ro.hasSize && ro.attached && !ro.size.isEmpty) {
           final origin = ro.localToGlobal(Offset.zero);
-          match = origin & ro.size;
+          final candidate = origin & ro.size;
+          final c = candidate.center;
+          final inView =
+              logicalSize.isEmpty ||
+              (c.dx >= 0 &&
+                  c.dx <= logicalSize.width &&
+                  c.dy >= 0 &&
+                  c.dy <= logicalSize.height);
+          if (inView) {
+            inViewportMatch = candidate;
+          } else {
+            fallbackMatch = candidate;
+          }
         }
       }
       element.visitChildren(visit);
     }
 
     root.visitChildren(visit);
-    final rect = match;
+    final rect = inViewportMatch ?? fallbackMatch;
     if (rect == null) return {'found': false};
-    final dpr =
-        WidgetsBinding
-            .instance
-            .platformDispatcher
-            .implicitView
-            ?.devicePixelRatio ??
-        1.0;
     return {
       'found': true,
       'x': rect.left,

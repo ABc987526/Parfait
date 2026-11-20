@@ -159,6 +159,7 @@ def _make_novel(
 ) -> dict[str, object]:
     body = (
         f"Chapter 1 — {title}\n\n"
+        "[uploadedimage:1]\n\n"
         "[newpage]\n"
         "The morning light crossed the drafting desk while the local workbench "
         "captured every interactive transition across desktop and mobile.\n\n"
@@ -292,6 +293,7 @@ class PixivLoopbackState:
                     800002,
                     "Notes from the Wet Dock",
                     self.authors[1],
+                    series=novel_series,
                 ),
             ]
 
@@ -553,10 +555,16 @@ class PixivLoopbackState:
                         "id": str(novel["id"]),
                         "title": novel["title"],
                         "text": novel["content"],
-                        "images": {},
+                        "images": {
+                            "1": {
+                                "urls": {
+                                    "1200x1200": f"https://i.pximg.net/img-master/img/{nid}_uploaded_1.png",
+                                },
+                            },
+                        },
                         "illusts": {},
                         "seriesNavigation": {},
-                        "marker": None,
+                        "marker": {"page": 1},
                     }
                 },
                 ensure_ascii=False,
@@ -575,21 +583,32 @@ class PixivLoopbackState:
                     "novel_series_detail": {
                         "id": 6601,
                         "title": "Signal Across Mirrors",
-                        "caption": "Loopback novel series fixture.",
+                        "caption": "Loopback novel series fixture.\nLine 2 expandable summary.",
                         "is_original": True,
                         "is_concluded": False,
-                        "content_count": 1,
+                        "content_count": 2,
                         "total_character_count": len(str(self.novels[0]["content"])),
                         "user": self.authors[2],
                         "watchlist_added": False,
                     },
-                    "novels": [self.novels[0]],
+                    "novel_series_first_novel": self.novels[0],
+                    "novel_series_latest_novel": self.novels[-1],
+                    "novels": self.novels,
                     "next_url": None,
                 },
             )
 
         if path == "/v2/novel/markers":
-            return self._json(200, {"marked_novels": [], "next_url": None})
+            return self._json(
+                200,
+                {
+                    "marked_novels": [
+                        {"novel": self.novels[0], "novel_marker": {"page": 1}},
+                        {"novel": self.novels[1], "novel_marker": {"page": 2}},
+                    ],
+                    "next_url": None,
+                },
+            )
 
         # Users
         if path == "/v1/user/detail":
@@ -749,19 +768,47 @@ class PixivLoopbackState:
             )
 
         # Comments
-        if path in ("/v3/illust/comments", "/v3/novel/comments", "/v2/illust/comment/replies", "/v2/novel/comment/replies"):
+        if path in ("/v3/illust/comments", "/v3/novel/comments"):
             return self._json(
                 200,
                 {
-                    "total_comments": 1,
+                    "total_comments": 2,
                     "comments": [
                         {
                             "id": 7001,
                             "comment": "Clean composition in loopback fixture.",
                             "date": "2026-11-15T10:30:00+09:00",
                             "user": self.authors[1],
+                            "has_replies": True,
+                            "parent_comment_id": None,
+                            "stamp": None,
+                        },
+                        {
+                            "id": 7002,
+                            "comment": "Nice brushwork detail on the harbor water.",
+                            "date": "2026-11-15T10:45:00+09:00",
+                            "user": self.authors[2],
                             "has_replies": False,
                             "parent_comment_id": None,
+                            "stamp": None,
+                        },
+                    ],
+                    "next_url": None,
+                },
+            )
+
+        if path in ("/v2/illust/comment/replies", "/v2/novel/comment/replies"):
+            return self._json(
+                200,
+                {
+                    "comments": [
+                        {
+                            "id": 7011,
+                            "comment": "Reply inside loopback fixture thread.",
+                            "date": "2026-11-15T10:50:00+09:00",
+                            "user": self.authors[0],
+                            "has_replies": False,
+                            "parent_comment_id": 7001,
                             "stamp": None,
                         },
                     ],
@@ -791,13 +838,54 @@ class PixivLoopbackState:
             return self._json(200, {})
 
         # Watchlist, Mute, Server display settings, History, Profile edit
-        if path in ("/v1/watchlist/manga", "/v1/watchlist/novel"):
-            return self._json(200, {"series": [], "next_url": None})
+        if path == "/v1/watchlist/manga":
+            return self._json(
+                200,
+                {
+                    "series": [
+                        {
+                            "id": 8801,
+                            "title": "Loopback Sketchbook",
+                            "url": "https://i.pximg.net/img-master/img/900001_p0.png",
+                            "published_content_count": 2,
+                            "last_published_content_datetime": "2026-11-15T10:00:00+09:00",
+                            "latest_content_id": 900006,
+                            "user": self.authors[0],
+                            "mask_text": None,
+                        },
+                    ],
+                    "next_url": None,
+                },
+            )
+
+        if path == "/v1/watchlist/novel":
+            return self._json(
+                200,
+                {
+                    "series": [
+                        {
+                            "id": 6601,
+                            "title": "Signal Across Mirrors",
+                            "url": "https://i.pximg.net/novel-cover/800001_sq.png",
+                            "published_content_count": 2,
+                            "last_published_content_datetime": "2026-11-15T09:30:00+09:00",
+                            "latest_content_id": 800002,
+                            "user": self.authors[2],
+                            "mask_text": None,
+                        },
+                    ],
+                    "next_url": None,
+                },
+            )
 
         if path == "/v1/mute/list":
             return self._json(
                 200,
-                {"muted_tags": [], "muted_users": [], "mute_limit_count": 500},
+                {
+                    "muted_tags": [{"tag": "spoiler_tag"}],
+                    "muted_users": [],
+                    "mute_limit_count": 500,
+                },
             )
 
         if path == "/v1/user/ai-show-settings":
