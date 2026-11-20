@@ -608,13 +608,7 @@ class _NovelSeriesBarState extends ConsumerState<_NovelSeriesBar> {
       // Same row skeleton as the data state — disabled chevrons and a
       // small spinner where the series name will land.
       loading: () => const _SeriesBarRow(
-        center: Center(
-          child: SizedBox(
-            width: 16,
-            height: 16,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
-        ),
+        center: Center(child: AppSpinner(size: 16, strokeWidth: 2)),
       ),
       // Localized fallback plus retry — the raw error is logged in the
       // provider, never stitched into the visible text.
@@ -804,10 +798,7 @@ class _NovelMarkerSection extends ConsumerWidget {
       }
     }
 
-    const progress = SizedBox.square(
-      dimension: 18,
-      child: CircularProgressIndicator(strokeWidth: 2),
-    );
+    const progress = AppSpinner(size: 18, strokeWidth: 2);
     final screenPage = page == null ? null : screenPageOf(page);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

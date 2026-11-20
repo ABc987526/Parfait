@@ -13,6 +13,7 @@ import '../../../app/format/app_format.dart';
 import '../../../app/layout/app_breakpoints.dart';
 import '../../../app/layout/input_modality.dart';
 import '../../../app/motion/drag_to_dismiss.dart';
+import '../../../app/widgets/app_spinner.dart';
 import '../../../app/haptics/app_haptics.dart';
 import '../../../app/motion/app_overlays.dart';
 import '../../../app/motion/motion_tokens.dart';
@@ -1416,10 +1417,9 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage>
                               _ => () => unawaited(_saveActivePage(entity)),
                             },
                       icon: switch (saveState) {
-                        IllustPageSaveState.downloading => const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                        IllustPageSaveState.downloading => const AppSpinner(
+                          size: 20,
+                          strokeWidth: 2,
                         ),
                         IllustPageSaveState.exist => const Icon(
                           UiIcons.checkCircle,

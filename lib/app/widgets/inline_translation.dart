@@ -13,6 +13,7 @@ import '../motion/state_fade.dart';
 import '../theme/func_semantic_tokens.dart';
 import '../icons/app_icons.dart';
 import '../icons/ui_icons.dart';
+import 'app_spinner.dart';
 
 /// Inline translation for the State that shows the original text: idle →
 /// translating → translations or a failure, shown below the original by a
@@ -135,10 +136,7 @@ class TranslationPanel extends StatelessWidget {
               padding: EdgeInsets.symmetric(vertical: FuncSpacing.sm),
               child: Align(
                 alignment: AlignmentDirectional.centerStart,
-                child: SizedBox.square(
-                  dimension: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
+                child: AppSpinner(size: 18, strokeWidth: 2),
               ),
             ),
           if (translations != null)

@@ -13,6 +13,7 @@ import '../../core/bookmark/bookmark_store.dart';
 import '../../core/bookmark/bookmark_tag_providers.dart';
 import '../../core/errors/error_category.dart';
 import '../haptics/app_haptics.dart';
+import 'app_spinner.dart';
 import '../layout/app_breakpoints.dart';
 import '../layout/content_widths.dart';
 import '../motion/app_overlays.dart';
@@ -753,13 +754,7 @@ class _BookmarkEditSheetState extends ConsumerState<_BookmarkEditSheet> {
                                   vertical: FuncSpacing.md,
                                 ),
                                 child: Center(
-                                  child: SizedBox(
-                                    width: 24,
-                                    height: 24,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  ),
+                                  child: AppSpinner(size: 24, strokeWidth: 2),
                                 ),
                               )
                           else ...[

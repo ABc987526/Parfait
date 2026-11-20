@@ -12,6 +12,7 @@ import '../core/settings/app_settings.dart';
 import '../l10n/lookup.dart';
 import '../l10n/context.dart';
 import 'layout/content_widths.dart';
+import 'widgets/app_spinner.dart';
 import 'widgets/errors/error_details.dart';
 import 'theme/func_semantic_tokens.dart';
 import 'icons/ui_icons.dart';
@@ -348,7 +349,7 @@ class _StartupProgress extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    return const Scaffold(body: Center(child: AppSpinner()));
   }
 }
 

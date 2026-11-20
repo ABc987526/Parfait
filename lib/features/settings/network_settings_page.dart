@@ -11,6 +11,7 @@ import '../../app/widgets/app_dialog.dart';
 import '../../app/widgets/app_top_bar.dart';
 import '../../app/widgets/feed/feed_states.dart';
 import '../../app/widgets/settings/settings_action_tile.dart';
+import '../../app/widgets/app_spinner.dart';
 import '../../app/widgets/settings/settings_anchor.dart';
 import '../../app/widgets/settings/settings_choice_tile.dart';
 import '../../app/widgets/settings/settings_group.dart';
@@ -347,13 +348,7 @@ class _ImageSourceSectionState extends ConsumerState<_ImageSourceSection> {
                       FilledButton.tonalIcon(
                         onPressed: _testingMirror ? null : _testMirror,
                         icon: _testingMirror
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              )
+                            ? const AppSpinner(size: 16, strokeWidth: 2)
                             : const Icon(AppIcons.network, size: 18),
                         label: Text(context.l10n.imageSourceApplyAndTest),
                       ),

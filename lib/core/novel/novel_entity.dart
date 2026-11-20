@@ -511,7 +511,7 @@ class NovelMarkupDocument {
         token.loadRequest!,
   ];
 
-  bool get hasUnsupportedTokens => unsupportedTokens.isNotEmpty;
+  bool get hasUnsupportedTokens => tokens.any((token) => token.isUnsupported);
 
   String get plainText => blocks.map((block) => block.plainText).join('\n');
 
@@ -998,6 +998,9 @@ class NovelMarkupParser {
   ];
 
   static final _pixivImageIdentifier = RegExp(r'^(\d{1,18})(?:-(\d{1,4}))?$');
+  static final _uploadedImageIdentifier = RegExp(
+    r'^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$',
+  );
 
   NovelMarkupDocument parse(
     String source, {
@@ -1049,72 +1052,14 @@ class NovelMarkupParser {
     required CancelToken? cancelToken,
     required NovelMarkupProgressCallback? onProgress,
   }) {
-    final accumulator = _NovelScanAccumulator(budget.maxDiagnostics);
-    final tokens = <NovelMarkupToken>[];
-    final sourceLimit = source.length.clamp(0, budget.maxSourceUnits);
-    final regularTokenLimit = budget.maxTokens - 1;
-    var cursor = 0;
-    var chunkUnits = 0;
-    var chunkIndex = 0;
-    var budgetExceeded = source.length > sourceLimit;
-
-    while (cursor < sourceLimit && tokens.length < regularTokenLimit) {
-      _checkCancelled(cancelToken);
-      final scanned = _scanOne(source, cursor, sourceLimit, accumulator);
-      tokens.add(scanned.token);
-      final consumed = scanned.end - cursor;
-      cursor = scanned.end;
-      chunkUnits += consumed;
-      if (chunkUnits >= budget.chunkSize) {
-        chunkIndex++;
-        _report(
-          onProgress,
-          NovelMarkupProgress(
-            processedUnits: cursor,
-            totalUnits: source.length,
-            tokenCount: tokens.length,
-            chunkIndex: chunkIndex,
-            isComplete: false,
-            budgetExceeded: budgetExceeded,
-          ),
-        );
-        chunkUnits = 0;
-      }
-    }
-
-    if (cursor < sourceLimit) {
-      budgetExceeded = true;
-    }
-    if (budgetExceeded) {
-      _appendBudgetToken(
-        tokens,
-        sourceOffset: cursor,
-        reason: source.length > sourceLimit
-            ? 'source exceeds maxSourceUnits'
-            : 'token count exceeds maxTokens',
-        maxTokens: budget.maxTokens,
-        accumulator: accumulator,
-      );
-    }
-    chunkIndex++;
-    _report(
-      onProgress,
-      NovelMarkupProgress(
-        processedUnits: cursor,
-        totalUnits: source.length,
-        tokenCount: tokens.length,
-        chunkIndex: chunkIndex,
-        isComplete: true,
-        budgetExceeded: budgetExceeded,
-      ),
+    final session = _NovelScanSession(
+      parser: this,
+      source: source,
+      cancelToken: cancelToken,
+      onProgress: onProgress,
     );
-    return _NovelScanResult(
-      tokens: tokens,
-      diagnostics: accumulator.diagnostics,
-      processedUnits: cursor,
-      chunkIndex: chunkIndex,
-      budgetExceeded: budgetExceeded,
-    );
+    while (session.advanceChunk()) {}
+    return session.finish();
   }
 
   Future<_NovelScanResult> _scanAsync(
@@ -1122,74 +1067,17 @@ class NovelMarkupParser {
     required CancelToken? cancelToken,
     required NovelMarkupProgressCallback? onProgress,
   }) async {
-    final accumulator = _NovelScanAccumulator(budget.maxDiagnostics);
-    final tokens = <NovelMarkupToken>[];
-    final sourceLimit = source.length.clamp(0, budget.maxSourceUnits);
-    final regularTokenLimit = budget.maxTokens - 1;
-    var cursor = 0;
-    var chunkUnits = 0;
-    var chunkIndex = 0;
-    var budgetExceeded = source.length > sourceLimit;
-
-    while (cursor < sourceLimit && tokens.length < regularTokenLimit) {
-      _checkCancelled(cancelToken);
-      final scanned = _scanOne(source, cursor, sourceLimit, accumulator);
-      tokens.add(scanned.token);
-      final consumed = scanned.end - cursor;
-      cursor = scanned.end;
-      chunkUnits += consumed;
-      if (chunkUnits >= budget.chunkSize) {
-        chunkIndex++;
-        _report(
-          onProgress,
-          NovelMarkupProgress(
-            processedUnits: cursor,
-            totalUnits: source.length,
-            tokenCount: tokens.length,
-            chunkIndex: chunkIndex,
-            isComplete: false,
-            budgetExceeded: budgetExceeded,
-          ),
-        );
-        chunkUnits = 0;
-        await Future<void>.delayed(Duration.zero);
-      }
+    final session = _NovelScanSession(
+      parser: this,
+      source: source,
+      cancelToken: cancelToken,
+      onProgress: onProgress,
+    );
+    while (session.advanceChunk()) {
+      await Future<void>.delayed(Duration.zero);
     }
     _checkCancelled(cancelToken);
-
-    if (cursor < sourceLimit) {
-      budgetExceeded = true;
-    }
-    if (budgetExceeded) {
-      _appendBudgetToken(
-        tokens,
-        sourceOffset: cursor,
-        reason: source.length > sourceLimit
-            ? 'source exceeds maxSourceUnits'
-            : 'token count exceeds maxTokens',
-        maxTokens: budget.maxTokens,
-        accumulator: accumulator,
-      );
-    }
-    chunkIndex++;
-    _report(
-      onProgress,
-      NovelMarkupProgress(
-        processedUnits: cursor,
-        totalUnits: source.length,
-        tokenCount: tokens.length,
-        chunkIndex: chunkIndex,
-        isComplete: true,
-        budgetExceeded: budgetExceeded,
-      ),
-    );
-    return _NovelScanResult(
-      tokens: tokens,
-      diagnostics: accumulator.diagnostics,
-      processedUnits: cursor,
-      chunkIndex: chunkIndex,
-      budgetExceeded: budgetExceeded,
-    );
+    return session.finish();
   }
 
   _ScannedNovelToken _scanOne(
@@ -1444,9 +1332,7 @@ class NovelMarkupParser {
         );
       case 'uploadedimage':
         final identifier = payload.trim();
-        final valid = RegExp(
-          r'^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$',
-        ).hasMatch(identifier);
+        final valid = _uploadedImageIdentifier.hasMatch(identifier);
         if (!valid) {
           accumulator.add(
             kind: NovelMarkupIssueKind.invalidImage,
@@ -1876,6 +1762,98 @@ class _ScannedNovelToken {
 
   final NovelMarkupToken token;
   final int end;
+}
+
+class _NovelScanSession {
+  _NovelScanSession({
+    required this.parser,
+    required this.source,
+    required this.cancelToken,
+    required this.onProgress,
+  }) : accumulator = _NovelScanAccumulator(parser.budget.maxDiagnostics),
+       sourceLimit = source.length.clamp(0, parser.budget.maxSourceUnits),
+       regularTokenLimit = parser.budget.maxTokens - 1 {
+    budgetExceeded = source.length > sourceLimit;
+  }
+
+  final NovelMarkupParser parser;
+  final String source;
+  final CancelToken? cancelToken;
+  final NovelMarkupProgressCallback? onProgress;
+  final _NovelScanAccumulator accumulator;
+  final int sourceLimit;
+  final int regularTokenLimit;
+  final List<NovelMarkupToken> tokens = <NovelMarkupToken>[];
+
+  var cursor = 0;
+  var chunkIndex = 0;
+  late bool budgetExceeded;
+
+  /// Scans tokens until one chunk finishes (returning `true` so async callers
+  /// can yield) or until the input/token limit is reached (returning `false`).
+  bool advanceChunk() {
+    var chunkUnits = 0;
+    while (cursor < sourceLimit && tokens.length < regularTokenLimit) {
+      NovelMarkupParser._checkCancelled(cancelToken);
+      final scanned = parser._scanOne(source, cursor, sourceLimit, accumulator);
+      tokens.add(scanned.token);
+      final consumed = scanned.end - cursor;
+      cursor = scanned.end;
+      chunkUnits += consumed;
+      if (chunkUnits >= parser.budget.chunkSize) {
+        chunkIndex++;
+        NovelMarkupParser._report(
+          onProgress,
+          NovelMarkupProgress(
+            processedUnits: cursor,
+            totalUnits: source.length,
+            tokenCount: tokens.length,
+            chunkIndex: chunkIndex,
+            isComplete: false,
+            budgetExceeded: budgetExceeded,
+          ),
+        );
+        return true;
+      }
+    }
+    return false;
+  }
+
+  _NovelScanResult finish() {
+    if (cursor < sourceLimit) {
+      budgetExceeded = true;
+    }
+    if (budgetExceeded) {
+      NovelMarkupParser._appendBudgetToken(
+        tokens,
+        sourceOffset: cursor,
+        reason: source.length > sourceLimit
+            ? 'source exceeds maxSourceUnits'
+            : 'token count exceeds maxTokens',
+        maxTokens: parser.budget.maxTokens,
+        accumulator: accumulator,
+      );
+    }
+    chunkIndex++;
+    NovelMarkupParser._report(
+      onProgress,
+      NovelMarkupProgress(
+        processedUnits: cursor,
+        totalUnits: source.length,
+        tokenCount: tokens.length,
+        chunkIndex: chunkIndex,
+        isComplete: true,
+        budgetExceeded: budgetExceeded,
+      ),
+    );
+    return _NovelScanResult(
+      tokens: tokens,
+      diagnostics: accumulator.diagnostics,
+      processedUnits: cursor,
+      chunkIndex: chunkIndex,
+      budgetExceeded: budgetExceeded,
+    );
+  }
 }
 
 class _NovelScanResult {

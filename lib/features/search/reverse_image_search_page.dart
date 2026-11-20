@@ -11,6 +11,7 @@ import '../../app/widgets/web_navigation_guard.dart';
 import '../../core/format/byte_size.dart';
 import '../../core/platform/android_intent_channel.dart';
 import '../../core/platform/intent_router.dart';
+import '../../app/widgets/app_spinner.dart';
 import '../../core/platform/platform_caps.dart';
 import '../../core/reverse_image/desktop_image_input.dart';
 import '../../core/reverse_image/image_input.dart';
@@ -322,7 +323,7 @@ class _ReverseImageSearchPageState
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const CircularProgressIndicator(),
+            const AppSpinner(),
             const SizedBox(height: FuncSpacing.lg),
             Text(label),
             const SizedBox(height: FuncSpacing.lg),

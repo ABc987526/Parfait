@@ -11,6 +11,7 @@ import '../../app/theme/func_semantic_tokens.dart';
 import '../../app/widgets/app_dialog.dart';
 import '../../app/widgets/feed/feed_states.dart';
 import '../../app/widgets/replica_button.dart';
+import '../../app/widgets/app_spinner.dart';
 import '../../app/widgets/replica_scaffold.dart';
 import '../../app/widgets/replica_switch_tile.dart';
 import '../../app/widgets/scrollable_form_shell.dart';
@@ -366,11 +367,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               if (_clipboardBusy) ...[
-                const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
+                const AppSpinner(size: 16, strokeWidth: 2),
                 const SizedBox(width: FuncSpacing.sm),
               ],
               Flexible(

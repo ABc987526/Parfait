@@ -11,6 +11,7 @@ import '../../../app/person_avatar.dart';
 import '../../../app/theme/func_semantic_tokens.dart';
 import '../../../app/widgets/app_dialog.dart';
 import '../../../app/widgets/app_snack_bar.dart';
+import '../../../app/widgets/app_spinner.dart';
 import '../../../app/widgets/app_top_bar.dart';
 import '../../../app/widgets/feed/feed_states.dart';
 import '../../../app/widgets/settings/settings_action_tile.dart';
@@ -162,14 +163,11 @@ class _AccountSettingsPageState extends ConsumerState<AccountSettingsPage> {
                                         width: 24,
                                         height: 24,
                                         child: Center(
-                                          child: SizedBox(
-                                            width: 18,
-                                            height: 18,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                              semanticsLabel:
-                                                  context.l10n.accountSwitching,
-                                            ),
+                                          child: AppSpinner(
+                                            size: 18,
+                                            strokeWidth: 2,
+                                            semanticsLabel:
+                                                context.l10n.accountSwitching,
                                           ),
                                         ),
                                       )
@@ -362,9 +360,7 @@ class _ServerDisplaySection extends ConsumerWidget {
       title: Text(context.l10n.serverDisplaySettings),
       children: settings.when(
         loading: () => const [
-          SettingsGroupContent(
-            child: Center(child: CircularProgressIndicator()),
-          ),
+          SettingsGroupContent(child: Center(child: AppSpinner())),
         ],
         error: (error, _) => [
           SettingsActionTile(

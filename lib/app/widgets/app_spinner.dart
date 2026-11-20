@@ -13,6 +13,7 @@ class AppSpinner extends StatelessWidget {
     this.trackColor,
     this.value,
     this.semanticsLabel,
+    this.semanticsValue,
   });
 
   final double size;
@@ -21,6 +22,7 @@ class AppSpinner extends StatelessWidget {
   final Color? trackColor;
   final double? value;
   final String? semanticsLabel;
+  final String? semanticsValue;
 
   @override
   Widget build(BuildContext context) {
@@ -39,6 +41,7 @@ class AppSpinner extends StatelessWidget {
         color: color ?? colors.primary,
         backgroundColor: trackColor ?? hairline,
         semanticsLabel: semanticsLabel,
+        semanticsValue: semanticsValue,
       ),
     );
   }

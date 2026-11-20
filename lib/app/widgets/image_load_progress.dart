@@ -6,6 +6,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../l10n/context.dart';
 import '../motion/motion_tokens.dart';
 import '../theme/func_tokens.dart';
+import 'app_spinner.dart';
 
 /// Download state of one image, published through `PixivImage.progress`.
 @immutable
@@ -134,7 +135,10 @@ class _ProgressDisc extends StatelessWidget {
         ),
         child: Padding(
           padding: const EdgeInsets.all(ImageLoadProgressOverlay._discPadding),
-          child: CircularProgressIndicator(
+          child: AppSpinner(
+            size:
+                ImageLoadProgressOverlay._discSize -
+                ImageLoadProgressOverlay._discPadding * 2,
             value: fraction,
             strokeWidth: ImageLoadProgressOverlay._strokeWidth,
             color: FuncTokens.onImageControl,

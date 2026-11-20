@@ -11,6 +11,7 @@ import '../../../app/pixiv_image.dart';
 import '../../../app/theme/func_semantic_tokens.dart';
 import '../../../app/widgets/app_top_bar.dart';
 import '../../../app/widgets/errors/error_details.dart';
+import '../../../app/widgets/app_spinner.dart';
 import '../../../app/widgets/feed/muted_cover.dart';
 import '../../../app/widgets/settings/settings_group.dart';
 import '../../../app/widgets/settings/settings_group_content.dart';
@@ -111,13 +112,7 @@ class _MutedItemsPageState extends ConsumerState<MutedItemsPage> {
       return const SizedBox(
         width: 24,
         height: 24,
-        child: Center(
-          child: SizedBox(
-            width: 18,
-            height: 18,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
-        ),
+        child: Center(child: AppSpinner(size: 18, strokeWidth: 2)),
       );
     }
     return TextButton(
