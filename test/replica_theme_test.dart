@@ -227,11 +227,12 @@ void main() {
   );
 
   test('a disabled switch that is on takes no accent', () {
-    const lockedOn = {WidgetState.selected, WidgetState.disabled};
+    final lockedOn = {FSwitchVariant.selected, FSwitchVariant.disabled};
     for (final brightness in Brightness.values) {
       final theme = replicaTheme(brightness);
+      final forui = foruiThemeFrom(theme, touch: false);
       expect(
-        theme.switchTheme.trackColor!.resolve(lockedOn),
+        forui.switchStyle.trackColor.resolve(lockedOn),
         isNot(theme.colorScheme.primary),
       );
     }

@@ -38,11 +38,6 @@ const _stackRoots = <String>[
   ..._overlayRoots,
 ];
 
-bool _isEditingFocused() {
-  final focus = primaryFocus;
-  return focus?.context?.findAncestorWidgetOfExactType<EditableText>() != null;
-}
-
 bool _isContextOnScreen(BuildContext context) {
   if (!TickerMode.getValuesNotifier(context).value.enabled) return false;
   final route = ModalRoute.of(context);
@@ -430,11 +425,11 @@ class _BackAction extends Action<_BackIntent> {
 
   @override
   bool isEnabled(_BackIntent intent) =>
-      intent.unfocusEditing || !_isEditingFocused();
+      intent.unfocusEditing || !isTextEditingFocused();
 
   @override
   Object? invoke(_BackIntent intent) {
-    if (intent.unfocusEditing && _isEditingFocused()) {
+    if (intent.unfocusEditing && isTextEditingFocused()) {
       primaryFocus!.unfocus();
       return null;
     }
@@ -455,7 +450,8 @@ class _ForwardAction extends Action<_ForwardIntent> {
 
   @override
   bool isEnabled(_ForwardIntent intent) =>
-      !_isEditingFocused() && ForwardHistoryStack.ofRouter(router).canGoForward;
+      !isTextEditingFocused() &&
+      ForwardHistoryStack.ofRouter(router).canGoForward;
 
   @override
   Object? invoke(_ForwardIntent intent) =>
@@ -500,7 +496,7 @@ class _SelectAllFeedAction extends Action<_SelectAllFeedIntent> {
 
   @override
   bool isEnabled(_SelectAllFeedIntent intent) =>
-      !_isEditingFocused() &&
+      !isTextEditingFocused() &&
       !_hasModalOrRootOverlay(router) &&
       FeedSelectionAnchor.hasSelectableHost;
 
@@ -518,7 +514,7 @@ class _SearchAction extends Action<_SearchIntent> {
 
   @override
   bool isEnabled(_SearchIntent intent) =>
-      !_isEditingFocused() && _canOpenSearchShortcut(router);
+      !isTextEditingFocused() && _canOpenSearchShortcut(router);
 
   @override
   Object? invoke(_SearchIntent intent) {
@@ -539,7 +535,7 @@ class _RefreshAction extends Action<_RefreshIntent> {
   final GoRouter router;
 
   @override
-  bool isEnabled(_RefreshIntent intent) => !_isEditingFocused();
+  bool isEnabled(_RefreshIntent intent) => !isTextEditingFocused();
 
   @override
   Object? invoke(_RefreshIntent intent) {
@@ -562,7 +558,7 @@ class _OpenSettingsAction extends Action<_OpenSettingsIntent> {
 
   @override
   bool isEnabled(_OpenSettingsIntent intent) =>
-      !_isEditingFocused() && _canUseShellShortcut(router);
+      !isTextEditingFocused() && _canUseShellShortcut(router);
 
   @override
   Object? invoke(_OpenSettingsIntent intent) {
@@ -582,7 +578,7 @@ class _ToggleRailAction extends Action<_ToggleRailIntent> {
   @override
   bool isEnabled(_ToggleRailIntent intent) =>
       onToggleRail != null &&
-      !_isEditingFocused() &&
+      !isTextEditingFocused() &&
       _canUseShellShortcut(router);
 
   @override
@@ -599,7 +595,7 @@ class _GoHomeDestinationAction extends Action<_GoHomeDestinationIntent> {
 
   @override
   bool isEnabled(_GoHomeDestinationIntent intent) =>
-      !_isEditingFocused() && _canUseShellShortcut(router);
+      !isTextEditingFocused() && _canUseShellShortcut(router);
 
   @override
   Object? invoke(_GoHomeDestinationIntent intent) {

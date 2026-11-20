@@ -39,7 +39,7 @@ reviewed: 2026-11-21
 - **Rule:** When local filters hide all loaded items while more exist (`PagedFeedState.isAllHidden`), show `FeedAllHidden` with an explicit manual "continue loading" button (no "no results", no auto-walking); detail related-works uses the same row and skips bottom-scroll paging while all-hidden.
 - **Why:** User decision: filtered-out first pages must not masquerade as "no results" or stall paging.
 - **Check:** `test/search_result_page_test.dart` "loaded pages all filtered: a note offers loading more (B9)"; `test/illust_detail_page_test.dart` "related works all filtered: the section offers loading on"
-- **Code:** `lib/app/widgets/feed/feed_states.dart`, `lib/features/illust/detail/related_illusts_section.dart`, `lib/features/illust/detail/illust_detail_content.dart`
+- **Code:** `lib/app/widgets/feed/feed_states.dart`, `lib/features/illust/detail/related_illusts_section.dart`, `lib/features/illust/detail/illust_detail_page.dart`
 
 ### FEED-03 Failures retry once when the network returns
 - **Rule:** Retryable errors (`FeedError`, `FeedTail`, or `RetryOnNetworkRestore`) retry once per offline -> online transition for network/timeout/unknown failures only; 404 and parse errors stay put.
@@ -83,7 +83,7 @@ reviewed: 2026-11-21
 - **Rule:** Lists using `kFeedCacheExtent`, settings, and detail pages use `DeferredCacheScrollView` / `DeferredCacheListView` (first frame builds visible items only; cache extent activates next frame) with `SliverCacheRamp` growing trailing cache by at most 1/4 viewport per frame. Look up scroll views by subtype (`CustomScrollView`), never exact type.
 - **Why:** Eagerly building half a screen of cache on mount/push frames caused 13–25 ms frame spikes.
 - **Check:** `test/shared_widgets_test.dart` "sliver cache ramp"
-- **Code:** `lib/app/layout/deferred_cache_scroll_view.dart`, `lib/app/layout/sliver_cache_ramp.dart`, `lib/app/motion/hero_transition.dart`, `lib/features/illust/detail/illust_detail_content.dart`
+- **Code:** `lib/app/layout/deferred_cache_scroll_view.dart`, `lib/app/layout/sliver_cache_ramp.dart`, `lib/app/motion/hero_transition.dart`, `lib/features/illust/detail/illust_detail_shells.dart`
 
 ### FEED-21 A built card rebuilds only when its own inputs change
 - **Rule:** Feed grids/lists pass `items` and `itemDeps` so `FeedItemCache` reuses unchanged cards; bodies reading `Notifier<Map>` stores select via `StoredEntities` (lists with per-row selection rebuild directly).

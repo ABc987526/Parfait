@@ -12,6 +12,7 @@ import '../../core/settings/app_settings.dart';
 import '../../core/settings/settings_controller.dart';
 import '../../l10n/context.dart';
 import '../icons/app_icons.dart';
+import '../icons/ui_icons.dart';
 import '../layout/form_factor.dart';
 import '../motion/app_overlays.dart';
 import '../navigation/forward_history.dart';
@@ -22,12 +23,11 @@ import '../navigation/route_search_facade.dart';
 import '../person_avatar.dart';
 import '../pull_to_refresh.dart';
 import '../theme/func_semantic_tokens.dart';
-import '../theme/func_tokens.dart';
-import '../widgets/replica_switch_tile.dart';
 import '../widgets/settings/persist_settings.dart';
 import 'desktop_command_bar_scope.dart';
+import 'desktop_command_bar_widgets.dart';
 import 'desktop_title_bar.dart';
-import '../icons/ui_icons.dart';
+import 'desktop_title_bar_region_publisher.dart';
 
 export 'desktop_command_bar_scope.dart';
 
@@ -77,11 +77,10 @@ class _DesktopCommandBarState extends ConsumerState<DesktopCommandBar> {
   final GlobalKey _accountButtonKey = GlobalKey();
   final Object _filterMenuGroup = Object();
   final Object _accountMenuGroup = Object();
+  final DesktopTitleBarRegionPublisher _regionPublisher =
+      DesktopTitleBarRegionPublisher();
 
-  bool _regionMeasurePending = false;
   bool _rebuildPending = false;
-  String? _lastRegionSignature;
-  DesktopWindowActions? _lastActions;
   bool _searchOpening = false;
   bool _filterMenuOpen = false;
   bool _accountMenuOpen = false;
@@ -106,15 +105,7 @@ class _DesktopCommandBarState extends ConsumerState<DesktopCommandBar> {
   void dispose() {
     widget.router.routerDelegate.removeListener(_onRouterChanged);
     DesktopCommandActionsAnchor.removeListener(_onAnchorChanged);
-    final actions = _lastActions;
-    if (actions != null && _lastRegionSignature != null) {
-      final publishWithHeight = actions.onRegionsWithHeightChanged;
-      if (publishWithHeight != null) {
-        publishWithHeight(const [], 0);
-      } else {
-        actions.onRegionsChanged(const []);
-      }
-    }
+    _regionPublisher.clear();
     super.dispose();
   }
 
@@ -155,76 +146,54 @@ class _DesktopCommandBarState extends ConsumerState<DesktopCommandBar> {
     return null;
   }
 
-  Rect? _globalRectOf(GlobalKey key) {
-    final renderObject = key.currentContext?.findRenderObject();
-    if (renderObject is! RenderBox ||
-        !renderObject.attached ||
-        !renderObject.hasSize) {
-      return null;
-    }
-    return renderObject.localToGlobal(Offset.zero) & renderObject.size;
-  }
-
   void _scheduleRegionPublish(
     DesktopWindowActions? actions,
     DesktopChromeMetrics? chrome,
   ) {
-    _lastActions = actions;
-    if (actions == null || chrome == null || _regionMeasurePending) return;
-    _regionMeasurePending = true;
-    SchedulerBinding.instance.addPostFrameCallback((_) {
-      _regionMeasurePending = false;
-      if (!mounted) return;
-      final currentChrome = DesktopChromeMetrics.maybeOf(context);
-      final currentActions =
-          currentChrome?.actions ??
-          DesktopWindowScope.maybeOf(context)?.actions;
-      _lastActions = currentActions;
-      if (currentActions == null || currentChrome == null) return;
-
-      final regions = <DesktopTitleBarRegion>[];
-      if (!currentChrome.isFullScreen && !currentChrome.usesSystemTitleBar) {
-        final leftRect = _globalRectOf(_leftDragKey);
-        if (leftRect != null && !leftRect.isEmpty) {
-          regions.add(DesktopTitleBarRegion(rect: leftRect, kind: 'caption'));
-        }
-        final rightRect = _globalRectOf(_rightDragKey);
-        if (rightRect != null && !rightRect.isEmpty) {
-          regions.add(DesktopTitleBarRegion(rect: rightRect, kind: 'caption'));
-        }
-        if (currentChrome.showCustomButtons) {
-          final maxRect = _globalRectOf(_maximizeKey);
-          if (maxRect != null && !maxRect.isEmpty) {
-            regions.add(DesktopTitleBarRegion(rect: maxRect, kind: 'maximize'));
-          }
-          final buttonsRect = _globalRectOf(_captionButtonsKey);
-          if (buttonsRect != null && !buttonsRect.isEmpty) {
-            regions.add(
-              DesktopTitleBarRegion(rect: buttonsRect, kind: 'buttons'),
+    if (actions == null || chrome == null) return;
+    _regionPublisher.schedulePublish(
+      actions,
+      isMounted: () => mounted,
+      resolve: () {
+        final currentChrome = DesktopChromeMetrics.maybeOf(context);
+        final currentActions =
+            currentChrome?.actions ??
+            DesktopWindowScope.maybeOf(context)?.actions;
+        if (currentActions == null || currentChrome == null) return null;
+        final regions = <DesktopTitleBarRegion>[];
+        final ownsBar =
+            !currentChrome.isFullScreen && !currentChrome.usesSystemTitleBar;
+        if (ownsBar) {
+          DesktopTitleBarRegionPublisher.addRegion(
+            regions,
+            _leftDragKey,
+            'caption',
+          );
+          DesktopTitleBarRegionPublisher.addRegion(
+            regions,
+            _rightDragKey,
+            'caption',
+          );
+          if (currentChrome.showCustomButtons) {
+            DesktopTitleBarRegionPublisher.addRegion(
+              regions,
+              _maximizeKey,
+              'maximize',
+            );
+            DesktopTitleBarRegionPublisher.addRegion(
+              regions,
+              _captionButtonsKey,
+              'buttons',
             );
           }
         }
-      }
-      final signature = [
-        for (final r in regions)
-          '${r.kind}:${r.rect.left.toStringAsFixed(1)},'
-              '${r.rect.top.toStringAsFixed(1)},'
-              '${r.rect.right.toStringAsFixed(1)},'
-              '${r.rect.bottom.toStringAsFixed(1)}',
-      ].join(';');
-      if (signature == _lastRegionSignature) return;
-      _lastRegionSignature = signature;
-      final publishWithHeight = currentActions.onRegionsWithHeightChanged;
-      final publishedHeight =
-          !currentChrome.isFullScreen && !currentChrome.usesSystemTitleBar
-          ? kDesktopCommandBarHeight
-          : 0.0;
-      if (publishWithHeight != null) {
-        publishWithHeight(regions, publishedHeight);
-      } else {
-        currentActions.onRegionsChanged(regions);
-      }
-    });
+        return (
+          actions: currentActions,
+          regions: regions,
+          titleBarHeight: ownsBar ? kDesktopCommandBarHeight : 0.0,
+        );
+      },
+    );
   }
 
   Future<void> _openSearch(Uri currentUri) async {
@@ -237,14 +206,14 @@ class _DesktopCommandBarState extends ConsumerState<DesktopCommandBar> {
       if (activeQuery != null) {
         await editSearchFromResults(
           navContext,
-          anchor: () => _globalRectOf(_searchPillKey),
+          anchor: () => globalRectOfKey(_searchPillKey),
           keyword: activeQuery.keyword,
           type: activeQuery.type,
         );
       } else {
         await openSearchInput(
           navContext,
-          anchor: () => _globalRectOf(_searchPillKey),
+          anchor: () => globalRectOfKey(_searchPillKey),
         );
       }
     } finally {
@@ -258,45 +227,33 @@ class _DesktopCommandBarState extends ConsumerState<DesktopCommandBar> {
     required double minWidth,
     required double maxWidth,
     required double maxHeight,
-    double minTop = FuncSpacing.xs,
     required WidgetBuilder builder,
   }) async {
     final navContext = _navContext();
     if (navContext == null) return;
-    final overlayObject = Navigator.of(
-      navContext,
-      rootNavigator: true,
-    ).overlay?.context.findRenderObject();
-    if (overlayObject is! RenderBox || !overlayObject.hasSize) return;
-    final barHeight = desktopCommandBarHeightFor(
-      DesktopChromeMetrics.maybeOf(context),
-    );
-    final initialAnchor =
-        _globalRectOf(anchorKey) ??
-        Rect.fromLTWH(
-          overlayObject.size.width - FuncSpacing.xxl,
-          0,
-          0,
-          barHeight,
-        );
-    await showAppPanel<void>(
+    await showAppAdaptivePopover<void>(
       context: navContext,
-      barrierLabel: MaterialLocalizations.of(
-        navContext,
-      ).modalBarrierDismissLabel,
-      barrierColor: FuncTokens.transparent,
+      anchorContext: anchorKey.currentContext,
+      minWidth: minWidth,
+      maxWidth: maxWidth,
+      maxHeight: maxHeight,
       useRootNavigator: true,
-      builder: (panelContext) => _CommandAnchoredMenuLayer(
-        overlay: overlayObject,
-        initialAnchor: initialAnchor,
-        anchorOf: () => _globalRectOf(anchorKey),
-        groupId: groupId,
-        minWidth: minWidth,
-        maxWidth: maxWidth,
-        maxHeight: maxHeight,
-        minTop: minTop,
-        child: builder(panelContext),
-      ),
+      builder: (popoverContext) {
+        final route = ModalRoute.of(popoverContext);
+        return TapRegion(
+          groupId: groupId,
+          onTapOutside: (_) {
+            if (route?.isCurrent ?? false) {
+              Navigator.of(popoverContext).pop();
+            }
+          },
+          child: SingleChildScrollView(
+            primary: false,
+            padding: const EdgeInsets.symmetric(vertical: FuncSpacing.xs),
+            child: builder(popoverContext),
+          ),
+        );
+      },
     );
   }
 
@@ -315,62 +272,8 @@ class _DesktopCommandBarState extends ConsumerState<DesktopCommandBar> {
         minWidth: 240,
         maxWidth: 288,
         maxHeight: 240,
-        builder: (popoverContext) => Consumer(
-          builder: (popoverContext, popRef, _) {
-            final l10n = popoverContext.l10n;
-            final settings =
-                popRef.watch(settingsProvider).value ?? widget.settings;
-            const tilePadding = EdgeInsets.symmetric(
-              horizontal: FuncSpacing.md,
-              vertical: FuncSpacing.xs,
-            );
-            return Theme(
-              data: Theme.of(popoverContext).copyWith(
-                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(minHeight: 40),
-                    child: ReplicaSwitchTile(
-                      key: const Key('desktop-command-filter-r18'),
-                      contentPadding: tilePadding,
-                      title: Text(l10n.blockR18),
-                      value: settings.enableLocalBlockR18,
-                      onTap: () => unawaited(
-                        persistSettings(
-                          popoverContext,
-                          () => popRef
-                              .read(settingsProvider.notifier)
-                              .setLocalBlockR18(!settings.enableLocalBlockR18),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const Divider(height: 1),
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(minHeight: 40),
-                    child: ReplicaSwitchTile(
-                      key: const Key('desktop-command-filter-ai'),
-                      contentPadding: tilePadding,
-                      title: Text(l10n.blockAI),
-                      value: settings.enableLocalBlockAI,
-                      onTap: () => unawaited(
-                        persistSettings(
-                          popoverContext,
-                          () => popRef
-                              .read(settingsProvider.notifier)
-                              .setLocalBlockAI(!settings.enableLocalBlockAI),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        ),
+        builder: (_) =>
+            DesktopCommandFilterPopover(fallbackSettings: widget.settings),
       );
     } finally {
       _filterMenuOpen = false;
@@ -392,98 +295,7 @@ class _DesktopCommandBarState extends ConsumerState<DesktopCommandBar> {
         minWidth: 260,
         maxWidth: 320,
         maxHeight: 360,
-        builder: (popoverContext) => Consumer(
-          builder: (popoverContext, popRef, _) {
-            final l10n = popoverContext.l10n;
-            final state = popRef.watch(accountStoreProvider).value;
-            final accounts = state?.accounts ?? const [];
-            final currentId = state?.current?.id;
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    FuncSpacing.lg,
-                    FuncSpacing.md,
-                    FuncSpacing.lg,
-                    FuncSpacing.xs,
-                  ),
-                  child: Text(
-                    l10n.accountSignedIn,
-                    style: Theme.of(popoverContext).textTheme.labelMedium
-                        ?.copyWith(
-                          color: Theme.of(
-                            popoverContext,
-                          ).colorScheme.onSurfaceVariant,
-                        ),
-                  ),
-                ),
-                if (accounts.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: FuncSpacing.lg,
-                      vertical: FuncSpacing.md,
-                    ),
-                    child: Text(l10n.noAccounts),
-                  )
-                else
-                  for (final account in accounts)
-                    ListTile(
-                      key: Key('desktop-command-account-${account.id}'),
-                      dense: true,
-                      leading: PersonAvatar(
-                        imageUrl: account.profileImageUrl,
-                        radius: 14,
-                      ),
-                      title: Text(
-                        account.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      subtitle: Text(
-                        '@${account.userId}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      trailing: account.id == currentId
-                          ? Icon(
-                              UiIcons.check,
-                              color: Theme.of(
-                                popoverContext,
-                              ).colorScheme.primary,
-                            )
-                          : null,
-                      onTap: () {
-                        Navigator.of(popoverContext).pop();
-                        if (account.id != currentId) {
-                          unawaited(
-                            popRef
-                                .read(accountStoreProvider.notifier)
-                                .switchAccount(account.id),
-                          );
-                        }
-                      },
-                    ),
-                const Divider(height: 1),
-                ListTile(
-                  key: const Key('desktop-command-account-settings'),
-                  dense: true,
-                  leading: const Icon(AppIcons.accountManage),
-                  title: Text(l10n.accountSettings),
-                  onTap: () {
-                    Navigator.of(popoverContext).pop();
-                    final currentUri = liveRouterUri(widget.router);
-                    if (currentUri.path != '/settings/all' ||
-                        currentUri.queryParameters['section'] != 'account') {
-                      widget.router.go('/settings/all?section=account');
-                    }
-                  },
-                ),
-              ],
-            );
-          },
-        ),
+        builder: (_) => DesktopCommandAccountPopover(router: widget.router),
       );
     } finally {
       _accountMenuOpen = false;
@@ -587,7 +399,7 @@ class _DesktopCommandBarState extends ConsumerState<DesktopCommandBar> {
                   SizedBox(width: leadingGap),
                   if (!isPreHome) ...[
                     if (canToggleRail) ...[
-                      _commandIconButton(
+                      desktopCommandIconButton(
                         context,
                         key: const Key('desktop-command-rail-toggle'),
                         constraints: iconConstraints,
@@ -657,7 +469,7 @@ class _DesktopCommandBarState extends ConsumerState<DesktopCommandBar> {
                       builder: (context, historyState, _) => Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          _commandIconButton(
+                          desktopCommandIconButton(
                             context,
                             key: const Key('desktop-command-back'),
                             constraints: iconConstraints,
@@ -669,7 +481,7 @@ class _DesktopCommandBarState extends ConsumerState<DesktopCommandBar> {
                                 : null,
                             icon: const Icon(UiIcons.arrowBack),
                           ),
-                          _commandIconButton(
+                          desktopCommandIconButton(
                             context,
                             key: const Key('desktop-command-forward'),
                             constraints: iconConstraints,
@@ -684,7 +496,7 @@ class _DesktopCommandBarState extends ConsumerState<DesktopCommandBar> {
                         ],
                       ),
                     ),
-                    _commandIconButton(
+                    desktopCommandIconButton(
                       context,
                       key: const Key('desktop-command-refresh'),
                       constraints: iconConstraints,
@@ -700,7 +512,7 @@ class _DesktopCommandBarState extends ConsumerState<DesktopCommandBar> {
                     const Spacer()
                   else
                     Expanded(
-                      child: _DragSpacer(
+                      child: DesktopCommandDragSpacer(
                         key: _leftDragKey,
                         height: barHeight,
                         actions: actions,
@@ -715,7 +527,7 @@ class _DesktopCommandBarState extends ConsumerState<DesktopCommandBar> {
                               children: [
                                 KeyedSubtree(
                                   key: _searchPillKey,
-                                  child: _commandIconButton(
+                                  child: desktopCommandIconButton(
                                     context,
                                     key: const Key(
                                       'desktop-command-search-pill',
@@ -729,7 +541,7 @@ class _DesktopCommandBarState extends ConsumerState<DesktopCommandBar> {
                                     icon: const Icon(AppIcons.search),
                                   ),
                                 ),
-                                _commandIconButton(
+                                desktopCommandIconButton(
                                   context,
                                   key: const Key(
                                     'desktop-command-reverse-search',
@@ -759,7 +571,7 @@ class _DesktopCommandBarState extends ConsumerState<DesktopCommandBar> {
                               width: effectiveSearchWidth,
                               child: SearchShortcutAnchor(
                                 onTrigger: () => unawaited(_openSearch(uri)),
-                                child: _SearchCommandPill(
+                                child: DesktopCommandSearchPill(
                                   key: _searchPillKey,
                                   height: usesSystemTitleBar ? 30 : 32,
                                   hint: l10n.searchHint,
@@ -783,7 +595,7 @@ class _DesktopCommandBarState extends ConsumerState<DesktopCommandBar> {
                     const Spacer()
                   else
                     Expanded(
-                      child: _DragSpacer(
+                      child: DesktopCommandDragSpacer(
                         key: _rightDragKey,
                         height: barHeight,
                         actions: actions,
@@ -798,7 +610,7 @@ class _DesktopCommandBarState extends ConsumerState<DesktopCommandBar> {
                       groupId: _filterMenuGroup,
                       child: KeyedSubtree(
                         key: _filterButtonKey,
-                        child: _commandIconButton(
+                        child: desktopCommandIconButton(
                           context,
                           key: const Key('desktop-command-filter'),
                           constraints: iconConstraints,
@@ -820,7 +632,7 @@ class _DesktopCommandBarState extends ConsumerState<DesktopCommandBar> {
                           button: true,
                           label: l10n.commandSwitchAccount,
                           excludeSemantics: true,
-                          child: _maybeWrapTooltip(
+                          child: maybeWrapCommandTooltip(
                             context,
                             message: l10n.commandSwitchAccount,
                             excludeFromSemantics: true,
@@ -887,347 +699,4 @@ class _DesktopCommandBarState extends ConsumerState<DesktopCommandBar> {
       ),
     );
   }
-}
-
-class _DragSpacer extends StatelessWidget {
-  const _DragSpacer({super.key, required this.height, required this.actions});
-
-  final double height;
-  final DesktopWindowActions? actions;
-
-  @override
-  Widget build(BuildContext context) {
-    return ExcludeSemantics(
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onPanStart: actions == null ? null : (_) => actions!.onStartDragging(),
-        onDoubleTap: actions?.onTitleBarDoubleClick,
-        child: SizedBox(height: height),
-      ),
-    );
-  }
-}
-
-class _SearchCommandPill extends StatelessWidget {
-  const _SearchCommandPill({
-    super.key,
-    required this.height,
-    required this.hint,
-    required this.keyword,
-    required this.reverseTooltip,
-    required this.showShortcutBadge,
-    required this.onTapPill,
-    required this.onTapReverse,
-  });
-
-  final double height;
-  final String hint;
-  final String keyword;
-  final String reverseTooltip;
-  final bool showShortcutBadge;
-  final VoidCallback onTapPill;
-  final VoidCallback onTapReverse;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colors = theme.colorScheme;
-    final hasKeyword = keyword.isNotEmpty;
-
-    final tokens = FuncSemanticTokens.of(context);
-    final shortcutLabel = theme.platform == TargetPlatform.macOS
-        ? '⌘K'
-        : 'Ctrl K';
-    return Material(
-      key: const Key('desktop-command-search-pill'),
-      color: colors.surfaceContainer,
-      shape: RoundedRectangleBorder(
-        borderRadius: FuncShape.pill,
-        side: BorderSide(color: tokens.brandHairline),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: SizedBox(
-        height: height,
-        child: Row(
-          children: [
-            Expanded(
-              child: Semantics(
-                container: true,
-                button: true,
-                label: hasKeyword ? keyword : hint,
-                excludeSemantics: true,
-                child: InkWell(
-                  onTap: onTapPill,
-                  child: SizedBox.expand(
-                    child: Row(
-                      children: [
-                        const SizedBox(width: FuncSpacing.md),
-                        Icon(
-                          AppIcons.search,
-                          size: 15,
-                          color: colors.onSurfaceVariant,
-                        ),
-                        const SizedBox(width: FuncSpacing.sm),
-                        Expanded(
-                          child: Text(
-                            hasKeyword ? keyword : hint,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: hasKeyword
-                                  ? colors.onSurface
-                                  : colors.onSurfaceVariant,
-                            ),
-                          ),
-                        ),
-                        if (showShortcutBadge && !hasKeyword) ...[
-                          const SizedBox(width: FuncSpacing.xs),
-                          DecoratedBox(
-                            decoration: BoxDecoration(
-                              color: colors.surfaceContainerHigh,
-                              borderRadius: FuncShape.badge,
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: FuncSpacing.xs,
-                                vertical: FuncSpacing.xxs,
-                              ),
-                              child: Text(
-                                shortcutLabel,
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  fontWeight: FontWeight.w500,
-                                  color: tokens.contentSecondary,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            _commandIconButton(
-              context,
-              key: const Key('desktop-command-reverse-search'),
-              constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
-              padding: const EdgeInsets.all(FuncSpacing.xs),
-              iconSize: 16,
-              tooltip: reverseTooltip,
-              onPressed: onTapReverse,
-              icon: const Icon(AppIcons.imageSearch),
-            ),
-            const SizedBox(width: FuncSpacing.xxs),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _CommandAnchoredMenuLayer extends StatefulWidget {
-  const _CommandAnchoredMenuLayer({
-    required this.overlay,
-    required this.initialAnchor,
-    required this.anchorOf,
-    required this.groupId,
-    required this.minWidth,
-    required this.maxWidth,
-    required this.maxHeight,
-    required this.minTop,
-    required this.child,
-  });
-
-  final RenderBox overlay;
-  final Rect initialAnchor;
-  final Rect? Function() anchorOf;
-  final Object groupId;
-  final double minWidth;
-  final double maxWidth;
-  final double maxHeight;
-  final double minTop;
-  final Widget child;
-
-  @override
-  State<_CommandAnchoredMenuLayer> createState() =>
-      _CommandAnchoredMenuLayerState();
-}
-
-class _CommandAnchoredMenuLayerState extends State<_CommandAnchoredMenuLayer> {
-  Size? _viewSize;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final size = MediaQuery.sizeOf(context);
-    if (size == _viewSize) return;
-    _viewSize = size;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) setState(() {});
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final globalAnchor = widget.anchorOf() ?? widget.initialAnchor;
-    final localTopLeft = widget.overlay.attached
-        ? widget.overlay.globalToLocal(globalAnchor.topLeft)
-        : globalAnchor.topLeft;
-    final localAnchor = localTopLeft & globalAnchor.size;
-    final colors = Theme.of(context).colorScheme;
-    final route = ModalRoute.of(context);
-
-    return CustomSingleChildLayout(
-      delegate: _CommandMenuLayoutDelegate(
-        anchor: localAnchor,
-        textDirection: Directionality.of(context),
-        minWidth: widget.minWidth,
-        maxWidth: widget.maxWidth,
-        maxHeight: widget.maxHeight,
-        minTop: widget.minTop,
-      ),
-      child: TapRegion(
-        groupId: widget.groupId,
-        onTapOutside: (_) {
-          if (route?.isCurrent ?? false) {
-            Navigator.of(context).pop();
-          }
-        },
-        child: Material(
-          color: colors.surfaceContainerHigh,
-          surfaceTintColor: FuncTokens.transparent,
-          elevation: 4,
-          shape: RoundedRectangleBorder(
-            borderRadius: FuncShape.card,
-            side: BorderSide(
-              color: colors.outlineVariant.withValues(alpha: 0.6),
-            ),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: MediaQuery.removePadding(
-            context: context,
-            removeTop: true,
-            removeBottom: true,
-            removeLeft: true,
-            removeRight: true,
-            child: SingleChildScrollView(
-              primary: false,
-              padding: const EdgeInsets.symmetric(vertical: FuncSpacing.xs),
-              child: widget.child,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _CommandMenuLayoutDelegate extends SingleChildLayoutDelegate {
-  const _CommandMenuLayoutDelegate({
-    required this.anchor,
-    required this.textDirection,
-    required this.minWidth,
-    required this.maxWidth,
-    required this.maxHeight,
-    required this.minTop,
-  });
-
-  final Rect anchor;
-  final TextDirection textDirection;
-  final double minWidth;
-  final double maxWidth;
-  final double maxHeight;
-  final double minTop;
-
-  @override
-  BoxConstraints getConstraintsForChild(BoxConstraints constraints) {
-    final availableWidth = math.max(
-      0.0,
-      constraints.maxWidth - FuncSpacing.sm * 2,
-    );
-    final availableHeight = math.max(
-      0.0,
-      constraints.maxHeight - FuncSpacing.sm * 2,
-    );
-    final cappedMaxWidth = math.min(maxWidth, availableWidth);
-    return BoxConstraints(
-      minWidth: math.min(minWidth, cappedMaxWidth),
-      maxWidth: cappedMaxWidth,
-      maxHeight: math.min(maxHeight, availableHeight),
-    );
-  }
-
-  @override
-  Offset getPositionForChild(Size size, Size childSize) {
-    const edge = FuncSpacing.sm;
-    final maxDx = math.max(edge, size.width - edge - childSize.width);
-    final effectiveMinTop = math.min(
-      minTop,
-      math.max(FuncSpacing.xs, size.height - edge - childSize.height),
-    );
-    final maxDy = math.max(
-      effectiveMinTop,
-      size.height - edge - childSize.height,
-    );
-    final rawX = textDirection == TextDirection.rtl
-        ? anchor.left
-        : anchor.right - childSize.width;
-    final rawY = math.max(effectiveMinTop, anchor.bottom + FuncSpacing.xs);
-    return Offset(rawX.clamp(edge, maxDx), rawY.clamp(effectiveMinTop, maxDy));
-  }
-
-  @override
-  bool shouldRelayout(_CommandMenuLayoutDelegate oldDelegate) =>
-      anchor != oldDelegate.anchor ||
-      textDirection != oldDelegate.textDirection ||
-      minWidth != oldDelegate.minWidth ||
-      maxWidth != oldDelegate.maxWidth ||
-      maxHeight != oldDelegate.maxHeight ||
-      minTop != oldDelegate.minTop;
-}
-
-/// Command bar buttons mount in `MaterialApp.router(builder: ...)` above
-/// `Router`'s `Overlay`; only wire Material tooltips when an `Overlay` exists,
-/// mirroring `DesktopWindowCaptionButtons` semantics fallback.
-Widget _commandIconButton(
-  BuildContext context, {
-  required Key key,
-  required BoxConstraints constraints,
-  required EdgeInsetsGeometry padding,
-  required double iconSize,
-  required String tooltip,
-  required VoidCallback? onPressed,
-  required Widget icon,
-}) {
-  final hasOverlay = Overlay.maybeOf(context) != null;
-  return IconButton(
-    key: key,
-    constraints: constraints,
-    padding: padding,
-    iconSize: iconSize,
-    style: IconButton.styleFrom(
-      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-    ),
-    tooltip: hasOverlay ? tooltip : null,
-    onPressed: onPressed,
-    icon: hasOverlay ? icon : Semantics(tooltip: tooltip, child: icon),
-  );
-}
-
-Widget _maybeWrapTooltip(
-  BuildContext context, {
-  required String message,
-  bool excludeFromSemantics = false,
-  required Widget child,
-}) {
-  if (Overlay.maybeOf(context) != null) {
-    return Tooltip(
-      message: message,
-      excludeFromSemantics: excludeFromSemantics,
-      child: child,
-    );
-  }
-  if (excludeFromSemantics) return child;
-  return Semantics(tooltip: message, child: child);
 }

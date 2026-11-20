@@ -13,6 +13,7 @@ import '../../../app/navigation/route_animation.dart';
 import '../../../app/pixiv_image.dart';
 import '../../../app/motion/hero_transition.dart';
 import '../../../app/theme/func_tokens.dart';
+import '../../../app/widgets/app_spinner.dart';
 import '../../../app/widgets/display_actions.dart';
 import '../../../app/widgets/errors/error_details.dart';
 import '../../../app/widgets/feed/feed_states.dart';
@@ -1038,11 +1039,7 @@ class _ExportButton extends StatelessWidget {
     } else if (exporting) {
       final percent = ((snapshot?.progress ?? 0) * 100).round();
       tooltip = l10n.ugoiraExporting(percent);
-      icon = const SizedBox(
-        width: 22,
-        height: 22,
-        child: CircularProgressIndicator(strokeWidth: 2),
-      );
+      icon = const AppSpinner(size: 22, strokeWidth: 2);
       onPressed = null;
     } else if (status == UgoiraExportStatus.failed) {
       tooltip = l10n.retry;

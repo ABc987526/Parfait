@@ -51,11 +51,6 @@ bool _hasPrimaryModifierPressed(TargetPlatform platform) {
       keys.contains(LogicalKeyboardKey.controlRight);
 }
 
-bool _isEditingFocused() {
-  final focus = FocusManager.instance.primaryFocus;
-  return focus?.context?.findAncestorWidgetOfExactType<EditableText>() != null;
-}
-
 /// Manages artwork multi-selection state for one `>= 600dp` feed grid.
 class FeedSelectionController extends ChangeNotifier {
   List<IllustEntity> _items = const [];
@@ -420,7 +415,7 @@ class _FeedSelectAllAction extends Action<_FeedSelectAllIntent> {
 
   @override
   bool isEnabled(_FeedSelectAllIntent intent) =>
-      !_isEditingFocused() &&
+      !isTextEditingFocused() &&
       controller.enabled &&
       controller._items.isNotEmpty;
 

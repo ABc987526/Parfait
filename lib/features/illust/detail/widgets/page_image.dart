@@ -13,6 +13,7 @@ import '../../../../app/motion/state_icon_switcher.dart';
 import '../../../../app/navigation/home_shell_metrics.dart';
 import '../../../../app/navigation/route_animation.dart';
 import '../../../../app/pixiv_image.dart';
+import '../../../../app/widgets/app_spinner.dart';
 import '../../../../app/theme/func_tokens.dart';
 import '../../../../app/widgets/ambient_wash.dart';
 import '../../../../app/widgets/display_actions.dart';
@@ -946,10 +947,9 @@ class _HoverQuickActionsBadge extends StatelessWidget {
             tooltip: l10n.viewerSavePage,
             onPressed: busy || done ? null : onSave,
             icon: switch (state) {
-              IllustPageSaveState.downloading => const SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2),
+              IllustPageSaveState.downloading => const AppSpinner(
+                size: 18,
+                strokeWidth: 2,
               ),
               IllustPageSaveState.exist => Icon(
                 UiIcons.checkCircle,
@@ -995,11 +995,7 @@ class _DownloadBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final child = switch ((state, selected)) {
-      (IllustPageSaveState.downloading, _) => const SizedBox(
-        width: 30,
-        height: 30,
-        child: CircularProgressIndicator(),
-      ),
+      (IllustPageSaveState.downloading, _) => const AppSpinner(size: 30),
       (_, true) => Icon(
         UiIcons.checkCircle,
         color: theme.colorScheme.primary,

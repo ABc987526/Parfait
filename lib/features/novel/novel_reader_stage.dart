@@ -13,6 +13,7 @@ import '../../app/motion/app_overlays.dart';
 import '../../app/motion/motion_tokens.dart';
 import '../../app/navigation/home_shell_metrics.dart';
 import '../../app/navigation/route_facade.dart';
+import '../../app/widgets/app_spinner.dart';
 import '../../app/system_ui.dart';
 import '../../app/widgets/app_snack_bar.dart';
 import '../../app/widgets/app_top_bar.dart';
@@ -689,11 +690,6 @@ class _NovelReaderStageState extends ConsumerState<NovelReaderStage>
     );
   }
 
-  static bool _isEditingFocused() =>
-      FocusManager.instance.primaryFocus?.context
-          ?.findAncestorWidgetOfExactType<EditableText>() !=
-      null;
-
   /// Keyboard navigation: arrow keys, PageUp/PageDown, and Space/Shift+Space
   /// scroll in scroll mode or turn pages/spreads in page mode when not editing
   /// text or covered by an overlay route.
@@ -701,7 +697,7 @@ class _NovelReaderStageState extends ConsumerState<NovelReaderStage>
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
     }
-    if (_isEditingFocused()) return KeyEventResult.ignored;
+    if (isTextEditingFocused()) return KeyEventResult.ignored;
     final route = ModalRoute.of(context);
     if (route != null && !route.isCurrent) return KeyEventResult.ignored;
 
@@ -951,12 +947,10 @@ class _NovelReaderStageState extends ConsumerState<NovelReaderStage>
                         onPressed: toggleBilingual,
                         icon: const Icon(AppIcons.translate),
                         selectedIcon: translatingPage
-                            ? SizedBox.square(
-                                dimension: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: foreground,
-                                ),
+                            ? AppSpinner(
+                                size: 20,
+                                strokeWidth: 2,
+                                color: foreground,
                               )
                             : Icon(
                                 AppIcons.translate,

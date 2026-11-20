@@ -1,9 +1,21 @@
 import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/gestures.dart';
-import 'package:flutter/widgets.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Current primary interaction mode observed at the root pointer stream.
 enum InputModality { touch, pointer }
+
+/// Whether the current primary keyboard focus sits inside an [EditableText].
+bool isTextEditingFocused() =>
+    FocusManager.instance.primaryFocus?.context
+        ?.findAncestorWidgetOfExactType<EditableText>() !=
+    null;
+
+/// Whether the ambient interaction modality in [context] is pointer-based.
+bool isPointerInput(BuildContext context) =>
+    (InputModalityScope.maybeOf(context) ??
+        defaultInputModalityFor(Theme.of(context).platform)) ==
+    InputModality.pointer;
 
 /// Returns the sensible startup [InputModality] for [platform] before any
 /// pointer event is observed.

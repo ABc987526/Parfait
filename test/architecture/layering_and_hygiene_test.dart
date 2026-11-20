@@ -48,6 +48,109 @@ const _allowListedEdges = <String>{};
 const _allowListedDataFiles = <String>{};
 const _allowListedWidgetFiles = <String>{};
 
+// ── File / library size & platform-probe ratchets ───────────────────────────
+
+const _maxLibFileLines = 800;
+const _maxLibLogicalLibraryLines = 1200;
+const _grandfatheredSlackLines = 20;
+
+bool _isGeneratedLibFile(String path) =>
+    path.startsWith('lib/l10n/app_localizations') ||
+    path == 'lib/l10n/lookup.dart' ||
+    path == 'lib/app/icons/app_icons.dart' ||
+    path.endsWith('.g.dart') ||
+    path.endsWith('.freezed.dart') ||
+    path.contains('/rust_generated/');
+
+int _lineCount(String src) {
+  if (src.isEmpty) return 0;
+  final breaks = '\n'.allMatches(src).length;
+  return src.endsWith('\n') ? breaks : breaks + 1;
+}
+
+/// Legacy `lib/` files above [_maxLibFileLines] pinned at their current size
+/// plus 20-line slack. New files must stay `<= 800` lines; entries must be
+/// removed as files are modularized below 800 lines.
+const _grandfatheredFileLineCaps = <String, int>{
+  'lib/app/motion/app_overlays.dart': 1288,
+  'lib/app/motion/hero_transition.dart': 1293,
+  'lib/app/navigation/func_page.dart': 1454,
+  'lib/app/navigation/route_branches.dart': 998,
+  'lib/app/pixiv_image.dart': 1281,
+  'lib/app/widgets/bookmark_switch_button.dart': 915,
+  'lib/app/widgets/comment_composer.dart': 872,
+  'lib/app/widgets/feed/feed_selection.dart': 877,
+  'lib/app/widgets/feed/illust_card.dart': 896,
+  'lib/app/widgets/func_bottom_nav.dart': 836,
+  'lib/app/widgets/home_branch_stack.dart': 916,
+  'lib/app/widgets/ranking_category_sheet.dart': 909,
+  'lib/app/widgets/shell_rail.dart': 849,
+  'lib/core/download/download_manager.dart': 1823,
+  'lib/core/network/compat/network_policy.dart': 886,
+  'lib/core/network/compat/network_policy_ladder.dart': 1179,
+  'lib/core/network/compat/secure_resolver.dart': 831,
+  'lib/core/novel/novel_entity.dart': 1905,
+  'lib/core/paging/paged_feed_controller.dart': 911,
+  'lib/core/search/search_models.dart': 969,
+  'lib/core/settings/app_settings.dart': 1070,
+  'lib/features/history/history_page.dart': 1026,
+  'lib/features/illust/detail/illust_detail_pager_page.dart': 1040,
+  'lib/features/illust/detail/ugoira_viewer.dart': 1083,
+  'lib/features/illust/detail/widgets/page_image.dart': 1062,
+  'lib/features/illust/viewer/image_viewer_page.dart': 1549,
+  'lib/features/novel/novel_layout.dart': 1756,
+  'lib/features/novel/novel_reader.dart': 1243,
+  'lib/features/novel/novel_reader_stage.dart': 1197,
+  'lib/features/novel/novel_reader_stage_widgets.dart': 874,
+  'lib/features/profile/profile_header_delegate.dart': 1216,
+  'lib/features/profile/user_page.dart': 1389,
+  'lib/features/search/search_filter_sheet.dart': 934,
+  'lib/features/search/search_page.dart': 824,
+  'lib/features/search/search_result_page.dart': 869,
+  'lib/features/settings/network_settings_page.dart': 886,
+  'lib/features/settings/settings_page.dart': 981,
+};
+
+/// Legacy `part`-based logical libraries above [_maxLibLogicalLibraryLines]
+/// pinned at their summed line count plus 20-line slack.
+const _grandfatheredLibraryLineCaps = <String, int>{
+  'lib/app/motion/hero_transition.dart': 2198,
+  'lib/app/navigation/routes.dart': 1407,
+  'lib/core/download/download_manager.dart': 2042,
+  'lib/core/network/compat/network_policy.dart': 2427,
+  'lib/features/illust/viewer/image_viewer_page.dart': 2276,
+  'lib/features/novel/novel_reader.dart': 2001,
+  'lib/features/novel/novel_reader_stage.dart': 2051,
+  'lib/features/profile/user_page.dart': 1599,
+  'lib/features/settings/pages/download_tasks_page.dart': 1284,
+};
+
+final _partOfRegExp = RegExp(r'^\s*part\s+of\b', multiLine: true);
+final _platformProbe = RegExp(
+  r'\b(?:Platform\.is[A-Z]\w*|defaultTargetPlatform)\b',
+);
+final _importDirective = RegExp(r'^\s*import\s+[^;]+;', multiLine: true);
+
+const _platformProbeAllowedDirs = <String>[
+  'lib/core/platform/',
+  'lib/app/window/',
+  'lib/app/layout/',
+  'lib/app/haptics/',
+];
+
+/// Shrinking allow-list of files outside platform-adapter directories that
+/// legitimately read `Platform.is*` or `defaultTargetPlatform`.
+const _platformProbeAllowList = <String>{
+  'lib/app/dev_shell/dev_shell.dart',
+  'lib/app/motion/app_overlays.dart',
+  'lib/app/scroll_behavior.dart',
+  'lib/app/widgets/app_top_bar.dart',
+  'lib/app/widgets/display_actions.dart',
+  'lib/core/sqlite/sqlite_database.dart',
+  'lib/features/settings/pages/motion_settings_page.dart',
+  'lib/features/settings/settings_catalog.dart',
+};
+
 // ── Test hygiene rules ──────────────────────────────────────────────────────
 
 const _maxFileLines = 1500;
@@ -199,6 +302,7 @@ double _overlap(List<String> a, List<String> b) {
 
 void main() {
   final libSources = ArchSourceCache.libRaw();
+  final libNoComments = ArchSourceCache.libNoComments();
   final testSources = {
     for (final MapEntry(key: path, value: src)
         in ArchSourceCache.testRaw().entries)
@@ -491,6 +595,115 @@ void main() {
           'TEST-07 widget tests must use default in-memory no-isolate SQLite '
           '(databaseFactoryFfiNoIsolate); keep on-disk isolate FFI databases '
           'in dedicated persistence unit tests',
+    );
+  });
+
+  test('lib file and logical-library size ratchet (800L / 1200L)', () {
+    final counts = <String, int>{
+      for (final MapEntry(key: path, value: src) in libSources.entries)
+        if (!_isGeneratedLibFile(path)) path: _lineCount(src),
+    };
+    final fileViolations = <String>[];
+    for (final MapEntry(key: path, value: lines) in counts.entries) {
+      final cap = _grandfatheredFileLineCaps[path] ?? _maxLibFileLines;
+      if (lines > cap) {
+        fileViolations.add('  $path: $lines lines (cap $cap)');
+      }
+    }
+    final staleFileCaps = <String>[
+      for (final MapEntry(key: path, value: cap)
+          in _grandfatheredFileLineCaps.entries)
+        if ((counts[path] ?? 0) <= _maxLibFileLines)
+          '  $path (${counts[path] ?? 0} lines <= $_maxLibFileLines; remove entry)'
+        else if (counts[path]! + _grandfatheredSlackLines < cap)
+          '  $path (${counts[path]} lines; lower cap from $cap to ${counts[path]! + _grandfatheredSlackLines})',
+    ];
+
+    final libraryTotals = <String, int>{};
+    for (final MapEntry(key: path, value: src) in libSources.entries) {
+      if (_isGeneratedLibFile(path) || _partOfRegExp.hasMatch(src)) continue;
+      final parts = _partRegExp.allMatches(src).toList();
+      if (parts.isEmpty) continue;
+      var total = counts[path] ?? 0;
+      for (final m in parts) {
+        final target = _resolveUri(path, m.group(1)!);
+        if (target != null && counts.containsKey(target)) {
+          total += counts[target]!;
+        }
+      }
+      libraryTotals[path] = total;
+    }
+    final libViolations = <String>[];
+    for (final MapEntry(key: path, value: total) in libraryTotals.entries) {
+      final cap =
+          _grandfatheredLibraryLineCaps[path] ?? _maxLibLogicalLibraryLines;
+      if (total > cap) {
+        libViolations.add('  $path (+ parts): $total lines (cap $cap)');
+      }
+    }
+    final staleLibCaps = <String>[
+      for (final MapEntry(key: path, value: cap)
+          in _grandfatheredLibraryLineCaps.entries)
+        if ((libraryTotals[path] ?? 0) <= _maxLibLogicalLibraryLines)
+          '  $path (${libraryTotals[path] ?? 0} lines <= $_maxLibLogicalLibraryLines; remove entry)'
+        else if (libraryTotals[path]! + _grandfatheredSlackLines < cap)
+          '  $path (${libraryTotals[path]} lines; lower cap from $cap to ${libraryTotals[path]! + _grandfatheredSlackLines})',
+    ];
+
+    expect(
+      fileViolations,
+      isEmpty,
+      reason:
+          'lib/ files must stay <= $_maxLibFileLines lines (extract real '
+          'modules, not part files):\n${fileViolations.join('\n')}',
+    );
+    expect(
+      staleFileCaps,
+      isEmpty,
+      reason:
+          'Remove shrunk/deleted files from _grandfatheredFileLineCaps so the '
+          'ratchet tightens:\n${staleFileCaps.join('\n')}',
+    );
+    expect(
+      libViolations,
+      isEmpty,
+      reason:
+          'Logical part libraries must stay <= $_maxLibLogicalLibraryLines '
+          'lines:\n${libViolations.join('\n')}',
+    );
+    expect(
+      staleLibCaps,
+      isEmpty,
+      reason:
+          'Remove shrunk/unsplit libraries from _grandfatheredLibraryLineCaps '
+          'so the ratchet tightens:\n${staleLibCaps.join('\n')}',
+    );
+  });
+
+  test('platform probes stay inside platform adapter directories', () {
+    final hits = <String>{};
+    for (final MapEntry(key: path, value: src) in libNoComments.entries) {
+      if (_isGeneratedLibFile(path)) continue;
+      if (_platformProbeAllowedDirs.any(path.startsWith)) continue;
+      final body = src.replaceAll(_importDirective, '');
+      if (_platformProbe.hasMatch(body)) hits.add(path);
+    }
+    final unapproved = hits.difference(_platformProbeAllowList);
+    final stale = _platformProbeAllowList.difference(hits);
+    expect(
+      unapproved,
+      isEmpty,
+      reason:
+          'Use PlatformCaps / Theme.of(context).platform instead of raw '
+          'Platform.is* or defaultTargetPlatform outside adapter dirs:\n'
+          '${unapproved.join('\n')}',
+    );
+    expect(
+      stale,
+      isEmpty,
+      reason:
+          'Remove cleaned files from _platformProbeAllowList so the ratchet '
+          'tightens:\n${stale.join('\n')}',
     );
   });
 }

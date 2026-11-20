@@ -367,7 +367,7 @@ ThemeData replicaTheme(
     // A count badge is an indicator in the brand fill, not M3's error red.
     badgeTheme: BadgeThemeData(backgroundColor: brand, textColor: onBrand),
     // Filled buttons are brand fills; disabled, they take M3's disabled
-    // colors like the switch below.
+    // colors.
     filledButtonTheme: FilledButtonThemeData(
       style: ButtonStyle(
         backgroundColor: WidgetStateProperty.resolveWith(
@@ -381,40 +381,6 @@ ThemeData replicaTheme(
               : onBrand,
         ),
       ),
-    ),
-    // A disabled switch takes M3's disabled colors: a locked one drawn in
-    // the accent read as tappable.
-    switchTheme: SwitchThemeData(
-      thumbColor: WidgetStateProperty.resolveWith((states) {
-        final selected = states.contains(WidgetState.selected);
-        if (states.contains(WidgetState.disabled)) {
-          return selected
-              ? colorScheme.surface
-              : colorScheme.onSurface.withValues(alpha: _disabledContentAlpha);
-        }
-        return selected ? colorScheme.onPrimary : colorScheme.outline;
-      }),
-      trackColor: WidgetStateProperty.resolveWith((states) {
-        final selected = states.contains(WidgetState.selected);
-        if (states.contains(WidgetState.disabled)) {
-          return selected
-              ? colorScheme.onSurface.withValues(alpha: _disabledContainerAlpha)
-              : colorScheme.surfaceContainerHighest.withValues(
-                  alpha: _disabledContainerAlpha,
-                );
-        }
-        return selected
-            ? colorScheme.primary
-            : colorScheme.surfaceContainerHighest;
-      }),
-      trackOutlineColor: WidgetStateProperty.resolveWith((states) {
-        if (states.contains(WidgetState.selected)) {
-          return FuncTokens.transparent;
-        }
-        return states.contains(WidgetState.disabled)
-            ? colorScheme.onSurface.withValues(alpha: _disabledContainerAlpha)
-            : colorScheme.outline;
-      }),
     ),
   );
 
@@ -442,7 +408,9 @@ ThemeData replicaTheme(
       secondaryLabelStyle: bodyText,
     ),
     dialogTheme: theme.dialogTheme.copyWith(
-      titleTextStyle: resolvedTextTheme.headlineSmall!.copyWith(fontSize: 24),
+      titleTextStyle: resolvedTextTheme.titleLarge!.copyWith(
+        fontWeight: FontWeight.w600,
+      ),
       contentTextStyle: bodyText,
     ),
     navigationRailTheme: theme.navigationRailTheme.copyWith(

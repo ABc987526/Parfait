@@ -11,6 +11,7 @@ import '../../app/theme/func_semantic_tokens.dart';
 import '../../app/widgets/app_top_bar.dart';
 import '../../app/widgets/errors/error_details.dart';
 import '../../app/widgets/feed/feed_grid.dart';
+import '../../app/widgets/app_spinner.dart';
 import '../../app/widgets/feed/feed_states.dart';
 import '../../app/widgets/feed/load_more_listener.dart';
 import '../../app/widgets/novel_entry.dart';
@@ -150,12 +151,7 @@ class _MarkedNovelRow extends ConsumerWidget {
     final Widget toggle = pending
         ? const SizedBox.square(
             dimension: kMinInteractiveDimension,
-            child: Center(
-              child: SizedBox.square(
-                dimension: 18,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            ),
+            child: Center(child: AppSpinner(size: 18, strokeWidth: 2)),
           )
         : IconButton(
             tooltip: current == null

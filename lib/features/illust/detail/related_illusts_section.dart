@@ -13,6 +13,7 @@ import '../../../core/paging/paged_feed_controller.dart';
 import '../../../core/illust/related_illust_controller.dart';
 import '../../../l10n/context.dart';
 import '../../../app/theme/func_semantic_tokens.dart';
+import '../../../app/widgets/app_spinner.dart';
 import 'on_demand_sliver.dart';
 import 'widgets/detail_section_header.dart';
 
@@ -262,13 +263,7 @@ class _LoadMoreFooter extends ConsumerWidget {
     if (state.loadMorePhase == FeedPhase.loading) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: FuncSpacing.lg),
-        child: Center(
-          child: SizedBox(
-            width: 20,
-            height: 20,
-            child: CircularProgressIndicator(strokeWidth: 2.5),
-          ),
-        ),
+        child: Center(child: AppSpinner(size: 20, strokeWidth: 2.5)),
       );
     }
     if (state.loadMorePhase == FeedPhase.error) {

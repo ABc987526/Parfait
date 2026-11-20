@@ -335,7 +335,7 @@ Future<T?> showAppAdaptiveDialog<T>({
                   color: surfaceColor,
                   surfaceTintColor: Colors.transparent,
                   elevation: 6,
-                  shape: RoundedRectangleBorder(
+                  shape: RoundedSuperellipseBorder(
                     borderRadius: FuncShape.dialog,
                     side: _overlayBorder(routeContext),
                   ),

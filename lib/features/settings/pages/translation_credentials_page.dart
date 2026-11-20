@@ -11,6 +11,7 @@ import '../../../app/widgets/app_top_bar.dart';
 import '../../../app/widgets/settings/settings_action_tile.dart';
 import '../../../app/widgets/settings/settings_group.dart';
 import '../../../app/widgets/settings/settings_group_content.dart';
+import '../../../app/widgets/app_spinner.dart';
 import '../../../core/translation/translation_service.dart';
 import '../../../core/translation/translation_credentials.dart';
 import '../../../l10n/context.dart';
@@ -456,9 +457,6 @@ class _BusyIndicator extends StatelessWidget {
   const _BusyIndicator();
 
   @override
-  Widget build(BuildContext context) => const SizedBox(
-    width: 16,
-    height: 16,
-    child: CircularProgressIndicator(strokeWidth: 2),
-  );
+  Widget build(BuildContext context) =>
+      const AppSpinner(size: 16, strokeWidth: 2);
 }

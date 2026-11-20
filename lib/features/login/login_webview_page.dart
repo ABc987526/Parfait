@@ -11,6 +11,7 @@ import '../../app/motion/app_overlays.dart';
 import '../../app/widgets/app_dialog.dart';
 import '../../app/widgets/app_progress_bar.dart';
 import '../../app/widgets/app_snack_bar.dart';
+import '../../app/widgets/app_spinner.dart';
 import '../../app/widgets/app_top_bar.dart';
 import '../../app/widgets/web_navigation_guard.dart';
 import '../../core/auth/account.dart';
@@ -544,7 +545,7 @@ class _LoginWebViewPageState extends ConsumerState<LoginWebViewPage>
             // surface, independent of the app theme brightness.
             const ColoredBox(
               color: Colors.black38,
-              child: Center(child: CircularProgressIndicator()),
+              child: Center(child: AppSpinner()),
             ),
           // Shared error surface — the card owns the action-set contract:
           // recoverable → reload + dismiss; fatal → restart the dead PKCE

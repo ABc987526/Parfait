@@ -1,12 +1,13 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:forui/forui.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 
+import '../../app/widgets/app_accordion.dart';
+import '../../app/widgets/app_spinner.dart';
 import '../../app/widgets/app_top_bar.dart';
 import '../../core/network/compat/network_contracts.dart';
 import '../../core/network/compat/network_policy.dart';
@@ -20,7 +21,6 @@ import '../../core/log.dart';
 import '../../l10n/context.dart';
 import '../../l10n/lookup.dart';
 import 'settings_helpers.dart';
-import '../../app/theme/forui_theme_bridge.dart';
 import '../../app/theme/func_semantic_tokens.dart';
 import '../../app/clipboard.dart';
 import '../../app/layout/content_widths.dart';
@@ -276,11 +276,7 @@ class _NetworkProbePageState extends ConsumerState<NetworkProbePage> {
             FilledButton.icon(
               onPressed: _running ? null : _runAll,
               icon: _running
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
+                  ? const AppSpinner(size: 18, strokeWidth: 2)
                   : const Icon(UiIcons.play),
               label: Text(
                 _running
@@ -459,11 +455,7 @@ class NetworkProbeHostPanel extends StatelessWidget {
                 ),
                 if (body != null) _ConclusionBadge(conclusion: body.conclusion),
                 if (body == null && running)
-                  const SizedBox(
-                    width: 14,
-                    height: 14,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
+                  const AppSpinner(size: 14, strokeWidth: 2),
               ],
             ),
             const SizedBox(height: FuncSpacing.sm),
@@ -495,63 +487,60 @@ class NetworkProbeHostPanel extends StatelessWidget {
                     ),
                   ),
                 ),
-              ForuiThemeHost.ensure(
-                context,
-                FAccordion(
-                  children: [
-                    FAccordionItem(
-                      title: Text(context.l10n.networkProbeDetails),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          if (body.dnsDisagrees)
-                            Padding(
-                              padding: const EdgeInsets.only(
-                                bottom: FuncSpacing.sm,
-                              ),
-                              child: Text(
-                                context.l10n.networkProbeDnsDiff,
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: FuncTokens.networkProbeDnsWarning,
-                                ),
-                              ),
+              AppAccordion(
+                items: [
+                  AppAccordionItem(
+                    title: Text(context.l10n.networkProbeDetails),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (body.dnsDisagrees)
+                          Padding(
+                            padding: const EdgeInsets.only(
+                              bottom: FuncSpacing.sm,
                             ),
-                          for (final step in body.steps)
-                            Padding(
-                              padding: const EdgeInsets.only(
-                                top: FuncSpacing.xxs,
+                            child: Text(
+                              context.l10n.networkProbeDnsDiff,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: FuncTokens.networkProbeDnsWarning,
                               ),
-                              child: Align(
-                                alignment: Alignment.centerLeft,
-                                child: Text(
-                                  _probeStepLine(context, step),
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: step.ok
-                                        ? null
-                                        : theme.colorScheme.error,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          const SizedBox(height: FuncSpacing.sm),
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: TextButton.icon(
-                              onPressed: () => copyToClipboard(
-                                context,
-                                body.toCopyableText(),
-                                message: context.l10n.networkProbeCopied,
-                              ),
-                              icon: const Icon(AppIcons.copy, size: 16),
-                              label: Text(context.l10n.copy),
                             ),
                           ),
-                        ],
-                      ),
+                        for (final step in body.steps)
+                          Padding(
+                            padding: const EdgeInsets.only(
+                              top: FuncSpacing.xxs,
+                            ),
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                _probeStepLine(context, step),
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: step.ok
+                                      ? null
+                                      : theme.colorScheme.error,
+                                ),
+                              ),
+                            ),
+                          ),
+                        const SizedBox(height: FuncSpacing.sm),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton.icon(
+                            onPressed: () => copyToClipboard(
+                              context,
+                              body.toCopyableText(),
+                              message: context.l10n.networkProbeCopied,
+                            ),
+                            icon: const Icon(AppIcons.copy, size: 16),
+                            label: Text(context.l10n.copy),
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ],
           ],

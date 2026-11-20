@@ -11,6 +11,7 @@ import '../../app/person_avatar.dart';
 import '../../app/pixiv_image.dart';
 import '../../app/widgets/app_dialog.dart';
 import '../../app/widgets/app_top_bar.dart';
+import '../../app/widgets/app_spinner.dart';
 import '../../app/widgets/feed/feed_states.dart';
 import '../../app/window/desktop_command_bar_scope.dart';
 import '../../core/platform/platform_caps.dart';
@@ -286,12 +287,7 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
                                   }
                                 : null,
                             icon: isSubmitting
-                                ? const SizedBox.square(
-                                    dimension: 18,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  )
+                                ? const AppSpinner(size: 18, strokeWidth: 2)
                                 : const Icon(AppIcons.save),
                             label: Text(context.l10n.profileEditSave),
                           ),
@@ -782,7 +778,7 @@ class _StatusBody extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (busy)
-              const CircularProgressIndicator()
+              const AppSpinner()
             else
               const Icon(AppIcons.info, size: 52),
             const SizedBox(height: FuncSpacing.lg),

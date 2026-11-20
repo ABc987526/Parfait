@@ -151,7 +151,7 @@ reviewed: 2026-11-21
 - **Rule:** Feed cards, card rows, and detail pages/sections sit inside `TickerPartition`; uniform wrapper lists hold no conditional entries.
 - **Why:** Removing hundreds of listeners from one shared route notifier took 43% of detail unmount frames.
 - **Check:** `test/motion_test.dart` "a ticker partition mutes with its ancestor"
-- **Code:** `lib/app/motion/motion_tokens.dart`, `lib/app/widgets/feed/feed_grid.dart`, `lib/app/layout/card_columns.dart`, `lib/features/illust/detail/illust_detail_content.dart`
+- **Code:** `lib/app/motion/motion_tokens.dart`, `lib/app/widgets/feed/feed_grid.dart`, `lib/app/layout/card_columns.dart`, `lib/features/illust/detail/illust_detail_shells.dart`
 
 ### MOTION-21 Work ahead of the user waits for a still screen
 - **Rule:** Pre-building neighbour tabs, branches, and detail pages goes through `StillWork` (one piece per still frame with no active touch, scroll, foreground image load, or animation—capped at 60 frames per run); direct navigation builds immediately; off-screen branches sit under `ExcludeFocus` and never persist settings.
