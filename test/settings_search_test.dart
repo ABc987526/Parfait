@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, debugDefaultTargetPlatformOverride;
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -345,6 +347,31 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets(
+    'Setting.available and ThemeSettingsPage adapt haptics and system colors on iOS',
+    (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      try {
+        expect(Setting.hapticStrength.available, isTrue);
+        expect(Setting.followSystemColors.available, isFalse);
+        expect(Setting.saveLocationSafFolder.available, isFalse);
+
+        await seedSettings(baseTestSettings());
+        await tester.pumpWidget(
+          localizedApp(
+            overrides: const [],
+            builder: promptHostBuilder,
+            home: const ThemeSettingsPage(),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('跟随系统取色'), findsNothing);
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    },
+  );
 }
 
 extension on GoRouter {

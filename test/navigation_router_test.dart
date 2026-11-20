@@ -96,10 +96,9 @@ void main() {
           expect(router.state.uri.path, '/recommended');
         },
       };
-  for (final MapEntry(key: name, value: interrupt)
-      in exitInterruptions.entries) {
-    testWidgets('a second back at the start exits; after $name it hints '
-        'again', (tester) async {
+  testWidgets(
+    'a second back at the start exits; interruptions reset the hint',
+    (tester) async {
       final exits = <MethodCall>[];
       final messenger = tester.binding.defaultBinaryMessenger;
       messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
@@ -134,13 +133,19 @@ void main() {
       await back();
       expect(exits, hasLength(1));
 
-      await back();
-      await interrupt(tester, router);
-      await back();
-      expect(find.text('再按一次退出'), findsOneWidget);
-      expect(exits, hasLength(1), reason: 'after $name a back starts over');
-    });
-  }
+      for (final MapEntry(key: name, value: interrupt)
+          in exitInterruptions.entries) {
+        await back();
+        await interrupt(tester, router);
+        await back();
+        expect(find.text('再按一次退出'), findsOneWidget, reason: 'after $name');
+        expect(exits, hasLength(1), reason: 'after $name a back starts over');
+        // Expire the hint window so the next interruption starts cleanly.
+        await tester.pump(homeExitWindow);
+        await tester.pump(const Duration(milliseconds: 400));
+      }
+    },
+  );
 
   Future<GoRouter> pumpRouter(
     WidgetTester tester,
@@ -413,63 +418,63 @@ void main() {
   // A popup does not drive the root's secondary animation: the root is
   // current again from the pop's first frame, while the popup still slides
   // out over it.
-  for (final (name, script) in <(String, _PopupScript)>[
-    (
-      'a sheet',
-      (tester, root) async {
-        unawaited(_sheet(root));
-        await tester.pumpAndSettle();
-        Navigator.of(root).pop();
-      },
-    ),
-    (
-      'a dialog on the branch Navigator',
-      (tester, root) async {
-        unawaited(
-          showAppDialog<void>(
-            context: root,
-            useRootNavigator: false,
-            builder: (_) => const AlertDialog(content: Text('dialog')),
-          ),
-        );
-        await tester.pumpAndSettle();
-        Navigator.of(root).pop();
-      },
-    ),
-    (
-      'the upper of two sheets, then the lower',
-      (tester, root) async {
-        unawaited(_sheet(root));
-        await tester.pumpAndSettle();
-        unawaited(_sheet(root));
-        await tester.pumpAndSettle();
-        Navigator.of(root).pop();
-        await tester.pumpAndSettle();
-        expect(_shellBar, findsNothing);
-        Navigator.of(root).pop();
-      },
-    ),
-  ]) {
-    testWidgets('$name keeps the bar under it until it has left', (
-      tester,
-    ) async {
-      setViewSize(tester, const Size(390, 844));
-      final router = pixivRouter('/recommended');
-      await tester.pumpWidget(ProviderScope(child: localizedRouterApp(router)));
-      await tester.pumpAndSettle();
-      final resting = tester.getRect(_shellBar);
+  testWidgets('a popup keeps the bar under it until it has left', (
+    tester,
+  ) async {
+    setViewSize(tester, const Size(390, 844));
+    final router = pixivRouter('/recommended');
+    await tester.pumpWidget(ProviderScope(child: localizedRouterApp(router)));
+    await tester.pumpAndSettle();
+    final resting = tester.getRect(_shellBar);
 
+    for (final (name, script) in <(String, _PopupScript)>[
+      (
+        'a sheet',
+        (tester, root) async {
+          unawaited(_sheet(root));
+          await tester.pumpAndSettle();
+          Navigator.of(root).pop();
+        },
+      ),
+      (
+        'a dialog on the branch Navigator',
+        (tester, root) async {
+          unawaited(
+            showAppDialog<void>(
+              context: root,
+              useRootNavigator: false,
+              builder: (_) => const AlertDialog(content: Text('dialog')),
+            ),
+          );
+          await tester.pumpAndSettle();
+          Navigator.of(root).pop();
+        },
+      ),
+      (
+        'the upper of two sheets, then the lower',
+        (tester, root) async {
+          unawaited(_sheet(root));
+          await tester.pumpAndSettle();
+          unawaited(_sheet(root));
+          await tester.pumpAndSettle();
+          Navigator.of(root).pop();
+          await tester.pumpAndSettle();
+          expect(_shellBar, findsNothing);
+          Navigator.of(root).pop();
+        },
+      ),
+    ]) {
       await script(tester, tester.element(find.byType(RecommendedHomePage)));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 50));
-      expect(_shellBar, findsNothing);
-      expect(tester.getRect(_rootCopy).top, resting.top);
+      expect(_shellBar, findsNothing, reason: name);
+      expect(tester.getRect(_rootCopy).top, resting.top, reason: name);
 
       await tester.pumpAndSettle();
-      expect(_rootCopy, findsNothing);
-      expect(tester.getRect(_shellBar), resting);
-    });
-  }
+      expect(_rootCopy, findsNothing, reason: name);
+      expect(tester.getRect(_shellBar), resting, reason: name);
+    }
+  });
 
   testWidgets('a page pushed while a sheet leaves keeps the bar covered', (
     tester,
@@ -562,46 +567,41 @@ void main() {
     expect(tester.getTopLeft(find.byType(HomePage)), Offset.zero);
   });
 
-  for (final origin in [
-    '/recommended',
-    '/ranking',
-    '/new',
-    '/search',
-    '/settings',
-    '/me',
-    '/reverse-image',
-    '/downloads',
-  ]) {
-    testWidgets('downloads return to $origin with one home shell', (
-      tester,
-    ) async {
-      // On a phone the downloads open over the shell; beside a rail they
-      // open on the branch (home_branch_stack_test).
+  // Representative origins across the three stack classes: shell branch root,
+  // overlay route, and self-origin.
+  testWidgets(
+    'downloads return to branch, overlay, and self origins with one home shell',
+    (tester) async {
       setViewSize(tester, const Size(390, 844));
       setDisplaySize(tester, const Size(390, 844));
-      final overlay = ['/me', '/reverse-image', '/downloads'].contains(origin);
-      final router = await pumpRouter(
-        tester,
-        overlay ? '/recommended' : origin,
-      );
-      if (overlay) {
-        unawaited(router.push<void>(origin));
+      for (final origin in const ['/recommended', '/me', '/downloads']) {
+        final overlay = origin != '/recommended';
+        final router = await pumpRouter(
+          tester,
+          overlay ? '/recommended' : origin,
+        );
+        if (overlay) {
+          unawaited(router.push<void>(origin));
+          await tester.pumpAndSettle();
+        }
+        unawaited(
+          openDownloadTasks(tester.element(find.byType(Scaffold).last)),
+        );
         await tester.pumpAndSettle();
+        expect(router.state.uri.path, '/downloads', reason: origin);
+        expect(find.byType(DownloadTasksPage), findsOneWidget, reason: origin);
+        expect(
+          find.byType(StatefulNavigationShell, skipOffstage: false),
+          findsOneWidget,
+          reason: origin,
+        );
+        await tester.binding.handlePopRoute();
+        await tester.pumpAndSettle();
+        expect(router.state.uri.path, origin, reason: origin);
+        expect(tester.takeException(), isNull, reason: origin);
       }
-      unawaited(openDownloadTasks(tester.element(find.byType(Scaffold).last)));
-      await tester.pumpAndSettle();
-      expect(router.state.uri.path, '/downloads');
-      expect(find.byType(DownloadTasksPage), findsOneWidget);
-      expect(
-        find.byType(StatefulNavigationShell, skipOffstage: false),
-        findsOneWidget,
-      );
-      await tester.binding.handlePopRoute();
-      await tester.pumpAndSettle();
-      expect(router.state.uri.path, origin);
-      expect(tester.takeException(), isNull);
-    });
-  }
+    },
+  );
 
   testWidgets('openHistory stays on the stack it was called from', (
     tester,

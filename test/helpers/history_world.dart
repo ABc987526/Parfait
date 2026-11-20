@@ -1,10 +1,7 @@
-import 'dart:io';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:path/path.dart' as path;
 import 'package:parfait/core/auth/account.dart';
 import 'package:parfait/core/auth/account_store.dart';
 import 'package:parfait/core/auth/credential.dart';
@@ -15,29 +12,21 @@ import 'package:parfait/core/history/history_models.dart';
 import 'package:parfait/core/history/history_repository.dart';
 import 'package:parfait/core/image/image_worker_providers.dart';
 import 'package:parfait/core/network/pixiv_http_client.dart';
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'fake_account.dart';
 import 'image_network.dart';
 
-/// A real history repository on a fresh ffi database holding [records],
-/// closed and deleted at teardown. Real I/O: call inside
-/// [WidgetTester.runAsync].
+/// A real history repository on an in-memory no-isolate FFI database holding
+/// [records], closed at teardown.
 Future<HistoryRepository> openHistoryRepository(
   List<HistoryRecord> records,
 ) async {
-  final directory = await Directory.systemTemp.createTemp('hist-');
-  final database = HistoryDatabase(
-    factory: databaseFactoryFfi,
-    databasePath: path.join(directory.path, 'history.db'),
-  );
-  addTearDown(() async {
-    await database.close();
-    await directory.delete(recursive: true);
-  });
-  // Open now, in the caller's zone: sqflite's reply port binds to the zone
-  // that opens the database, and one first opened by a widget in the fake
-  // zone never hears back from the tear-down's close.
+  // Under FLUTTER_TEST, default HistoryDatabase uses databaseFactoryFfiNoIsolate
+  // with an isolated in-memory database (singleInstance: false) so reads and
+  // writes complete on microtasks without spawning a background SQLite isolate
+  // or touching disk.
+  final database = HistoryDatabase();
+  addTearDown(database.close);
   await database.database;
   final repository = HistoryRepository(database: database);
   for (final record in records) {
@@ -92,49 +81,55 @@ Future<ProviderContainer> makeHistoryWorld(
   return container;
 }
 
-/// Runs [change], then pumps until the widgets have no database call left.
-/// The ffi database answers on the real loop, and a call the widgets made
-/// in the fake zone, or one chained behind it (a tracker's next commit),
-/// may still be running when a fixed number of rounds is over. Every such
-/// call starts sqflite's lock-warning timer in the fake zone and cancels it
-/// through a fake microtask once it holds the lock, so a pending microtask
-/// shows one ran since the last pump. Each round pumps and queues a probe
-/// on the database's FIFO lock: the widgets are done when the probe
-/// completes without a pump and no call took the lock meanwhile. A probe
-/// held back is pumped through before the next round. Two more frames
-/// deliver the results.
+/// Runs [change], then drains both real-zone and fake-zone microtasks until
+/// every in-memory no-isolate history database query and resulting frame has
+/// settled.
+///
+/// Databases opened inside `tester.runAsync` schedule their `sqflite` lock
+/// continuations on the real zone, while widgets query them from the fake
+/// zone; alternating zero-delay real-loop yields with `tester.pump()` drains
+/// both zones in sub-millisecond time without deadlocking `_rawLock`.
 Future<void> settleHistory(
   WidgetTester tester,
   HistoryRepository history, [
   Future<void> Function()? change,
-]) => tester.runAsync(() async {
-  await change?.call();
-  var pumps = 0;
-  Future<void> pump() {
-    if (++pumps > 1000) throw StateError('history database never drained');
-    return tester.pump();
+]) async {
+  Future<void> drain() async {
+    var quietTurns = 0;
+    for (var i = 0; i < 64; i++) {
+      await tester.pump();
+      final idle = await tester.runAsync(() async {
+        // Yield once so real-zone continuations from widget queries complete
+        // before probing the FIFO lock.
+        await Future<void>.delayed(Duration.zero);
+        final probe = history.count(accountId: '100');
+        var done = false;
+        probe.whenComplete(() => done = true).ignore();
+        await Future<void>.delayed(Duration.zero);
+        return done;
+      });
+      await tester.pump();
+      if (idle == true && tester.binding.microtaskCount == 0) {
+        quietTurns += 1;
+        if (quietTurns >= 2) {
+          // Flush any zero-duration timers scheduled during layout (e.g.
+          // EasyRefresh's ballistic simulation check) on the final frame.
+          await tester.pump(Duration.zero);
+          return;
+        }
+      } else {
+        quietTurns = 0;
+      }
+    }
+    throw StateError('history database never drained');
   }
 
-  while (true) {
-    await pump();
-    final probe = history.count(accountId: '100');
-    var drained = false;
-    probe.whenComplete(() => drained = true).ignore();
-    final idle = await Future.any([
-      probe.then((_) => true),
-      Future<bool>.delayed(const Duration(milliseconds: 100), () => false),
-    ]);
-    if (idle && tester.binding.microtaskCount == 0) break;
-    while (!drained) {
-      await Future<void>.delayed(const Duration(milliseconds: 10));
-      await pump();
-    }
+  await drain();
+  if (change != null) {
+    await tester.runAsync(change);
+    await drain();
   }
-  for (var i = 0; i < 2; i++) {
-    await Future<void>.delayed(const Duration(milliseconds: 50));
-    await tester.pump();
-  }
-});
+}
 
 HistoryRecord historyRecord(
   int id, {

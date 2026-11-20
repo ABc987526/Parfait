@@ -33,6 +33,10 @@ enum LayoutProfile {
 /// Registers [name] once per supported locale × [LayoutProfile], named
 /// `name [ru/compact]`. Runs only under `test/locale_layout/`, where the
 /// real fonts are loaded.
+///
+/// The tightest cell (`ru/compact`: longest UI copy on a 320dp screen at 1.3×
+/// text scale) stays untagged so every PR runs it; the other 7 locale×profile
+/// cells carry the `matrix` tag for nightly and l10n/route/theme PR runs.
 void localeLayoutMatrix(
   String name,
   Future<void> Function(
@@ -44,6 +48,8 @@ void localeLayoutMatrix(
 ) {
   for (final locale in AppLocalizations.supportedLocales) {
     for (final profile in LayoutProfile.values) {
+      final isPrCore =
+          locale.languageCode == 'ru' && profile == LayoutProfile.compact;
       testWidgets('$name [${locale.toLanguageTag()}/${profile.name}]', (
         tester,
       ) async {
@@ -54,7 +60,7 @@ void localeLayoutMatrix(
         addTearDown(tester.view.reset);
         addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
         await body(tester, locale, profile);
-      });
+      }, tags: isPrCore ? null : const ['matrix']);
     }
   }
 }
@@ -90,10 +96,11 @@ Widget localeLayoutApp({
         );
 }
 
-/// Lets entrances and fades finish. Not `pumpAndSettle`: skeleton shimmer
-/// loops forever.
+/// Lets entrances and fades finish, stopping early once no frame is
+/// scheduled. Not `pumpAndSettle`: skeleton shimmer loops forever.
 Future<void> settleLayout(WidgetTester tester) async {
-  for (var i = 0; i < 10; i++) {
+  await tester.pump(const Duration(milliseconds: 100));
+  for (var i = 1; i < 10 && tester.binding.hasScheduledFrame; i++) {
     await tester.pump(const Duration(milliseconds: 100));
   }
 }
@@ -170,7 +177,10 @@ Future<void> expectPageLayoutIntact(
         position.maxScrollExtent,
       ),
     );
-    await settleLayout(tester);
+    await tester.pump();
+    if (tester.binding.hasScheduledFrame) {
+      await settleLayout(tester);
+    }
     expectLocaleLayoutIntact(tester, locale: locale, profile: profile);
   }
 }
@@ -295,6 +305,10 @@ class LocaleMessages {
   /// Pattern, key, and the length of the message's own text.
   final List<(RegExp, String, int)> _patterns;
 
+  /// Memoizes pattern lookups (including negative hits) so repeated layout
+  /// checks across scroll stops and cases skip scanning all regex patterns.
+  final _lookupCache = <String, String?>{};
+
   /// The key whose message [text] is, or null for other text. Of several
   /// matching patterns the one with the most text of its own wins: "共 12
   /// 页" is "共 {count} 页", not "{count} 页" with "共 12" as the count.
@@ -302,6 +316,7 @@ class LocaleMessages {
     if (text.isEmpty) return null;
     final exact = _exact[text];
     if (exact != null) return exact;
+    if (_lookupCache.containsKey(text)) return _lookupCache[text];
     String? best;
     var bestLiteral = -1;
     for (final (pattern, key, literal) in _patterns) {
@@ -310,6 +325,6 @@ class LocaleMessages {
         bestLiteral = literal;
       }
     }
-    return best;
+    return _lookupCache[text] = best;
   }
 }

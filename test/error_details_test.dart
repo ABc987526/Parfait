@@ -7,8 +7,12 @@ import 'package:material_ui/material_ui.dart';
 
 import 'package:parfait/app/widgets/errors/error_details.dart';
 import 'package:parfait/app/widgets/settings/persist_settings.dart';
+import 'package:parfait/core/download/download_recovery.dart';
 import 'package:parfait/core/errors/error_category.dart';
 import 'package:parfait/core/logging/crash_log.dart';
+import 'package:parfait/core/network/api_error.dart';
+import 'package:parfait/core/network/compat/network_contracts.dart';
+import 'package:parfait/core/network/next_page_parser.dart';
 import 'package:parfait/l10n/context.dart';
 import 'helpers/prompt_host.dart';
 import 'helpers/localized_app.dart';
@@ -230,5 +234,127 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('设置保存失败'), findsOneWidget);
+  });
+
+  group('ErrorCategory', () {
+    test('categorizeError puts each error in its category', () {
+      for (final (error, category) in <(Object, ErrorCategory)>[
+        (const ApiNetworkError('no route'), ErrorCategory.network),
+        (const SocketException('closed'), ErrorCategory.network),
+        (const HandshakeException('tls'), ErrorCategory.network),
+        for (final kind in NetworkFailureKind.values)
+          (
+            NetworkFailureException(kind),
+            kind == NetworkFailureKind.timeout
+                ? ErrorCategory.timeout
+                : ErrorCategory.network,
+          ),
+        (const ApiTimeout(), ErrorCategory.timeout),
+        (TimeoutException('slow'), ErrorCategory.timeout),
+        (const ApiRateLimited(null), ErrorCategory.rateLimited),
+        (const ApiUnauthorized(), ErrorCategory.unauthorized),
+        (const ApiHttpError(404), ErrorCategory.notFound),
+        for (final status in [500, 502, 503, 599])
+          (ApiHttpError(status), ErrorCategory.server),
+        for (final status in [400, 403, 418, 499])
+          (ApiHttpError(status), ErrorCategory.unknown),
+        (const ApiParseError('nope'), ErrorCategory.parse),
+        (const FormatException('bad json'), ErrorCategory.parse),
+        (const NextPageParseError('missing cursor'), ErrorCategory.parse),
+        (const FileSystemException('denied', '/tmp/x'), ErrorCategory.storage),
+        (const ApiCancelled(), ErrorCategory.unknown),
+        (StateError('x'), ErrorCategory.unknown),
+        ('plain string', ErrorCategory.unknown),
+      ]) {
+        expect(categorizeError(error), category, reason: '$error');
+      }
+    });
+
+    test(
+      'categorizeDownloadFailure maps five kinds; the rest stay unknown',
+      () {
+        const mapped = {
+          DownloadFailureKind.auth: ErrorCategory.unauthorized,
+          DownloadFailureKind.rateLimit: ErrorCategory.rateLimited,
+          DownloadFailureKind.network: ErrorCategory.network,
+          DownloadFailureKind.storage: ErrorCategory.storage,
+          DownloadFailureKind.decode: ErrorCategory.parse,
+        };
+        for (final kind in DownloadFailureKind.values) {
+          expect(
+            categorizeDownloadFailure(kind),
+            mapped[kind] ?? ErrorCategory.unknown,
+            reason: '$kind',
+          );
+        }
+      },
+    );
+  });
+
+  group('CrashLog', () {
+    late Directory dir;
+    late File file;
+
+    setUp(() {
+      dir = Directory.systemTemp.createTempSync('crashlog_test');
+      file = File('${dir.path}/crash.log');
+      CrashLog.useFile(file);
+    });
+
+    tearDown(() {
+      CrashLog.useFile(null);
+      dir.deleteSync(recursive: true);
+    });
+
+    test('record appends timestamped entries with error and stack', () async {
+      CrashLog.record(StateError('boom'), StackTrace.current);
+      CrashLog.record('plain message');
+      await CrashLog.pending;
+
+      final content = file.readAsStringSync();
+      expect(content, contains('Bad state'));
+      expect(content, contains('boom'));
+      expect(content, contains('plain message'));
+      expect(content.split('===').length - 1, greaterThanOrEqualTo(2));
+    });
+
+    test('a file error is logged without its path', () async {
+      CrashLog.report(
+        'rename',
+        const PathNotFoundException(
+          r'C:\Users\someone\a.zip',
+          OSError('No such file or directory', 2),
+          "Cannot rename file to 'C:\\Users\\O'Connor\\b.zip'",
+        ),
+      );
+      await CrashLog.pending;
+
+      final content = file.readAsStringSync();
+      expect(
+        content,
+        contains('PathNotFoundException: Cannot rename file to …'),
+      );
+      expect(content, contains('No such file or directory, errno = 2'));
+      expect(content, isNot(contains('someone')));
+      expect(content, isNot(contains('Connor')));
+    });
+
+    test('record without an installed file is a no-op', () {
+      CrashLog.useFile(null);
+      expect(() => CrashLog.record(Error()), returnsNormally);
+    });
+
+    test(
+      'oversize file is rotated down to the newest half before append',
+      () async {
+        file.writeAsBytesSync(List.filled(CrashLog.maxBytes + 100, 0x61));
+        CrashLog.record('after-rotation');
+        await CrashLog.pending;
+
+        final bytes = file.readAsBytesSync();
+        expect(bytes.length, lessThan(CrashLog.maxBytes));
+        expect(String.fromCharCodes(bytes), contains('after-rotation'));
+      },
+    );
   });
 }

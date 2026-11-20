@@ -28,7 +28,6 @@ import 'helpers/illust_fixtures.dart';
 import 'helpers/image_network.dart';
 import 'helpers/detail_world.dart';
 import 'helpers/hero_flight.dart';
-import 'helpers/illust_detail_page_support.dart' show workImages;
 import 'package:parfait/app/motion/hero_rect_clip.dart';
 import 'package:parfait/app/motion/drag_to_dismiss.dart';
 import 'package:parfait/app/motion/motion_tokens.dart';
@@ -760,6 +759,7 @@ void main() {
 
     // The band's ambient wash (THEME-19) is the work's blurred tone above
     // the landing box, not a copy of the artwork.
+    final workImages = find.byType(PixivImage);
     final artwork = find
         .descendant(of: find.byType(IllustDetailPage), matching: workImages)
         .evaluate()

@@ -16,7 +16,6 @@ import 'package:parfait/core/history/history_models.dart';
 import 'package:parfait/core/history/history_repository.dart';
 import 'package:parfait/core/settings/settings_controller.dart';
 import 'package:parfait/features/history/history_page.dart';
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'helpers/history_world.dart';
 import 'helpers/illust_fixtures.dart';
@@ -40,17 +39,13 @@ Future<ProviderContainer> _seedPage(
   // Phone-sized surface: the confirm sheet's 0.35-height fraction box
   // overflows on the 800x600 default viewport and pushes the buttons out.
   setViewSize(tester, surface);
-  late ProviderContainer container;
-  await tester.runAsync(() async {
-    final repository = await openHistoryRepository(records);
-    container = await makeHistoryWorld(repository, illustStore: illustStore);
-    await tester.pumpWidget(_app(container));
-    // Let the first page load land on the real event loop.
-    await Future<void>.delayed(const Duration(milliseconds: 100));
-    await tester.pump();
-    await Future<void>.delayed(const Duration(milliseconds: 50));
-    await tester.pump();
-  });
+  final (repository, container) = (await tester.runAsync(() async {
+    final repo = await openHistoryRepository(records);
+    final c = await makeHistoryWorld(repo, illustStore: illustStore);
+    return (repo, c);
+  }))!;
+  await tester.pumpWidget(_app(container));
+  await settleHistory(tester, repository);
   return container;
 }
 
@@ -60,8 +55,6 @@ Finder _selectionTitle(String label) => find.byWidgetPredicate(
 );
 
 void main() {
-  setUpAll(sqfliteFfiInit);
-
   testWidgets('each open reads afresh; open, the order holds; hidden, it '
       'catches up', (tester) async {
     setViewSize(tester, const Size(390, 844));
@@ -271,15 +264,12 @@ void main() {
     late ProviderContainer container;
     await tester.runAsync(() async {
       // A store closed before it ever opened fails every read.
-      final database = HistoryDatabase(
-        factory: databaseFactoryFfi,
-        databasePath: inMemoryDatabasePath,
-      );
+      final database = HistoryDatabase();
       await database.close();
       container = await makeHistoryWorld(HistoryRepository(database: database));
     });
     await tester.pumpWidget(_app(container));
-    await tester.runAsync(() => Future<void>.delayed(Durations.short2));
+    await tester.pump();
     await tester.pump();
     expect(find.text('历史记录加载失败'), findsOneWidget);
     expect(find.text('重试'), findsOneWidget);

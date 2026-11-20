@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -16,12 +14,7 @@ import 'package:parfait/core/auth/oauth_service.dart';
 import 'package:parfait/core/network/pixiv_http_client.dart';
 import 'package:parfait/core/settings/preference_keys.dart';
 
-/// A JSON answer of [body], the way the pixiv API responds.
-http.Response jsonResponse(Object? body, [int status = 200]) => http.Response(
-  jsonEncode(body),
-  status,
-  headers: const {'content-type': 'application/json'},
-);
+export 'json_response.dart';
 
 /// Simple in-memory credential store for tests whose account behavior is not
 /// itself the subject of the test.

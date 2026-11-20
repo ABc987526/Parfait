@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart' show ValueListenable;
-import 'package:flutter/gestures.dart' show kPressTimeout;
+import 'package:flutter/gestures.dart' show PointerDeviceKind, kPressTimeout;
 import 'package:flutter/rendering.dart' show OpacityLayer;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
@@ -18,6 +18,7 @@ import 'package:parfait/app/motion/state_fade.dart';
 import 'package:parfait/app/motion/state_icon_switcher.dart';
 import 'package:parfait/app/motion/still_work.dart';
 import 'package:parfait/app/theme/replica_theme.dart';
+import 'package:parfait/app/widgets/smooth_wheel_scroll.dart';
 import 'package:parfait/core/settings/app_settings.dart';
 
 import 'helpers/recording_haptics.dart';
@@ -899,6 +900,79 @@ void main() {
       expect(dismissed, isFalse);
     });
   });
+
+  testWidgets(
+    'Pointer mode skips PressScale 100ms delay and SmoothWheelScroll jumps instantly',
+    (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: PressScale(child: Text('card content')),
+            ),
+          ),
+        ),
+      );
+      double currentScale() {
+        final transition = find.descendant(
+          of: find.byType(PressScale),
+          matching: find.byType(ScaleTransition),
+        );
+        if (transition.evaluate().isEmpty) return 1.0;
+        return tester.widget<ScaleTransition>(transition).scale.value;
+      }
+
+      expect(currentScale(), 1.0);
+      final pressTarget = tester.getCenter(find.byType(PressScale));
+      final mouse = TestPointer(1, PointerDeviceKind.mouse);
+      await tester.sendEventToBinding(mouse.down(pressTarget));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 16));
+      expect(currentScale(), lessThan(1.0));
+      await tester.sendEventToBinding(mouse.up());
+      await tester.pumpAndSettle();
+      expect(currentScale(), closeTo(1.0, 0.001));
+
+      final touch = TestPointer(2, PointerDeviceKind.touch);
+      await tester.sendEventToBinding(touch.down(pressTarget));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 16));
+      expect(currentScale(), 1.0);
+      await tester.pump(kPressTimeout);
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(currentScale(), lessThan(1.0));
+      await tester.sendEventToBinding(touch.up());
+      await tester.pumpAndSettle();
+
+      final wheelController = ScrollController();
+      addTearDown(wheelController.dispose);
+      await tester.pumpWidget(
+        MotionScope(
+          reduce: true,
+          child: MaterialApp(
+            home: Scaffold(
+              body: SmoothWheelScroll(
+                controller: wheelController,
+                builder: (_, c, p) => ListView.builder(
+                  controller: c,
+                  physics: p,
+                  itemCount: 100,
+                  itemBuilder: (_, i) =>
+                      SizedBox(height: 40, child: Text('$i')),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      final wheelPtr = TestPointer(3, PointerDeviceKind.mouse);
+      await tester.sendEventToBinding(wheelPtr.hover(const Offset(200, 200)));
+      await tester.pump();
+      await tester.sendEventToBinding(wheelPtr.scroll(const Offset(0, 160)));
+      await tester.pump();
+      expect(wheelController.offset, closeTo(160, 0.5));
+    },
+  );
 }
 
 /// [pieces] pieces of work ahead, one per still frame.

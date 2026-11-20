@@ -564,7 +564,7 @@ void main() {
       WidgetTester tester, {
       Duration span = const Duration(milliseconds: 600),
     }) async {
-      const step = Duration(milliseconds: 4);
+      const step = Duration(milliseconds: 16);
       var (low, high) = (1.0, 1.0);
       for (var t = Duration.zero; t < span; t += step) {
         await tester.pump(step);

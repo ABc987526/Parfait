@@ -1,18 +1,25 @@
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, debugDefaultTargetPlatformOverride;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'package:parfait/app/layout/input_modality.dart';
 import 'package:parfait/app/motion/app_overlays.dart';
 import 'package:parfait/core/download/download_providers.dart';
 import 'package:parfait/core/download/download_task.dart';
+import 'package:parfait/core/entity/illust_entity.dart';
+import 'package:parfait/core/image/image_worker_providers.dart';
 import 'package:parfait/app/motion/drag_to_dismiss.dart';
 import 'package:parfait/app/pixiv_image.dart';
 import 'package:parfait/app/widgets/feed/feed_states.dart';
 import 'package:parfait/features/illust/detail/ugoira_viewer.dart';
 import 'package:parfait/features/illust/viewer/image_viewer_page.dart';
 
+import 'helpers/api_responses.dart';
+import 'helpers/fake_account.dart';
 import 'helpers/image_network.dart';
 import 'helpers/detail_world.dart';
 import 'helpers/illust_fixtures.dart';
@@ -761,5 +768,117 @@ void main() {
         isSemantics(isButton: true, hasTapAction: true),
       );
     });
+
+    testWidgets(
+      'ImageViewer supports wheel zoom with 1.0x snap, multi-page hover scrubber, and wide info panel pop-before-navigate',
+      (tester) async {
+        debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+        try {
+          setViewSize(tester, const Size(1280, 800));
+          final container = await signedInApiContainer(
+            PixivApi().client,
+            overrides: [
+              imageWorkerProvider.overrideWithValue(stalledImageWorker()),
+            ],
+          );
+          final single = parseIllust(illustJson(10, pageCount: 1));
+          final multi = parseIllust(
+            illustJson(42, pageCount: 2, withMetaPages: true),
+          );
+
+          Future<GoRouter> pumpViewer(IllustEntity entity) async {
+            final router = GoRouter(
+              initialLocation: '/recommended/viewer',
+              routes: [
+                GoRoute(
+                  path: '/recommended',
+                  builder: (_, _) => const Text('recommended-base'),
+                  routes: [
+                    GoRoute(
+                      path: 'viewer',
+                      builder: (_, _) => ImageViewerPage(
+                        urls: [
+                          for (var i = 0; i < entity.pageCount; i++)
+                            entity.originalUrlAt(i)!,
+                        ],
+                        entity: entity,
+                      ),
+                    ),
+                    GoRoute(
+                      path: 'user/:id',
+                      builder: (_, state) =>
+                          Text('user-${state.pathParameters['id']}'),
+                    ),
+                    GoRoute(
+                      path: 'search/results',
+                      builder: (_, state) =>
+                          Text('search-${state.uri.queryParameters['q']}'),
+                    ),
+                  ],
+                ),
+              ],
+            );
+            addTearDown(router.dispose);
+            await tester.pumpWidget(
+              localizedRouterApp(
+                router,
+                container: container,
+                builder: (_, child) => InputModalityScope(child: child!),
+              ),
+            );
+            await tester.pump();
+            return router;
+          }
+
+          // Single-page omits scrubber; 2-page pointer viewer shows scrubber.
+          await pumpViewer(single);
+          expect(find.byKey(const Key('viewer-page-scrubber')), findsNothing);
+
+          await pumpViewer(multi);
+          expect(find.byKey(const Key('viewer-page-scrubber')), findsOneWidget);
+
+          // Pointer wheel zoom in (>1.0) then zoom out snaps cleanly to 1.0.
+          double stageScale() => tester
+              .widget<InteractiveViewer>(
+                find.byKey(const ValueKey('viewer-page-0')),
+              )
+              .transformationController!
+              .value
+              .getMaxScaleOnAxis();
+
+          final pointer = TestPointer(9, PointerDeviceKind.mouse);
+          final stageCenter = tester.getCenter(
+            find.byKey(const ValueKey('viewer-page-0')),
+          );
+          await tester.sendEventToBinding(pointer.hover(stageCenter));
+          await tester.pump();
+          await tester.sendEventToBinding(
+            pointer.scroll(const Offset(0, -120)),
+          );
+          await tester.pumpAndSettle();
+          expect(stageScale(), greaterThan(1.15));
+
+          await tester.sendEventToBinding(pointer.scroll(const Offset(0, 120)));
+          await tester.pumpAndSettle();
+          expect(stageScale(), closeTo(1.0, 0.001));
+
+          // Open docked 320dp info panel and pop-before-navigate via author link.
+          await tester.tap(find.byIcon(AppIcons.info));
+          await tester.pumpAndSettle();
+          final panel = find.byKey(const Key('viewer-info-panel'));
+          expect(panel, findsOneWidget);
+          expect(tester.getSize(panel).width, 320);
+
+          await tester.tap(
+            find.descendant(of: panel, matching: find.text(multi.user.name)),
+          );
+          await tester.pumpAndSettle();
+          expect(find.byType(ImageViewerPage), findsNothing);
+          expect(find.text('user-${multi.user.id}'), findsOneWidget);
+        } finally {
+          debugDefaultTargetPlatformOverride = null;
+        }
+      },
+    );
   });
 }

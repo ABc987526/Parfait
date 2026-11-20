@@ -129,7 +129,7 @@ reviewed: 2026-11-20
   the tag, and in release the last one collected won: the image flew to
   where the hidden branch had it, read by the user as "the history's
   place" (10-21).
-- **Check:** `test/architecture/feedback_channels_test.dart` "Hero uses only the shared illustHeroTag family", `test/hero_transition_test.dart` "the viewer pairs only with the branch on screen"
+- **Check:** `test/architecture/ui_conventions_test.dart` "Hero uses only the shared illustHeroTag family", `test/hero_transition_test.dart` "the viewer pairs only with the branch on screen"
 - **Code:** `lib/app/motion/hero_transition.dart`, `lib/app/widgets/home_branch_stack.dart`
 
 ### TRANS-08 Opening a work never waits for the image
@@ -197,7 +197,7 @@ reviewed: 2026-11-20
   from a third of the way across while the image landed (10-26). A
   second tap on the card fell on the opening page's content, still
   unseen, and opened the viewer over the flying image (10-31).
-- **Check:** `test/func_page_test.dart` "a shared-element page covers a still page" "the viewer stage fades whole, with no background" "two backs in a row leave the page under the shared-element"; `test/hero_transition_test.dart` "the viewer leaves whole and square; the detail page answers mid-flight" "an image sent back mid-flight turns where it is"; `test/architecture/feedback_channels_test.dart` "Hero uses only the shared illustHeroTag family"; `test/illust_card_badges_test.dart` "the pager image flies back only to a card on screen"
+- **Check:** `test/func_page_test.dart` "a shared-element page covers a still page" "the viewer stage fades whole, with no background" "two backs in a row leave the page under the shared-element"; `test/hero_transition_test.dart` "the viewer leaves whole and square; the detail page answers mid-flight" "an image sent back mid-flight turns where it is"; `test/architecture/ui_conventions_test.dart` "Hero uses only the shared illustHeroTag family"; `test/illust_card_badges_test.dart` "the pager image flies back only to a card on screen"
 - **Code:** `lib/app/navigation/func_page.dart`, `lib/app/navigation/routes.dart`, `lib/app/motion/hero_transition.dart`, `lib/app/widgets/feed/feed_grid.dart`
 
 ### TRANS-10 The card page's bars ride over a card flight; other flights clip

@@ -6,6 +6,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:parfait/app/layout/form_factor.dart';
+import 'package:parfait/app/layout/input_modality.dart';
+import 'package:parfait/app/layout/window_layout_spec.dart';
 import 'package:parfait/app/motion/motion_tokens.dart';
 import 'package:parfait/app/navigation/route_facade.dart';
 import 'package:parfait/app/system_ui.dart';
@@ -863,6 +865,72 @@ void main() {
         await tester.pumpAndSettle();
         expect(router.state.uri.path, '/recommended');
       },
+    );
+
+    testWidgets(
+      'desktop pointer layout handles 1x<->2x DPR transitions without throwing',
+      (tester) async {
+        tester.view
+          ..devicePixelRatio = 1.0
+          ..physicalSize = const Size(1280, 800);
+        addTearDown(tester.view.reset);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            localizationsDelegates: appLocalizationsDelegates,
+            supportedLocales: const [Locale('zh', 'CN')],
+            home: Scaffold(
+              body: Row(
+                children: [
+                  SizedBox(
+                    width: ShellRail.width,
+                    child: ShellRail(
+                      destinations: const [
+                        FuncBottomNavDestination(
+                          icon: Icons.home_outlined,
+                          label: '推荐',
+                        ),
+                      ],
+                      selectedIndex: 0,
+                      form: FormFactor.pc,
+                      expanded: false,
+                      canToggle: true,
+                      onToggle: () {},
+                      onSelected: (_) {},
+                    ),
+                  ),
+                  const Expanded(child: SizedBox.expand()),
+                ],
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+        expect(
+          WindowLayoutSpec.of(
+            tester.element(find.byType(ShellRail)),
+          ).inputModality,
+          InputModality.pointer,
+        );
+
+        // Simulate moving the window onto a 2x HiDPI display and back to 1x.
+        tester.view
+          ..devicePixelRatio = 2.0
+          ..physicalSize = const Size(3840, 2160);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 50));
+        expect(tester.takeException(), isNull);
+        expect(find.byType(ShellRail), findsOneWidget);
+
+        tester.view
+          ..devicePixelRatio = 1.0
+          ..physicalSize = const Size(1280, 800);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 50));
+        expect(tester.takeException(), isNull);
+        expect(find.byType(ShellRail), findsOneWidget);
+      },
+      variant: TargetPlatformVariant.only(TargetPlatform.windows),
     );
   });
 }

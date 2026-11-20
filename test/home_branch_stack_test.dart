@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:ui' show SemanticsRole;
 
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, debugDefaultTargetPlatformOverride;
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
@@ -29,6 +31,7 @@ import 'package:parfait/features/search/search_page.dart';
 import 'package:parfait/features/settings/settings_page.dart';
 import 'package:parfait/features/settings/me_dashboard_page.dart';
 
+import 'helpers/fake_settings.dart';
 import 'helpers/waits.dart';
 import 'helpers/fake_account.dart';
 import 'helpers/localized_app.dart';
@@ -1013,5 +1016,54 @@ void main() {
       expect(tester.getSize(rail).width, ShellRail.expandedWidth);
     },
     variant: TargetPlatformVariant.only(TargetPlatform.iOS),
+  );
+
+  testWidgets(
+    'desktop ShellRail animates branch switch with 150ms fade+slide',
+    (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+      try {
+        setViewSize(tester, const Size(1280, 800));
+        await seedSettings(AppSettings.defaults());
+        final router = pixivRouter('/recommended');
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              ...await signedInAccountOverrides(),
+              touchExplorationProvider.overrideWith(
+                (ref) => const Stream.empty(),
+              ),
+            ],
+            child: localizedRouterApp(
+              router,
+              builder: (_, child) => FormFactorScope(
+                choice: InterfaceForm.auto,
+                child: TouchExplorationScope(child: child!),
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 50));
+
+        router.go('/ranking');
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 70));
+        expect(find.byType(RankingPage), findsOneWidget);
+        await tester.pump(const Duration(milliseconds: 90));
+        await tester.pump();
+        final rankingSlide = tester.widget<SlideTransition>(
+          find
+              .ancestor(
+                of: find.byType(RankingPage),
+                matching: find.byType(SlideTransition),
+              )
+              .first,
+        );
+        expect(rankingSlide.position.value, Offset.zero);
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    },
   );
 }

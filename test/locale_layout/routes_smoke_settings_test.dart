@@ -1,3 +1,7 @@
+@Tags(['matrix'])
+library;
+
+import 'package:flutter_test/flutter_test.dart';
 import 'package:leak_tracker_flutter_testing/leak_tracker_flutter_testing.dart';
 
 import '../helpers/route_smoke.dart';

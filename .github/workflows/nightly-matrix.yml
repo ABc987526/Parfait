@@ -1,0 +1,46 @@
+name: Nightly Matrix
+
+# Full Cartesian locale/layout and multi-state route smoke matrix (`-t matrix`).
+# PR CI excludes `matrix` to keep standard PR turnaround fast while still
+# running core `ru/compact` layout checks, core `zh/regular` route smokes, and
+# router table coverage; this workflow runs the full matrix nightly, on demand,
+# and on PRs touching l10n, routes, themes, or the locale_layout harness.
+
+on:
+  schedule:
+    - cron: '0 19 * * *' # 03:00 CST daily
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'lib/l10n/**'
+      - 'lib/app/navigation/route*.dart'
+      - 'lib/app/theme/**'
+      - 'test/locale_layout/**'
+      - 'test/helpers/locale_layout.dart'
+      - 'test/helpers/route_smoke.dart'
+      - 'test/review/**'
+      - 'dart_test.yaml'
+      - '.github/workflows/nightly-matrix.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  matrix:
+    name: locale & route smoke matrix
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version: "3.47.9"
+          channel: "stable"
+          cache: true
+      - run: flutter pub get --enforce-lockfile
+      - name: Run full matrix tests
+        run: flutter test -t matrix test/locale_layout/

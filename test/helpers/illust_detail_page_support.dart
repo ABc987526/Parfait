@@ -8,32 +8,15 @@ import 'package:parfait/core/entity/illust_store.dart';
 import 'package:parfait/app/motion/motion_tokens.dart';
 import 'package:parfait/app/motion/state_fade.dart';
 import 'package:parfait/features/illust/detail/illust_detail_page.dart';
-import 'package:parfait/core/share/share_service.dart';
 
 import 'illust_fixtures.dart';
 import 'package:parfait/l10n/app_localizations_delegates.dart';
 import 'prompt_host.dart';
 import 'view_size.dart';
 
+export 'recording_share_service.dart';
+
 // Shared by the illust_detail_page tests.
-/// Records what the detail page hands to the platform share boundary —
-/// the system sheet is an external boundary, so a recording stand-in is
-/// legitimate here (the page itself always runs).
-class RecordingShareService implements ShareService {
-  final List<SharePayload> payloads = [];
-  ShareOutcome outcome = ShareOutcome.openedSheet;
-
-  SharePayload? get lastPayload => payloads.lastOrNull;
-
-  @override
-  Future<ShareOutcome> share(
-    SharePayload payload, {
-    Rect? sharePositionOrigin,
-  }) async {
-    payloads.add(payload);
-    return outcome;
-  }
-}
 
 /// Scrolls the detail page down until the related section is on screen,
 /// then lets the on-demand request start and land: visibility is reported

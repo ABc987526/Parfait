@@ -1,4 +1,5 @@
 import 'package:flutter/gestures.dart' show PointerDeviceKind;
+import 'package:forui/forui.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/semantics.dart' show SemanticsAction;
 import 'package:flutter_test/flutter_test.dart';
@@ -7,7 +8,9 @@ import 'package:smooth_sheets/smooth_sheets.dart';
 import 'package:parfait/app/layout/input_modality.dart';
 import 'package:parfait/app/motion/app_overlays.dart';
 import 'package:parfait/app/scroll_behavior.dart';
+import 'package:parfait/app/widgets/app_dialog.dart';
 import 'package:parfait/core/debug/trace_marks.dart';
+import 'helpers/localized_app.dart';
 import 'helpers/view_size.dart';
 
 const _page = Size(400, 800);
@@ -630,6 +633,65 @@ void main() {
               )
               .type,
           MaterialType.transparency,
+        );
+      },
+    );
+
+    testWidgets(
+      'AppDatePickerDialog clamps out-of-range today and returns a local DateTime',
+      (tester) async {
+        DateTime? picked;
+        late String okLabel;
+        await tester.pumpWidget(
+          localizedApp(
+            body: Builder(
+              builder: (context) => TextButton(
+                onPressed: () async {
+                  okLabel = MaterialLocalizations.of(context).okButtonLabel;
+                  picked = await showAppDatePicker(
+                    context: context,
+                    firstDate: DateTime(2007, 9, 13),
+                    lastDate: DateTime(2007, 9, 20),
+                    initialDate: DateTime(2007, 9, 18),
+                  );
+                },
+                child: const Text('Pick'),
+              ),
+            ),
+          ),
+        );
+
+        await tester.tap(find.text('Pick'));
+        await tester.pumpAndSettle();
+        expect(find.byType(FCalendar), findsOneWidget);
+
+        await tester.tap(find.text(okLabel));
+        await tester.pumpAndSettle();
+        expect(picked, DateTime(2007, 9, 18));
+        expect(picked!.isUtc, isFalse);
+      },
+    );
+
+    testWidgets(
+      'AppAlertDialog mounts FDialog with inner Material for TextField',
+      (tester) async {
+        await tester.pumpWidget(
+          localizedApp(
+            body: AppAlertDialog(
+              title: const Text('Title'),
+              content: const TextField(),
+              actions: [TextButton(onPressed: () {}, child: const Text('OK'))],
+            ),
+          ),
+        );
+
+        expect(find.byType(FDialog), findsOneWidget);
+        expect(
+          find.descendant(
+            of: find.byType(FDialog),
+            matching: find.byType(Material),
+          ),
+          findsWidgets,
         );
       },
     );

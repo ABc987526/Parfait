@@ -159,77 +159,86 @@ Future<void> smokeScene(
   bool? content,
 }) async {
   final world = (await tester.runAsync(() => ReviewWorld.open(setup)))!;
-  await reviewScene(tester, () async {
-    final router = await pumpReviewApp(
-      tester,
-      world: world,
-      location: location,
-      locale: smokeLocale,
-      brightness: brightness,
-      textScale: textScale ?? profile.textScale,
-      device: device ?? smokeDevice(profile),
-      fontFamilyFallback: layoutFontFallback,
-    );
-    var rest = await settleReview(tester, settle: !timeout);
-    void expectIntact(String at) {
-      expectLocaleLayoutIntact(tester, locale: smokeLocale, profile: profile);
-      expect(router.state.uri.toString(), at, reason: 'opened $location');
-    }
-
-    void expectContent() {
-      if (content == null) return;
-      final messages = LocaleMessages.of(smokeLocale);
-      final nothing = [
-        for (final element in find.byType(RichText).evaluate())
-          if (messages.keyOf(
-                (element.renderObject! as RenderParagraph).text.toPlainText(),
-              )
-              case final key? when _nothing.hasMatch(key))
-            key,
-      ];
-      final reason = '$location shows $nothing';
-      if (content) {
-        expect(
-          nothing.where((key) => !_sectionHints.contains(key)),
-          isEmpty,
-          reason: reason,
-        );
-        expect(
-          _showsPastBars(),
-          isTrue,
-          reason: '$location shows nothing past its bars',
-        );
-      } else {
-        expect(nothing, isNotEmpty, reason: reason);
+  await reviewScene(
+    tester,
+    semantics: false,
+    onDispose: world.container.dispose,
+    () async {
+      final router = await pumpReviewApp(
+        tester,
+        world: world,
+        location: location,
+        locale: smokeLocale,
+        brightness: brightness,
+        textScale: textScale ?? profile.textScale,
+        device: device ?? smokeDevice(profile),
+        fontFamilyFallback: layoutFontFallback,
+      );
+      var rest = await settleReview(tester, settle: !timeout);
+      void expectIntact(String at) {
+        expectLocaleLayoutIntact(tester, locale: smokeLocale, profile: profile);
+        expect(router.state.uri.toString(), at, reason: 'opened $location');
       }
-    }
 
-    expectIntact(location);
-    if (timeout) {
-      // Requests sent once the first gave up wait out their own timeout:
-      // the ranking then warms the tabs next to the one on screen.
-      for (var round = 0; round < 3; round++) {
-        await tester.pump(
-          PixivHttpClient.defaultRequestTimeout + const Duration(seconds: 1),
-        );
-        rest = await settleReview(tester);
-        if (rest) break;
+      void expectContent() {
+        if (content == null) return;
+        final messages = LocaleMessages.of(smokeLocale);
+        final nothing = [
+          for (final element in find.byType(RichText).evaluate())
+            if (messages.keyOf(
+                  (element.renderObject! as RenderParagraph).text.toPlainText(),
+                )
+                case final key? when _nothing.hasMatch(key))
+              key,
+        ];
+        final reason = '$location shows $nothing';
+        if (content) {
+          expect(
+            nothing.where((key) => !_sectionHints.contains(key)),
+            isEmpty,
+            reason: reason,
+          );
+          expect(
+            _showsPastBars(),
+            isTrue,
+            reason: '$location shows nothing past its bars',
+          );
+        } else {
+          expect(nothing, isNotEmpty, reason: reason);
+        }
       }
+
       expectIntact(location);
-    }
-    expect(rest, isTrue, reason: '$location never came to rest');
-    expectContent();
-    if (!back) return;
-    final matches = _flatten(
-      router.routerDelegate.currentConfiguration.matches,
-    );
-    if (matches.length < 2) return;
-    final parent = matches[matches.length - 2].matchedLocation;
-    await tester.binding.handlePopRoute();
-    await settleReview(tester);
-    expect(router.state.matchedLocation, parent, reason: 'back from $location');
-    expectLocaleLayoutIntact(tester, locale: smokeLocale, profile: profile);
-  });
+      if (timeout) {
+        // Requests sent once the first gave up wait out their own timeout:
+        // the ranking then warms the tabs next to the one on screen.
+        for (var round = 0; round < 3; round++) {
+          await tester.pump(
+            PixivHttpClient.defaultRequestTimeout + const Duration(seconds: 1),
+          );
+          rest = await settleReview(tester);
+          if (rest) break;
+        }
+        expectIntact(location);
+      }
+      expect(rest, isTrue, reason: '$location never came to rest');
+      expectContent();
+      if (!back) return;
+      final matches = _flatten(
+        router.routerDelegate.currentConfiguration.matches,
+      );
+      if (matches.length < 2) return;
+      final parent = matches[matches.length - 2].matchedLocation;
+      await tester.binding.handlePopRoute();
+      await settleReview(tester);
+      expect(
+        router.state.matchedLocation,
+        parent,
+        reason: 'back from $location',
+      );
+      expectLocaleLayoutIntact(tester, locale: smokeLocale, profile: profile);
+    },
+  );
 }
 
 /// Keys of the messages a page shows in place of what it opened for.
@@ -290,14 +299,33 @@ void smokeHarness() {
   setUp(() => InAppWebViewPlatform.instance = FakeInAppWebViewPlatform());
 }
 
+/// Core entry and shell routes whose loaded `zh/regular` smoke stays in the
+/// PR tier; all remaining routes and compact/empty/failed states run under
+/// the `matrix` tag.
+const prCoreSmokeTemplates = <String>{
+  '/login',
+  '/recommended',
+  '/ranking',
+  '/new',
+  '/search',
+  '/settings',
+  '/me',
+  '/downloads',
+  '/reverse-image',
+};
+
 /// Registers [group]'s pages in every state they show: loaded at the
 /// regular profile, then back; loaded at the compact profile; empty;
 /// failed.
-void smokeMatrix(SmokeGroup group) {
+///
+/// When [prCoreLoaded] is provided, loaded `regular` cases for templates in
+/// that set stay untagged (PR tier) and all other cases carry `tags: ['matrix']`.
+void smokeMatrix(SmokeGroup group, {Set<String> prCoreLoaded = const {}}) {
   smokeHarness();
   for (final (index, MapEntry(key: template, value: page))
       in smokePages[group]!.entries.indexed) {
     final location = smokeLocation(page.at ?? template, index);
+    final loadedIsPrCore = prCoreLoaded.contains(template);
     testWidgets('$template loaded at $location', (tester) async {
       await smokeScene(
         tester,
@@ -306,7 +334,7 @@ void smokeMatrix(SmokeGroup group) {
         back: true,
         content: true,
       );
-    });
+    }, tags: loadedIsPrCore ? null : const ['matrix']);
     testWidgets('$template compact', (tester) async {
       await smokeScene(
         tester,
@@ -315,7 +343,7 @@ void smokeMatrix(SmokeGroup group) {
         profile: LayoutProfile.compact,
         content: true,
       );
-    });
+    }, tags: const ['matrix']);
     if (page.empty case final empty?) {
       testWidgets('$template empty', (tester) async {
         await smokeScene(
@@ -324,7 +352,7 @@ void smokeMatrix(SmokeGroup group) {
           setup: empty,
           content: false,
         );
-      });
+      }, tags: const ['matrix']);
     }
     if (page.reads case final reads?) {
       final (failure, reply) = smokeFailures[index % smokeFailures.length];
@@ -345,7 +373,7 @@ void smokeMatrix(SmokeGroup group) {
           content: false,
         );
         expect(read, isTrue, reason: '$location never read $reads');
-      });
+      }, tags: const ['matrix']);
     }
   }
 }

@@ -2,6 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'package:parfait/app/format/app_format.dart';
+import 'package:parfait/app/format/content_locale.dart';
+import 'package:parfait/core/format/byte_size.dart';
 import 'helpers/localized_app.dart';
 
 void main() {
@@ -134,5 +136,34 @@ void main() {
       ('en', decimal, '0.8'),
       ('ru', decimal, '0,8'),
     ]);
+  });
+
+  group('formatByteSize', () {
+    test('byte size renders B below 1 KiB', () {
+      expect(formatByteSize(0), '0 B');
+      expect(formatByteSize(1023), '1023 B');
+    });
+
+    test('byte size renders one-decimal KiB below 1 MiB', () {
+      expect(formatByteSize(1024), '1.0 KiB');
+      expect(formatByteSize(1536), '1.5 KiB');
+      expect(formatByteSize(1024 * 1024 - 1), '1024.0 KiB');
+    });
+
+    test('byte size renders one-decimal MiB from 1 MiB', () {
+      expect(formatByteSize(1024 * 1024), '1.0 MiB');
+      expect(formatByteSize((1024 * 1024 * 1.5).round()), '1.5 MiB');
+    });
+  });
+
+  test('content text gets the locale of the script it needs', () {
+    const zh = Locale('zh', 'CN');
+    const en = Locale('en', 'US');
+    expect(contentScriptLocale('制服ケイちゃん', zh), const Locale('ja'));
+    expect(contentScriptLocale('ほうかご', zh), const Locale('ja'));
+    expect(contentScriptLocale('힘내세요 선생님', zh), const Locale('ko'));
+    expect(contentScriptLocale('原神', zh), isNull);
+    expect(contentScriptLocale('原神', en), const Locale('ja'));
+    expect(contentScriptLocale('Mika', zh), isNull);
   });
 }
