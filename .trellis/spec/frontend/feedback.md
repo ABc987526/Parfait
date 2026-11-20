@@ -52,7 +52,7 @@ reviewed: 2026-11-17
   `showAppBottomSheet` (`smooth_sheets` `PopupRoute + ModalSheetRouteMixin`
   hosting `AppBottomSheet` (`Sheet` with `SheetScrollConfiguration`,
   `BouncingSheetPhysics` or `ClampingSheetPhysics` under reduced motion,
-  `PromptCover` and `_ReleaseDismissBarrier`)); adaptive overlays (`showAppAdaptiveDialog`,
+  `PromptCover` and a release-to-dismiss barrier)); adaptive overlays (`showAppAdaptiveDialog`,
   `showAppAdaptiveSideSheet`, `showAppAdaptivePopover`) split viewport
   geometry from interaction modality: `useWideOverlay` (width >= 600dp
   and height >= 480dp, keeping turned phones on bottom sheets) selects
@@ -145,7 +145,7 @@ reviewed: 2026-11-17
   and localizations when it shows; `onUndo` receives the container. Read
   stores and actions before awaiting anything.
 - **Why:** Undo pressed after the page closed used a disposed context.
-- **Check:** `test/undo_flows_test.dart`
+- **Check:** `test/undo_flows_test.dart` "a private follow comes back private"
 - **Code:** `lib/app/widgets/undo_snack_bar.dart`
 
 ### FB-09 Bookmark and follow have one UI entry each
@@ -160,7 +160,7 @@ reviewed: 2026-11-17
   prompt; direct calls skipped them. A follow played `select` while a
   bookmark played `success` for the same kind of moment. The buttons'
   error listeners said nothing once a scroll or a refresh had taken the
-  button, and the bookmark sheet's failure showed twice (10-31).
+  button, and the bookmark sheet's failure showed twice.
 - **Check:** `test/follow_switch_button_test.dart` "a follow pops the button with success" "the sheet offers direct actions for each follow state", `test/bookmark_switch_button_test.dart` "a failed add says why, also once its heart is gone" "failed confirm keeps the sheet open and preserves the draft"
 - **Code:** `lib/app/widgets/bookmark_switch_button.dart`, `lib/app/widgets/follow_switch_button.dart`
 
@@ -180,8 +180,9 @@ reviewed: 2026-11-17
 ### FB-11 Callers name a role, not an effect
 - **Rule:** Callers play an `AppHaptics` role (`select`, `toggleOn/Off`,
   `tick`, `thresholdOn/Off`, `longPress`, `confirm`, `success`, `error`).
-  The role-to-effect table lives only in the Android `HapticPlanner.kt`. A
-  new role needs a real caller and a planner row.
+  The role-to-effect tables live only in the platform drivers (Android
+  `HapticPlanner.kt` and iOS `IosHapticsDriver`, FB-17). A new role needs a
+  real caller and platform mappings.
 - **Why:** Effects chosen per call site felt different on every ROM.
 - **Check:** `android/app/src/test/kotlin/io/github/lopution/parfait/HapticPlannerTest.kt`
 - **Code:** `lib/app/haptics/app_haptics.dart`, `android/app/src/main/kotlin/io/github/lopution/parfait/HapticPlanner.kt`
@@ -195,7 +196,7 @@ reviewed: 2026-11-17
   `longPress` itself; secondary mouse clicks opening context menus stay silent.
 - **Why:** Raw controls were silent; Material's own long-press feedback
   doubled the app's, and mouse right-clicks do not warrant touch haptics.
-- **Check:** `test/architecture/ui_conventions_test.dart` "selection controls live only in their haptic wrappers", `test/selection_controls_haptics_test.dart`
+- **Check:** `test/architecture/ui_conventions_test.dart` "selection controls live only in their haptic wrappers", `test/selection_controls_haptics_test.dart` "SettingsControl plays toggleOn / toggleOff by the new value" "SettingsChoiceTile selects silently when already selected"
 - **Code:** `lib/app/widgets/settings`, `lib/app/widgets/app_choice_chip.dart`, `lib/app/widgets/feed/desktop_gallery_controls.dart`
 
 ### FB-13 Store mutations vibrate on the settled outcome
@@ -253,7 +254,7 @@ reviewed: 2026-11-17
   failed account removal was lost with its page, and a failed watch-later
   save with its card. One failed cleanup skipped the next. A card action
   picked after a refresh had taken the card threw on the card's context
-  and did nothing; a follow pick was dropped with its button (10-31).
+  and did nothing; a follow pick was dropped with its button.
 - **Check:** `test/login_navigation_test.dart` "leaving during the token exchange drops its outcome", `test/download_tasks_page_test.dart` "a batch cancel ending after the page left is quiet", `test/bookmark_switch_button_test.dart` "a submit outlives its sheet but not its account", `test/comments_replies_test.dart` "a send ending after the detail composer left still lands", `test/account_settings_page_test.dart` "a removal that fails after its page closed is reported", `test/error_details_test.dart` "a settings write that fails after its page closed is reported", `test/card_action_test.dart` "a watch-later save that fails after its card is gone says so", `test/follow_switch_button_test.dart` "the sheet offers direct actions for each follow state", `test/watchlater_page_test.dart` "a removal that fails brings the works back and says so"
 - **Code:** `lib/app/widgets/bookmark_switch_button.dart`, `lib/app/widgets/comment_composer.dart`, `lib/features/settings/pages/account_settings_page.dart`, `lib/app/widgets/settings/persist_settings.dart`, `lib/app/widgets/card_actions/illust_card_actions.dart`, `lib/app/widgets/card_actions/card_action_sheet.dart`, `lib/app/widgets/follow_switch_button.dart`, `lib/features/watchlater/watchlater_page.dart`
 

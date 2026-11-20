@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:package_info_plus/package_info_plus.dart';
 import 'package:flutter/rendering.dart'
     show RenderAbstractViewport, ScrollCacheExtent;
 
@@ -23,6 +22,7 @@ import '../../core/translation/translation_service.dart';
 import '../../core/debug/frame_probe.dart';
 import '../../core/mute/mute_store.dart';
 import '../../core/navigation/route_observer.dart';
+import '../../core/platform/package_info_provider.dart';
 import '../../core/settings/app_settings.dart';
 import '../../core/settings/settings_controller.dart';
 import '../../core/settings/shared_preferences.dart';
@@ -950,17 +950,12 @@ class _TranslationSummaryState extends ConsumerState<_TranslationSummary>
 
 /// Version string under the about entry, shown as the about page shows it:
 /// the platform package's version, without the build number.
-class _VersionSummary extends StatelessWidget {
+class _VersionSummary extends ConsumerWidget {
   const _VersionSummary();
 
   @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<PackageInfo>(
-      future: PackageInfo.fromPlatform(),
-      builder: (context, snapshot) {
-        final info = snapshot.data;
-        return Text(info?.version ?? '—');
-      },
-    );
+  Widget build(BuildContext context, WidgetRef ref) {
+    final version = ref.watch(packageInfoProvider).asData?.value.version;
+    return Text(version ?? '—');
   }
 }

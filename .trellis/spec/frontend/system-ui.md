@@ -76,7 +76,7 @@ reviewed: 2026-11-17
   the page. The header keeps one tree shape in every case.
 - **Why:** Light icons over a light surface were unreadable, and fixed
   light icons were unreadable over a white cover.
-- **Check:** `test/banner_sample_test.dart`
+- **Check:** `test/banner_sample_test.dart` "the status bar takes the brightness of the cover rows under it"
 - **Code:** `lib/features/profile/profile_header_delegate.dart`, `lib/features/profile/banner_sample.dart`
 
 ### SYS-07 Pages out of sight keep the insets they last saw

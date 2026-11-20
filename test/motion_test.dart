@@ -18,6 +18,7 @@ import 'package:parfait/app/motion/state_fade.dart';
 import 'package:parfait/app/motion/state_icon_switcher.dart';
 import 'package:parfait/app/motion/still_work.dart';
 import 'package:parfait/app/theme/replica_theme.dart';
+import 'package:parfait/app/widgets/skeleton/func_skeleton.dart';
 import 'package:parfait/app/widgets/smooth_wheel_scroll.dart';
 import 'package:parfait/core/settings/app_settings.dart';
 
@@ -971,6 +972,39 @@ void main() {
       await tester.sendEventToBinding(wheelPtr.scroll(const Offset(0, 160)));
       await tester.pump();
       expect(wheelController.offset, closeTo(160, 0.5));
+    },
+  );
+
+  testWidgets(
+    'FuncSkeleton owns one shimmer root, passes nested roots through, and stays static under reduced motion',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      try {
+        Widget tree({required bool reduce}) => _wrap(
+          reduce: reduce,
+          const FuncSkeleton(
+            label: 'Outer loading',
+            child: FuncSkeleton(
+              label: 'Nested loading',
+              child: SkeletonBone(width: 80, height: 16),
+            ),
+          ),
+        );
+
+        await tester.pumpWidget(tree(reduce: false));
+        expect(tester.binding.hasScheduledFrame, isTrue);
+        expect(find.byType(SkeletonBone), findsOneWidget);
+        expect(find.byType(ShaderMask), findsNothing);
+        expect(find.bySemanticsLabel('Outer loading'), findsOneWidget);
+        expect(find.bySemanticsLabel('Nested loading'), findsNothing);
+
+        await tester.pumpWidget(tree(reduce: true));
+        await tester.pumpAndSettle();
+        expect(tester.binding.hasScheduledFrame, isFalse);
+        expect(find.bySemanticsLabel('Outer loading'), findsOneWidget);
+      } finally {
+        semantics.dispose();
+      }
     },
   );
 }

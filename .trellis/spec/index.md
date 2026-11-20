@@ -1,5 +1,5 @@
 ---
-reviewed: 2026-10-12
+reviewed: 2026-11-21
 ---
 
 # Spec
@@ -60,8 +60,8 @@ Decide in this order, for new rules and for existing ones under review:
 
 - IDs are `<PREFIX>-<NN>`; the prefix is the file's `prefix`. An ID is
   never reused: a deleted rule leaves a gap.
-- **Check** names test files, optionally followed by quoted test names that
-  appear in that file, or `manual` with a short reason.
+- **Check** names test files followed by quoted test names for every Dart
+  `*_test.dart` file, or `manual` with a short reason.
 - **Code** names files or directories (globs allowed) that implement it.
 - Extra lines may follow the four fields: a table, a short list. No copied
   code. A code example of at most 10 lines is allowed only when the code
@@ -82,7 +82,7 @@ reviewed: 2026-10-12
 ```
 
 - One module per file, in the layer that owns the code. Aim for 300 lines;
-  500 is the hard limit. A file over 100 lines starts with a `## Contents`
+  400 is the hard limit. A file over 100 lines starts with a `## Contents`
   list of its `##` sections.
 - Index files carry only `reviewed`. An index links every file of its layer
   with a one-line "read when" summary. Spec files do not link each other;
@@ -124,10 +124,10 @@ skill for this repository.
 | Term | Meaning |
 |---|---|
 | top bar | A page's `AppTopBar`. Not "AppBar", which is the raw widget it wraps. |
-| bottom bar, rail | The shell's `FuncBottomNav` (narrow) and `NavigationRail` (wide). |
+| bottom bar, rail | The shell's `FuncBottomNav` (narrow) and `ShellRail` (wide). |
 | branch | One of the five home-shell destinations and its navigator stack. |
 | prompt | A transient message shown by `PromptHost` through `showAppSnackBar`. |
-| sheet, dialog, menu | Overlays opened through `showAppBottomSheet`, `showAppDialog`, `AppMenuButton`. |
+| sheet, dialog, menu | Overlays opened through `showAppBottomSheet`, `showAppDialog`/`showAppAdaptiveDialog`, `AppMenuButton`/`showAppAdaptivePopover`. |
 | work | One Pixiv illustration, manga or novel. "Artwork" is its image. |
 | feed | A paged list: a `PagedFeedController` and the grid or list showing it. |
 | detail page, viewer | The work page (`IllustDetailPage`) and the full-screen image viewer. |

@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/rendering.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../core/log.dart';
@@ -438,6 +439,11 @@ class DevShellHostState extends State<DevShellHost> {
             ],
           );
         }
+
+        frame = ProviderScope(
+          overrides: [platformCapsProvider.overrideWithValue(caps)],
+          child: frame,
+        );
 
         final boundary = RepaintBoundary(
           key: _captureKey,

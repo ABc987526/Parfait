@@ -38,8 +38,7 @@ reviewed: 2026-10-29
   whose purpose is diagnostic.
 - **Why:** Raw `toString()` output leaked hosts, status bodies and Dart
   type names into SnackBars. The "详情" disclosure that replaced it still
-  showed users stack-like text and broke the download row's layout
-  (11-04).
+  showed users stack-like text and broke the download row's layout.
 - **Check:** `test/architecture/l10n_and_errors_test.dart` "no raw error text reaches user-facing surfaces", `test/error_details_test.dart` "records an error once however often it is mounted", `test/download_manager_test.dart` "failure aborts the sink, logs the error once and retry re-enqueues"
 - **Code:** `lib/app/widgets/errors/error_details.dart`, `lib/core/download/download_manager.dart`
 
@@ -52,7 +51,7 @@ reviewed: 2026-10-29
   apart from crashes) and shows `action: category`.
 - **Why:** Per-page classification disagreed about the same failure and
   left no durable trace for support. Unlabelled, five 503 SnackBars read
-  as five crashes in a user's crash.log (10-26).
+  as five crashes in a user's crash.log.
 - **Check:** `test/error_details_test.dart` "categorizeError puts each error in its category" "shows action + category and records the raw error"
 - **Code:** `lib/core/errors/error_category.dart`, `lib/core/logging/crash_log.dart`
 
@@ -92,6 +91,6 @@ reviewed: 2026-10-29
   whose error quotes a secret (a credential's `FormatException` source)
   drops the quote.
 - **Why:** Debug output is pasted into bug reports. A corrupt stored
-  credential's JSON error quoted its tokens (11-04).
+  credential's JSON error quoted its tokens.
 - **Check:** `test/architecture/ui_conventions_test.dart` "diagnostics go through log()", `test/account_store_test.dart` "a corrupt credential fails without quoting the stored secret", `test/error_details_test.dart` "a file error is logged without its path"; the rest of the secrets part is manual.
 - **Code:** `lib/core/log.dart`

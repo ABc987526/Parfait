@@ -53,7 +53,7 @@ reviewed: 2026-11-17
   never `'$label: $value'`. Chinese copy uses full-width punctuation and
   a space between Chinese and Latin words.
 - **Why:** Chinese and Japanese take a full-width colon with no space.
-- **Check:** `test/architecture/l10n_and_errors_test.dart`
+- **Check:** manual — code review on ARB and copy strings (labelValue, errorWithReason)
 - **Code:** `lib/l10n`
 
 ### LAYOUT-04 Measure text with the style it paints with
@@ -80,7 +80,7 @@ reviewed: 2026-11-17
   the number alone, with `selectedCount(n)` as the semantics label.
 - **Why:** Next to three actions a sentence did not fit 320dp at large
   text, and an ellipsis cut the number off the Russian copy.
-- **Check:** `test/locale_layout/lists_layout_test.dart`
+- **Check:** `test/locale_layout/lists_layout_test.dart` "lists: download tasks" "lists: history"
 - **Code:** `lib/app/widgets/selection_app_bar.dart`
 
 ### LAYOUT-06 Dates and numbers go through AppFormat
@@ -115,7 +115,7 @@ reviewed: 2026-11-17
   commit them.
 - **Why:** The matrix runs real glyph widths in regular (360×780, 1.0) and
   compact (320×568, 1.3) profiles; it cannot see misalignment.
-- **Check:** `test/locale_layout/harness_test.dart`
+- **Check:** `test/locale_layout/harness_test.dart` "Latin measures in Roboto" "accepts whole UI text, ellipsized user content and a floating label shrunk by the spec"
 - **Code:** `test/helpers/locale_layout.dart`
 
 ### LAYOUT-17 Every page opens whole in each state it can show
@@ -230,6 +230,6 @@ reviewed: 2026-11-17
 - **Why:** A button ended 12dp inside the text edge. Moved past a parent's
   bounds by a transform, the outer part of the target stopped taking taps.
   The series pages' and the novel info sheet's text buttons started 12dp
-  inside it (11-02).
+  inside it.
 - **Check:** `test/user_profile_test.dart` "profile social links open, report failures, and copy"; `test/novel_series_test.dart` "a series page: its facts, numbered novels past the first "
 - **Code:** `lib/app/widgets/edge_icon_buttons.dart`, `lib/features/profile/user_page.dart`, `lib/features/profile/profile_about_tab.dart`, `lib/features/novel/novel_series_page.dart`, `lib/features/series/illust_series_page.dart`, `lib/features/novel/novel_page.dart`

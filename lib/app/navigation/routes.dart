@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
-import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../core/auth/account_store.dart';
 import '../../core/debug/trace_marks.dart';
@@ -17,6 +16,7 @@ import '../../core/new/new_feed_models.dart';
 import '../../core/novel/novel_entity.dart';
 import '../../core/novel/novel_store.dart';
 import '../../core/platform/intent_router.dart';
+import '../../core/platform/package_info_provider.dart';
 import '../../core/reverse_image/image_input.dart';
 import '../../core/settings/app_settings.dart';
 import '../../core/settings/settings_controller.dart';

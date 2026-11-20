@@ -170,7 +170,7 @@ reviewed: 2026-10-30
   or a restore. A pump that watched the account returned before it had
   loaded and was never rebuilt: no startup drain, and a wake replayed the
   old account's rows under the next one. A recovery that hit a locked
-  database (SQLITE_BUSY, 10-22) left the rows until the next resume. A
+  database (SQLITE_BUSY) left the rows until the next resume. A
   switch between a row's claim and its request sent the old account's
   bookmark with the next one's token and settled it into the next one's
   store.

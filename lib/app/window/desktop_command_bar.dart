@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -936,7 +935,7 @@ class _SearchCommandPill extends StatelessWidget {
     final hasKeyword = keyword.isNotEmpty;
 
     final tokens = FuncSemanticTokens.of(context);
-    final shortcutLabel = defaultTargetPlatform == TargetPlatform.macOS
+    final shortcutLabel = theme.platform == TargetPlatform.macOS
         ? '⌘K'
         : 'Ctrl K';
     return Material(

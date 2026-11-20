@@ -24,17 +24,21 @@ class IllustWorkSaveState {
 }
 
 class _IllustDownloadController {
-  _IllustDownloadController(this._ref);
+  _IllustDownloadController({
+    required Ref ref,
+    required DownloadManager manager,
+    required IllustDownloadCoordinator coordinator,
+  }) : _ref = ref,
+       _manager = manager,
+       _coordinator = coordinator;
 
   final Ref _ref;
-
-  DownloadManager get _manager => _ref.watch(downloadManagerProvider);
+  final DownloadManager _manager;
+  final IllustDownloadCoordinator _coordinator;
 
   /// State for one page index, derived from live manager tasks.
   IllustPageSaveState stateFor(int illustId, int pageIndex) {
-    final task = _ref
-        .watch(illustDownloadCoordinatorProvider)
-        .taskFor(illustId: illustId, pageIndex: pageIndex);
+    final task = _coordinator.taskFor(illustId: illustId, pageIndex: pageIndex);
     if (task == null) return IllustPageSaveState.none;
     return _pageState(task.status);
   }
@@ -102,23 +106,22 @@ class _IllustDownloadController {
       throw const FormatException('work has no original image URL');
     }
     // A failed/canceled task must be re-enqueued via retry, not deduped.
-    final existing = _ref
-        .watch(illustDownloadCoordinatorProvider)
-        .taskFor(illustId: entity.id, pageIndex: pageIndex);
+    final existing = _coordinator.taskFor(
+      illustId: entity.id,
+      pageIndex: pageIndex,
+    );
     if (existing != null &&
         (existing.status == DownloadStatus.failed ||
             existing.status == DownloadStatus.canceled)) {
       final retried = _manager.retry(existing.id);
       if (retried != null) return retried;
     }
-    return _ref
-        .watch(illustDownloadCoordinatorProvider)
-        .downloadPage(
-          work: entity,
-          pageIndex: pageIndex,
-          url: Uri.parse(url),
-          namingRule: _ref.read(namingRuleProvider),
-        );
+    return _coordinator.downloadPage(
+      work: entity,
+      pageIndex: pageIndex,
+      url: Uri.parse(url),
+      namingRule: _ref.read(namingRuleProvider),
+    );
   }
 
   /// Download All (beta56 downloadAll): every page, deduped by the manager.
@@ -129,8 +132,7 @@ class _IllustDownloadController {
     if (urls.isEmpty) {
       throw const FormatException('work has no original image URL');
     }
-    final coordinator = _ref.watch(illustDownloadCoordinatorProvider);
-    return coordinator.downloadAllPages(
+    return _coordinator.downloadAllPages(
       work: entity,
       pageUrls: [for (final url in urls) Uri.parse(url)],
       namingRule: _ref.read(namingRuleProvider),
@@ -139,5 +141,9 @@ class _IllustDownloadController {
 }
 
 final illustDownloadControllerProvider = Provider<_IllustDownloadController>(
-  _IllustDownloadController.new,
+  (ref) => _IllustDownloadController(
+    ref: ref,
+    manager: ref.watch(downloadManagerProvider),
+    coordinator: ref.watch(illustDownloadCoordinatorProvider),
+  ),
 );

@@ -7,9 +7,8 @@ applies_to:
   - lib/app/layout/deferred_cache_scroll_view.dart
   - lib/app/scroll_behavior.dart
   - lib/app/format/content_locale.dart
-  - lib/features/**/*_page.dart
   - lib/core/bookmark/bookmark_actions.dart
-reviewed: 2026-11-18
+reviewed: 2026-11-21
 ---
 
 # Feeds: states, grid, pull to refresh, skeletons
@@ -25,377 +24,153 @@ reviewed: 2026-11-18
 ## Status views
 
 ### FEED-01 Status views come from feed_states.dart
-- **Rule:** Empty, error and tail states use `FeedEmpty`, `FeedError` and
-  `FeedTail`; a custom status (restricted, blocked) uses
-  `StateActionButton` as its one button. Their user-visible strings are
-  `required` parameters with no English fallback. Empty and error views
-  carry their icon (40dp, `onSurfaceVariant`) on a `surfaceContainerHigh`
-  disc, then an `lg` gap and the title in `titleSmall`; still no
-  explanation (PAGE-20). The first-load, empty and error views sit at the
-  optical centre, 40% of the free space above them, of the area under
-  the page's toolbar, the bar's extension (tabs, a filter row, a search
-  field) counted in; the extension is read at layout, not at build. An
-  empty view too tall for its area (a turned phone under a search bar)
-  scrolls, and takes a drag only then: laid out at its own height in a
-  page's scroll, it leaves the drag to that scroll's pull to refresh.
-- **Why:** Hand-drawn status buttons drifted in look; a fallback label
-  shipped untranslated UI. Centred under the tabs, an empty state stood
-  half a tab bar lower than on a page without them (user report). A bare
-  outlined icon and one grey line floated in blank space and read as
-  unfinished; at the exact middle a view looks low. On a turned phone the
-  empty search result overflowed its buttons off the window.
+- **Rule:** Empty, error, and tail states use `FeedEmpty`, `FeedError`, and `FeedTail` (custom restricted/blocked states use `StateActionButton`) with required localized strings and no English fallbacks. Empty/error views place a 40dp `onSurfaceVariant` icon on a `surfaceContainerHigh` disc above a `titleSmall` title (no explanatory prose, PAGE-20), positioned at optical center (40% free space above, accounting for toolbar extensions at layout). Oversized empty views scroll only when taller than their viewport so pull-to-refresh keeps normal drags.
+- **Why:** Prevents untranslated fallbacks, drifting status layouts, off-center views under tabs, and overflow on landscape phones.
 - **Check:** `test/shared_widgets_test.dart` "an empty state stands as high under a bar with tabs as without" "an empty state scrolls only when the window cannot hold it"
 - **Code:** `lib/app/widgets/feed/feed_states.dart`
 
 ### FEED-02 Refresh only where content can still arrive
-- **Rule:** An empty view offers `refresh` only for a live feed. Content
-  that is simply not there (a user without works, an empty history, no
-  search results) offers no refresh and no retry, at most another action
-  (edit the search, import). `retry` belongs to failures. When a choice
-  of the user's explains the emptiness, the view names it and offers to
-  undo it: history recording off offers to turn it on, a search with
-  filters on offers to reset them.
-- **Why:** Refresh on a permanently empty page did nothing and read as
-  broken. An empty page caused by a switch or a filter gave no hint why.
+- **Rule:** Empty views offer `refresh` only on live feeds; genuinely empty views (no works, empty history, no search hits) offer no refresh/retry (at most an alternate action). When user settings explain emptiness (history off, active search filters), name it and offer a one-tap reversal.
+- **Why:** Refresh on permanently empty views looked broken and hidden filters confused users.
 - **Check:** `test/history_page_test.dart` "an empty history with recording off offers to turn it on", `test/search_result_page_test.dart` "an empty result with filters on offers resetting them"
 - **Code:** `lib/app/widgets/feed/feed_states.dart`
 
 ### FEED-22 A list its filters emptied says so and loads on
-- **Rule:** When the local filters hid every work loaded so far and the
-  server has more (`PagedFeedState.isAllHidden`), the page shows
-  `FeedAllHidden`: the loaded works are all blocked, muted or filtered
-  out (search's client-side filters empty pages too), and
-  "continue loading" runs one load-more per tap with its spinner and
-  error in place; a failed one retries when the network is back. Never "no results", and no automatic walking. A work
-  page's related section puts the same note and button in its own row,
-  and the page's bottom-of-scroll paging skips such a list.
-- **Why:** A search or ranking whose first pages were all filtered said
-  "no results" and dropped the paging trigger while more remained (user
-  decision 10-28).
+- **Rule:** When local filters hide all loaded items while more exist (`PagedFeedState.isAllHidden`), show `FeedAllHidden` with an explicit manual "continue loading" button (no "no results", no auto-walking); detail related-works uses the same row and skips bottom-scroll paging while all-hidden.
+- **Why:** User decision: filtered-out first pages must not masquerade as "no results" or stall paging.
 - **Check:** `test/search_result_page_test.dart` "loaded pages all filtered: a note offers loading more (B9)"; `test/illust_detail_page_test.dart` "related works all filtered: the section offers loading on"
 - **Code:** `lib/app/widgets/feed/feed_states.dart`, `lib/features/illust/detail/related_illusts_section.dart`, `lib/features/illust/detail/illust_detail_content.dart`
 
 ### FEED-03 Failures retry once when the network returns
-- **Rule:** An error with a retry button is `FeedError`, `FeedTail`, or
-  wrapped in `RetryOnNetworkRestore`; each retries once per
-  no-network → network transition. Only network and timeout failures, or
-  an unknown error, retry; a 404 or a parse error stays put.
-- **Why:** Users came back online to a dead error page; retrying a 404
-  would fail the same way.
+- **Rule:** Retryable errors (`FeedError`, `FeedTail`, or `RetryOnNetworkRestore`) retry once per offline -> online transition for network/timeout/unknown failures only; 404 and parse errors stay put.
+- **Why:** Recovers offline error screens automatically without looping on permanent errors.
 - **Check:** `test/shared_widgets_test.dart` "a connection failure retries once per restore" "a failure the network does not explain stays put"
 - **Code:** `lib/app/widgets/feed/feed_states.dart`
 
 ## Grid
 
 ### FEED-04 The card key lives inside the grid extent
-- **Rule:** `IllustFeedGrid` keeps `FeedItemExtent` unkeyed and puts
-  `ValueKey(entity.id)` on the card subtree inside it. State tied to an
-  item (played sets, `findChildIndexCallback`, element keys) uses the
-  entity id, never the index.
-- **Why:** With `flutter_staggered_grid_view` 0.7.0 a keyed extent let a
-  refresh that moved visible works to the head leave masonry index 0
-  without a layout offset (null-check crash). Index-keyed state replayed
-  on every refresh.
+- **Rule:** `IllustFeedGrid` leaves `FeedItemExtent` unkeyed and places `ValueKey(entity.id)` on the inner card subtree; item-scoped state and `findChildIndexCallback` key by entity ID, never index.
+- **Why:** Keying `FeedItemExtent` triggered a `flutter_staggered_grid_view` 0.7.0 null-offset crash when refresh reordered visible items.
 - **Check:** `test/responsive_layout_test.dart` "a refresh that moves visible works to the head lays out"
 - **Code:** `lib/app/widgets/feed/feed_grid.dart`
 
 ### FEED-19 Grid columns follow the user's density
-- **Rule:** Every illustration grid is an `IllustFeedGrid` and takes its
-  column count from `illustColumnsForContext(context, extent, density)`
-  over `illustColumnsFor(extent, density)`: the narrowest card is 120,
-  180 or 360dp and the fewest columns 3, 2 or 1 (compact, standard,
-  comfortable), while on `FormFactor.pc` the default `standard` density
-  widens the minimum card extent to 216dp (minimum 2 columns) so wide
-  desktops breathe at ~5 columns rather than cramped strips.
-- **Why:** User decision: quick scanning wanted more columns, slow
-  looking a single one, and desktop monitors needed wider default gutters
-  and card extents without splitting the setting per page.
-- **Check:** `test/responsive_layout_test.dart` "illustColumnsFor derives columns from the extent and density" "IllustFeedGrid counts columns on the sliver extent, not the window"
+- **Rule:** Every illustration grid uses `IllustFeedGrid` with `illustColumnsForContext(context, extent, density)` over `illustColumnsFor(extent, density)`: mobile/tablet min card extent 120/180/360dp and min columns 3/2/1 (compact/standard/comfortable); `FormFactor.pc` uses 176/204/268dp for compact/standard/comfortable (min columns 3/2/1; keeping 3 columns beside the 1280px inspector and ~5 columns full-width at 1440px).
+- **Why:** User decision: unified density preference with comfortable desktop proportions.
+- **Check:** `test/responsive_layout_test.dart` "illustColumnsFor derives columns from the extent and density" "IllustFeedGrid counts columns on the sliver extent, not the window" "PC standard grid keeps 3 columns at 1280px inspector width"
 - **Code:** `lib/app/widgets/feed/feed_grid.dart`, `lib/core/settings/app_settings.dart`
 
 ### FEED-05 No feed prefetch
-- **Rule:** Feeds do not prefetch images. The grid's cache extent builds
-  cards ahead and each card's image loads as it mounts.
-- **Why:** A prefetch window competed with visible images for the image
-  lanes.
+- **Rule:** Feeds never prefetch images; grid cache extent mounts cards ahead and each card fetches on mount.
+- **Why:** Prefetch windows contended with visible cards for worker lanes.
 - **Check:** manual
 - **Code:** `lib/app/widgets/feed/feed_grid.dart`
 
 ### FEED-20 The next page is asked for three screens ahead
-- **Rule:** A paged list sits in a `LoadMoreListener`, never a hand-made
-  scroll listener: it asks for the next page while the end is less than
-  three viewports below, on a user scroll, once after the list mounts and
-  once after each commit (an item count change). A commit is checked at
-  once only while the list cannot scroll; otherwise on the next metrics
-  notification, because rows appended past the laid-out ones keep the old
-  estimated end until a layout reaches them. A size change alone never
-  asks, and a nested scrollable never counts. Deduping, pacing
-  (PAGING-07) and errors stay in the controller, and a controller clears
-  its cursor on the last page.
-  The artwork detail's related works keep their own on-demand trigger.
-- **Why:** At 1.2 screens a fast reader reached the bottom spinner, and a
-  short page that could not scroll stopped paging until the user dragged.
-  Asking on a size change retried a failed page as soon as its error tail
-  replaced the spinner; reading the stale estimate asked page after page
-  without a scroll; a kept cursor reloaded the last page forever.
-- **Check:** `test/load_more_listener_test.dart`, `test/watchlist_test.dart` "the last page ends the feed", `test/feed_generation_commit_test.dart` "refresh wins over a late append and drops its entity/cursor commit"
+- **Rule:** Paged lists sit in `LoadMoreListener` (never ad-hoc scroll listeners), requesting the next page when the trailing edge is within 3 viewports on user scroll, mount, and post-commit (immediately only when non-scrollable, otherwise on next metrics). Size changes and nested scrollables never trigger requests; controllers clear cursors on the last page.
+- **Why:** 1.2 screens hit bottom spinners; naive size/commit triggers looped failed pages or requested repeatedly off stale scroll estimates.
+- **Check:** `test/load_more_listener_test.dart` "a list asks once its end is within three screens" "a nested row reaching its end asks for nothing", `test/watchlist_test.dart` "the last page ends the feed", `test/feed_generation_commit_test.dart` "refresh wins over a late append and drops its entity/cursor commit"
 - **Code:** `lib/app/widgets/feed/load_more_listener.dart`
 
 ### FEED-06 Card text is laid out between frames before its card
-- **Rule:** Content text on feed cards and rows sets
-  `locale: contentLocale(context, text)`. `IllustFeedGrid`s of `IllustCard`s
-  and `SliverCardList`s of `NovelEntry`s or recommended users'
-  `AuthorSummary`s pass the card's `warmTexts`, built
-  by `warmLine` from the style helpers the card itself uses, so a warm line
-  equals the laid-out `RenderParagraph` (or `RenderEditable`) in spans,
-  styles, locale and strut. A detail page's title, author and tags
-  (`InfoBlock.warmTexts`, sharing `_Title`'s style and `TagChip`'s span)
-  are laid out while a finger rests on an `IllustCard` (dropped on a
-  cancel and on the push) and, in the pager, a paragraph per still frame
-  before a neighbour joins (MOTION-21). `FeedTextWindow` queues at most `maxTexts` lines past the furthest built
-  item; `FeedTextWarmup` lays out one per gap, right after a frame that
-  started at most `vsync - itemCost` earlier, never inside a frame or at
-  idle priority. Fonts are not prefetched as whole files.
-- **Why:** A first-time glyph reads its outline from the font file; under
-  memory pressure those pages are evicted within about 30 s, and the read
-  was a 2–4 ms wait inside the frame that built the card. Whole-file
-  prefetch (31 MB per 40 s) was evicted before use and still missed. The
-  layout also fills SkParagraph's shared 128-entry cache (key: text, locale,
-  font style), which spares the frame the shaping only if the line matches
-  exactly and is not evicted before its card is built.
-- **Check:** manual — warm-up only saves layout time inside a frame (TEST-12); checked on a trace
+- **Rule:** Content text sets `locale: contentLocale(context, text)`. `IllustFeedGrid`, `SliverCardList`, and `InfoBlock.warmTexts` warm matching `warmLine` paragraphs via `FeedTextWindow` / `FeedTextWarmup` between frames (never inside frames or via whole-font prefetch).
+- **Why:** Cold glyph reads and SkParagraph shaping stalled card build frames by 2–4 ms under memory pressure.
+- **Check:** manual — warm-up only saves layout time inside a frame (TEST-12)
 - **Code:** `lib/app/widgets/feed/feed_text_warmup.dart`, `lib/app/widgets/feed/illust_card.dart`, `lib/features/illust/detail/widgets/info_block.dart`, `lib/app/widgets/tag_chips.dart`, `lib/app/widgets/novel_entry.dart`, `lib/app/widgets/author_summary.dart`, `lib/app/layout/card_columns.dart`, `lib/app/format/content_locale.dart`
 
 ### FEED-18 A list builds its cache area from its second frame
-- **Rule:** A list with `kFeedCacheExtent`, the settings list and the
-  artwork detail page are a `DeferredCacheScrollView` or
-  `DeferredCacheListView`: the first frame
-  builds what is on screen, and the cache extent applies from the next
-  frame, which builds only the children it adds. `IllustFeedGrid` and
-  `SliverCardList` wrap their sliver in `SliverCacheRamp`: past the
-  visible part and what is built, the trailing cache grows at most a
-  quarter viewport a frame, and never ends before the built children.
-  Code and tests look a scroll view up by subtype (`is CustomScrollView`,
-  `find.bySubtype`), never by exact type.
-- **Why:** A feed mounts on a busy frame (a push, a branch switch, its
-  first data), and building half a screen more there took the first
-  visit to ranking, new works, an author or the settings to 13–25 ms.
-  A detail page's first frame is its push. Data landing or a page
-  appended later built the half screen in one frame (13.7–16.8 ms).
-- **Check:** `test/shared_widgets_test.dart` "sliver cache ramp"; when each frame builds the cache area is manual (TEST-12)
+- **Rule:** Lists using `kFeedCacheExtent`, settings, and detail pages use `DeferredCacheScrollView` / `DeferredCacheListView` (first frame builds visible items only; cache extent activates next frame) with `SliverCacheRamp` growing trailing cache by at most 1/4 viewport per frame. Look up scroll views by subtype (`CustomScrollView`), never exact type.
+- **Why:** Eagerly building half a screen of cache on mount/push frames caused 13–25 ms frame spikes.
+- **Check:** `test/shared_widgets_test.dart` "sliver cache ramp"
 - **Code:** `lib/app/layout/deferred_cache_scroll_view.dart`, `lib/app/layout/sliver_cache_ramp.dart`, `lib/app/motion/hero_transition.dart`, `lib/features/illust/detail/illust_detail_content.dart`
 
 ### FEED-21 A built card rebuilds only when its own inputs change
-- **Rule:** Feed lists pass `items` (the entity behind each card) and
-  `itemDeps` (everything else the builder reads, such as the hero scope)
-  to `IllustFeedGrid` and `SliverCardList`; the builder reads nothing
-  else and not its context. While the entity at an index is the same
-  instance and the deps are equal, the list hands back the card it built
-  (`FeedItemCache`). A body that lists entities from a `Notifier<Map>`
-  store selects them as `StoredEntities`, so merges of other entities do
-  not rebuild it. Lists with per-row selection state (history, watch
-  later) build every time.
-- **Why:** Each body rebuild (a page appended, a load-more phase change,
-  any store merge) rebuilt every built card in that frame.
-- **Check:** `test/feed_item_cache_test.dart`
+- **Rule:** Feed grids/lists pass `items` and `itemDeps` so `FeedItemCache` reuses unchanged cards; bodies reading `Notifier<Map>` stores select via `StoredEntities` (lists with per-row selection rebuild directly).
+- **Why:** Avoids rebuilding every visible card on unrelated store merges or page appends.
+- **Check:** `test/feed_item_cache_test.dart` "stored entities list theirs in order and differ once one is replaced"
 - **Code:** `lib/app/widgets/feed/feed_item_cache.dart`, `lib/core/entity/stored_entities.dart`, `lib/app/layout/card_columns.dart`, `lib/app/widgets/feed/feed_grid.dart`
 
 ### FEED-24 Wide feed multi-selection and batch bookmark or download bar
-- **Rule:** `SelectableFeedHost` enables artwork multi-selection only when viewport
-  width is at least `AppBreakpoints.medium` (600dp) and clears selection when
-  narrowed below 600dp. It supports hover selection badges, `Ctrl`/`Cmd`+Click
-  individual toggles, `Shift`+Click inclusive range selection, `Ctrl`/`Cmd`+A
-  select-all, and Esc or system back dismissal, displaying one floating
-  `FeedBatchActionBar` (integrating select-all and clear with no duplicate top
-  selection strip) for bounded-concurrency public/private batch bookmarking
-  (`BookmarkActions.addBatch`) and original downloads.
-- **Why:** Wide desktop and tablet feeds need fast batch triage without polluting
-  compact phone browsing or firing uncapped parallel network writes.
+- **Rule:** `SelectableFeedHost` enables multi-select only at `>= AppBreakpoints.medium` (600dp, clearing when narrowed), supporting hover checkboxes, `Ctrl`/`Cmd`+Click, `Shift`+Click range, `Ctrl`/`Cmd`+A, and `Esc`/back dismissal, with one floating `FeedBatchActionBar` driving bounded-concurrency `BookmarkActions.addBatch` and downloads.
+- **Why:** Gives desktop/tablet users batch triage without cluttering phone views or flooding network writes.
 - **Check:** `test/feed_selection_test.dart` "SelectableFeedHost gates >=600dp multi-select, Ctrl/Cmd+Click, Shift range, Ctrl+A, Esc, and batch bookmark/download"
 - **Code:** `lib/app/widgets/feed/feed_selection.dart`, `lib/app/widgets/feed/feed_grid.dart`, `lib/app/widgets/feed/illust_card.dart`, `lib/core/bookmark/bookmark_actions.dart`
 
 ## Pull to refresh
 
 ### FEED-07 PullToRefresh is the only refresh wrapper
-- **Rule:** Feeds refresh through `PullToRefresh`, rendering the unified
-  minimalist `SakuraRefreshIndicator` ring (`MotionTokens.refreshSpin`) across
-  all five platforms (with `brandHairline` track, `colorScheme.primary` round
-  arc, and reduced-motion stillness), and `FeedTail` / `FeedLoading` use
-  `AppSpinner` (`brandHairline` track, `StrokeCap.round`). `PullToRefresh` runs
-  `clamping: false` for ordinary lists: the whole list follows the finger
-  down and the header shows above it. A tab body inside a
-  `NestedScrollView` passes `isNested: true` and starts its list with
-  `PullToRefresh.nestedHeader`, its only `HeaderLocator`. Its header is
-  clamping, the only kind EasyRefresh 4 accepts there; the locator takes
-  the header's height, so the list still slides down under the tabs,
-  and the fork gives that height back on the list that holds it, never
-  on the outer scroll. Nothing wraps the whole `NestedScrollView`; its
-  outer physics is `NestedRefreshOuterPhysics`, which holds the outer
-  scroll while the user drags a feed's header out.
-- **Why:** Per-page wrappers diverged, and Material's white floating disc felt
-  dated on desktop/iOS and over dark feeds; under clamping the reversed pull is
-  not real overscroll, so the indicator stayed pinned while the list
-  moved. A clamping header keeps the feed at its top, so the coordinator
-  gave a reversed pull to the outer scroll first: the profile header
-  collapsed under a stuck indicator. EasyRefresh holds only an outer scroll
-  that runs its own physics. A clamping header on every feed, its disc
-  dropping over a still list as `SwipeRefreshLayout` draws it, was tried
-  on device and dropped: the user kept the list pulling down (user
-  decision 10-24). A locator without height left that disc over a still
-  list on the profile tabs alone (user report). EasyRefresh took a closing
-  header's height off the outer scroll without a layout, so a profile
-  header pushed up during a refresh jumped open on the next drag.
+- **Rule:** All feeds refresh via `PullToRefresh` (`SakuraRefreshIndicator` on `MotionTokens.refreshSpin`; `FeedTail`/`FeedLoading` use `AppSpinner`), using `clamping: false` so lists pull down with the finger. Inside `NestedScrollView`, tab bodies pass `isNested: true` with `PullToRefresh.nestedHeader` and the outer view uses `NestedRefreshOuterPhysics` (never wrap the whole `NestedScrollView`).
+- **Why:** User decision: list pulls down cleanly across platforms without clamping bugs or nested profile-header conflicts.
 - **Check:** `test/pull_to_refresh_test.dart` "the shared wrapper refreshes a nested scroll view once", `test/user_profile_test.dart` "a reversed pull retracts the indicator before the header collapses" "a header pushed up during a refresh stays when it ends"
 - **Code:** `lib/app/pull_to_refresh.dart`, `lib/app/widgets/app_spinner.dart`, `lib/app/widgets/feed/feed_states.dart`, `lib/features/profile/user_page.dart`, `lib/features/profile/profile_illust_feed.dart`, `pubspec.yaml`
 
 ### FEED-08 The indicator follows observable outcomes
-- **Rule:** A reversed pull moves the indicator back with the finger, and
-  while any of it is on screen the list does not scroll. Motion after the
-  pointer lifts never starts or resumes a pull. Every pull ends with the
-  indicator hidden. A qualifying pull calls `onRefresh` exactly once, and
-  no scroll resets the refreshing state until its future completes.
-- **Why:** Pointer-up overscroll re-armed pulls and the indicator stuck on
-  screen.
+- **Rule:** Reversing a pull retracts the indicator before scrolling the list; ballistic overscroll after pointer-up never arms a pull; every pull ends with the indicator hidden; qualifying pulls invoke `onRefresh` once and stay refreshing until its future completes.
+- **Why:** Prevents stuck indicators and ballistic re-arming.
 - **Check:** `test/pull_to_refresh_test.dart` "a reverse drag retracts the indicator and cancels" "a released armed pull refreshes once and hides the indicator" "ballistic overscroll after the pointer lifts starts no pull", `test/user_profile_test.dart` "a reversed pull retracts the indicator before the header collapses"
 - **Code:** `lib/app/pull_to_refresh.dart`
 
 ### FEED-09 The framework decides the threshold
-- **Rule:** The wrapper reads scroll metrics only to render the indicator.
-  It never accumulates its own drag distance, decides a threshold, or
-  vetoes a refresh the framework triggered.
-- **Why:** A second scroll state machine beside EasyRefresh disagreed with
-  it: one root cause behind re-armed pulls, vetoed refreshes and a stuck
-  indicator.
+- **Rule:** `PullToRefresh` reads scroll metrics only to render the indicator and never tracks duplicate drag distance or vetoes framework triggers.
+- **Why:** A parallel state machine disagreed with EasyRefresh and caused stuck indicators.
 - **Check:** `test/pull_to_refresh_test.dart` "reversing an armed pull retracts the indicator before the list"
 - **Code:** `lib/app/pull_to_refresh.dart`
 
 ### FEED-10 Pull tests pull past the arm threshold
-- **Rule:** Pull-to-refresh tests drive a real scrollable, pull past the
-  arm threshold before reversing, and assert the indicator's final
-  visibility in every case.
-- **Why:** A pull that stops short takes another framework path, so the
-  test passed without exercising the behavior.
-- **Check:** `test/pull_to_refresh_test.dart`
+- **Rule:** Pull-to-refresh tests drive a real scrollable past the arm threshold before reversing and assert final indicator visibility.
+- **Why:** Sub-threshold pulls bypassed the real refresh path.
+- **Check:** `test/pull_to_refresh_test.dart` "crossing the refresh trigger is felt both ways" "a released armed pull refreshes once and hides the indicator"
 - **Code:** `test/pull_to_refresh_test.dart`
 
 ### FEED-17 PullToRefresh keeps one EasyRefresh while its settings hold
-- **Rule:** `PullToRefresh` rebuilds its `EasyRefresh` only when the
-  colours, the indicator exit, `isNested` or the scroll controller change;
-  the list reaches it through an inherited slot and `onRefresh` through a
-  forwarding method. EasyRefresh itself depends on no `MediaQuery`: the
-  fork reads the padding (`MediaQuery.paddingOf`) in its indicator
-  builders.
-- **Why:** EasyRefresh syncs its nested host after every update and
-  dependency change, and the sync walks the whole list: each new page,
-  load phase and keyboard frame cost a walk of the feed after the frame.
-  The padding changes while the keyboard crosses the navigation bar and
-  whenever the system bars show or hide (the novel chrome), and every
-  mounted feed walked its list then.
+- **Rule:** `PullToRefresh` rebuilds `EasyRefresh` only when colors, exit mode, `isNested`, or `scrollController` change (child arrives via inherited slot, `onRefresh` via forwarding); EasyRefresh avoids global `MediaQuery` dependencies.
+- **Why:** Rebuilding `EasyRefresh` on page appends or inset changes walked the entire list every frame.
 - **Check:** `test/pull_to_refresh_test.dart` "a new list keeps the refresh and refreshes with the new callback"
 - **Code:** `lib/app/pull_to_refresh.dart`, `pubspec.yaml`
 
 ## Scroll physics
 
 ### FEED-11 Per-platform scroll physics and drag devices; flings stop at the edge
-- **Rule:** `FuncScrollBehavior` and `PullToRefresh` configure drag devices and
-  scroll physics per platform while keeping `textScrollPhysics` first inside
-  `EditableText` controls so non-scrolling text never steals a page scroll:
-  - **Android:** `AndroidDragPhysics` over `FuncScrollPhysics` (bouncing
-    overscroll, edge-stop flings, zero drag dead zone, zero carried momentum)
-    and mouse drag enabled in `dragDevices` (with `mouseScrollbar`).
-  - **iOS:** `FuncScrollPhysics` directly (without `AndroidDragPhysics` or
-    scroll-behavior clamping), restoring native `BouncingScrollPhysics`
-    momentum carry and the 3.5px drag start threshold while flings stop at
-    ends.
-  - **Desktop (Windows / macOS / Linux):** `PointerDeviceKind.mouse` is
-    removed from global `dragDevices` (`platformDragDevices`) so mouse pointer
-    drags select text instead of scrolling lists; Windows and Linux use
-    `ClampingScrollPhysics` for lists (`FuncScrollBehavior`) with platform
-    scrollbars, and macOS uses bouncing physics (`FuncScrollPhysics`) with the
-    platform scrollbar.
-  - `PullToRefresh` keeps `notLoadFooter: NotLoadFooter(hitOver: false)` and
-    per-platform `_FeedScrollBehavior` wrapping.
-- **Why:** Android lists (RecyclerView / Compose) follow fingers immediately
-  past slop and never compound coasting flick velocities, while iOS users
-  expect native bouncing carry and threshold feel. Removing `mouse` from
-  desktop `dragDevices` allows `SelectionArea` / text selection to work instead
-  of pulling scrollables; Windows/Linux clamp edges natively while macOS
-  bounces. Keeping edge-stop flings and `hitOver: false` prevents feed tails
-  from bouncing back while next pages append.
+- **Rule:** `FuncScrollBehavior` and `PullToRefresh` (`NotLoadFooter(hitOver: false)`) keep `textScrollPhysics` inside `EditableText` and adapt per platform: Android uses `AndroidDragPhysics` over `FuncScrollPhysics` (zero dead zone, no carried flick momentum, mouse drag + `mouseScrollbar`); iOS uses `FuncScrollPhysics` directly (native bouncing carry and 3.5px threshold); Desktop removes `PointerDeviceKind.mouse` from `dragDevices` so mouse drags select text, using `ClampingScrollPhysics` on Windows/Linux and bouncing `FuncScrollPhysics` on macOS. Flings stop at edges everywhere.
+- **Why:** Matches each OS's scroll feel, enables desktop text selection, and avoids bouncing off loading tails.
 - **Check:** `test/scroll_behavior_test.dart` "a fling stops at the end instead of springing back" "a selectable title that fits scrolls the page, not itself" "the list follows the finger from the move past the slop" "a flick while the list coasts starts at its own speed" "iOS restores bouncing momentum carry and 3.5px drag threshold" "desktop removes mouse drag and splits Windows/Linux clamping from macOS bouncing", `test/pull_to_refresh_test.dart` "a fling stops at the trailing edge instead of bouncing back"
 - **Code:** `lib/app/scroll_behavior.dart`, `lib/app/pull_to_refresh.dart`
 
 ### FEED-12 NestedScrollView gets explicit physics and one inner tab
-- **Rule:** A `NestedScrollView` passes the behavior's physics,
-  `ScrollConfiguration.of(context).getScrollPhysics(context)`, as the
-  parent of its outer physics (FEED-07), and a nested `PullToRefresh`
-  flings with `FuncScrollPhysics` on top of EasyRefresh's nested physics,
-  so outer and inner run the same simulation. Only the selected tab sits
-  on the inner controller; unselected tabs park on a controller of the
-  same kind, and the `PrimaryScrollController` is never `.none`.
-- **Why:** Its outer position defaults to clamping, so the header stopped
-  short while the feed rolled on; EasyRefresh 4's nested physics flings
-  with a clamping simulation and brought the same stop back. Kept-alive
-  tabs on one inner controller were driven as one: a fling died at the
-  header and hidden tabs dragged along.
+- **Rule:** `NestedScrollView` passes `ScrollConfiguration.of(context).getScrollPhysics(context)` as parent of its outer physics; nested `PullToRefresh` layers `FuncScrollPhysics` over EasyRefresh's nested physics; only the active tab attaches to the inner controller (`PrimaryScrollController` is never `.none`).
+- **Why:** Mismatched outer/inner physics stalled flings at headers and dragged hidden tabs.
 - **Check:** `test/user_profile_test.dart` "a light upward fling never leaves the inner feed ahead of the header" "a light pull-down while the header is collapsing keeps it expanding" "each tab scrolls on its own; re-tap rewinds only the selected one"
 - **Code:** `lib/features/profile/user_page.dart`, `lib/app/pull_to_refresh.dart`
 
 ### FEED-13 Horizontal strips inside a feed opt out of the refresh physics
-- **Rule:** A horizontal scrollable inside `PullToRefresh` wraps itself in
-  `ScrollConfiguration.of(context).copyWith(physics: ...)`; an explicit
-  `physics:` on the scrollable is not enough.
-- **Why:** EasyRefresh's physics applies to the whole subtree on every
-  axis, so a sideways drag past the start armed the refresh header.
+- **Rule:** Horizontal scrollables inside `PullToRefresh` override `ScrollConfiguration.of(context).copyWith(physics: ...)`, not just `physics:` on the scrollable.
+- **Why:** EasyRefresh's physics applies to all axes in its subtree and armed refresh on horizontal overscroll.
 - **Check:** manual
 - **Code:** `lib/app/pull_to_refresh.dart`
 
 ## First-load skeletons
 
 ### FEED-14 Skeletons cover the first load only
-- **Rule:** A feed or detail page's initial load paints a skeleton shaped
-  like the loaded layout, never `FeedEmpty`, a blank area or a lone
-  spinner. Refresh and load-more keep the loaded list. Surfaces without a
-  grid shape use `FeedLoading(label:)`. `IllustDetailSkeleton` shows only
-  without an `initialEntity`.
-- **Why:** A refresh that fell back to the skeleton threw away the list;
-  a skeleton over the snapshot broke the Hero hand-off.
+- **Rule:** Initial loads paint a layout-shaped skeleton (never `FeedEmpty`, blank space, or a lone spinner; non-grid surfaces use `FeedLoading`); refresh and load-more keep existing content; `IllustDetailSkeleton` shows only without `initialEntity`.
+- **Why:** Dropping content on refresh or masking snapshots broke Hero hand-offs.
 - **Check:** manual
 - **Code:** `lib/app/widgets/skeleton/func_skeleton.dart`, `lib/features/illust/detail/widgets/illust_detail_skeleton.dart`
 
 ### FEED-15 One skeleton root paints, animates and speaks
-- **Rule:** The outermost `FuncSkeleton` owns the one shimmer controller,
-  the one gradient (each `SkeletonBone` paints its slice) and the one
-  semantics node with a localized loading label, using calibrated base and
-  shimmer contrast tokens distinct between page canvas and elevated card
-  surfaces (`UserListSkeleton` separates title and `@handle` bones cleanly). A
-  nested `FuncSkeleton` renders its child as-is. No `ShaderMask`; under reduced
-  motion the bones are static.
-- **Why:** A full-page `ShaderMask` cost an offscreen layer every frame.
-- **Check:** `test/motion_test.dart`
+- **Rule:** The outermost `FuncSkeleton` owns the single shimmer controller, shared gradient (painted per `SkeletonBone`, no `ShaderMask`), and single localized loading semantics node (`UserListSkeleton` separates title and `@handle` bones). Nested `FuncSkeleton`s render their child as-is; reduced motion keeps bones static.
+- **Why:** Eliminates per-frame `ShaderMask` offscreen layers and duplicate shimmer tickers/announcements.
+- **Check:** `test/motion_test.dart` "FuncSkeleton owns one shimmer root, passes nested roots through, and stays static under reduced motion"
 - **Code:** `lib/app/widgets/skeleton/func_skeleton.dart`, `lib/app/widgets/skeleton/list_skeletons.dart`
 
 ### FEED-16 Skeleton geometry matches the real layout
-- **Rule:** `IllustGridSkeleton` takes its columns from
-  `illustColumnsFor` at the same density, and the same padding and
-  spacing as the grid beneath
-  it; it fills and clips, never scrolls. `ProfileSkeleton` puts the avatar
-  and name exactly where the real header does and keeps a real
-  `BackButton` outside its excluded semantics.
-- **Why:** Cards landing off the bones read as a jump; a loading profile
-  could not be left.
+- **Rule:** `IllustGridSkeleton` matches `illustColumnsFor`, padding, and spacing (non-scrolling, clipped); `ProfileSkeleton` aligns avatar/name with the real header and keeps a real `BackButton` outside excluded semantics.
+- **Why:** Prevents layout jumps on load and lets users leave slow profiles.
 - **Check:** `test/user_profile_test.dart` "a pending profile shows the skeleton and the back button leaves"
 - **Code:** `lib/app/widgets/skeleton/illust_grid_skeleton.dart`, `lib/features/profile/profile_skeleton.dart`
 
 ### FEED-23 A restored offset lands on content or on a skeleton that reaches it
-- **Rule:** A scroll view with a `restorationId` is built with its content;
-  a feed's skeleton stands outside it. A skeleton that shares one with
-  loaded sections (the search home's trending grid) reaches a window's
-  height past the offset the list opens at, recounted when the window
-  resizes, so an offset restored after process death stays put until the
-  content lands.
-- **Why:** The search home restored its offset over three skeleton rows,
-  and the bounce physics sprang it back to their end before the tags
-  landed.
+- **Rule:** Scroll views with `restorationId` build only with their content (feed skeletons sit outside); mixed-section skeletons (search trending grid) extend a viewport past the restored offset and recompute on resize.
+- **Why:** Short skeletons caused bounce physics to snap restored offsets back to the top before data arrived.
 - **Check:** `test/navigation_restoration_test.dart` "restores a representative feed offset"
 - **Code:** `lib/features/search/search_page.dart`

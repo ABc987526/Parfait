@@ -27,7 +27,7 @@ reviewed: 2026-10-30
   `UnimplementedError` to disown one.
 - **Why:** Two fetch contracts let some feeds bypass cancellation and the
   commit gate.
-- **Check:** `test/feed_generation_commit_test.dart`
+- **Check:** manual — enforced by PagedFeedController's single abstract fetch hook contract
 - **Code:** `lib/core/paging/paged_feed_controller.dart`
 
 ### PAGING-02 Cancellation is idle, not an error
@@ -73,7 +73,7 @@ reviewed: 2026-10-30
   A page restored from its snapshot passes the filters again.
 - **Why:** Novels ignored mutes and the block, novel ranking hid a novel
   whenever an R-18 illust shared its id, R-18G passed the R-18 block, and
-  related works and New showed blocked works (user decision 10-27). A
+  related works and New showed blocked works (user decision). A
   block switched on rebuilt the feed from a snapshot written without it.
 - **Check:** `test/paged_feed_refill_test.dart` "hide mode drops mute hits, blur keeps them; novels read novels"; `test/mute_store_test.dart` "C9 local block: R-18 (and R-18G) and AI switches, illusts and "; `test/novel_entry_test.dart` "a muted novel shows the reason until a tap reveals it"; `test/new_content_feed_test.dart` "the local block filters New works and novels (R7)"; `test/illust_detail_page_test.dart` "requests related works only once the section is on screen; "; `test/feed_snapshot_cold_start_test.dart` "a restored snapshot passes the filters switched on since"
 - **Code:** `lib/core/paging/paged_feed_controller.dart`, `lib/core/settings/local_block_filter.dart`, `lib/core/mute/mute_predicate.dart`, `lib/app/widgets/novel_entry.dart`
@@ -106,7 +106,7 @@ reviewed: 2026-10-30
   gone even when the page repeats it.
 - **Why:** Late appends mixed generations and left ghost ids. A page that
   landed on the list it read at its start brought back a history record
-  deleted while it loaded (10-31).
+  deleted while it loaded.
 - **Check:** `test/feed_generation_commit_test.dart` "active append commits same-ID updates and keeps server order"; `test/history_page_test.dart` "deleting a loaded record never skips one on the next page (B11)"
 - **Code:** `lib/core/paging/paged_feed_controller.dart`
 

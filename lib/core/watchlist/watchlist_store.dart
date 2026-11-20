@@ -5,8 +5,7 @@ library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../auth/account_store.dart';
-import '../mutation/mutation_boundary.dart';
+import '../mutation/account_scoped_mutation_store.dart';
 import '../mutation/mutation_models.dart';
 import '../network/api_error.dart';
 import '../series/series_store.dart';
@@ -19,43 +18,13 @@ import 'watchlist_models.dart';
 /// pending operation is fenced by the account boundary that created it;
 /// connectivity failures are queued by the action layer and replayed
 /// through [settleQueued].
-class WatchlistStore extends Notifier<Map<WatchlistKey, WatchlistEntry>> {
-  final MutationLedger _ledger = MutationLedger();
-  MutationBoundary? _boundary;
-  bool _built = false;
-  bool _disposeRegistered = false;
-
+class WatchlistStore extends Notifier<Map<WatchlistKey, WatchlistEntry>>
+    with AccountScopedMutationStore<Map<WatchlistKey, WatchlistEntry>> {
   @override
   Map<WatchlistKey, WatchlistEntry> build() {
-    if (_ledger.isDisposed) {
-      _ledger.reopen();
-      _disposeRegistered = false;
-    }
-    ref.watch(
-      accountStoreProvider.select((async) {
-        final account = async.value;
-        return account?.usableCurrent?.id;
-      }),
-    );
-    final current = readMutationBoundary(ref);
-    if (_boundary != null && !sameMutationBoundary(_boundary, current)) {
-      _invalidateBoundary(current, settleState: false);
-    }
-    _boundary = current;
-    if (!_disposeRegistered) {
-      _disposeRegistered = true;
-      ref.onDispose(() {
-        _ledger.dispose();
-        _built = false;
-      });
-    }
-    _built = true;
+    initAccountBoundary();
     return {};
   }
-
-  int revisionNow() => _ledger.revisionNow;
-
-  List<MutationDiscardEvent> get discardEvents => _ledger.discardEvents;
 
   WatchlistEntry? entryOf(WatchlistKey key) => state[key];
 
@@ -69,8 +38,8 @@ class WatchlistStore extends Notifier<Map<WatchlistKey, WatchlistEntry>> {
       _begin(key, WatchlistOpKind.delete);
 
   WatchlistOp? _begin(WatchlistKey key, WatchlistOpKind kind) {
-    final boundary = _requireBoundary();
-    final envelope = _ledger.begin(
+    final boundary = requireBoundary();
+    final envelope = ledger.begin(
       boundary: boundary,
       entityType: 'watchlist:${key.type.apiValue}',
       entityId: '${key.type.apiValue}:${key.seriesId}',
@@ -117,7 +86,7 @@ class WatchlistStore extends Notifier<Map<WatchlistKey, WatchlistEntry>> {
     if (!_owns(operation)) return;
     final added = operation.kind == WatchlistOpKind.add;
     final wish = state[operation.key]?.wish;
-    _ledger.finish(operation.envelope);
+    ledger.finish(operation.envelope);
     state = {
       ...state,
       operation.key: WatchlistEntry(
@@ -140,9 +109,9 @@ class WatchlistStore extends Notifier<Map<WatchlistKey, WatchlistEntry>> {
         operation.isCancelled ||
         previous?.wish != (operation.kind == WatchlistOpKind.add);
     if (cancelled) {
-      _ledger.discard(operation.envelope, MutationDiscardReason.cancelled);
+      ledger.discard(operation.envelope, MutationDiscardReason.cancelled);
     } else {
-      _ledger.finish(operation.envelope);
+      ledger.finish(operation.envelope);
     }
     if (previous?.pending?.envelope != operation.envelope) return;
     state = {
@@ -160,7 +129,7 @@ class WatchlistStore extends Notifier<Map<WatchlistKey, WatchlistEntry>> {
   /// confirmed value shows again.
   bool cancel(WatchlistOp operation) {
     if (!_owns(operation)) return false;
-    _ledger.discard(operation.envelope, MutationDiscardReason.cancelled);
+    ledger.discard(operation.envelope, MutationDiscardReason.cancelled);
     _setCancelled(operation);
     return true;
   }
@@ -216,42 +185,15 @@ class WatchlistStore extends Notifier<Map<WatchlistKey, WatchlistEntry>> {
         .markWatchlist(key.seriesId, added);
   }
 
-  bool _owns(WatchlistOp operation) {
-    if (!_ledger.isActive(operation.envelope)) return false;
-    final current = readMutationBoundary(ref);
-    _boundary = current;
-    final reason = mutationBoundaryReason(operation.envelope, current);
-    if (reason != null) {
-      _ledger.discard(operation.envelope, reason);
-      _setCancelled(operation);
-      return false;
-    }
-    final entry = state[operation.key];
-    if (entry?.pending?.envelope != operation.envelope) {
-      _ledger.discard(operation.envelope, MutationDiscardReason.stale);
-      return false;
-    }
-    return true;
-  }
+  bool _owns(WatchlistOp operation) => ownsMutation(
+    operation.envelope,
+    isPendingOwner: () =>
+        state[operation.key]?.pending?.envelope == operation.envelope,
+    onBoundaryCancelled: () => _setCancelled(operation),
+  );
 
-  MutationBoundary _requireBoundary() {
-    final current = readMutationBoundary(ref);
-    if (current == null) {
-      throw const ApiUnauthorized('no signed-in account');
-    }
-    if (_boundary != null && !sameMutationBoundary(_boundary, current)) {
-      _invalidateBoundary(current, settleState: _built);
-    }
-    _boundary = current;
-    return current;
-  }
-
-  void _invalidateBoundary(
-    MutationBoundary? current, {
-    required bool settleState,
-  }) {
-    _ledger.cancelAll(MutationDiscardReason.accountChanged);
-    if (!settleState) return;
+  @override
+  void settlePendingOnBoundaryInvalidated() {
     final next = <WatchlistKey, WatchlistEntry>{...state};
     for (final item in next.entries) {
       if (!item.value.isUnsettled) continue;

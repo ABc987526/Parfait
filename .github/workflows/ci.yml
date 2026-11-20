@@ -21,6 +21,7 @@ jobs:
       android: ${{ steps.filter.outputs.android }}
       plugin: ${{ steps.filter.outputs.plugin }}
       deps: ${{ steps.filter.outputs.deps }}
+      icons: ${{ steps.filter.outputs.icons }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -74,6 +75,12 @@ jobs:
               - 'plugins/**/Cargo.toml'
               - 'plugins/**/Cargo.lock'
               - 'rust-toolchain.toml'
+            icons:
+              - 'tool/icons/**'
+              - 'tool/build_icons.py'
+              - 'tool/requirements-icons.txt'
+              - 'assets/icon.ttf'
+              - 'lib/app/icons/app_icons.dart'
 
   analyze:
     # Skipped on push to main: the ruleset requires strict up-to-date status
@@ -132,8 +139,23 @@ jobs:
           channel: "stable"
           cache: true
       - run: flutter pub get --enforce-lockfile
+      - run: python3 tool/gen_l10n_lookup.py --check
       - run: dart format --output=none --set-exit-if-changed lib test
       - run: flutter analyze
+
+  icons-check:
+    needs: changes
+    if: >-
+      (github.event_name == 'pull_request' || github.ref == 'refs/heads/dev') &&
+      needs.changes.outputs.icons == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Verify generated icon font and AppIcons
+        run: |
+          python3 -m venv "$RUNNER_TEMP/icons-venv"
+          "$RUNNER_TEMP/icons-venv/bin/pip" install --no-cache-dir -r tool/requirements-icons.txt
+          "$RUNNER_TEMP/icons-venv/bin/python" tool/build_icons.py --check
 
   workflows-and-secrets:
     # actionlint checks the workflow files (and, through the runner's
@@ -296,22 +318,28 @@ jobs:
     # test shard and the workflow and secret scans, so keep the name and
     # let it run even when they fail: a skipped required check would count
     # as passing.
-    needs: [analyze, test, workflows-and-secrets]
+    needs: [changes, analyze, test, workflows-and-secrets, icons-check]
     if: always() && github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - name: Require analyze, all test shards and the scans to succeed
         env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
           ANALYZE_RESULT: ${{ needs.analyze.result }}
           TEST_RESULT: ${{ needs.test.result }}
           SCAN_RESULT: ${{ needs.workflows-and-secrets.result }}
+          ICONS_RESULT: ${{ needs.icons-check.result }}
         run: |
+          echo "changes: $CHANGES_RESULT"
           echo "analyze: $ANALYZE_RESULT"
           echo "test:    $TEST_RESULT"
           echo "scans:   $SCAN_RESULT"
-          if [ "$ANALYZE_RESULT" != success ] || [ "$TEST_RESULT" != success ] ||
-            [ "$SCAN_RESULT" != success ]; then
-            echo "::error::analyze, a test shard or a scan did not succeed"
+          echo "icons:   $ICONS_RESULT"
+          if [ "$CHANGES_RESULT" != success ] ||
+            [ "$ANALYZE_RESULT" != success ] || [ "$TEST_RESULT" != success ] ||
+            [ "$SCAN_RESULT" != success ] ||
+            { [ "$ICONS_RESULT" != success ] && [ "$ICONS_RESULT" != skipped ]; }; then
+            echo "::error::changes, analyze, a test shard, icons-check or a scan did not succeed"
             exit 1
           fi
 

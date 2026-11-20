@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:parfait/app/dev_shell/dev_shell.dart';
 import 'package:parfait/app/layout/window_layout_spec.dart';
 import 'package:parfait/app/window/desktop_title_bar.dart';
+import 'package:parfait/core/platform/platform_caps.dart';
 import 'package:parfait/l10n/app_localizations.dart';
 import 'package:parfait/l10n/app_localizations_delegates.dart';
 import 'package:parfait/app/icons/app_icons.dart';
@@ -192,4 +194,41 @@ void main() {
       );
     },
   );
+
+  testWidgets('DevShellHost overrides platformCapsProvider for simulated OS', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1200, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final controller = DevShellController()
+      ..setPlatform(DevShellPlatform.android);
+    addTearDown(controller.dispose);
+
+    PlatformCaps? observed;
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          localizationsDelegates: appLocalizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: DevShellHost(
+            controller: controller,
+            child: Consumer(
+              builder: (context, ref, _) {
+                observed = ref.watch(platformCapsProvider);
+                return const SizedBox.shrink();
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(observed?.isAndroid, isTrue);
+
+    controller.setPlatform(DevShellPlatform.windows);
+    await tester.pump();
+    expect(observed?.isWindows, isTrue);
+    expect(observed?.isAndroid, isFalse);
+  });
 }

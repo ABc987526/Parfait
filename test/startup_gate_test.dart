@@ -306,7 +306,7 @@ void main() {
     expect(find.byType(HomePage), findsNothing);
   });
 
-  testWidgets('the warm-up draws the ripple and keeps the app mounted', (
+  testWidgets('the warm-up runs offscreen layers and keeps the app mounted', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -317,17 +317,16 @@ void main() {
       of: find.byType(PipelineWarmup),
       matching: find.byType(Positioned),
     );
-    final sparkle = find.descendant(
-      of: warmups,
-      matching: find.byType(CustomPaint),
+    final activeWarmups = tester.widgetList<Positioned>(warmups).toList();
+    expect(activeWarmups, isNotEmpty);
+    expect(
+      activeWarmups.every((w) => (w.left ?? 0) < 0 && (w.top ?? 0) < 0),
+      isTrue,
     );
-    var sparkleFrames = 0;
-    for (var frame = 0; frame < 6; frame++) {
+    for (var frame = 0; frame < 4; frame++) {
       await tester.pump();
-      if (sparkle.evaluate().isNotEmpty) sparkleFrames++;
     }
 
-    expect(sparkleFrames, greaterThan(0));
     expect(warmups, findsNothing);
     expect(tester.state(find.byType(_MountProbe)), same(probe));
   });

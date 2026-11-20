@@ -6,7 +6,7 @@ applies_to:
   - lib/app/layout/app_breakpoints.dart
   - lib/app/layout/window_layout_spec.dart
   - lib/app/layout/two_pane.dart
-reviewed: 2026-11-18
+reviewed: 2026-11-21
 ---
 
 # Artwork detail page and viewer
@@ -20,323 +20,119 @@ reviewed: 2026-11-18
 ## Images
 
 ### DETAIL-01 Size each page by its decoded ratio
-- **Rule:** Multi-page works size each page by its decoded frame, never by
-  a fixed `AspectRatio` on the container. The estimated box only holds the
-  slot until the decode lands.
-- **Why:** The App API's `meta_pages` carries no per-page size, so the
-  work-level ratio letterboxed every page of another shape.
+- **Rule:** Multi-page works size each page by its decoded frame, never by a fixed `AspectRatio`; estimated boxes only hold the slot until decode.
+- **Why:** App API `meta_pages` omits per-page dimensions, so work-level ratios letterboxed differing pages.
 - **Check:** manual
 - **Code:** `lib/features/illust/detail/widgets/page_image.dart`
 
 ### DETAIL-02 A short first image sits low in its slot, the Hero inside it
-- **Rule:** On compact widths (under 600dp) a short first illustration
-  (single, or first of a set; not manga, ugoira, a panorama or two-pane)
-  shown alone computes `rawBand = max(0, 0.7 × viewportHeight - natural) / 2`
-  and applies `band = rawBand` only when `rawBand >= kToolbarHeight` (`56dp`);
-  portrait works with `rawBand < kToolbarHeight` collapse `band` to `0.0`
-  (`artworkUnderBar = true`) so the image starts under `statusInset` instead
-  of bisecting toolbar icons mid-bar. Its slot is the band above it plus its
-  ratio box; nothing below, so the expand button and the title follow right
-  under the image. An expanded set drops the band (and `_expandPagesFromSlot`
-  adjusts scroll offset by the collapsed band so page 1 remains flush under
-  `statusInset` with full `ArtworkControls` contrast). The Hero, placeholder and
-  error states stay inside the ratio box, not the slot. Page 1 always goes
-  through the slot box so expanding a set never remounts it. Outside selection
-  the band carries the work's ambient light (THEME-19), rising from the image
-  once it has landed. In selection, every
-  page's badge keeps one inset from its image's top-end corner, moved
-  down only by the part of the image the toolbar covers.
-- **Why:** A wide image at the very top was hard to see and to tap; the
-  matching band below it only pushed the title down, while a sub-toolbar band
-  on 3:4 portrait works split the back and overflow icons across the artwork's
-  top edge. The flight landed on empty slot space, and remounting page 1 lost
-  its decode. On a portrait tablet the slot only opened a gap. A badge moved
-  down a toolbar's height on an image the bar did not reach sat mid-image.
+- **Rule:** On compact widths (< 600dp), a short first illustration shown alone (a single-page work or the first page of a collapsed set; not manga, ugoira, panorama, or two-pane) applies top band `max(0, 0.7 * viewportHeight - natural) / 2` only when `>= kToolbarHeight` (56dp); smaller bands collapse to 0 so portrait works sit cleanly under `statusInset`. Expanding a set drops the band and adjusts scroll offset so page 1 stays flush under `statusInset`. Hero, placeholder, and errors stay inside the ratio box (always routed through the slot box so expanding never remounts page 1). Outside selection, the band shows `AmbientWash` (THEME-19); selection badges offset only by the toolbar overlap on that image.
+- **Why:** Wide images hugged the top edge while sub-toolbar bands split toolbar icons across portrait artwork edges, and remounting page 1 dropped its decode.
 - **Check:** `test/illust_detail_page_test.dart` "a short first image sits a band low; Hero and badge keep to it" "a portrait 3:4 image collapses sub-toolbar band so icons stay over artwork" "gives the first image of a set the same slot" "the band lights up from the image once it has landed"
 - **Code:** `lib/features/illust/detail/illust_detail_content.dart`, `lib/features/illust/detail/widgets/page_image.dart`
 
 ### DETAIL-03 A panorama scrolls before the pager takes over
-- **Rule:** A page whose natural height is under 60% of 280dp shows in a
-  280dp viewport that scrolls sideways, opens centered, and claims only
-  swipes it can still follow; at its edge the detail pager wins.
-- **Why:** Ultra-wide works were unreadable thumbnails; a greedy recognizer
-  trapped the pager.
+- **Rule:** A page whose natural height is under 60% of 280dp renders in a 280dp horizontally scrollable viewport opened centered, handing horizontal swipes to the detail pager only at its edges.
+- **Why:** Ultra-wide works were unreadable thumbnails and greedy recognizers trapped the pager.
 - **Check:** `test/illust_detail_pager_test.dart` "a panorama scrolls first and hands the swipe on at its edge"
 - **Code:** `lib/features/illust/detail/widgets/page_image.dart`
 
 ### DETAIL-04 An illustration set opens folded, without AnimatedSize
-- **Rule:** On narrow layouts an illustration with several pages shows
-  page 1 and an expand button; manga shows every page. The new pages
-  appear without wrapping the lazy sliver in `AnimatedSize`. Page
-  selection expands the set first. Folding from deep in the set lands at
-  the end of page 1.
-- **Why:** `AnimatedSize` around the page sliver built every full-size page
-  at once.
+- **Rule:** On narrow layouts multi-page illustrations open on page 1 plus an expand button (manga shows all pages) without wrapping the lazy sliver in `AnimatedSize`. Page selection expands first; folding from deep in the set lands at the end of page 1.
+- **Why:** `AnimatedSize` forced eager build of every full-size page at once.
 - **Check:** `test/illust_detail_page_test.dart` "an illustration set opens on its first image"
 - **Code:** `lib/features/illust/detail/illust_detail_page.dart`, `lib/features/illust/detail/illust_detail_content.dart`
 
 ### DETAIL-05 Viewer jumps wait for the sheet to close
-- **Rule:** The viewer's page-jump sheet pops with the page, the viewer
-  awaits the sheet route's `completed`, then calls `jumpToPage`.
-- **Why:** Jumping while the modal still blocked semantics tripped the
-  semantics flush assertion (`node.built`).
-- **Check:** `test/illust_detail_viewer_test.dart`
+- **Rule:** The viewer's page-jump sheet pops with the target page; the viewer awaits the sheet route's `completed` future before calling `jumpToPage`.
+- **Why:** Jumping while the modal still blocked semantics triggered the `node.built` semantics assertion.
+- **Check:** `test/illust_detail_viewer_test.dart` "scrubbing jumps to the target page without building crossed pages"
 - **Code:** `lib/features/illust/viewer/image_viewer_page.dart`, `lib/features/illust/viewer/image_viewer_chrome.dart`
 
 ## Sections below the work
 
 ### DETAIL-06 Below-the-fold sections load on demand
-- **Rule:** Related works, the comment preview and the author's other works
-  go through `OnDemandSliver`: nothing is requested until the section is
-  on screen and its pager page has been current for 300 ms. Until then it
-  holds a static placeholder, never a spinner. A paging check may call
-  `loadMore` only on a provider that already exists and has loaded.
-- **Why:** The pager prebuilds neighbours; swiping through works fired
-  requests for each. An off-screen spinner kept producing frames.
+- **Rule:** Related works, comment preview, and author's other works use `OnDemandSliver`: requests wait until on-screen and current in the pager for 300 ms, holding a static placeholder (never a spinner) beforehand. Paging only calls `loadMore` on already-loaded providers.
+- **Why:** Prebuilt pager neighbours fired premature requests and off-screen spinners ticked frames continuously.
 - **Check:** `test/illust_detail_pager_test.dart` "only the current page requests its related works" "a neighbour requests once it has stayed settled"
 - **Code:** `lib/features/illust/detail/on_demand_sliver.dart`, `lib/features/illust/detail/detail_page_activity.dart`
 
 ### DETAIL-07 Sections replace their states without fades
-- **Rule:** A section's placeholder, skeleton, states and content replace
-  each other in place, without `StateFade`.
-- **Why:** A section fading around images that fade on their own stacked
-  two fades.
+- **Rule:** Below-the-fold section states swap in place without `StateFade`.
+- **Why:** Wrapping self-fading images stacked double fades.
 - **Check:** manual
 - **Code:** `lib/features/illust/detail/related_illusts_section.dart`
 
 ### DETAIL-08 First-page failures retry by themselves
-- **Rule:** The sections wrap their body in `AutoRetry`: a network,
-  timeout, rate-limit or 5xx failure of the first page retries twice
-  (1.5 s, then 3 s, at least the server's Retry-After) before the error
-  row waits for the user.
-- **Why:** Transient failures on the detail page left dead sections.
+- **Rule:** Sections wrap their body in `AutoRetry` so transient first-page failures retry twice (1.5 s, 3 s, respecting `Retry-After`) before showing an error row.
+- **Why:** Transient network blips left dead sections.
 - **Check:** manual
 - **Code:** `lib/features/illust/detail/on_demand_sliver.dart`
 
 ### DETAIL-15 Marks and stats under the title, the facts last; sections share one header
-- **Rule:** In this order: the title; one line, wrapping as whole items,
-  of the marks (AI-generated, R-18, R-18G; only those the work has) on
-  tonal accent labels and the stats (views, bookmarks, the full posting
-  time), read as one node, the stats as one sentence; the author on a
-  `PersonCard` (PAGE-07), name over @account, with the follow button;
-  the caption; the tags (`TagChip` enforces `softWrap: false`, `maxLines: 1`,
-  and `TextOverflow.ellipsis`); then, as the block's last line, the facts
-  (size, the page count for two or more pages, the tools when pixiv
-  lists any, and "# n" with a copy glyph). Each fact sits behind its
-  glyph in a box 4dp past its text sideways and 8dp up and down, the
-  facts wrap whole, and every wrapped line starts its first glyph on the
-  16dp margin. A tap on the ID copies the bare number and confirms with
-  a snack bar; its target is its box. Every titled part of the page,
-  inside the info block or below it, starts with `DetailSectionHeader`:
-  a 48dp row whose action's label or glyph ends on the 16dp margin
-  (LAYOUT-15). The info block has no bottom padding; the next header
-  spaces itself. A series card shows "part n of m" once the series' work
-  count is known.
-- **Why:** User decisions. Headings with and without a button sat at two
-  distances from their content. 10-21: the stats and author cards
-  (`surfaceContainerLow`) were barely apart from the page ground
-  (contrast 1.03 in light mode), so the block went compact, with glyph
-  rows. 10-25: with every part shown the block read cluttered: the facts
-  split the title from the author, and the plain author row did not show
-  it opened the profile. The facts moved after the tags, the marks joined
-  the stats, and the author took a card one tier up (`surfaceContainer`,
-  1.08 light, 1.18 dark).
+- **Rule:** Info order: title; wrapping line of tonal marks (AI/R-18/R-18G) + stats (views, bookmarks, full posting time as one semantics sentence); author `PersonCard` (`surfaceContainer`, PAGE-07) with follow button; caption; single-line ellipsized `TagChip`s; trailing wrapped facts (dimensions, page count >= 2, tools, tappable copy-ID chip) aligned to the 16dp margin. Every titled section starts with `DetailSectionHeader` (48dp row aligned to 16dp margin, LAYOUT-15); series cards show "part n of m" once known.
+- **Why:** User decisions: consistent header spacing, clear card hierarchy for the author entry, and clean grouping of marks with stats and technical facts at the end.
 - **Check:** `test/illust_detail_page_test.dart` "marks and tools show only when set; the ID copies; headings align"
 - **Code:** `lib/features/illust/detail/widgets/info_block.dart`, `lib/features/illust/detail/widgets/detail_section_header.dart`
 
 ### DETAIL-16 The info block's parts build as they near
-- **Rule:** `InfoBlock` is a `SliverList.list` of parts (title, marks
-  and stats, author, caption, tags, facts) that stay built once built; the
-  artwork-info jump scrolls to its first part. A part that reads a store
-  watches it itself.
-- **Why:** As one box it was built with the page, below the fold of a
-  long work too, in the push frame.
+- **Rule:** `InfoBlock` is a `SliverList.list` whose parts stay built once built and watch their own stores; artwork-info jump scrolls to its first part.
+- **Why:** One monolithic box built offscreen sections during the push frame.
 - **Check:** `test/illust_detail_actions_test.dart` "a long six-page work still reaches InfoBlock via the menu"
 - **Code:** `lib/features/illust/detail/widgets/info_block.dart`, `lib/features/illust/detail/illust_detail_page.dart`
 
 ### DETAIL-17 The comment section writes in place
-- **Rule:** The section opens with an entry pill (the signed-in user's
-  avatar and a hint, 48dp or taller, a stamp key at its end), then up to
-  three comment rows without a card, each opening the comments page.
-  "See all" shows only over comments counted or on hand. A work known to
-  take comments shows the pill while loading, an unknown one holds its
-  place; with no comments the pill asks for the first; a failure is one
-  line with retry; comments off is a lock line and no pill (API-04). The
-  pill raises the composer over the page's bottom in place of the action
-  bar, on the keyboard or, from the stamp key, the stamp panel; signed
-  out it opens the sign-in. The composer lives on that surface
-  (`CommentComposer.onGone`): it stands on the keyboard or panel as it
-  rises and falls, shows over the upper half of its travel above the
-  navigation bar, and the page drops it once the surface is down (a
-  keyboard that never insets: it rests above the navigation bar after
-  600ms). A keyboard is down once its inset is no more than the
-  navigation bar's: some input methods leave the bar in the inset with
-  nothing focused.
-  The composer sets itself off the page with the bar shadow
-  (`FuncSemanticTokens.barShadow`, as NAV-07), inside its own fade. The
-  page stays live around it: a touch outside (`TapRegion`) sends it
-  down and goes on to scroll, page or open what it landed on; back, a
-  send, the page swiped away or the keyboard put away on its own send it
-  down too, and unsent text stays as the work's draft. A sent comment
-  heads the preview, and the count grows by one.
-- **Why:** User decision (10-21): an "add comment" text button misaligned
-  under the heading, and writing meant leaving the work for the comments
-  page. A see-through barrier that swallowed every touch was tried and
-  rejected: the page looked live but took nothing. A composer apart from
-  its keyboard was rejected too (10-22): it stood alone while the input
-  method woke, vanished at once on a touch outside and left the keyboard
-  to fall alone, and stayed behind when only the keyboard was put away.
-  User report (10-25): where the input method left the bar in the inset,
-  the composer never went, back was blocked, and its top line, drawn
-  outside the fade, stayed on screen; a shadow replaced the line (user
-  decision).
+- **Rule:** The section shows an entry pill (user avatar, hint, stamp key, >= 48dp tall) above up to three borderless comment rows; "See all" appears only with counted/loaded comments; comments-off shows a lock line with no pill (API-04). Tapping raises `CommentComposer` (`onGone`) attached to the keyboard or stamp panel above `barShadow` (NAV-07) while the page remains interactive (`TapRegion` dismisses while passing touches through; unsent drafts persist; sent comments prepend and increment count). Keyboards are treated as dismissed once inset `<=` navigation bar height (600 ms fallback for non-insetting IMEs).
+- **Why:** User decisions: compose in place without leaving the page or blocking touches behind an opaque barrier, and handle IMEs that leave nav-bar insets behind cleanly.
 - **Check:** `test/illust_detail_actions_test.dart` "the entry composes in place; a sent comment heads the preview"; `test/comments_replies_test.dart` "a composer on its surface goes with a keyboard down to the bar"
 - **Code:** `lib/features/illust/detail/comments_preview_section.dart`, `lib/features/illust/detail/widgets/detail_comment_layer.dart`, `lib/app/widgets/comment_composer.dart`
 
 ## Chrome
 
 ### DETAIL-09 The action bar is a centered opaque capsule or pinned inspector bar
-- **Rule:** On single-column pushed detail pages, download and bookmark sit in
-  one floating capsule (`DetailActionBar`) horizontally centered at the bottom
-  edge (`FuncSpacing.sm` margin above the safe inset): 56dp high, opaque
-  `FuncSemanticTokens.surface` with a `brandHairline` border and `layerLift`
-  shadow (THEME-20). Comments are written from the comment section (DETAIL-17).
-  The top bar carries only the ⋮ menu (share, edit bookmark, watch later, page
-  selection, work info and mutes with text labels; no action depends only on a
-  long press, FB-03). In `embeddedInspector: true` (`DesktopGalleryInspector`)
-  and two-pane stage mode (`DETAIL-14`), the outer `AppBar` and bottom floating
-  `DetailActionBar` are omitted: two-pane stage pins `DetailAuthorCard` plus the
-  inline action bar (`BookmarkSwitchButton` + count pill, `DetailDownloadButton`,
-  Share and deduplicated ⋮ menu), while `embeddedInspector` pins a compact
-  `AuthorSummary` header (18dp avatar, conditional `FollowSwitchButton`,
-  `Icons.open_in_full` expand and `Icons.close` dismiss buttons) directly above
-  that inline action row (with work-info jump in its ⋮ menu).
-- **Why:** Single-column mobile pages keep primary actions in thumb reach
-  without frosted text smearing or covering the author card, while wide two-pane
-  stages and the desktop side inspector eliminate bottom floating capsules that
-  occlude artwork or duplicate chrome.
+- **Rule:** Single-column pushed detail pages center a 56dp opaque `DetailActionBar` capsule (`FuncSemanticTokens.surface`, `brandHairline`, `layerLift`, THEME-20) for download and bookmark above the safe inset, with ⋮ in the top bar holding share, bookmark edit, watch later, page selection, info jump, and mutes (FB-03). Two-pane stage (`DETAIL-14`) and `embeddedInspector: true` (`DesktopGalleryInspector`) omit the outer `AppBar` and floating capsule, pinning the author summary (`DetailAuthorCard` in stage; compact 18dp avatar header with expand/close buttons in inspector) directly above the inline action bar.
+- **Why:** Mobile keeps thumb-reachable opaque actions without frosted smearing, while wide stages and inspectors avoid occluding artwork or duplicating chrome.
 - **Check:** `test/illust_detail_actions_test.dart` "the ⋮ menu carries the long-press actions too" "splits into image pager and meta column"
 - **Code:** `lib/features/illust/detail/widgets/detail_action_bar.dart`, `lib/features/illust/detail/illust_detail_content.dart`, `lib/features/illust/detail/illust_detail_page.dart`
 
 ### DETAIL-14 Landscape stage, bounded modal overlay, and universal desktop gallery inspector
-- **Rule:** Desktop galleries offer two `DesktopDetailMode` choices (`NAV-17`):
-  `modal` (pushed stage) and `inspector` (`>= 1040dp` viewport and `>= 760dp`
-  host content width via `DesktopInspectableGallery`, opening a `420–520dp`
-  trailing `DesktopGalleryInspector` across recommended, ranking, new, search
-  results, profile, bookmark-tag, history, watch-later and series illust
-  feeds); on `FormFactor.pc`, `FeedDensity.standard` uses
-  `minCardExtent: 204` (`_pcDensityGrid`) so 1280px windows keep 3 masonry
-  columns beside the inspector while 1440px full-width keeps 5. The
-  inspector embeds `IllustDetailPage(embeddedInspector: true)` under its own
-  `'desktop-inspector'` Hero scope so browsing history (`HistoryVisibility`),
-  multi-page/ugoira, `detailQualityProvider`, actions, comments and related
-  works work identically; `Esc`/mouse back exits sub-modes then closes the pane
-  without popping the shell, non-illust tabs or multi-select close it, and
-  expanding to the full stage forwards `heroScope` and `pagerSource`. For pushed
-  detail routes, when `AppBreakpoints.useTwoPaneDetailOf` holds (`>= 480dp` tall
-  and foldable `book`/`tabletop` or `>= 600dp` wide with `height / width < 1.2`),
-  `AdaptiveTwoPane` pairs the `AmbientWash` image pager (haloed `BackButtonIcon` and
-  `DetailPageCounter`, never unisolated `BackdropFilter` discs/docks;
-  `DetailImagePager` exposes pointer-hover haloed prev/next controls,
-  mouse-wheel paging, and inspector-safe `HardwareKeyboard`
-  `ArrowLeft`/`ArrowRight` paging while leaving `Shift+Arrow` to
-  `IllustDetailPagerPage`) with a
-  pinned `340–460dp` metadata pane (hinge-aligned on foldables, pointer-resizable
-  under a stable `Stack`). On large flat screens (`>= 960×600`),
-  `FuncPage(boundedOverlayOnWide: true)` and `DetailOverlayFrame` float the
-  stage over a full-cycle faded scrim without lifting underlying feed bars,
-  anchoring the child with a `GlobalKey` across resizes (`NAV-21`), synchronizing
-  `HomeShellModalScrim` over `ShellRail` (`NAV-20`), and exposing `Icons.close`
-  (`closeButtonTooltip`, including loading, error, restricted, and not-found
-  outer `AppTopBar` states) instead of a back arrow; `SwipePaging`
-  hands edge swipes to the work pager (`ExcludeFocus` on inactive neighbours)
-  and paints decoded grid stand-ins before build.
-- **Why:** Users switch between a 90%+ modal stage and side-by-side feed
-  scanning without sacrificing history or detail features, while hinge-aware
-  panes, rail-synced modal scrims, consistent close affordances, and unblurred
-  stages keep foldables and desktop animations cohesive.
-- **Check:** `test/layout_breakpoints_test.dart` "two-pane detail needs a landscape area at least medium wide" "the secondary column stays between its bounds" "renders primary and secondary side by side" "AdaptiveTwoPane avoids vertical book hinge including rail" "AdaptiveTwoPane splits vertically on tabletop hinge" "AdaptiveTwoPane pointer handle resizes and saves ratio"; `test/illust_detail_actions_test.dart` "splits into image pager and meta column" "a layout switch fades the page in rather than swapping it"; `test/illust_detail_pager_test.dart` "an image pager at its last page hands the swipe to the work pager" "an image pager at its first image hands a backward swipe to the work pager, then follows the finger" "a two-pane stand-in paints the grid image on the stage"; `test/responsive_layout_test.dart` "PC standard grid keeps 3 columns at 1280px inspector width"; `test/home_branch_stack_test.dart` "ShellRail dims behind bounded DetailOverlayFrame and dismisses on tap"; `test/illust_detail_pager_test.dart` "DetailImagePager supports hover arrows, mouse wheel, and unfocused arrow keys"
+- **Rule:** Desktop galleries support `DesktopDetailMode.modal` (pushed stage) and `inspector` (`>= 1040dp` viewport, `>= 760dp` host width via `DesktopInspectableGallery`, opening a 420–520dp trailing `DesktopGalleryInspector`; on `FormFactor.pc` `FeedDensity.standard`, `minCardExtent: 204` keeps 1280px at 3 masonry columns and 1440px at 5). The inspector mounts `IllustDetailPage(embeddedInspector: true)` under `'desktop-inspector'` Hero scope with full history/media/action parity (`Esc`/back exits sub-modes then closes pane; expanding forwards `heroScope` and `pagerSource`). Pushed detail routes enter `AdaptiveTwoPane` when `AppBreakpoints.useTwoPaneDetailOf` holds (pairing `AmbientWash` `DetailImagePager` with hover arrows, wheel paging, and unfocused `ArrowLeft`/`ArrowRight` against a 340–460dp hinge-aware resizable meta pane). Wide flat screens (`>= 960x600`) float `DetailOverlayFrame` via `FuncPage(boundedOverlayOnWide: true)` anchored with a `GlobalKey` across resizes (NAV-21), dimming `ShellRail` via `HomeShellModalScrim` (NAV-20), and showing close (`UiIcons.close`, `closeButtonTooltip`) across all states.
+- **Why:** Enables fast side-by-side browsing or focused modal stages with full feature parity across foldables and desktops.
+- **Check:** `test/layout_breakpoints_test.dart` "two-pane detail needs a landscape area at least medium wide" "the secondary column stays between its bounds" "renders primary and secondary side by side" "AdaptiveTwoPane avoids vertical book hinge including rail" "AdaptiveTwoPane splits vertically on tabletop hinge" "AdaptiveTwoPane pointer handle resizes and saves ratio"; `test/illust_detail_actions_test.dart` "splits into image pager and meta column" "a layout switch fades the page in rather than swapping it"; `test/illust_detail_pager_test.dart` "an image pager at its last page hands the swipe to the work pager" "an image pager at its first image hands a backward swipe to the work pager, then follows the finger" "a two-pane stand-in paints the grid image on the stage" "DetailImagePager supports hover arrows, mouse wheel, and unfocused arrow keys"; `test/responsive_layout_test.dart` "PC standard grid keeps 3 columns at 1280px inspector width"; `test/home_branch_stack_test.dart` "ShellRail dims behind bounded DetailOverlayFrame and dismisses on tap"
 - **Code:** `lib/app/layout/app_breakpoints.dart`, `lib/app/layout/two_pane.dart`, `lib/app/layout/window_layout_spec.dart`, `lib/app/navigation/func_page.dart`, `lib/app/widgets/feed/feed_grid.dart`, `lib/app/widgets/feed/desktop_inspector_scope.dart`, `lib/features/illust/detail/widgets/desktop_gallery_inspector.dart`, `lib/features/illust/detail/widgets/detail_overlay_frame.dart`, `lib/features/illust/detail/illust_detail_page.dart`, `lib/features/illust/detail/illust_detail_content.dart`, `lib/features/illust/detail/widgets/detail_image_pager.dart`, `lib/features/illust/detail/illust_detail_pager_page.dart`
 
 ### DETAIL-18 Single-column detail text keeps the article width
-- **Rule:** In the single-column layout, when the page's content area is
-  wider than `ContentWidths.article` (700dp), the info block and the
-  comments preview sit in a centred 700dp column (their own page margin
-  inside it) so a line holds roughly 40–60 characters; the artwork pages
-  and the related-works grid stay at the page's full width. Narrower
-  pages are unchanged.
-- **Why:** On a large portrait window the caption and comments ran the
-  window's ~900dp width in one line each, hard to read and unlike the
-  feed's text columns.
+- **Rule:** On single-column content areas wider than `ContentWidths.article` (700dp), info block and comments preview center inside a 700dp column while artwork and related grid keep full width.
+- **Why:** Full-width ~900dp portrait lines were hard to read.
 - **Check:** `test/illust_detail_page_test.dart` "text keeps the article column on a large portrait"
 - **Code:** `lib/features/illust/detail/illust_detail_page.dart`, `lib/features/illust/detail/illust_detail_content.dart`, `lib/app/layout/sliver_width_builder.dart`
 
 ### DETAIL-10 The download button listens to the manager itself
-- **Rule:** The detail download button subscribes to
-  `DownloadManager.changes` (progress included) and shows the whole work's
-  state: ring, saved check, or failure. The detail page and the viewer
-  refresh their page badges on `events` of their own work only.
-- **Why:** `events` carries terminal events only; rebuilding the page per
-  progress tick was costly. A batch of another work rebuilt every open
-  detail page once per saved page.
-- **Check:** `test/illust_detail_download_test.dart`
+- **Rule:** `DetailDownloadButton` subscribes to `DownloadManager.changes` for live progress; detail and viewer pages refresh page badges only on terminal `events` matching their own work.
+- **Why:** Rebuilding whole detail pages per progress tick or unrelated batch events wasted frames.
+- **Check:** `test/illust_detail_download_test.dart` "download feedback opens tasks after the detail is disposed" "multi-page works expose an explicit selection action"
 - **Code:** `lib/features/illust/detail/widgets/detail_action_bar.dart`, `lib/features/illust/detail/illust_detail_page.dart`, `lib/features/illust/viewer/image_viewer_page.dart`
 
 ### DETAIL-11 One page counter that never hard-cuts
-- **Rule:** Page numbers on the detail page come only from
-  `DetailPageCounter`: hidden for single-page and ugoira works and during
-  selection, shown after the entry transition, `IgnorePointer`, fading in
-  and out. A page whose only visible strip is behind the status bar and
-  toolbar counts as off screen. Its collapse pill fades out while the
-  collapse button at the end of the set is half on screen, so one
-  collapse shows at a time; that position is read from the button's
-  render box after layout, since a sliver child scrolled off but still in
-  the cache extent stops painting and never reports hidden.
-- **Why:** Several counters disagreed; the counter hung over the info
-  block. Two collapse controls at once read as two different actions.
-- **Check:** `test/illust_detail_page_test.dart`
+- **Rule:** `DetailPageCounter` is the sole page counter (hidden for single-page, ugoira, and selection; `IgnorePointer`; fades after entry transition). A page visible only behind the status/toolbar counts off-screen; its collapse pill fades out while the bottom collapse button is half visible (read via render box after layout).
+- **Why:** Multiple counters disagreed and dual collapse pills confused users.
+- **Check:** `test/illust_detail_page_test.dart` "an illustration set opens on its first image"
 - **Code:** `lib/features/illust/detail/widgets/detail_page_counter.dart`
 
 ### DETAIL-12 The top bar draws in as page 1 leaves
-- **Rule:** The body extends behind the top bar; page 1 starts below the
-  status bar. The toolbar is transparent while page 1 is under it, then
-  surface and title fade in over the last `kToolbarHeight`. The scroll edge
-  line stays off until the bar is fully drawn. After a Hero push the bar
-  and action bar start hidden and appear once the route animation
-  completes; the route status is read after the first frame.
-- **Why:** A translucent bar over the flight and two stacked edges looked
-  broken; the proxy animation reports `completed` before the push starts.
-- **Check:** `test/hero_transition_test.dart`
+- **Rule:** Body extends behind the top bar with page 1 starting below status bar; toolbar stays transparent over page 1 and fades in over the final `kToolbarHeight` (scroll edge line stays off until fully opaque). After a Hero push, bars reveal once route animation completes (read after first frame).
+- **Why:** Translucent bars over Hero flights and stacked edges looked broken; proxy animations report `completed` prematurely on frame 0.
+- **Check:** `test/hero_transition_test.dart` "the viewer leaves whole and square; the detail page answers mid-flight"
 - **Code:** `lib/features/illust/detail/illust_detail_page.dart`, `lib/app/widgets/app_top_bar.dart`
 
 ### DETAIL-13 Prompt anchors notify after layout
-- **Rule:** `PromptAnchors` notifications raised during build or layout are
-  deferred to one post-frame notify.
-- **Why:** An anchor under a `LayoutBuilder` mutated the prompt layout in
-  the middle of `performLayout`.
+- **Rule:** `PromptAnchors` defers build/layout notifications to one post-frame callback.
+- **Why:** Notifying during `LayoutBuilder` mutated prompt layout mid-`performLayout`.
 - **Check:** manual
 - **Code:** `lib/app/widgets/prompt_anchor.dart`
 
 ### DETAIL-19 Pointer viewer wheel zoom, multi-page hover scrubber, wide info panel and selectable detail text
-- **Rule:** `ImageViewerPage` coordinates `_buildTopBar` `leadingInset` with
-  `FuncSpacing.sm`, pads `_buildBottomBar` symmetrically with `FuncSpacing.sm`,
-  zooms around the pointer on mouse wheel ticks and
-  snaps scales within 0.94 to 1.06 cleanly back to `1.0x` (zoomed images absorb
-  wheel ticks rather than turning pages; Shift plus wheel turns pages), shows
-  the bottom hover thumbnail scrubber (`_PageScrubber`) only when `pages >= 2`,
-  and on viewports at least 840dp wide docks artwork metadata into a 320dp
-  trailing `_ViewerInfoPanel` (toggling the wide info button to filled
-  `Icons.info`, animated on `MotionTokens.chrome` with leaving
-  `IgnorePointer`; `Esc`/back closes an open panel before exiting the viewer)
-  whose author/tag links pop the viewer before navigating. Standalone detail
-  pages wrap selectable metadata in `SelectionArea`
-  while excluding non-text chrome, collapsed `ExpandableText` fade masks, and
-  touch-mode `TagChip`s via `SelectionContainer.disabled`; paged mode
-  (`IllustDetailPagerPage`) hosts the single outer `SelectionArea` outside its
-  slope-gated `_PagerDragRecognizer` (`PageView`) so touch sideways swipes beat
-  selection drags cleanly while mouse drags select across copy.
-- **Why:** Desktop viewing pairs cursor-anchored wheel zoom and persistent wide
-  info panels with arbitrary text selection without breaking touch pill/card
-  or pager swipes, or leaving duplicate routes behind the viewer.
+- **Rule:** `ImageViewerPage` aligns top/bottom bar insets on `FuncSpacing.sm`, zooms around the cursor on mouse wheel (snapping 0.94–1.06 to `1.0x`; zoomed absorbs wheel while Shift+wheel turns pages), shows the hover thumbnail scrubber only for `pages >= 2`, and on `>= 840dp` docks a 320dp trailing info panel (filled info toggle on `MotionTokens.chrome` with leaving `IgnorePointer`; `Esc`/back closes panel before viewer; author/tag links pop viewer before navigating). Standalone detail pages wrap metadata in `SelectionArea` (excluding chrome, collapsed `ExpandableText` fades, and touch `TagChip`s via `SelectionContainer.disabled`); `IllustDetailPagerPage` hosts one outer `SelectionArea` outside its slope-gated pager drag recognizer.
+- **Why:** Desktop needs wheel zoom, docked info, and text selection without breaking touch swipes or stacking stale viewer routes.
 - **Check:** `test/illust_detail_viewer_test.dart` "ImageViewer supports wheel zoom with 1.0x snap, multi-page hover scrubber, and wide info panel pop-before-navigate"; `test/illust_detail_page_test.dart` "SelectionArea wraps detail and comments text while excluding IllustCard, collapsed fade, and touch tags"
 - **Code:** `lib/features/illust/viewer/image_viewer_page.dart`, `lib/features/illust/viewer/image_viewer_chrome.dart`, `lib/features/illust/detail/illust_detail_page.dart`, `lib/features/illust/detail/illust_detail_pager_page.dart`, `lib/features/illust/detail/illust_detail_content.dart`, `lib/app/widgets/expandable_text.dart`, `lib/app/widgets/tag_chips.dart`

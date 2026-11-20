@@ -383,7 +383,10 @@ void main() {
       () async => history = await openHistoryRepository(const []),
     );
     final (container, _, _) = await makeWorld(
-      extraOverrides: [historyRepositoryProvider.overrideWithValue(history)],
+      extraOverrides: [
+        historyRepositoryProvider.overrideWithValue(history),
+        imageWorkerProvider.overrideWithValue(stalledImageWorker()),
+      ],
     );
     container.read(illustStoreProvider).mergeAll([
       for (final id in [42, 43, 44]) parseIllust(illustJson(id)),

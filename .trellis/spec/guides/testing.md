@@ -21,321 +21,95 @@ reviewed: 2026-11-21
 ## What a test proves
 
 ### TEST-01 A regression test fails on the defect and sits with its behaviour
-- **Rule:** Before trusting a test written with a fix, restore the old
-  implementation (`git show HEAD:<path>`), run the new cases and confirm
-  the ones encoding the defect fail. The kept test is the case its
-  behaviour was missing: a table row or a case beside that behaviour's
-  tests, named after the behaviour, with the issue number, if any, in a
-  comment. A new group only when the behaviour has no tests.
-- **Why:** Regression tests passed for reasons unrelated to the bug. Cases
-  named after incidents piled up apart from the behaviour they test, one
-  per instance of the same defect.
+- **Rule:** Confirm new regression cases fail against the old code (`git show <pre-fix-ref>:<path>`) before trusting them. Place each case beside the behaviour it belongs to (named for the behaviour, issue number in a comment); add a new group only when none exists.
+- **Why:** Regression tests otherwise passed for unrelated reasons and piled up in incident-named grab bags.
 - **Check:** manual
 - **Code:** `test`
 
 ### TEST-02 Assert the end state and that the condition happened
-- **Rule:** Gesture and animation tests assert what is on screen after the
-  interaction ends. A case that depends on a condition (an overscroll, a
-  sent request) asserts the condition occurred, and names which side of a
-  threshold it exercises.
-- **Why:** "Indicator stuck on screen" passed because every assertion
-  stopped at release; a pull short of the arm threshold took a branch no
-  real pull takes.
+- **Rule:** Gesture and animation tests assert the post-interaction on-screen state, verify triggering conditions actually occurred, and state which side of a threshold they exercise.
+- **Why:** Assertions stopping at pointer-up missed stuck indicators and unexercised branches.
 - **Check:** manual
 - **Code:** `test`
 
 ### TEST-03 Assert observable behaviour, at the lowest layer
-- **Rule:** Tests assert rendered output, semantics, navigation and state
-  changes, not framework or third-party constructor parameters
-  (`tester.widget<T>(…).param`). The exception is a parameter that is
-  itself the contract; comment which. One behaviour is covered at one
-  layer: the lowest that reproduces it. A regression test is a widget
-  test only when the defect lives in interaction or layout; a logic
-  defect found through the UI gets a unit test of that logic.
-- **Why:** Parameter assertions failed in bulk on every refactor. A widget
-  case averages 27 lines against a unit case's 18, and covers more
-  incidental code that breaks it.
+- **Rule:** Assert rendered output, semantics, navigation, and state changes—not constructor parameters (`tester.widget<T>(...).param`) unless the parameter is itself the contract. Cover each behaviour at the lowest layer that reproduces it (unit test for logic, widget test only for layout/interaction).
+- **Why:** Parameter assertions break across refactors and widget tests cost more to run and maintain than unit tests.
 - **Check:** manual
 - **Code:** `test`
 
 ### TEST-04 Removing a guard removes the tests that froze it
-- **Rule:** Tests encoding a removed or relaxed guard's wrong behaviour
-  are deleted in the same commit; no `skip:`. A replaced implementation's
-  tests are rewritten in the same PR.
-- **Why:** Skipped tests kept asserting the old defect.
+- **Rule:** Delete tests encoding removed/relaxed behaviour in the same commit; never use `skip:`. Rewrite replaced implementations' tests in the same PR.
+- **Why:** Skipped tests froze stale defects in the suite.
 - **Check:** `test/architecture/layering_and_hygiene_test.dart` "no skipped cases"
 - **Code:** `test`
 
 ### TEST-12 Refactors and optimisations add no tests
-- **Rule:** A refactor or performance change keeps the existing tests and
-  adds a case only for a contract a user can observe (a blurred cover
-  never paints sharp first; an original nobody wants stops downloading).
-  How it gets there (what builds in which frame, how far a cache grows,
-  which widgets rebuild) is not asserted. A test that breaks on such a
-  change while the behaviour still holds pinned the implementation:
-  rewrite it against the behaviour. A broken behaviour is fixed in the
-  code.
-- **Why:** Optimisation commits pinned their mechanism in new cases, which
-  the next optimisation had to rewrite.
+- **Rule:** Refactors and optimisations keep existing tests and add cases only for user-observable contracts, never internal frame/cache/rebuild mechanics. Rewrite mechanism-pinning tests against observable behaviour.
+- **Why:** Mechanism-pinned cases forced churn on every subsequent optimisation.
 - **Check:** manual
 - **Code:** `test`
 
 ## Volume
 
 ### TEST-05 Each change keeps its tests in step with its code
-- **Rule:** User decision (11-08, revised 11-21): a change may add at most
-  `ratio` × its gross added `lib/` code lines plus `change_tolerance`
-  `test/` code lines (`tool/test_budget.json`: 0.657, 150); more fails CI.
-  Using gross added `lib/` lines ensures refactoring/deleting duplicate
-  `lib/` code never strips test allowance from fixes in the same PR.
-  The suite's test/lib, unit vs `testWidgets` share, and unrecorded
-  `tool/test_durations.json` file count are reported on every run;
-  test/lib warns above `trend_warning` (0.68), the user's cue for a
-  slimming round, and never fails. Only the user changes these numbers;
-  an agent asks and never edits them without that consent. Counted: Dart
-  code lines, blank and comment lines excluded; not `test/review/`,
-  `test/fixtures/` or the localizations `flutter gen-l10n` writes into
-  `lib/l10n/`. A change that needs room makes it in this order: dedupe or
-  table-drive repeated cases; drop UI tests of colour, spacing, order or
-  copy; drop tests of removed code; drop a duplicated layer; prune under
-  TEST-13. Coverage of core logic, fixed bugs and security is never given
-  up for room. A UI change ships one or two tests of its key behaviour;
-  layout, colour, spacing and copy are checked with review screenshots. No
-  per-locale or per-variant copies of a case. Core logic (network,
-  credentials, downloads, paging, parsing, persistence) and every fixed
-  bug keep thorough coverage. A file over 1500 lines is split by feature,
-  with shared fakes in `test/helpers/`. A test file is named after the
-  `lib/` module it covers (never roadmap phases such as `phase*`,
-  `matrix_gate`, `p0_p1`, or `*_audit`); a file of one or two cases joins
-  its feature's file unless it is the only test of its module.
-- **Why:** The suite doubled in a month, mostly with parameter assertions
-  and duplicated layers; dozens of one-case files each cost a compile;
-  test/lib rose from 0.41 to 0.81. A fixed 60,000-line cap and then a
-  total cap of ratio × `lib/` (10-13 to 11-08) both sat full: the ratio
-  was raised five times, changes folded lines to fit, and a change
-  deleting 420 `lib/` lines tightened the cap. Of the 44 changes after
-  10-29 the median added 17 lines over ratio × its `lib/` growth, 80%
-  at most 85 (a bug fix brings its case with little code); 150 would
-  have stopped five, the largest the 409-line smoke matrix. Gating each
-  change keeps that discipline without a shared wall; the trend warning
-  catches the slow drift a per-change gate allows.
+- **Rule:** User decision: a change may add at most `ratio` x gross added `lib/` code lines plus `change_tolerance` `test/` code lines (`tool/test_budget.json`: 0.657, 150); exceeding fails CI. Using gross added `lib/` lines prevents refactors that delete duplicate `lib/` code from penalising needed tests. Every run prints test/lib (soft warning above `trend_warning` 0.68), unit vs `testWidgets` share, and unrecorded `tool/test_durations.json` files. Only the user changes budget numbers. Counted lines exclude blanks, comments, `test/review/`, `test/fixtures/`, and generated `lib/l10n/`. Make room by deduplicating, dropping styling/copy/removed-code/duplicate-layer tests, and pruning under TEST-13—never by sacrificing core logic, bug-fix, or security coverage. Keep test files <= 1500 lines, named after the `lib/` module (never roadmap phases like `phase*`, `matrix_gate`, `p0_p1`, or `*_audit`), and fold 1–2 case fragments into their feature suite.
+- **Why:** Unchecked widget/parameter tests doubled the suite and bloated compile times; per-change gross-added gating preserves discipline without punishing code cleanup.
 - **Check:** `tool/test_budget.py`, `test/architecture/layering_and_hygiene_test.dart` "test files stay under" "no roadmap-phase test filenames"
 - **Code:** `test`
 
 ### TEST-13 A passing test may be pruned; a failing one is never weakened
-- **Rule:** User decision: a failing test is never deleted, skipped or
-  loosened to get green; the code is fixed, or the test changes in the
-  commit that changes or removes the behaviour it asserts (TEST-04). A
-  passing test of a behaviour that stays may be pruned when the confidence
-  it gives is kept: another case or a scan covers the same condition, or
-  it repeats another case. A merge keeps each case's starting state as well
-  as its checks: cases that start from different states test different
-  conditions. A test that pins implementation (TEST-03,
-  TEST-12) is rewritten against the behaviour it guards, or pruned when
-  that behaviour is covered or not observable by a user. Prunes get their
-  own commit whose message names, for each, the reason and the covering
-  case, or TEST-12 for a mechanism; the PR lists them. A change that edits
-  a test file also prunes that file's redundant cases, and no other
-  file's.
-- **Why:** The suite only grew: fixes and optimisations never removed a
-  case, and removals came only from deleted code or slimming passes.
-  Agents add tests readily, and deleting a failing test is how an agent
-  cheats; whether the test was failing separates pruning from cheating.
-  Two merges in a slimming pass kept every check yet lost the condition:
-  one re-tapped a tab after a switch instead of the tab the page opened on,
-  the other sent a reply instead of a top-level comment.
+- **Rule:** User decision: never delete, skip, or loosen a failing test to turn green—fix the code or update the test with an intentional behaviour change (TEST-04). Passing tests may be pruned only when coverage is preserved by another case or scan (preserving distinct starting states when merging) or when pinning unobservable implementation (TEST-03/TEST-12). Document each prune's reason and covering case/rule in its commit and PR.
+- **Why:** Distinguishes disciplined suite slimming from weakening tests to hide regressions.
 - **Check:** manual
 - **Code:** `test`
 
 ### TEST-14 A recurring defect class becomes a scan
-- **Rule:** When a defect class is fixed for the second or third time, a
-  scan under `test/architecture/` fails on new instances, the existing
-  instances are fixed, and the per-instance cases fold into the scan under
-  TEST-13. A scan that cannot avoid flagging correct code is not added;
-  the cases stay.
-- **Why:** Each instance of a class got its own regression test while
-  nothing stopped the next instance. Stale async results (a page gone, an
-  account switched, a retry overtaking) stay cases: a scan inside one
-  function sees about half of the past page-gone instances and flagged only
-  correct code on the current tree, and a late write after an account
-  switch or an overtaking retry has no syntactic mark.
+- **Rule:** On a defect class's second or third occurrence, add a static scan under `test/architecture/` (when it can avoid false positives), fix existing instances, and fold per-instance tests under TEST-13.
+- **Why:** Per-instance tests did not prevent new instances of structural mistakes.
 - **Check:** manual
 - **Code:** `test/architecture`
 
 ### TEST-10 A test double stands at a boundary and is defined once
-- **Rule:** Doubles stand in only for what is outside the app: the network,
-  platform channels, the keystore, the clock. The app's repositories run
-  real, the App API through `PixivApi` routes (a domain's `…Api` class in
-  `test/helpers/`), stored data as TEST-09 says. The App API fakes check
-  the method too: a path takes the method `appApiTakes` lists, and a
-  request sent with another fails as an unrouted one does. Look in
-  `test/helpers/` before writing a double, fixture server, wait loop or
-  harness. One that a second file needs moves there; a small difference
-  becomes a parameter. A double that behaves differently gets a name that
-  says how (`_ThrowAfterWriteSink`, not a second `_FailingSink`) and a body
-  mostly its own: sharing 80% of its lines with a class elsewhere is a
-  copy.
-- **Why:** Eight copies of one account stub drifted apart; renamed copies
-  passed a name-only check. Repository fakes answered what no endpoint
-  answers (count-less user details, a refused comment send as "delete only
-  your own") and hid the requests pages make (the mute list, the shell's
-  preloaded feeds). Fakes routed by path alone, and a field check reads
-  the query and the form alike, so a write sent as a read still passed.
+- **Rule:** Doubles stand in only for external boundaries (network, platform channels, keystore, clock); app repositories run real (App API via `PixivApi` routes checking HTTP method via `appApiTakes`). Shared doubles/helpers live in `test/helpers/` with distinct names and bodies (< 80% line overlap with any other double).
+- **Why:** Copied stubs drifted apart and repository fakes hid real endpoint contracts and HTTP method bugs.
 - **Check:** `test/architecture/layering_and_hygiene_test.dart` "each test double is defined once" "no test double is copied into a second file" "no test double stands in for an app repository"
 - **Code:** `test/helpers`
 
 ## Test environment traps
 
 ### TEST-06 CI shards whole files; two-tier PR vs Nightly matrix; local gate resolves the Dart import graph
-- **Rule:** CI gives each shard whole test files through
-  `tool/test_shards.py`; never use `flutter test --total-shards`. Every
-  PR-tier file under `test/` ending in `_test.dart` (excluding file-level
-  `@Tags(['matrix'])`) lands in exactly one shard on PRs and runs with
-  `-x matrix`, keeping core `ru/compact` layout checks, core `zh/regular`
-  route smokes, and router table coverage on every PR; the full Cartesian
-  `matrix` tag runs in `.github/workflows/nightly-matrix.yml` nightly, on
-  demand, and on PRs touching `lib/l10n/**`, `lib/app/navigation/route*.dart`,
-  `lib/app/theme/**`, `test/locale_layout/**`,
-  `test/helpers/locale_layout.dart`, `test/helpers/route_smoke.dart`,
-  `test/review/**`, `dart_test.yaml`, or
-  `.github/workflows/nightly-matrix.yml`. `tool/test_shards.py --check`
-  warns above 10 unrecorded files in `tool/test_durations.json` and fails
-  above 20. Pushes to `dev` run a fast affected-test pass and pushes to
-  `main` rely on the strict PR gate. Locally `tool/gate.sh` runs static
-  checks, `test/architecture/` scans, and the PR-tier transitive tests
-  selected by `tool/affected_tests.py` (following `import`, `export`,
-  `part`/`part of`, subdirectory `flutter_test_config.dart`, `.arb`,
-  `assets/icon.ttf`, and `test/fixtures/**`, skipping Dart checks on pure
-  docs/tooling diffs) under a bounded concurrency cap
-  (`GATE_TEST_CONCURRENCY`, default 4 under 4G and 6 under 8G).
-  `tool/gate.sh --fast` skips fan-out during iteration, `--full` runs the
-  PR suite (`-x matrix`), and `--matrix` runs `-t matrix`.
-- **Why:** `--total-shards` made each shard compile almost the whole
-  suite; direct grep missed `part of` and helper hops; running the full
-  800+ Cartesian locale/route matrix on every unrelated PR consumed most
-  of CI runner time; uncapped `-j 10` on a 20-thread host triggered silent
-  `frontend_server` OOMs.
+- **Rule:** CI shards whole PR-tier `*_test.dart` files (excluding file-level `@Tags(['matrix'])`) via `tool/test_shards.py` and runs `-x matrix`, keeping core `ru/compact` layout checks, core `zh/regular` route smokes, and router coverage on every PR. Full `matrix` runs in `.github/workflows/nightly-matrix.yml` nightly, on demand, and on PRs touching `lib/l10n/**`, `lib/app/navigation/route*.dart`, `lib/app/theme/**`, `test/locale_layout/**`, `test/helpers/locale_layout.dart`, `test/helpers/route_smoke.dart`, `test/review/**`, `dart_test.yaml`, or `.github/workflows/nightly-matrix.yml`. `tool/test_shards.py --check` warns above 10 unrecorded files in `tool/test_durations.json` and fails above 20. `dev` pushes run fast affected tests; `main` relies on the strict PR gate. Locally `tool/gate.sh` uses `tool/affected_tests.py` (tracing `import`, `export`, `part`/`part of`, subdirectory `flutter_test_config.dart`, `.arb`, `assets/icon.ttf`, and `test/fixtures/**`, skipping Dart on pure docs/tooling diffs) under `GATE_TEST_CONCURRENCY` (default 4 under 4G, 6 under 8G); `--fast` skips fan-out, `--full` runs `-x matrix`, `--matrix` runs `-t matrix`.
+- **Why:** `--total-shards` recompiled the whole suite per shard; naive grep missed `part of`/helper edges; running 700+ matrix cells on unrelated PRs wasted CI; uncapped `-j` caused silent `frontend_server` OOMs.
 - **Check:** `tool/test_shards.py`, `tool/affected_tests.py`
 - **Code:** `tool/test_shards.py`, `tool/affected_tests.py`, `tool/gate.sh`, `.github/workflows/ci.yml`, `.github/workflows/nightly-matrix.yml`, `dart_test.yaml`
 
 ### TEST-07 Loopback sockets retry; databases get their own path
-- **Rule:** A test that binds or connects to `127.0.0.1` wraps its body in
-  a three-attempt `tolerant()` helper that resets per-attempt state, with
-  a raised timeout, and its file is tagged `@Tags(['socket'])` so
-  `flutter test -x socket` can leave it out. `test/flutter_test_config.dart`
-  gives each test file its own default databases directory. Under
-  `flutter test` an app database opened at its default path uses the
-  no-isolate FFI factory and an in-memory database of its own; a test that
-  needs the file, as one that reads or writes history does, injects the
-  database with a per-test `databasePath`. A case that owns a database its
-  pages open closes it in its body, after the pages are gone.
-- **Why:** The WSL test VM drops about one in five loopback connections
-  under full-suite load. Pages that open an app database at its default
-  path shared one FFI directory across parallel files and failed with
-  `database is locked` whenever CI sharding put two of them together.
-  Opened by a page inside `testWidgets`, the isolate's replies never
-  reached the case, and the isolate went on creating the file after it:
-  the file's tear-down failed to delete the directory (`Directory not
-  empty`). The sqflite factory hands every opener of `:memory:` the first
-  one's database unless `singleInstance` is off, so the second in-memory
-  database of a case had none of its tables. Awaited in a tear-down, out
-  of the fake-async zone that opened the database, a close never returned.
-- **Check:** `test/oauth_service_test.dart`,
-  `test/architecture/layering_and_hygiene_test.dart` "socket tests carry the socket tag" "no raw databaseFactoryFfi in widget tests",
-  `test/watch_later_store_test.dart` "default watch-later and history databases answer in a widget test",
-  `test/navigation_restoration_test.dart` "a restored pager opens the work it settled on"
-- **Code:** `test/flutter_test_config.dart`,
-  `test/helpers/history_world.dart`, `dart_test.yaml`,
-  `lib/core/watchlater/watch_later_database.dart`,
-  `lib/core/history/history_database.dart`,
-  `lib/core/paging/feed_database.dart`,
-  `lib/core/localnovel/local_novel_database.dart`
+- **Rule:** Tests binding/connecting `127.0.0.1` wrap bodies in three-attempt `tolerant()` with raised timeout and file-level `@Tags(['socket'])`. Under `flutter test`, default app databases use `databaseFactoryFfiNoIsolate` with isolated `:memory:` (`singleInstance: false`); disk-persistence tests inject a unique per-test `databasePath` and close databases before teardown.
+- **Why:** WSL drops loopback sockets under load; shared FFI directories caused `database is locked`; isolate-backed SQLite inside `testWidgets` deadlocked or outlived teardown.
+- **Check:** `test/oauth_service_test.dart` "exact pixiv://account?code=... is accepted", `test/architecture/layering_and_hygiene_test.dart` "socket tests carry the socket tag" "no raw databaseFactoryFfi in widget tests", `test/watch_later_store_test.dart` "default watch-later and history databases answer in a widget test", `test/navigation_restoration_test.dart` "a restored pager opens the work it settled on"
+- **Code:** `test/flutter_test_config.dart`, `test/helpers/history_world.dart`, `dart_test.yaml`, `lib/core/watchlater/watch_later_database.dart`, `lib/core/history/history_database.dart`, `lib/core/paging/feed_database.dart`, `lib/core/localnovel/local_novel_database.dart`
 
 ### TEST-08 Riverpod providers that dispose or retry
-- **Rule:** Before awaiting an `autoDispose` provider's `.future`, hold a
-  listener (`container.listen`). The same trap exists in pages: subscribe
-  (`ref.watch` or `ref.listenManual`) before `ref.read(...notifier).load()`.
-  A failing `AsyncNotifier.build` retries forever, so assert its
-  `AsyncError` state instead of awaiting `.future`. A test that pumps a
-  second container keys its `UncontrolledProviderScope` by the container,
-  as the helpers do.
-- **Why:** A zero-listener notifier was disposed mid-load and left a
-  permanent spinner; awaiting a failing build hung until dispose. A scope
-  registers with its container only at mount: the second container's
-  disposals fell back to a timer still pending when the test ended.
+- **Rule:** Hold a listener (`container.listen` / `ref.watch` / `ref.listenManual`) before awaiting an `autoDispose` provider's `.future`. Assert `AsyncError` rather than awaiting `.future` on failing `AsyncNotifier.build` (which retries indefinitely). Key `UncontrolledProviderScope` by its container when pumping a second container.
+- **Why:** Zero-listener notifiers disposed mid-load, failing builds hung until dispose, and unkeyed scopes leaked disposal timers.
 - **Check:** manual
 - **Code:** `lib/features/profile/profile_edit_page.dart`, `test/helpers/localized_app.dart`
 
 ### TEST-09 Widget test harness traps
-- **Rule:** Import `package:material_ui/material_ui.dart`, not
-  `flutter/material.dart`, and pump its `MaterialApp` with
-  `promptHostBuilder` when prompts show. Non-latin-1 HTTP fixtures use
-  `http.Response.bytes(utf8.encode(...))` with a charset. Pages building
-  `InAppWebView` set a fake `InAppWebViewPlatform.instance`. Read
-  `SystemChrome.latestStyle` only after a `pump`. Record haptics with
-  `recordHaptics()`, not a platform-channel mock. Wrap motion subjects in
-  `MotionScope(reduce:, speed:)`. Every case starts with empty in-memory
-  preferences from its directory's `flutter_test_config.dart`; no file
-  adds its own empty reset. Accounts and settings go through the app's
-  repositories (`seedAccounts`, `seedSettings`, `stored…()`), other values
-  through `installMemoryPreferences(data)`; a slow or full disk
-  (`GatedPreferences`, a failing platform) goes in with
-  `installPreferencesForTest`. No file sets the platform by hand.
-- **Why:** Each trap made a correct implementation look broken: finders
-  matched nothing, fixtures threw on construction, styles were read before
-  the frame applied them. The missing preferences plugin was worked around
-  by 146 copies of one reset in `setUp` blocks and world builders, and
-  twenty-odd came back while nothing checked the rule.
-  Repository fakes held states no store can hold (a templateless custom
-  naming rule, a bare `ja` tag).
+- **Rule:** Import `package:material_ui/material_ui.dart` (not `flutter/material.dart`); include `promptHostBuilder` when prompts show; use `http.Response.bytes(utf8.encode(...))` for non-Latin-1 fixtures; fake `InAppWebViewPlatform.instance` for WebView pages; read `SystemChrome.latestStyle` after `pump`; use `recordHaptics()` and `MotionScope(reduce:, speed:)`. Rely on `flutter_test_config.dart`'s empty in-memory preferences (never reset per file); seed via `seedAccounts`, `seedSettings`, `installMemoryPreferences`, or `installPreferencesForTest`.
+- **Why:** Bypassing these helpers produced silent finder misses, encoding crashes, duplicate preference resets, and impossible repository states.
 - **Check:** `test/architecture/layering_and_hygiene_test.dart` "no file sets empty preferences of its own"
 - **Code:** `test/flutter_test_config.dart`, `test/helpers/test_preferences.dart`, `test/helpers/fake_account.dart`, `test/helpers/fake_settings.dart`, `test/helpers/prompt_host.dart`, `test/helpers/recording_haptics.dart`
 
 ### TEST-11 Waits use fake time
-- **Rule:** No `sleep`. Advance time with `fakeAsync` or
-  `tester.pump(duration)`. A real-clock `Future.delayed` belongs only
-  inside `tester.runAsync` for real IO, in a bounded loop. The loop ends on
-  a condition, not a round count: database calls a widget made in the fake
-  zone advance one round trip per pump, and a call chained behind one
-  reaches the database lock only after it, so wait until a probe queued on
-  the lock completes without a pump (`settleHistory`). Condition waits
-  come from `test/helpers/waits.dart` (`turnUntil`, `pollUntil`,
-  `pumpUntil`, `pumpIoUntil`), which fail when the condition never holds.
-- **Why:** A real wait makes a case slow on a fast machine and flaky on a
-  loaded one, and `sleep` also blocks the isolate the test drives. Two
-  fixed rounds left a history query waiting for the lock on a loaded CI
-  runner, and its lock-warning timer outlived the test; three fixed rounds
-  before a history read later let the read overtake a commit the pager
-  queued on close, with the same timer left. Local wait loops that gave up
-  silently hid a condition that never held: a download test waited for
-  progress the throttle never showed.
+- **Rule:** Never call `sleep`; advance time with `fakeAsync` or `tester.pump(duration)`. Real-clock `Future.delayed` belongs only inside `tester.runAsync` for real IO in bounded condition-driven loops (`turnUntil`, `pollUntil`, `pumpUntil`, `pumpIoUntil`, `settleHistory`), failing loudly on timeout.
+- **Why:** Fixed sleeps and round counts made tests slow locally, flaky on CI, and masked unmet conditions.
 - **Check:** `test/architecture/layering_and_hygiene_test.dart` "no real sleeps" "no fixed-round Future.delayed polling loops"
 - **Code:** `test/helpers/waits.dart`, `test/helpers/history_world.dart`
 
 ### TEST-15 Widget tests fail on what they leave undisposed
-- **Rule:** Every test file tracks leaks (`enableLeakTracking()` in each
-  `testExecutable`): a file fails when a widget test leaves a notifier,
-  controller, layer, image frame (`ImageInfo`) or animation undisposed. A
-  leak from `lib/` is fixed in `lib/` (QUAL-06); a test disposes what it
-  creates, through `addTearDown` or a helper that does (`pixivRouter`,
-  `stalledImageWorker`). A leak nobody here can fix is ignored by class,
-  with its reason: in `test/helpers/leak_tracking.dart` for one that comes
-  from a package or Flutter everywhere or lives as long as the app, at the
-  top of a file's `main` for one only that file meets
-  (`ignoreOctoImageFades`, the modal sheet's drag curve, the `paints`
-  matcher's layers). Each case ends with an empty image cache, live
-  entries included: loads the fakes never answer stay pending, so a
-  listener left on an image stream is not caught. A bare `ui.Image` is not
-  tracked either: Flutter drops a frame whose decode outlives its
-  completer, in whichever case runs then, so one the app makes itself
-  (`toImageSync`) has only its owner's `dispose`.
-- **Why:** Nothing reported an undisposed object. The image worker never
-  disposed its load count, the novel reader's bars built an animation on
-  every build, the viewer's zoom curve and every page's removal controller
-  outlived their pages, and the image progress listener dropped the frame
-  it was handed without disposing it. Filtering out objects created by
-  test helpers needs a creation stack for every tracked object, more than
-  the full suite's 8G memory cap holds. A dropped frame fails whichever
-  case it lands in, which depends on the machine's speed.
+- **Rule:** The root and `locale_layout` `flutter_test_config.dart` files enable `enableLeakTracking()`, failing on undisposed notifiers, controllers, layers, `ImageInfo`, or animations (`architecture` and `review` configs intentionally bypass it). Fix `lib/` leaks in `lib/` (QUAL-06); dispose test-owned objects via `addTearDown`; document unavoidable framework/package exemptions in `test/helpers/leak_tracking.dart` or file top. Each case clears live image cache entries (`clearLiveImages`).
+- **Why:** Catches leaked controllers, animations, and decoded frames automatically without high-memory creation stacks.
 - **Check:** `test/flutter_test_config.dart` "enableLeakTracking();", `test/locale_layout/flutter_test_config.dart` "enableLeakTracking();", `test/helpers/leak_tracking.dart` "LeakTesting.enable" "clearLiveImages"
 - **Code:** `test/helpers/leak_tracking.dart`, `test/flutter_test_config.dart`, `test/locale_layout/flutter_test_config.dart`

@@ -28,7 +28,7 @@ reviewed: 2026-11-14
 - **Why:** A surface painting the provider directly held no demand, so a
   prefetch queued for it was never promoted, and it skipped retry,
   progress and the decode history.
-- **Check:** `test/pixiv_image_pipelines_test.dart`
+- **Check:** `test/pixiv_image_pipelines_test.dart` "a card frame stands in while the original loads" "a preload lands on the entry of the widget that will show it"
 - **Code:** `lib/app/pixiv_image.dart`, `lib/core/image/image_worker.dart`
 
 ### IMG-02 Progress is a subscription by URL
@@ -78,7 +78,7 @@ reviewed: 2026-11-14
 - **Why:** `ImageFiltered` blurred every visible muted card offscreen on
   every frame (Impeller keeps no raster cache). Every stand-in is a sharp
   frame of the work and would show what the user hid.
-- **Check:** `test/card_action_test.dart` "muted card blurs the cover and tap reveals in place", `test/blurred_image_test.dart`, `test/pixiv_image_pipelines_test.dart` "a blurred image never paints a sharp frame in its place"
+- **Check:** `test/card_action_test.dart` "muted card blurs the cover and tap reveals in place", `test/blurred_image_test.dart` "a blurred image is a quarter of its decode, opaque to the edges, and cached apart from the sharp one", `test/pixiv_image_pipelines_test.dart` "a blurred image never paints a sharp frame in its place"
 - **Code:** `lib/core/image/blurred_image.dart`, `lib/app/pixiv_image.dart`, `lib/app/widgets/feed/muted_cover.dart`
 
 ### IMG-04 A dead worker is replaced a bounded number of times
@@ -183,7 +183,7 @@ reviewed: 2026-11-14
   stall that the first retry fixed flashed a broken icon first, and
   images that failed while the device was offline stayed broken after it
   came back. A network switch failed every image in flight at once.
-- **Check:** `test/pixiv_image_retry_test.dart` "a transient failure retries after 1 s and 3 s, looking" "three failed retries end in a manual retry button" "a missing image is asked for once; the button asks again" "bytes that do not decode are downloaded again" "a regained network reloads a failed image", `test/pixiv_image_preload_test.dart`, `test/image_worker_host_test.dart` "a fetch the network changed under is sent once more" "a fetch failing on the same network fails at once"
+- **Check:** `test/pixiv_image_retry_test.dart` "a transient failure retries after 1 s and 3 s, looking" "three failed retries end in a manual retry button" "a missing image is asked for once; the button asks again" "bytes that do not decode are downloaded again" "a regained network reloads a failed image", `test/pixiv_image_preload_test.dart` "a failed preload stays out of the crash log and is not recorded as decoded" "a warm-up nobody wants any more ends as dropped, without a log line or a request", `test/image_worker_host_test.dart` "a fetch the network changed under is sent once more" "a fetch failing on the same network fails at once"
 - **Code:** `lib/app/pixiv_image.dart`, `lib/core/image/worker_image_provider.dart`, `lib/core/image/image_worker_host.dart`
 
 ## Tests
