@@ -182,7 +182,7 @@ reviewed: 2026-11-18
   visit to ranking, new works, an author or the settings to 13–25 ms.
   A detail page's first frame is its push. Data landing or a page
   appended later built the half screen in one frame (13.7–16.8 ms).
-- **Check:** `test/sliver_cache_ramp_test.dart`; when each frame builds the cache area is manual (TEST-12)
+- **Check:** `test/shared_widgets_test.dart` "sliver cache ramp"; when each frame builds the cache area is manual (TEST-12)
 - **Code:** `lib/app/layout/deferred_cache_scroll_view.dart`, `lib/app/layout/sliver_cache_ramp.dart`, `lib/app/motion/hero_transition.dart`, `lib/features/illust/detail/illust_detail_content.dart`
 
 ### FEED-21 A built card rebuilds only when its own inputs change
@@ -211,7 +211,7 @@ reviewed: 2026-11-18
   (`BookmarkActions.addBatch`) and original downloads.
 - **Why:** Wide desktop and tablet feeds need fast batch triage without polluting
   compact phone browsing or firing uncapped parallel network writes.
-- **Check:** `test/desktop_ux_phase2_test.dart` "SelectableFeedHost gates >=600dp multi-select, Ctrl/Cmd+Click, Shift range, Ctrl+A, Esc, and batch bookmark/download"
+- **Check:** `test/feed_selection_test.dart` "SelectableFeedHost gates >=600dp multi-select, Ctrl/Cmd+Click, Shift range, Ctrl+A, Esc, and batch bookmark/download"
 - **Code:** `lib/app/widgets/feed/feed_selection.dart`, `lib/app/widgets/feed/feed_grid.dart`, `lib/app/widgets/feed/illust_card.dart`, `lib/core/bookmark/bookmark_actions.dart`
 
 ## Pull to refresh

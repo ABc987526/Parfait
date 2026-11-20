@@ -1,8 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:forui/forui.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'package:parfait/app/haptics/app_haptics.dart';
 import 'package:parfait/app/haptics/haptics_driver.dart';
+import 'package:parfait/app/icons/app_icons.dart';
 import 'package:parfait/app/widgets/app_choice_chip.dart';
 import 'package:parfait/app/widgets/app_menu_button.dart';
 import 'package:parfait/app/widgets/app_slider.dart';
@@ -10,6 +12,7 @@ import 'package:parfait/app/widgets/settings/settings_choice_tile.dart';
 import 'package:parfait/app/widgets/settings/settings_control.dart';
 import 'package:parfait/app/widgets/settings/settings_menu_tile.dart';
 
+import 'helpers/localized_app.dart';
 import 'helpers/recording_haptics.dart';
 
 /// Hosts [build] with a value cell so taps rebuild like a real page.
@@ -212,4 +215,26 @@ void main() {
       expect(haptics.roles, [HapticRole.tick]);
     });
   });
+
+  testWidgets(
+    'SettingsControl locked mode renders disabled active FSwitch with lock icon',
+    (tester) async {
+      await tester.pumpWidget(
+        localizedApp(
+          body: const SettingsControl(
+            title: Text('Home'),
+            value: true,
+            onChanged: null,
+            locked: true,
+            lockedIcon: AppIcons.lock,
+          ),
+        ),
+      );
+
+      final sw = tester.widget<FSwitch>(find.byType(FSwitch));
+      expect(sw.value, isTrue);
+      expect(sw.enabled, isFalse);
+      expect(find.byIcon(AppIcons.lock), findsOneWidget);
+    },
+  );
 }

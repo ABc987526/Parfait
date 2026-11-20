@@ -1,7 +1,11 @@
 import 'dart:async';
 import 'dart:ui' show ViewFocusDirection, ViewFocusEvent, ViewFocusState;
 
-import 'package:flutter/foundation.dart' show defaultTargetPlatform;
+import 'package:flutter/foundation.dart'
+    show
+        TargetPlatform,
+        debugDefaultTargetPlatformOverride,
+        defaultTargetPlatform;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -431,6 +435,77 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(sent, ['hello']);
+    },
+  );
+
+  testWidgets(
+    'KeyboardBack handles Ctrl/Cmd settings, destination digits, rail toggle, and iOS Cmd',
+    (tester) async {
+      final router = GoRouter(
+        initialLocation: '/recommended',
+        routes: [
+          for (final path in const [
+            '/recommended',
+            '/ranking',
+            '/new',
+            '/search',
+            '/settings',
+            '/settings/all',
+          ])
+            GoRoute(path: path, builder: (_, _) => Text(path)),
+        ],
+      );
+      addTearDown(router.dispose);
+      var railToggles = 0;
+
+      Future<void> pumpHost(TargetPlatform platform) async {
+        debugDefaultTargetPlatformOverride = platform;
+        await tester.pumpWidget(
+          localizedRouterApp(
+            router,
+            builder: (_, child) => KeyboardBack(
+              router: router,
+              onToggleRail: () => railToggles++,
+              child: child!,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+      }
+
+      try {
+        await pumpHost(TargetPlatform.windows);
+        for (final (key, path) in const [
+          (LogicalKeyboardKey.comma, '/settings/all'),
+          (LogicalKeyboardKey.digit2, '/ranking'),
+        ]) {
+          await _sendChord(
+            tester,
+            key: key,
+            modifier: LogicalKeyboardKey.controlLeft,
+          );
+          await tester.pumpAndSettle();
+          expect(router.routeInformationProvider.value.uri.path, path);
+        }
+        await _sendChord(
+          tester,
+          key: LogicalKeyboardKey.keyB,
+          modifier: LogicalKeyboardKey.controlLeft,
+        );
+        await tester.pumpAndSettle();
+        expect(railToggles, 1);
+
+        await pumpHost(TargetPlatform.iOS);
+        await _sendChord(
+          tester,
+          key: LogicalKeyboardKey.digit1,
+          modifier: LogicalKeyboardKey.metaLeft,
+        );
+        await tester.pumpAndSettle();
+        expect(router.routeInformationProvider.value.uri.path, '/recommended');
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
     },
   );
 }

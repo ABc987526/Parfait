@@ -13,6 +13,13 @@ tags:
   # degraded; test/architecture/test_hygiene_test.dart requires the tag.
   socket:
 
+  # Full Cartesian locale/layout and multi-state route smoke matrix.
+  # PR CI excludes this tag (`flutter test -x matrix`), keeping core
+  # ru/compact layout checks, core zh/regular route smokes, and router
+  # table coverage on every PR; nightly-matrix.yml runs `-t matrix`
+  # nightly and on PRs touching l10n, routes, or theme files.
+  matrix:
+
   # UX review harness (test/review): scenes render the real app at device
   # size and films capture it frame by frame. The files do not end in
   # _test.dart, so a bare `flutter test` never runs them; tool/review.sh

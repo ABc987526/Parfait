@@ -41,7 +41,7 @@ reviewed: 2026-11-17
   settings. Two general tokens 20 ms apart ran a page counter fade, a
   zoom and a scroll home alike (user feedback); M3 sizes a duration by
   the area and distance that move, effects shorter than movement.
-- **Check:** `test/architecture/motion_census_test.dart` "duration tokens are read through MotionTokens.resolve", `test/architecture/feedback_channels_test.dart` "motion durations live only in MotionTokens (pinned census)", `test/home_branch_stack_test.dart` "a re-tap from"
+- **Check:** `test/architecture/ui_conventions_test.dart` "duration tokens are read through MotionTokens.resolve", `test/architecture/ui_conventions_test.dart` "motion durations live only in MotionTokens (pinned census)", `test/home_branch_stack_test.dart` "a re-tap from"
 - **Code:** `lib/app/motion/motion_tokens.dart`
 
 ### MOTION-02 Reduced motion removes the flight, not the state
@@ -69,7 +69,7 @@ reviewed: 2026-11-17
   spring on a size change overshot. User decision: the bookmark's pop was
   the one feedback that felt right, and a bounce on every press or
   expand would wobble.
-- **Check:** `test/architecture/motion_census_test.dart` "spring tokens are read through MotionTokens.spring", `test/motion_test.dart` "a swap pops the new icon past its size and back"
+- **Check:** `test/architecture/ui_conventions_test.dart` "spring tokens are read through MotionTokens.spring", `test/motion_test.dart` "a swap pops the new icon past its size and back"
 - **Code:** `lib/app/motion/motion_tokens.dart`, `lib/app/motion/spring_pop.dart`
 
 ### MOTION-04 Physical springs snap to their end
@@ -378,7 +378,7 @@ reviewed: 2026-11-17
 - **Why:** Touch tap-delay filters, full-viewport mobile slide travel, and
   synthetic easing inertia make mouse clicks and precision wheel scrolling feel
   sluggish on desktop, and `jumpTo` alone would not notify scroll-hiding bars.
-- **Check:** `test/desktop_ux_phase2_test.dart` "Pointer mode skips PressScale 100ms delay, animates ShellRail fade+slide at 150ms, and SmoothWheelScroll jumps instantly"
+- **Check:** `test/motion_test.dart` "Pointer mode skips PressScale 100ms delay and SmoothWheelScroll jumps instantly"; `test/home_branch_stack_test.dart` "desktop ShellRail animates branch switch with 150ms fade+slide"
 - **Code:** `lib/app/motion/press_scale.dart`, `lib/app/motion/motion_tokens.dart`, `lib/app/motion/scroll_hide.dart`, `lib/app/widgets/home_branch_stack.dart`, `lib/app/widgets/smooth_wheel_scroll.dart`
 
 ### MOTION-24 Frosted card menu and drag-to-dismiss suppress displacement under reduced motion
@@ -391,5 +391,5 @@ reviewed: 2026-11-17
 - **Why:** Spatial zoom and drag translation trigger discomfort under
   reduced-motion accessibility settings, whereas backdrop opacity continues
   communicating gesture progress cleanly.
-- **Check:** `test/card_action_test.dart` "iOS card context menu respects reduced motion without scaling", `test/func_page_test.dart` "iOS sharedElement canvas dismiss disables scale and displacement under reduced motion", `test/multiplatform_matrix_gate_test.dart` "reduced motion gate disables scale and displacement on shared-element dismiss and context menu"
+- **Check:** `test/card_action_test.dart` "iOS card context menu respects reduced motion without scaling", `test/func_page_test.dart` "iOS sharedElement canvas dismiss disables scale and displacement under reduced motion"
 - **Code:** `lib/app/widgets/card_actions/ios_card_context_menu.dart`, `lib/app/motion/drag_to_dismiss.dart`, `lib/app/navigation/func_page.dart`, `lib/app/motion/motion_tokens.dart`

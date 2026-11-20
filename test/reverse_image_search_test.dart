@@ -5,9 +5,11 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
+import 'package:parfait/core/platform/shared_image.dart';
 import 'package:parfait/core/reverse_image/image_input.dart';
 import 'package:parfait/core/reverse_image/reverse_image_controller.dart';
 import 'package:parfait/core/reverse_image/reverse_image_engine.dart';
+import 'package:parfait/core/reverse_image/reverse_image_navigation_policy.dart';
 import 'package:parfait/core/reverse_image/reverse_image_platform.dart';
 import 'package:parfait/core/reverse_image/reverse_image_provider.dart';
 import 'helpers/image_headers.dart';
@@ -755,6 +757,128 @@ void main() {
       await Future<void>.delayed(Duration.zero);
       expect(controller.state.status, ReverseImageFlowStatus.idle);
       expect(platform.copyCount, 0);
+    });
+  });
+
+  group('SharedImageValidator', () {
+    late Directory tempDir;
+
+    setUp(() {
+      tempDir = Directory.systemTemp.createTempSync('shared_image_test');
+    });
+
+    tearDown(() {
+      tempDir.deleteSync(recursive: true);
+    });
+
+    File write(String name, {int size = 10}) {
+      final file = File('${tempDir.path}/$name');
+      file.writeAsBytesSync(Uint8List(size));
+      return file;
+    }
+
+    test('accepts a readable image within the size limit', () {
+      final file = write('cat.png', size: 128);
+      final image = SharedImageValidator.validate(
+        path: file.path,
+        mimeType: 'image/png',
+      );
+      expect(image.sizeBytes, 128);
+      expect(image.path, file.path);
+    });
+
+    test('rejects non-images, missing, empty and oversized files', () {
+      for (final (path, mimeType) in [
+        (write('note.txt').path, 'text/plain'),
+        (write('note.zip').path, 'application/zip'),
+        ('${tempDir.path}/missing.png', 'image/png'),
+        (write('empty.png', size: 0).path, 'image/jpeg'),
+        (
+          write('huge.png', size: SharedImageValidator.maxBytes + 1).path,
+          'image/png',
+        ),
+      ]) {
+        expect(
+          () => SharedImageValidator.validate(path: path, mimeType: mimeType),
+          throwsA(isA<SharedImageRejected>()),
+          reason: path,
+        );
+      }
+    });
+
+    test('accepts an image exactly at the size limit', () {
+      final file = write('edge.png', size: SharedImageValidator.maxBytes);
+      expect(
+        SharedImageValidator.validate(
+          path: file.path,
+          mimeType: 'image/webp',
+        ).sizeBytes,
+        SharedImageValidator.maxBytes,
+      );
+    });
+  });
+
+  group('ReverseImageNavigationPolicy', () {
+    final policy = ReverseImageNavigationPolicy(
+      ReverseImageEngineSpecs.sauceNao.webViewHosts,
+    );
+
+    ReverseImageNavigationAction decide(String url) =>
+        policy.decide(Uri.tryParse(url));
+
+    test('each link gets its action', () {
+      const navigate = ReverseImageNavigationAction.navigate;
+      const openIllust = ReverseImageNavigationAction.openIllust;
+      const openUser = ReverseImageNavigationAction.openUser;
+      const openExternal = ReverseImageNavigationAction.openExternal;
+      const reject = ReverseImageNavigationAction.reject;
+      for (final (url, action) in [
+        ('https://saucenao.com/search.php?db=999', navigate),
+        ('https://www.saucenao.com/results?x=1', navigate),
+        ('https://saucenao.com/tools.php', navigate),
+        ('https://www.pixiv.net/artworks/12345', openIllust),
+        ('https://www.pixiv.net/i/99', openIllust),
+        ('https://www.pixiv.net/en/artworks/1', openIllust),
+        (
+          'https://www.pixiv.net/member_illust.php?mode=medium&illust_id=99',
+          openIllust,
+        ),
+        ('https://www.pixiv.net/users/42', openUser),
+        ('https://www.pixiv.net/u/7', openUser),
+        ('https://www.pixiv.net/member.php?id=42', openUser),
+        ('https://example.com/result', openExternal),
+        ('https://www.pixiv.net/help', openExternal),
+        ('http://saucenao.com/x', reject),
+        ('javascript:alert(1)', reject),
+        ('https://', reject),
+        ('', reject),
+        ('https://user:pass@example.com/x', reject),
+        ('https://example.com/x#frag', reject),
+      ]) {
+        expect(decide(url), action, reason: url);
+      }
+      expect(policy.decide(null), reject);
+    });
+
+    test('each engine host set scopes its own webview', () {
+      for (final spec in ReverseImageEngineSpecs.all.values) {
+        final enginePolicy = ReverseImageNavigationPolicy(spec.webViewHosts);
+        for (final host in spec.webViewHosts) {
+          expect(
+            enginePolicy.decide(Uri.parse('https://$host/')),
+            ReverseImageNavigationAction.navigate,
+            reason: '${spec.engine} should navigate inside $host',
+          );
+        }
+        final foreign = ReverseImageEngineSpecs.all.values
+            .expand((other) => other.webViewHosts)
+            .firstWhere((host) => !spec.webViewHosts.contains(host));
+        expect(
+          enginePolicy.decide(Uri.parse('https://$foreign/')),
+          isNot(ReverseImageNavigationAction.navigate),
+          reason: '${spec.engine} must not navigate to $foreign',
+        );
+      }
     });
   });
 }

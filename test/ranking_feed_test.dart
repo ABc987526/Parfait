@@ -373,22 +373,35 @@ void main() {
       expect(fixture.requests.last.queryParameters.containsKey('date'), false);
     });
 
-    for (final raw in ['2999-01-01', '2007-09-12', '2025-13-01', 'yesterday']) {
-      testWidgets('date=$raw opens the latest ranking', (tester) async {
-        final (container, fixture) = await _makeWorld();
-
-        await pumpRanking(tester, container, '/ranking?mode=day&date=$raw');
-        // The week tab next to it builds on a still screen, undated.
+    test('invalid or out-of-range ranking dates fall back to latest', () {
+      for (final raw in [
+        '2999-01-01',
+        '2007-09-12',
+        '2025-13-01',
+        'yesterday',
+      ]) {
         expect(
-          fixture.requests
-              .firstWhere((u) => u.queryParameters['mode'] == 'day')
-              .queryParameters
-              .containsKey('date'),
-          false,
+          rankingDateOrLatest(parseApiDate(raw)),
+          isNull,
+          reason: 'date=$raw',
         );
-        expect(find.text('回到最新'), findsNothing);
-      });
-    }
+      }
+    });
+
+    testWidgets('invalid date query opens the latest ranking', (tester) async {
+      final (container, fixture) = await _makeWorld();
+
+      await pumpRanking(tester, container, '/ranking?mode=day&date=2999-01-01');
+      // The week tab next to it builds on a still screen, undated.
+      expect(
+        fixture.requests
+            .firstWhere((u) => u.queryParameters['mode'] == 'day')
+            .queryParameters
+            .containsKey('date'),
+        false,
+      );
+      expect(find.text('回到最新'), findsNothing);
+    });
 
     testWidgets('the picker stops at yesterday in Japan', (tester) async {
       final (container, _) = await _makeWorld();
@@ -441,49 +454,41 @@ void main() {
 
   // C6 — the sibling-category contract: a TabBar tap and a horizontal
   // strip drag are two injections of the same switch; both must land on
-  // the same mode with the same route write, under both motion gates.
-  for (final reduce in [false, true]) {
-    testWidgets('category tap and drag land identically (reduce: $reduce)', (
+  // the same mode with the same route write. (Reduced-motion snapping is
+  // verified directly in tab_swipe_switcher_test.dart and motion_test.dart.)
+  testWidgets('category tap and drag land identically', (tester) async {
+    final (container, fixture) = await _makeWorld(
+      fixture: _RankingFixture(itemsPerPage: 4),
+    );
+    final router = await _pumpRanking(
       tester,
-    ) async {
-      final (container, fixture) = await _makeWorld(
-        fixture: _RankingFixture(itemsPerPage: 4),
-      );
-      final router = await _pumpRanking(
-        tester,
-        container,
-        builder: (context, child) => MotionScope(reduce: reduce, child: child!),
-      );
+      container,
+      builder: (context, child) => MotionScope(reduce: false, child: child!),
+    );
 
-      // Tap path: day → week. The strip animates (or snaps under
-      // reduce) — either way the same mode lands and the durable
-      // route value is written. The week feed built ahead, on a still
-      // screen.
-      await tester.tap(find.byType(Tab).at(1));
-      await tester.pumpAndSettle();
-      expect(router.state.uri.queryParameters['mode'], 'week');
-      expect(
-        fixture.requests.where((u) => u.queryParameters['mode'] == 'week'),
-        isNotEmpty,
-      );
+    // Tap path: day → week.
+    await tester.tap(find.byType(Tab).at(1));
+    await tester.pumpAndSettle();
+    expect(router.state.uri.queryParameters['mode'], 'week');
+    expect(
+      fixture.requests.where((u) => u.queryParameters['mode'] == 'week'),
+      isNotEmpty,
+    );
 
-      // Drag path back: a committed rightward fling lands on the same
-      // slot a tap would — same mode, same route write. The day feed
-      // stays mounted across the switch (lazy first load only), so the
-      // landing is asserted on index + uri, not a refetch.
-      final strip = find.byType(TabSlideStack);
-      await tester.fling(strip, const Offset(300, 0), 1200);
-      await tester.pumpAndSettle();
-      expect(tester.widget<TabSlideStack>(strip).controller.index, 0);
-      expect(router.state.uri.queryParameters['mode'], 'day');
+    // Drag path back: a committed rightward fling lands on the same
+    // slot a tap would — same mode, same route write.
+    final strip = find.byType(TabSlideStack);
+    await tester.fling(strip, const Offset(300, 0), 1200);
+    await tester.pumpAndSettle();
+    expect(tester.widget<TabSlideStack>(strip).controller.index, 0);
+    expect(router.state.uri.queryParameters['mode'], 'day');
 
-      // And forward again by drag — identical landing to the tap.
-      await tester.fling(strip, const Offset(-300, 0), 1200);
-      await tester.pumpAndSettle();
-      expect(tester.widget<TabSlideStack>(strip).controller.index, 1);
-      expect(router.state.uri.queryParameters['mode'], 'week');
-    });
-  }
+    // And forward again by drag — identical landing to the tap.
+    await tester.fling(strip, const Offset(-300, 0), 1200);
+    await tester.pumpAndSettle();
+    expect(tester.widget<TabSlideStack>(strip).controller.index, 1);
+    expect(router.state.uri.queryParameters['mode'], 'week');
+  });
 
   testWidgets('branch re-tap scrolls the active ranking feed to top', (
     tester,

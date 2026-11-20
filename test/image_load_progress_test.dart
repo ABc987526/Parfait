@@ -26,9 +26,7 @@ Finder get _ring => find.byType(CircularProgressIndicator);
 /// Lets real IO and image decoding finish, then flushes frames.
 Future<void> _settle(WidgetTester tester) async {
   for (var i = 0; i < 4; i++) {
-    await tester.runAsync(
-      () => Future<void>.delayed(const Duration(milliseconds: 20)),
-    );
+    await tester.runAsync(() => Future<void>.delayed(Duration.zero));
     await tester.pump();
   }
 }

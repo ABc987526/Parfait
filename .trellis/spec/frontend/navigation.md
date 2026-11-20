@@ -316,7 +316,7 @@ reviewed: 2026-11-18
 
 - **Why:** User decision: pill-shaped segmented buttons are removed from the
   whole app, including desktop gallery headers.
-- **Check:** `test/architecture/no_segmented_test.dart`
+- **Check:** `test/architecture/ui_conventions_test.dart`
 - **Code:** `lib/app/widgets/filter_menu_button.dart`, `lib/app/widgets/feed/desktop_gallery_controls.dart`
 
 ### NAV-18 Page top bars are AppTopBar
@@ -334,7 +334,7 @@ reviewed: 2026-11-18
 - **Why:** `AppTopBar` owns bar shadows and workspace flatness; omitting
   redundant desktop back arrows avoids double navigation chrome next to
   `DesktopCommandBar` while keeping nested flows reachable.
-- **Check:** `test/architecture/top_bar_test.dart` "page top bars are AppTopBar"; `test/app_tab_bar_test.dart` "a top bar with tabs casts its shadow once content scrolls under it"; `test/desktop_ux_phase2_test.dart` "DesktopCommandBar chrome, drag regions, header deduplication, and popovers"
+- **Check:** `test/architecture/ui_conventions_test.dart` "page top bars are AppTopBar"; `test/app_tab_bar_test.dart` "a top bar with tabs casts its shadow once content scrolls under it"; `test/desktop_command_bar_test.dart` "DesktopCommandBar chrome, drag regions, header deduplication, and popovers"
 - **Code:** `lib/app/widgets/app_top_bar.dart`, `lib/app/widgets/replica_scaffold.dart`, `lib/app/widgets/master_detail_workspace.dart`
 
 ## Wide windows
@@ -487,5 +487,5 @@ reviewed: 2026-11-18
   overflow protection, accessible toolbar nodes, native macOS menus, unclipped
   dark-stage viewing, keyboard parity, and isolated browser-like forward history without double
   headers or blocked window caption edges.
-- **Check:** `test/desktop_ux_phase2_test.dart` "DesktopCommandBar chrome, drag regions, header deduplication, and popovers" "DesktopMenuBar restricts to macOS and wires View, Navigation, Bookmarks, Downloads, and Search" "ForwardHistoryStack replays per-branch forward entries and debounces mouse back/forward" "AppChrome isolates Router BlockSemantics so DesktopCommandBar remains reachable in semantics" "wide AppChrome keeps HomePage element and state mounted across ImageViewerPage push and pop"; `test/desktop_window_test.dart` "DesktopFallbackWindowChrome omits dragZone when disabled and yields to child buttons on macOS"; `test/phase1_platform_fidelity_test.dart` "AppChrome hides DesktopCommandBar for touch form, provides Tooltip Overlay, and ShellRail keeps shortcuts" "DesktopCommandBar compacts to 40dp toolbar without duplicate branding when usesSystemTitleBar is true" "KeyboardBack handles Ctrl/Cmd settings, destination digits, rail toggle, and iOS Cmd"
+- **Check:** `test/desktop_command_bar_test.dart` "DesktopCommandBar chrome, drag regions, header deduplication, and popovers" "DesktopCommandBar compacts to 40dp toolbar without duplicate branding when usesSystemTitleBar is true" "AppChrome hides DesktopCommandBar for touch form, provides Tooltip Overlay, and ShellRail keeps shortcuts" "DesktopMenuBar restricts to macOS and wires View, Navigation, Bookmarks, Downloads, and Search" "ForwardHistoryStack replays per-branch forward entries and debounces mouse back/forward" "AppChrome isolates Router BlockSemantics so DesktopCommandBar remains reachable in semantics" "wide AppChrome keeps HomePage element and state mounted across ImageViewerPage push and pop"; `test/desktop_window_test.dart` "DesktopFallbackWindowChrome omits dragZone when disabled and yields to child buttons on macOS"; `test/input_modality_shortcuts_test.dart` "KeyboardBack handles Ctrl/Cmd settings, destination digits, rail toggle, and iOS Cmd"
 - **Code:** `lib/app/app.dart`, `lib/app/window/desktop_command_bar.dart`, `lib/app/window/desktop_menu_bar.dart`, `lib/app/window/desktop_title_bar.dart`, `lib/app/navigation/forward_history.dart`, `lib/app/navigation/keyboard_back.dart`, `windows/runner/flutter_window.cpp`

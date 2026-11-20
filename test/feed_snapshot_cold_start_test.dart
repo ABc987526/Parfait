@@ -26,6 +26,7 @@ import 'package:parfait/core/settings/settings_controller.dart';
 import 'helpers/fake_account.dart';
 import 'helpers/fake_settings.dart';
 import 'helpers/illust_fixtures.dart';
+import 'helpers/novel_ranking_fixture.dart';
 
 /// Minimal entity payload in the NovelSnapshotCodec schema.
 Map<String, Object?> _novelSnapshotJson(int id) => {

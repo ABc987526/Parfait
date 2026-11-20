@@ -51,12 +51,11 @@ WHOLE_SUITE_FILES = frozenset({
 })
 
 ARB_TESTS = (
-    "test/architecture/l10n_placeholders_test.dart",
-    "test/architecture/format_and_font_test.dart",
+    "test/architecture/l10n_and_errors_test.dart",
 )
 ICON_FONT_TESTS = (
     "test/icon_font_test.dart",
-    "test/architecture/icon_style_test.dart",
+    "test/architecture/ui_conventions_test.dart",
 )
 
 
@@ -292,8 +291,8 @@ def self_test() -> int:
         _write(root, "test/sub/flutter_test_config.dart", "// sub config\n")
         _write(root, "test/sub/sub_a_test.dart", "// sub a\n")
         _write(root, "test/sub/sub_b_test.dart", "// sub b\n")
-        _write(root, "test/architecture/l10n_placeholders_test.dart", "// arb check\n")
-        _write(root, "test/architecture/format_and_font_test.dart", "// font check\n")
+        _write(root, "test/architecture/l10n_and_errors_test.dart", "// arb+font check\n")
+        _write(root, "test/architecture/ui_conventions_test.dart", "// ui check\n")
         _write(root, "test/icon_font_test.dart", "// icon font\n")
         _write(
             root,
@@ -327,12 +326,12 @@ def self_test() -> int:
 
         # 6. Non-Dart assets (.arb, icon.ttf, fixtures)
         res = select_affected(root, ["lib/l10n/app_en.arb"])
-        assert set(res["tests"]) == {
-            "test/architecture/format_and_font_test.dart",
-            "test/architecture/l10n_placeholders_test.dart",
-        }, res
+        assert res["tests"] == ["test/architecture/l10n_and_errors_test.dart"], res
         res = select_affected(root, ["assets/icon.ttf"])
-        assert res["tests"] == ["test/icon_font_test.dart"], res
+        assert set(res["tests"]) == {
+            "test/architecture/ui_conventions_test.dart",
+            "test/icon_font_test.dart",
+        }, res
         res = select_affected(root, ["test/fixtures/sample/page.html"])
         assert res["tests"] == ["test/fixture_consumer_test.dart"], res
 
@@ -343,8 +342,8 @@ def self_test() -> int:
         # 8. include_architecture appends architecture tests for Dart changes only
         res = select_affected(root, ["lib/unrelated.dart"], include_architecture=True)
         assert set(res["tests"]) == {
-            "test/architecture/format_and_font_test.dart",
-            "test/architecture/l10n_placeholders_test.dart",
+            "test/architecture/l10n_and_errors_test.dart",
+            "test/architecture/ui_conventions_test.dart",
             "test/unrelated_test.dart",
         }, res
 

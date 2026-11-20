@@ -44,26 +44,30 @@ const zhCN = Locale('zh', 'CN');
 const _captureKey = ValueKey('review-surface');
 ReviewDevice _activeReviewDevice = reviewDevice;
 
-/// Runs one scene with the semantics tree on — it is on whenever an
-/// accessibility service is, GKD included — and restores the device after.
-/// The tester checks for leftover semantics handles before tear-downs run,
-/// so the handle is released here rather than in addTearDown.
-Future<T> reviewScene<T>(WidgetTester tester, Future<T> Function() body) async {
-  final handle = tester.ensureSemantics();
+/// Runs one scene and restores the device after. When [semantics] is true
+/// (default for review shots/films), the semantics tree stays on — as it is
+/// whenever an accessibility service is active, GKD included. Smoke layout
+/// tests that never inspect semantics can pass `semantics: false`.
+Future<T> reviewScene<T>(
+  WidgetTester tester,
+  Future<T> Function() body, {
+  bool semantics = true,
+  VoidCallback? onDispose,
+}) async {
+  final handle = semantics ? tester.ensureSemantics() : null;
   try {
     return await body();
   } finally {
     _activeReviewDevice = reviewDevice;
-    handle.dispose();
+    handle?.dispose();
     // Swap in an empty tree so the scene's timers are cancelled with it,
-    // then let one-shot timers (retry delays, prompt dwell) run out. Real
-    // IO started in the fake zone — a database query from the page just
-    // unmounted — needs its own turns to finish, or the store's close in
-    // tear-down waits on it forever.
+    // dispose any caller container (cancelling Riverpod retry timers), then
+    // let one-shot timers (retry delays, prompt dwell) run out cleanly.
     await tester.pumpWidget(const SizedBox());
-    await _ioTurns(tester, 10);
+    onDispose?.call();
+    await _drainIo(tester, maxTurns: 6);
     await tester.pump(const Duration(minutes: 2));
-    await _ioTurns(tester, 10);
+    await _drainIo(tester, maxTurns: 4);
     resetReviewDevice(tester);
   }
 }
@@ -221,19 +225,26 @@ Future<bool> settleReview(
   Duration limit = const Duration(seconds: 10),
 }) async {
   const frame = Duration(milliseconds: 100);
-  await _ioTurns(tester, 40);
+  await _drainIo(tester, maxTurns: 40);
   if (!settle) {
     await tester.pump(limit ~/ 4);
     return false;
   }
+  final phase = tester.binding.semanticsEnabled
+      ? EnginePhase.sendSemanticsUpdate
+      : EnginePhase.flushSemantics;
   for (var waited = Duration.zero; waited < limit; waited += frame) {
-    if (!tester.binding.hasScheduledFrame) return true;
+    if (!tester.binding.hasScheduledFrame &&
+        PaintingBinding.instance.imageCache.pendingImageCount == 0) {
+      return true;
+    }
     // A request started by a frame (a section scrolled into view) needs
     // real IO turns of its own to land.
-    await _ioTurns(tester, 1);
-    await tester.pump(frame, EnginePhase.sendSemanticsUpdate);
+    await _drainIo(tester, maxTurns: 3);
+    await tester.pump(frame, phase);
   }
-  return !tester.binding.hasScheduledFrame;
+  return !tester.binding.hasScheduledFrame &&
+      PaintingBinding.instance.imageCache.pendingImageCount == 0;
 }
 
 /// Scrolls the page's main vertical scroll — the one with the most to
@@ -275,14 +286,26 @@ Future<void> revealForReview(WidgetTester tester, Finder target) async {
   await tester.pump(const Duration(milliseconds: 500));
 }
 
-/// [count] turns of the real event loop, each followed by a frame that
-/// delivers what completed.
-Future<void> _ioTurns(WidgetTester tester, int count) async {
-  for (var i = 0; i < count; i++) {
-    await tester.runAsync(
-      () => Future<void>.delayed(const Duration(milliseconds: 2)),
-    );
+/// Drains pending real-event-loop work (in-process image worker, codec
+/// decode) and breaks as soon as consecutive turns leave neither scheduled
+/// frames nor pending image loads.
+Future<void> _drainIo(WidgetTester tester, {required int maxTurns}) async {
+  var quiet = 0;
+  for (var i = 0; i < maxTurns; i++) {
+    final pendingImages = PaintingBinding.instance.imageCache.pendingImageCount;
+    final delay = pendingImages > 0
+        ? const Duration(milliseconds: 1)
+        : Duration.zero;
+    await tester.runAsync(() => Future<void>.delayed(delay));
     await tester.pump();
+    final busy =
+        tester.binding.hasScheduledFrame ||
+        PaintingBinding.instance.imageCache.pendingImageCount > 0;
+    if (busy) {
+      quiet = 0;
+    } else if (i >= 2 && ++quiet >= 2) {
+      break;
+    }
   }
 }
 

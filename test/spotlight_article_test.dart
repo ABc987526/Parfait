@@ -27,7 +27,8 @@ import 'package:parfait/app/theme/func_semantic_tokens.dart';
 
 import 'helpers/connectivity_channels.dart';
 import 'helpers/image_network.dart';
-import 'helpers/illust_detail_page_support.dart' show RecordingShareService;
+import 'helpers/json_response.dart';
+import 'helpers/recording_share_service.dart';
 import 'helpers/spotlight_world.dart';
 import 'helpers/prompt_host.dart';
 import 'helpers/localized_app.dart';
@@ -705,4 +706,86 @@ void main() {
       },
     );
   });
+
+  group('PixivSpotlightRepository', () {
+    Future<PixivSpotlightRepository> makeRepo(SpotlightFixture fixture) async {
+      final (container, _) = await makeSpotlightWorld(fixture: fixture);
+      return container.read(spotlightRepositoryProvider);
+    }
+
+    test('requests /v1/spotlight/articles with category and filter', () async {
+      final fixture = SpotlightFixture();
+      final repo = await makeRepo(fixture);
+      final page = await repo.fetchArticles(category: SpotlightCategory.illust);
+
+      expect(fixture.requests.single.path, '/v1/spotlight/articles');
+      expect(fixture.requests.single.queryParameters['category'], 'illust');
+      expect(fixture.requests.single.queryParameters['filter'], 'for_android');
+      expect(page.articles.map((a) => a.id), [101, 102]);
+      expect(page.articles.first.pureTitle, 'pure 101');
+      expect(
+        page.articles.first.articleUrl,
+        'https://www.pixivision.net/a/101',
+      );
+      expect(page.articles.first.subcategoryLabel, 'label 101');
+      expect(page.nextUrl, contains('offset=10'));
+    });
+
+    test('passes the validated offset cursor through', () async {
+      final fixture = SpotlightFixture();
+      final repo = await makeRepo(fixture);
+      final page = await repo.fetchArticles(
+        category: SpotlightCategory.all,
+        cursor:
+            'https://app-api.pixiv.net/v1/spotlight/articles'
+            '?filter=for_android&category=all&offset=10',
+      );
+      expect(fixture.requests.single.queryParameters['offset'], '10');
+      expect(page.articles.map((a) => a.id), [103]);
+    });
+
+    test('malformed envelope raises ApiParseError', () async {
+      final repo = await makeRepo(_MalformedSpotlightFixture());
+      expect(() => repo.fetchArticles(), throwsA(isA<ApiParseError>()));
+    });
+
+    test('validateArticlesCursor pins path and category', () async {
+      final repo = await makeRepo(SpotlightFixture());
+      expect(
+        repo.validateArticlesCursor(
+          SpotlightCategory.illust,
+          cursor:
+              'https://app-api.pixiv.net/v1/spotlight/articles'
+              '?filter=for_android&category=illust&offset=10',
+        ),
+        isTrue,
+      );
+      expect(
+        repo.validateArticlesCursor(
+          SpotlightCategory.illust,
+          cursor:
+              'https://app-api.pixiv.net/v1/spotlight/articles'
+              '?filter=for_android&category=manga&offset=10',
+        ),
+        isFalse,
+        reason: 'a cursor for another category must be rejected',
+      );
+      expect(
+        repo.validateArticlesCursor(
+          SpotlightCategory.illust,
+          cursor:
+              'https://app-api.pixiv.net/v1/search/illust'
+              '?word=x&category=illust&filter=for_android',
+        ),
+        isFalse,
+      );
+    });
+  });
+}
+
+class _MalformedSpotlightFixture extends SpotlightFixture {
+  @override
+  http.Client client() => MockClient(
+    (request) async => jsonResponse(<String, dynamic>{'bogus': true}),
+  );
 }

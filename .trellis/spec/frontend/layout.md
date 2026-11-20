@@ -53,7 +53,7 @@ reviewed: 2026-11-17
   never `'$label: $value'`. Chinese copy uses full-width punctuation and
   a space between Chinese and Latin words.
 - **Why:** Chinese and Japanese take a full-width colon with no space.
-- **Check:** `test/architecture/l10n_placeholders_test.dart`
+- **Check:** `test/architecture/l10n_and_errors_test.dart`
 - **Code:** `lib/l10n`
 
 ### LAYOUT-04 Measure text with the style it paints with
@@ -72,7 +72,7 @@ reviewed: 2026-11-17
   theme's font fallbacks, the letter spacing and even leading of the
   dense CJK type): full lines ran wider than measured, short mixed-script
   lines taller.
-- **Check:** `test/architecture/format_and_font_test.dart` "fitted labels are measured in the style and locale they paint in"; `test/fit_label_test.dart` "the painted width is the measured width times the scale" "a non-linear text scaler measures and paints alike"; `test/app_tab_bar_test.dart` "a wide row keeps its tabs together at the start"; `test/novel_reader_test.dart` "large system text is laid out as wide as it paints"
+- **Check:** `test/architecture/l10n_and_errors_test.dart` "fitted labels are measured in the style and locale they paint in"; `test/fit_label_test.dart` "the painted width is the measured width times the scale" "a non-linear text scaler measures and paints alike"; `test/app_tab_bar_test.dart` "a wide row keeps its tabs together at the start"; `test/novel_reader_test.dart` "large system text is laid out as wide as it paints"
 - **Code:** `lib/app/widgets/fit_label.dart`, `lib/app/widgets/func_bottom_nav.dart`, `lib/app/widgets/app_tab_bar.dart`, `lib/app/widgets/follow_switch_button.dart`, `lib/features/search/search_filter_sheet.dart`, `lib/features/novel/novel_layout.dart`
 
 ### LAYOUT-05 The selection bar title is the bare count
@@ -90,7 +90,7 @@ reviewed: 2026-11-17
   are allow-listed with a reason in the architecture test.
 - **Why:** Hand-formatted dates and `'${n}k'` ignored the locale
   (zh 1.2万, en 12K); changing digits shifted their neighbours.
-- **Check:** `test/architecture/format_and_font_test.dart` "user-facing dates go through AppFormat" "counts go through AppFormat", `test/app_format_test.dart` "decimal keeps one digit in the locale separator"
+- **Check:** `test/architecture/l10n_and_errors_test.dart` "user-facing dates go through AppFormat" "counts go through AppFormat", `test/app_format_test.dart` "decimal keeps one digit in the locale separator"
 - **Code:** `lib/app/format`
 
 ### LAYOUT-16 Framework strings ship in the app's languages only

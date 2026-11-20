@@ -7,12 +7,14 @@ review, reported on its own line) and test/fixtures/ (recorded data), and
 lib/ without the localizations `flutter gen-l10n` writes.
 
 With --base, a change may add `ratio` (tool/test_budget.json) times its
-lib/ growth (nothing when lib/ shrinks) plus `change_tolerance` test/ code
-lines; more fails. The suite's test/lib ratio is reported on every run and
-warns above `trend_warning`, the user's cue for a slimming round; it never
-fails. Only the user changes the three numbers. The case count (call
-sites of `test(` and `testWidgets(` on code lines; a table-driven loop
-counts once) and the code lines per case are reported for the trend.
+gross added `lib/` code lines plus `change_tolerance` `test/` code lines;
+more fails. Counting gross added `lib/` lines ensures refactoring/deleting
+duplicate `lib/` code never strips test allowance from fixes in the same
+change. The suite's test/lib ratio is reported on every run and warns
+above `trend_warning`, the user's cue for a slimming round; it never
+fails. Only the user changes the three numbers. Case counts (broken down
+into unit `test(` vs `testWidgets(`), code lines per case, and unrecorded
+`tool/test_durations.json` files are reported for the trend.
 
 Usage:
   python3 tool/test_budget.py                 count the working tree
@@ -37,9 +39,11 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 BUDGET = REPO / 'tool/test_budget.json'
+DURATIONS = REPO / 'tool/test_durations.json'
 REVIEW_DIR = 'test/review/'
 UNCOUNTED = (REVIEW_DIR, 'test/fixtures/')
-CASE = re.compile(r'(?<![\w.])(?:testWidgets|test)\(')
+UNIT_CASE = re.compile(r'(?<![\w.])test\(')
+WIDGET_CASE = re.compile(r'(?<![\w.])testWidgets\(')
 # `flutter gen-l10n` output: app_localizations.dart and one
 # app_localizations_<language>.dart per language, generated from the ARB
 # files. Hand-written files beside them (the delegates) still count.
@@ -49,9 +53,18 @@ GENERATED_LIB = re.compile(r'lib/l10n/app_localizations(?:_[a-z]{2,3})?\.dart')
 @dataclass(frozen=True)
 class Count:
     tests: int
-    cases: int
+    unit_cases: int
+    widget_cases: int
     review: int
     lib: int
+
+    @property
+    def cases(self) -> int:
+        return self.unit_cases + self.widget_cases
+
+    @property
+    def widget_share(self) -> float:
+        return (self.widget_cases / self.cases * 100.0) if self.cases else 0.0
 
     @property
     def ratio(self) -> float:
@@ -63,14 +76,23 @@ def git(*args: str) -> str:
                           capture_output=True, text=True).stdout
 
 
+def is_code_line(line: str) -> bool:
+    return bool(line.strip()) and not line.lstrip().startswith('//')
+
+
 def code_lines(text: str) -> int:
-    return sum(1 for line in text.splitlines()
-               if line.strip() and not line.lstrip().startswith('//'))
+    return sum(1 for line in text.splitlines() if is_code_line(line))
 
 
-def case_count(text: str) -> int:
-    return sum(len(CASE.findall(line)) for line in text.splitlines()
-               if not line.lstrip().startswith('//'))
+def case_counts(text: str) -> tuple[int, int]:
+    unit = 0
+    widget = 0
+    for line in text.splitlines():
+        if line.lstrip().startswith('//'):
+            continue
+        unit += len(UNIT_CASE.findall(line))
+        widget += len(WIDGET_CASE.findall(line))
+    return unit, widget
 
 
 def dart_sources(root: str, ref: str | None) -> dict[str, str]:
@@ -105,15 +127,67 @@ def count(ref: str | None) -> Count:
     tests = dart_sources('test', ref)
     counted = [text for path, text in tests.items()
                if not path.startswith(UNCOUNTED)]
+    unit = 0
+    widget = 0
+    for text in counted:
+        u, w = case_counts(text)
+        unit += u
+        widget += w
     return Count(
         tests=sum(code_lines(text) for text in counted),
-        cases=sum(case_count(text) for text in counted),
+        unit_cases=unit,
+        widget_cases=widget,
         review=sum(code_lines(text) for path, text in tests.items()
                    if path.startswith(REVIEW_DIR)),
         lib=sum(code_lines(text)
                 for path, text in dart_sources('lib', ref).items()
                 if not GENERATED_LIB.fullmatch(path)),
     )
+
+
+def lib_added_code_lines(base_ref: str) -> int:
+    """Gross added Dart code lines under lib/ (excluding generated l10n)
+    between [base_ref] and the working tree, including untracked files."""
+    diff = git('diff', '-U0', '--no-renames', base_ref, '--', 'lib/')
+    added = 0
+    active_counted = False
+    in_hunk = False
+    for line in diff.splitlines():
+        if line.startswith('diff --git '):
+            active_counted = False
+            in_hunk = False
+            continue
+        if not in_hunk and line.startswith('+++ b/'):
+            path = line[6:]
+            active_counted = (
+                path.endswith('.dart') and not GENERATED_LIB.fullmatch(path)
+            )
+            continue
+        if not in_hunk and line.startswith('+++ '):
+            active_counted = False
+            continue
+        if line.startswith('@@ '):
+            in_hunk = True
+            continue
+        if in_hunk and active_counted and line.startswith('+'):
+            if is_code_line(line[1:]):
+                added += 1
+    untracked = git('ls-files', '--others', '--exclude-standard', '--', 'lib/').splitlines()
+    for path in untracked:
+        if path.endswith('.dart') and not GENERATED_LIB.fullmatch(path):
+            file_path = REPO / path
+            if file_path.exists():
+                added += code_lines(file_path.read_text(encoding='utf-8'))
+    return added
+
+
+def unrecorded_duration_files() -> int:
+    """Number of runnable test/*_test.dart files absent from test_durations.json."""
+    listed = git('ls-files', '--cached', '--others', '--exclude-standard',
+                 '--', 'test/*_test.dart').splitlines()
+    all_tests = [p for p in listed if (REPO / p).exists()]
+    durations = json.loads(DURATIONS.read_text()) if DURATIONS.exists() else {}
+    return sum(1 for p in all_tests if p not in durations)
 
 
 def signed(delta: int) -> str:
@@ -123,7 +197,8 @@ def signed(delta: int) -> str:
 @dataclass(frozen=True)
 class Growth:
     tests: int
-    lib: int
+    lib_net: int
+    lib_added: int
     allowance: int
 
     @property
@@ -131,17 +206,21 @@ class Growth:
         return self.tests - self.allowance
 
 
-def growth(now: Count, base: Count, ratio: float, tolerance: int) -> Growth:
+def growth(now: Count, base: Count, lib_added: int, ratio: float,
+           tolerance: int) -> Growth:
     """test/ lines added against [base], and what the change may add:
-    [ratio] times the lib/ lines it adds (none when lib/ shrinks) plus
-    [tolerance]."""
-    lib = now.lib - base.lib
-    return Growth(tests=now.tests - base.tests, lib=lib,
-                  allowance=int(max(lib, 0) * ratio) + tolerance)
+    [ratio] times gross added lib/ code lines plus [tolerance]."""
+    return Growth(
+        tests=now.tests - base.tests,
+        lib_net=now.lib - base.lib,
+        lib_added=lib_added,
+        allowance=int(max(lib_added, 0) * ratio) + tolerance,
+    )
 
 
 def report(now: Count, base: Count | None, base_name: str | None,
-           budget: dict, grown: Growth | None) -> tuple[list[str], list[str]]:
+           budget: dict, grown: Growth | None,
+           unrecorded: int) -> tuple[list[str], list[str]]:
     """Plain lines for the log and Markdown lines for the job summary."""
     ratio, tolerance = budget['ratio'], budget['change_tolerance']
     trend = budget['trend_warning']
@@ -151,9 +230,11 @@ def report(now: Count, base: Count | None, base_name: str | None,
     log = [
         f'test/ code lines: {now.tests:,}; lib/ {now.lib:,}; '
         f'test/lib {now.ratio:.3f} (warns above {trend})',
-        f'cases: {now.cases:,}{case_change}; '
-        f'{per_case:.1f} code lines per case',
-        f'test/review/ (not counted): {now.review:,}',
+        f'cases: {now.cases:,}{case_change} '
+        f'(unit {now.unit_cases:,}, widget {now.widget_cases:,} '
+        f'[{now.widget_share:.1f}%]); {per_case:.1f} code lines per case',
+        f'test/review/ (not counted): {now.review:,}; '
+        f'unrecorded duration files: {unrecorded}',
     ]
     summary = [
         '### Test budget (TEST-05)',
@@ -163,14 +244,15 @@ def report(now: Count, base: Count | None, base_name: str | None,
     ]
     if grown is not None:
         log.append(
-            f'change from {base_name}: test/ {signed(grown.tests)}, lib/ '
-            f'{signed(grown.lib)}; may add {grown.allowance:,} '
-            f'({ratio} x lib/ growth + {tolerance:,}); '
+            f'change from {base_name}: test/ {signed(grown.tests)}, '
+            f'lib/ net {signed(grown.lib_net)} (gross +{grown.lib_added:,}); '
+            f'may add {grown.allowance:,} '
+            f'({ratio} x lib/ added + {tolerance:,}); '
             f'{"over by " + format(grown.over, ",") if grown.over > 0 else "within"}')
         summary += [
             f'| test/ change | {signed(grown.tests)} |',
-            f'| lib/ change | {signed(grown.lib)} |',
-            f'| May add ({ratio} × lib/ growth + {tolerance:,}) '
+            f'| lib/ change (net / gross added) | {signed(grown.lib_net)} / +{grown.lib_added:,} |',
+            f'| May add ({ratio} × lib/ added + {tolerance:,}) '
             f'| {grown.allowance:,} |',
         ]
     summary += [
@@ -178,7 +260,9 @@ def report(now: Count, base: Count | None, base_name: str | None,
         f'| lib/ (without generated strings) | {now.lib:,} |',
         f'| test/lib (warns above {trend}) | {now.ratio:.3f} |',
         f'| Cases{case_change} | {now.cases:,} '
-        f'({per_case:.1f} lines each) |',
+        f'(unit {now.unit_cases:,}, widget {now.widget_cases:,} '
+        f'[{now.widget_share:.1f}%], {per_case:.1f} lines each) |',
+        f'| Unrecorded duration files | {unrecorded} |',
         f'| test/review/ (not counted) | {now.review:,} |',
         '',
     ]
@@ -202,9 +286,12 @@ def main() -> int:
     budget = json.loads(BUDGET.read_text())
     now = count(None)
     base = count(args.base) if args.base else None
-    grown = (growth(now, base, budget['ratio'], budget['change_tolerance'])
+    lib_added = lib_added_code_lines(args.base) if args.base else 0
+    grown = (growth(now, base, lib_added, budget['ratio'],
+                    budget['change_tolerance'])
              if base else None)
-    log, summary = report(now, base, args.base, budget, grown)
+    unrecorded = unrecorded_duration_files()
+    log, summary = report(now, base, args.base, budget, grown, unrecorded)
     print('\n'.join(log))
     if args.summary:
         with args.summary.open('a', encoding='utf-8') as out:
@@ -220,7 +307,7 @@ def main() -> int:
         annotate('error',
                  f'TEST-05 this change adds {grown.tests:,} test/ code lines, '
                  f'{grown.over:,} more than it may ({budget["ratio"]} x its '
-                 f'lib/ growth of {max(grown.lib, 0):,} + '
+                 f'gross lib/ added of {grown.lib_added:,} + '
                  f'{budget["change_tolerance"]:,}). Make room in the spec\'s '
                  'order: share duplicated doubles and table-drive '
                  'near-copies, then drop UI tests of colour, spacing, order '

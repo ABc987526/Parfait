@@ -34,7 +34,7 @@ reviewed: 2026-11-18
   dashboard calm across desktop and mobile without stacked thick card slabs.
   Notes set apart from their row and a page with one titled group read as
   unrelated. An empty group's note on a card read as a row to press.
-- **Check:** `test/architecture/settings_rows_test.dart` "SettingsSection is gone from lib/"; `test/muted_items_page_test.dart` "an empty group says it is empty, off the cards"
+- **Check:** `test/architecture/ui_conventions_test.dart` "SettingsSection is gone from lib/"; `test/muted_items_page_test.dart` "an empty group says it is empty, off the cards"
 - **Code:** `lib/app/widgets/settings/settings_group.dart`
 
 ### SET-02 Choose the row by the number of values
@@ -54,7 +54,7 @@ reviewed: 2026-11-18
   `selected` is what screen readers announce; segmented buttons were
   removed (NAV-17), while locked-on bar destinations needed clear active
   visual state without looking toggleable.
-- **Check:** `test/selection_controls_haptics_test.dart`; `test/phase3_forui_bridge_test.dart` "SettingsControl locked mode renders disabled active FSwitch with lock icon"
+- **Check:** `test/selection_controls_haptics_test.dart` "SettingsControl locked mode renders disabled active FSwitch with lock icon"
 - **Code:** `lib/app/widgets/settings/settings_control.dart`, `lib/app/widgets/settings/settings_menu_tile.dart`, `lib/app/widgets/settings/settings_choice_tile.dart`, `lib/features/settings/pages/bottom_bar_settings_page.dart`, `lib/features/settings/network_probe_page.dart`
 
 ### SET-08 Page entries use monochrome icons without color discs
@@ -71,7 +71,7 @@ reviewed: 2026-11-18
   lists and clashed with monochrome workspace navigation; bare 22dp glyphs with
   `*Filled` selection states and trailing counts align hierarchy across mobile
   and desktop without decorative color.
-- **Check:** `test/architecture/icon_style_test.dart`, `test/settings_test.dart`
+- **Check:** `test/architecture/ui_conventions_test.dart`, `test/settings_test.dart`
 - **Code:** `lib/app/widgets/settings/settings_tile.dart`, `lib/features/settings/settings_page.dart`, `lib/features/settings/me_dashboard_page.dart`, `lib/features/settings/pages/account_settings_page.dart`
 
 ### SET-09 A form is one card with its save at the end
@@ -106,7 +106,7 @@ reviewed: 2026-11-18
   architecture test's per-file whitelist with a reason.
 - **Why:** Hand-built settings rows drifted from the shared look and
   haptics.
-- **Check:** `test/architecture/settings_rows_test.dart` "hand-written ListTile rows match the design whitelist"
+- **Check:** `test/architecture/ui_conventions_test.dart` "hand-written ListTile rows match the design whitelist"
 - **Code:** `lib/app/widgets/settings`
 
 ### SET-04 A setting needs a real consumer
@@ -162,7 +162,7 @@ reviewed: 2026-11-18
   Material You system colors and SAF pickers); and unified `280dp`
   master-detail hosting keeps deep-linked settings pages coherent beside the
   collapsed shell rail without double headers or orphaned single-column sheets.
-- **Check:** `test/settings_search_test.dart` "every catalog entry is on its page"; `test/settings_master_detail_test.dart` "wide desktop uses master-detail with nested navigation; below 840dp stays single column"; `test/shared_widgets_test.dart` "MasterDetailWorkspace wraps scrollable masterBody in vertical ScrollEdgeFade"; `test/phase1_platform_fidelity_test.dart` "Setting.available and ThemeSettingsPage adapt haptics and system colors on iOS"
+- **Check:** `test/settings_search_test.dart` "every catalog entry is on its page" "Setting.available and ThemeSettingsPage adapt haptics and system colors on iOS"; `test/settings_master_detail_test.dart` "wide desktop uses master-detail with nested navigation; below 840dp stays single column"; `test/shared_widgets_test.dart` "MasterDetailWorkspace wraps scrollable masterBody in vertical ScrollEdgeFade"
 - **Code:** `lib/app/widgets/master_detail_workspace.dart`, `lib/app/navigation/route_branches.dart`, `lib/features/settings/settings_catalog.dart`, `lib/features/settings/settings_page.dart`, `lib/features/settings/settings_helpers.dart`, `lib/features/settings/pages/motion_settings_page.dart`, `lib/features/settings/pages/theme_settings_page.dart`, `lib/features/settings/pages/download_destination_page.dart`
 
 ## Me tab

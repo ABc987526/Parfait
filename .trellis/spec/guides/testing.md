@@ -63,7 +63,7 @@ reviewed: 2026-11-21
   are deleted in the same commit; no `skip:`. A replaced implementation's
   tests are rewritten in the same PR.
 - **Why:** Skipped tests kept asserting the old defect.
-- **Check:** `test/architecture/test_hygiene_test.dart` "no skipped cases"
+- **Check:** `test/architecture/layering_and_hygiene_test.dart` "no skipped cases"
 - **Code:** `test`
 
 ### TEST-12 Refactors and optimisations add no tests
@@ -83,27 +83,31 @@ reviewed: 2026-11-21
 ## Volume
 
 ### TEST-05 Each change keeps its tests in step with its code
-- **Rule:** User decision (11-08): a change may add at most `ratio` ×
-  its `lib/` growth (none when `lib/` shrinks) plus `change_tolerance`
+- **Rule:** User decision (11-08, revised 11-21): a change may add at most
+  `ratio` × its gross added `lib/` code lines plus `change_tolerance`
   `test/` code lines (`tool/test_budget.json`: 0.657, 150); more fails CI.
-  The suite's test/lib is reported on every run and warns above
-  `trend_warning` (0.68), the user's cue for a slimming round; it never
-  fails. Only the user changes these numbers; an agent asks and never
-  edits them without that consent. Counted: Dart code lines, blank and
-  comment lines excluded; not `test/review/`, `test/fixtures/` or the
-  localizations `flutter gen-l10n` writes into `lib/l10n/`. A change that
-  needs room makes it in this order: dedupe or table-drive repeated cases;
-  drop UI tests of colour, spacing, order or copy; drop tests of removed
-  code; drop a duplicated layer; prune under TEST-13. Coverage of core
-  logic, fixed bugs and security is never given up for room. A UI change
-  ships one or two tests of its key behaviour; layout, colour, spacing and
-  copy are checked with review screenshots. No per-locale or per-variant
-  copies of a case. Core logic (network, credentials, downloads, paging,
-  parsing, persistence) and every fixed bug keep thorough coverage. A file
-  over 1500 lines is split by feature, with shared fakes in
-  `test/helpers/`. A test file is named after the `lib/` module it covers;
-  a file of one or two cases joins its feature's file unless it is the
-  only test of its module.
+  Using gross added `lib/` lines ensures refactoring/deleting duplicate
+  `lib/` code never strips test allowance from fixes in the same PR.
+  The suite's test/lib, unit vs `testWidgets` share, and unrecorded
+  `tool/test_durations.json` file count are reported on every run;
+  test/lib warns above `trend_warning` (0.68), the user's cue for a
+  slimming round, and never fails. Only the user changes these numbers;
+  an agent asks and never edits them without that consent. Counted: Dart
+  code lines, blank and comment lines excluded; not `test/review/`,
+  `test/fixtures/` or the localizations `flutter gen-l10n` writes into
+  `lib/l10n/`. A change that needs room makes it in this order: dedupe or
+  table-drive repeated cases; drop UI tests of colour, spacing, order or
+  copy; drop tests of removed code; drop a duplicated layer; prune under
+  TEST-13. Coverage of core logic, fixed bugs and security is never given
+  up for room. A UI change ships one or two tests of its key behaviour;
+  layout, colour, spacing and copy are checked with review screenshots. No
+  per-locale or per-variant copies of a case. Core logic (network,
+  credentials, downloads, paging, parsing, persistence) and every fixed
+  bug keep thorough coverage. A file over 1500 lines is split by feature,
+  with shared fakes in `test/helpers/`. A test file is named after the
+  `lib/` module it covers (never roadmap phases such as `phase*`,
+  `matrix_gate`, `p0_p1`, or `*_audit`); a file of one or two cases joins
+  its feature's file unless it is the only test of its module.
 - **Why:** The suite doubled in a month, mostly with parameter assertions
   and duplicated layers; dozens of one-case files each cost a compile;
   test/lib rose from 0.41 to 0.81. A fixed 60,000-line cap and then a
@@ -115,7 +119,7 @@ reviewed: 2026-11-21
   have stopped five, the largest the 409-line smoke matrix. Gating each
   change keeps that discipline without a shared wall; the trend warning
   catches the slow drift a per-change gate allows.
-- **Check:** `tool/test_budget.py`, `test/architecture/test_hygiene_test.dart` "test files stay under"
+- **Check:** `tool/test_budget.py`, `test/architecture/layering_and_hygiene_test.dart` "test files stay under" "no roadmap-phase test filenames"
 - **Code:** `test`
 
 ### TEST-13 A passing test may be pruned; a failing one is never weakened
@@ -177,29 +181,42 @@ reviewed: 2026-11-21
   your own") and hid the requests pages make (the mute list, the shell's
   preloaded feeds). Fakes routed by path alone, and a field check reads
   the query and the form alike, so a write sent as a read still passed.
-- **Check:** `test/architecture/test_hygiene_test.dart` "each test double is defined once" "no test double is copied into a second file" "no test double stands in for an app repository"
+- **Check:** `test/architecture/layering_and_hygiene_test.dart` "each test double is defined once" "no test double is copied into a second file" "no test double stands in for an app repository"
 - **Code:** `test/helpers`
 
 ## Test environment traps
 
-### TEST-06 CI shards whole files; local gate resolves the Dart import graph
+### TEST-06 CI shards whole files; two-tier PR vs Nightly matrix; local gate resolves the Dart import graph
 - **Rule:** CI gives each shard whole test files through
   `tool/test_shards.py`; never use `flutter test --total-shards`. Every
-  file under `test/` ending in `_test.dart` lands in exactly one shard on
-  PRs; pushes to `dev` run a fast affected-test pass and pushes to `main`
-  rely on the strict PR gate. Locally `tool/gate.sh` runs static checks,
-  `test/architecture/` scans, and the transitive tests selected by
-  `tool/affected_tests.py` (following `import`, `export`, `part`/`part of`,
-  subdirectory `flutter_test_config.dart`, `.arb`, `assets/icon.ttf`, and
-  `test/fixtures/**`, skipping Dart checks on pure docs/tooling diffs)
-  under a bounded concurrency cap (`GATE_TEST_CONCURRENCY`, default 4
-  under 4G and 6 under 8G). `tool/gate.sh --fast` skips fan-out during
-  iteration.
+  PR-tier file under `test/` ending in `_test.dart` (excluding file-level
+  `@Tags(['matrix'])`) lands in exactly one shard on PRs and runs with
+  `-x matrix`, keeping core `ru/compact` layout checks, core `zh/regular`
+  route smokes, and router table coverage on every PR; the full Cartesian
+  `matrix` tag runs in `.github/workflows/nightly-matrix.yml` nightly, on
+  demand, and on PRs touching `lib/l10n/**`, `lib/app/navigation/route*.dart`,
+  `lib/app/theme/**`, `test/locale_layout/**`,
+  `test/helpers/locale_layout.dart`, `test/helpers/route_smoke.dart`,
+  `test/review/**`, `dart_test.yaml`, or
+  `.github/workflows/nightly-matrix.yml`. `tool/test_shards.py --check`
+  warns above 10 unrecorded files in `tool/test_durations.json` and fails
+  above 20. Pushes to `dev` run a fast affected-test pass and pushes to
+  `main` rely on the strict PR gate. Locally `tool/gate.sh` runs static
+  checks, `test/architecture/` scans, and the PR-tier transitive tests
+  selected by `tool/affected_tests.py` (following `import`, `export`,
+  `part`/`part of`, subdirectory `flutter_test_config.dart`, `.arb`,
+  `assets/icon.ttf`, and `test/fixtures/**`, skipping Dart checks on pure
+  docs/tooling diffs) under a bounded concurrency cap
+  (`GATE_TEST_CONCURRENCY`, default 4 under 4G and 6 under 8G).
+  `tool/gate.sh --fast` skips fan-out during iteration, `--full` runs the
+  PR suite (`-x matrix`), and `--matrix` runs `-t matrix`.
 - **Why:** `--total-shards` made each shard compile almost the whole
-  suite; direct grep missed `part of` and helper hops, while uncapped
-  `-j 10` on a 20-thread host triggered silent `frontend_server` OOMs.
+  suite; direct grep missed `part of` and helper hops; running the full
+  800+ Cartesian locale/route matrix on every unrelated PR consumed most
+  of CI runner time; uncapped `-j 10` on a 20-thread host triggered silent
+  `frontend_server` OOMs.
 - **Check:** `tool/test_shards.py`, `tool/affected_tests.py`
-- **Code:** `tool/test_shards.py`, `tool/affected_tests.py`, `tool/gate.sh`, `.github/workflows/ci.yml`
+- **Code:** `tool/test_shards.py`, `tool/affected_tests.py`, `tool/gate.sh`, `.github/workflows/ci.yml`, `.github/workflows/nightly-matrix.yml`, `dart_test.yaml`
 
 ### TEST-07 Loopback sockets retry; databases get their own path
 - **Rule:** A test that binds or connects to `127.0.0.1` wraps its body in
@@ -224,7 +241,7 @@ reviewed: 2026-11-21
   database of a case had none of its tables. Awaited in a tear-down, out
   of the fake-async zone that opened the database, a close never returned.
 - **Check:** `test/oauth_service_test.dart`,
-  `test/architecture/test_hygiene_test.dart` "socket tests carry the socket tag",
+  `test/architecture/layering_and_hygiene_test.dart` "socket tests carry the socket tag" "no raw databaseFactoryFfi in widget tests",
   `test/watch_later_store_test.dart` "default watch-later and history databases answer in a widget test",
   `test/navigation_restoration_test.dart` "a restored pager opens the work it settled on"
 - **Code:** `test/flutter_test_config.dart`,
@@ -271,7 +288,7 @@ reviewed: 2026-11-21
   twenty-odd came back while nothing checked the rule.
   Repository fakes held states no store can hold (a templateless custom
   naming rule, a bare `ja` tag).
-- **Check:** `test/architecture/test_hygiene_test.dart` "no file sets empty preferences of its own"
+- **Check:** `test/architecture/layering_and_hygiene_test.dart` "no file sets empty preferences of its own"
 - **Code:** `test/flutter_test_config.dart`, `test/helpers/test_preferences.dart`, `test/helpers/fake_account.dart`, `test/helpers/fake_settings.dart`, `test/helpers/prompt_host.dart`, `test/helpers/recording_haptics.dart`
 
 ### TEST-11 Waits use fake time
@@ -292,7 +309,7 @@ reviewed: 2026-11-21
   queued on close, with the same timer left. Local wait loops that gave up
   silently hid a condition that never held: a download test waited for
   progress the throttle never showed.
-- **Check:** `test/architecture/test_hygiene_test.dart` "no real sleeps"
+- **Check:** `test/architecture/layering_and_hygiene_test.dart` "no real sleeps" "no fixed-round Future.delayed polling loops"
 - **Code:** `test/helpers/waits.dart`, `test/helpers/history_world.dart`
 
 ### TEST-15 Widget tests fail on what they leave undisposed

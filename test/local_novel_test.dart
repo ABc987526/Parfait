@@ -10,6 +10,7 @@ import 'package:parfait/core/localnovel/local_novel_database.dart';
 import 'package:parfait/core/localnovel/local_novel_decoder.dart';
 import 'package:parfait/core/localnovel/local_novel_repository.dart';
 import 'package:parfait/core/localnovel/local_novel_store.dart';
+import 'package:parfait/core/localnovel/read_offset_anchor.dart';
 import 'package:parfait/core/platform/saf_tree.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -230,6 +231,67 @@ void main() {
       await container.read(localNovelStoreProvider.notifier).delete(novel);
       expect(container.read(localNovelStoreProvider).value, isEmpty);
       expect(await File(novel.path).exists(), isFalse);
+    });
+  });
+
+  group('read offset anchor', () {
+    int forwardOffset(String text, String paragraphId, int offset) {
+      final lines = text.split('\n');
+      var base = 0;
+      for (var i = 0; i < lines.length; i++) {
+        if ('p$i' == paragraphId) return base + offset;
+        base += lines[i].length + 1;
+      }
+      throw ArgumentError('unknown paragraph $paragraphId');
+    }
+
+    test('empty or absent cursors restore nothing', () {
+      expect(novelAnchorForReadOffset(null, 'a\nb'), isNull);
+      expect(novelAnchorForReadOffset(0, 'a\nb'), isNull);
+      expect(novelAnchorForReadOffset(-3, 'a\nb'), isNull);
+      expect(novelAnchorForReadOffset(4, ''), isNull);
+    });
+
+    test('offsets inside a paragraph map to that paragraph', () {
+      const text = 'hello\nworld';
+      expect(novelAnchorForReadOffset(1, text), (paragraphId: 'p0', offset: 1));
+      expect(novelAnchorForReadOffset(8, text), (paragraphId: 'p1', offset: 2));
+    });
+
+    test('a newline position belongs to the paragraph before it', () {
+      const text = 'hello\nworld';
+      expect(novelAnchorForReadOffset(5, text), (paragraphId: 'p0', offset: 5));
+      expect(novelAnchorForReadOffset(6, text), (paragraphId: 'p1', offset: 0));
+    });
+
+    test('round-trips every anchor the persist side can produce', () {
+      const text = 'ab\n\ncd\nef';
+      for (var i = 0; i < text.split('\n').length; i++) {
+        final length = text.split('\n')[i].length;
+        for (var offset = 0; offset <= length; offset++) {
+          final stored = forwardOffset(text, 'p$i', offset);
+          expect(
+            novelAnchorForReadOffset(stored, text),
+            stored == 0 ? null : (paragraphId: 'p$i', offset: offset),
+            reason: 'p$i:$offset -> $stored',
+          );
+        }
+      }
+    });
+
+    test('an offset past the end clamps to the last paragraph', () {
+      const text = 'a\nb';
+      expect(novelAnchorForReadOffset(3, text), (paragraphId: 'p1', offset: 1));
+      expect(novelAnchorForReadOffset(999, text), (
+        paragraphId: 'p1',
+        offset: 1,
+      ));
+    });
+
+    test('a trailing newline keeps the final empty paragraph reachable', () {
+      const text = 'a\n';
+      expect(novelAnchorForReadOffset(1, text), (paragraphId: 'p0', offset: 1));
+      expect(novelAnchorForReadOffset(2, text), (paragraphId: 'p1', offset: 0));
     });
   });
 }

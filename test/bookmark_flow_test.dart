@@ -14,6 +14,8 @@ import 'package:parfait/core/novel/novel_entity.dart';
 import 'package:parfait/core/novel/novel_store.dart';
 import 'package:parfait/core/user/user_entity.dart';
 
+import 'helpers/api_responses.dart';
+import 'helpers/bookmark_world.dart';
 import 'helpers/fake_account.dart';
 import 'helpers/illust_fixtures.dart';
 
@@ -407,6 +409,84 @@ void main() {
     await action;
     expect(container.read(bookmarkStoreProvider)[key]!.bookmarked, isTrue);
     expect(container.read(novelStoreProvider)[78]!.isBookmarked, isTrue);
+  });
+
+  group('BookmarkActions undo snapshot', () {
+    const key = BookmarkKey(BookmarkEntityType.illust, 1);
+
+    Future<(ProviderContainer, BookmarkApi)> world() async {
+      final repository = BookmarkApi();
+      return (await bookmarkWorld(repository), repository);
+    }
+
+    test('an add confirmed here is its own snapshot — no lookup', () async {
+      final (container, repository) = await world();
+      final actions = container.read(bookmarkActionsProvider);
+      await actions.addWithRestrict(
+        key,
+        BookmarkRestrict.private,
+        tags: const ['a', 'b'],
+      );
+      repository.detailFailure = failing(500);
+
+      await actions.toggle(key);
+      await actions.toggle(key);
+
+      expect(repository.deletes, [1]);
+      final (_, restrict, tags) = repository.adds.last;
+      expect(restrict, 'private');
+      expect(tags, ['a', 'b']);
+    });
+
+    test(
+      'a remotely observed bookmark is read from the server first',
+      () async {
+        final (container, repository) = await world();
+        container
+            .read(bookmarkStoreProvider.notifier)
+            .observeRemote(
+              key,
+              bookmarked: true,
+              restrict: BookmarkRestrict.private,
+            );
+        repository.detail = const BookmarkDetail(
+          isBookmarked: true,
+          restrict: BookmarkRestrict.private,
+          tags: [
+            BookmarkTagFacet(name: 'kept', isRegistered: true),
+            BookmarkTagFacet(name: 'suggested', isRegistered: false),
+          ],
+        );
+        final actions = container.read(bookmarkActionsProvider);
+
+        await actions.toggle(key);
+        await actions.toggle(key);
+
+        expect(repository.deletes, [1]);
+        final (_, restrict, tags) = repository.adds.single;
+        expect(restrict, 'private');
+        expect(tags, ['kept']);
+      },
+    );
+
+    test(
+      'an unreadable original still deletes, and comes back public',
+      () async {
+        final (container, repository) = await world();
+        container
+            .read(bookmarkStoreProvider.notifier)
+            .observeRemote(key, bookmarked: true);
+        repository.detailFailure = failing(500);
+        final actions = container.read(bookmarkActionsProvider);
+
+        await actions.toggle(key);
+        expect(repository.deletes, [1]);
+        expect(container.read(bookmarkStoreProvider)[key]!.bookmarked, isFalse);
+
+        await actions.toggle(key);
+        expect(repository.adds.single.$2, 'public');
+      },
+    );
   });
 }
 

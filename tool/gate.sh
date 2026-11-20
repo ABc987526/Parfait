@@ -3,13 +3,14 @@
 # runs, then the tests of what changed. CI still runs the whole suite
 # (spec TEST-06) and the Android and Rust jobs.
 #
-# Usage: tool/gate.sh [--full | --fast | --no-tests] [--base REF] [test files...]
+# Usage: tool/gate.sh [--full | --matrix | --fast | --no-tests] [--base REF] [test files...]
 #   (default)   the test files affected via Dart's transitive import/export/
 #               part graph (tool/affected_tests.py), plus the architecture
-#               scans in test/architecture/; changes to dependencies or root
-#               test config run the whole suite; docs/tooling-only changes
-#               skip Dart format/analyze/tests
-#   --full      the whole suite
+#               scans in test/architecture/ (PR tier, excluding `matrix`);
+#               changes to dependencies or root test config run the PR suite;
+#               docs/tooling-only changes skip Dart format/analyze/tests
+#   --full      the whole PR-tier suite (`-x matrix`)
+#   --matrix    the nightly/l10n/route/theme matrix (`-t matrix`)
 #   --fast      checks, architecture scans, and any explicit test files only
 #   --no-tests  checks only
 #   --base REF  what the change is measured from: the merge base of HEAD
@@ -38,6 +39,7 @@ explicit=()
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --full) mode=full ;;
+    --matrix) mode=matrix ;;
     --fast) mode=fast ;;
     --no-tests) mode=none ;;
     --base)
@@ -163,7 +165,7 @@ run_tests() {
   fi
   log="$(mktemp -t gate-test.XXXXXX.log)"
   since="$(date +%s)"
-  local command=(flutter test --concurrency="$concurrency" "${tests[@]}")
+  local command=(flutter test --concurrency="$concurrency" "${test_args[@]}" "${tests[@]}")
   # A systemd-run whose system manager is unreachable (a container) fails
   # before running anything: probe it, and say when there is no cap.
   if command -v systemd-run >/dev/null &&
@@ -211,12 +213,19 @@ else
 fi
 
 tests=()
+test_args=()
 whole_suite_reason=""
 case "$mode" in
   none) results+=("skip  tests (--no-tests)") ;;
   full)
     whole_suite_reason="--full"
-    step "tests (whole suite)" run_tests
+    test_args=(-x matrix)
+    step "tests (PR whole suite, -x matrix)" run_tests
+    ;;
+  matrix)
+    test_args=(-t matrix)
+    tests=(test/locale_layout/)
+    step "tests (matrix, -t matrix)" run_tests
     ;;
   fast)
     selection="$(mktemp -t gate-selection.XXXXXX)"
@@ -241,11 +250,33 @@ case "$mode" in
       results+=("skip  tests ($affected_reason)")
     elif [[ "$affected_mode" == "whole_suite" ]]; then
       whole_suite_reason="$affected_reason"
-      step "tests (whole suite: $whole_suite_reason)" run_tests
+      test_args=(-x matrix)
+      step "tests (PR whole suite: $whole_suite_reason)" run_tests
     else
-      tests=("${selected_tests[@]}")
+      # Exclude pure file-level @Tags(['matrix']) files when running -x matrix,
+      # keeping architecture and PR-tier affected tests clean without triggering
+      # "No tests ran." if only matrix files were touched.
+      mapfile -t tests < <(
+        python3 - "${selected_tests[@]}" <<'PY'
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path("tool").resolve()))
+import test_shards
+
+for rel in sys.argv[1:]:
+    if not rel:
+        continue
+    if "matrix" in test_shards.file_tags(rel):
+        continue
+    print(rel)
+PY
+      )
+      if [[ ${#tests[@]} -eq 1 && -z "${tests[0]}" ]]; then
+        tests=()
+      fi
+      test_args=(-x matrix)
       if [[ ${#tests[@]} -eq 0 ]]; then
-        results+=("skip  tests (0 affected files)")
+        results+=("skip  tests (0 PR-tier affected files; use --matrix for matrix tests)")
       else
         step "tests (${#tests[@]} files)" run_tests
       fi
