@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, debugDefaultTargetPlatformOverride;
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
@@ -10,12 +12,17 @@ import 'package:parfait/app/layout/content_widths.dart';
 import 'package:parfait/app/pixiv_image.dart';
 import 'package:parfait/app/navigation/func_page.dart';
 import 'package:parfait/app/widgets/ambient_wash.dart';
+import 'package:parfait/app/widgets/comment_composer.dart';
+import 'package:parfait/app/widgets/feed/illust_card.dart';
+import 'package:parfait/app/widgets/tag_chips.dart';
 import 'package:parfait/app/theme/func_semantic_tokens.dart';
 import 'package:parfait/app/person_avatar.dart';
 import 'package:parfait/core/entity/illust_store.dart';
+import 'package:parfait/core/image/image_worker_providers.dart';
 import 'package:parfait/app/motion/hero_transition.dart';
 import 'package:parfait/app/motion/motion_tokens.dart';
 import 'package:parfait/app/widgets/feed/feed_states.dart';
+import 'package:parfait/features/comments/comments_page.dart';
 import 'package:parfait/features/illust/detail/illust_detail_page.dart';
 import 'package:parfait/features/illust/detail/illust_detail_pager_page.dart';
 import 'package:parfait/app/widgets/app_top_bar.dart';
@@ -29,9 +36,13 @@ import 'package:parfait/features/illust/detail/widgets/info_block.dart';
 import 'package:parfait/features/illust/viewer/image_viewer_page.dart';
 import 'package:parfait/features/profile/user_page.dart';
 
+import 'helpers/api_responses.dart';
+import 'helpers/card_world.dart';
 import 'helpers/detail_world.dart';
+import 'helpers/fake_account.dart';
 import 'helpers/fake_settings.dart';
 import 'helpers/illust_fixtures.dart';
+import 'helpers/image_network.dart';
 import 'helpers/comment_world.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 import 'helpers/prompt_host.dart';
@@ -1094,5 +1105,142 @@ void main() {
       );
       expect(comments.center.dx, closeTo(924 / 2, .5));
     });
+
+    testWidgets(
+      'SelectionArea wraps detail and comments text while excluding IllustCard, collapsed fade, and touch tags',
+      (tester) async {
+        SelectionRegistrar? registrarOf(Finder richTextFinder) =>
+            tester.widget<RichText>(richTextFinder).selectionRegistrar;
+        Finder richTextFor(String text) => find.descendant(
+          of: find.text(text).first,
+          matching: find.byType(RichText),
+        );
+
+        final (container, _, _) = await makeWorld(
+          detailOverrides: {
+            42: illustJson(
+              42,
+              pageCount: 1,
+              caption: List.filled(18, '这是一段很长的作品说明文本用来触发折叠效果').join('，'),
+            ),
+          },
+          relatedOverrides: {
+            42: [illustJson(99, pageCount: 1)],
+          },
+          commentOverrides: {
+            42: [commentJson(sampleComment(11, workId: 42))],
+          },
+          extraOverrides: [
+            imageWorkerProvider.overrideWithValue(stalledImageWorker()),
+          ],
+        );
+
+        debugDefaultTargetPlatformOverride = TargetPlatform.android;
+        try {
+          await pumpDetail(
+            tester,
+            container,
+            seedStore: false,
+            illustId: 42,
+            pageCount: 1,
+            locale: zhCN,
+            surface: const Size(600, 900),
+          );
+          await tester.pumpAndSettle();
+          expect(find.byType(SelectionArea), findsOneWidget);
+          expect(
+            find.ancestor(
+              of: find.byType(ShaderMask).first,
+              matching: find.byType(SelectionContainer),
+            ),
+            findsWidgets,
+          );
+          expect(registrarOf(richTextFor('illust 42')), isNotNull);
+          final tagText = find
+              .descendant(
+                of: find.byType(TagChip).first,
+                matching: find.byType(RichText),
+              )
+              .first;
+          expect(registrarOf(tagText), isNull);
+          expect(
+            registrarOf(
+              find.descendant(
+                of: find.textContaining('展开').first,
+                matching: find.byType(RichText),
+              ),
+            ),
+            isNull,
+          );
+        } finally {
+          debugDefaultTargetPlatformOverride = null;
+        }
+
+        final commentApi = CommentApi();
+        final commentContainer = await signedInApiContainer(
+          PixivApi({...backgroundRoutes, ...commentApi.routes}).client,
+          account: commentsAccountStore().accounts.single,
+          overrides: [
+            imageWorkerProvider.overrideWithValue(stalledImageWorker()),
+          ],
+        );
+        await tester.pumpWidget(
+          localizedApp(
+            container: commentContainer,
+            builder: promptHostBuilder,
+            home: const CommentsPage(workId: 42),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(
+          find.ancestor(
+            of: find.text('comment 11'),
+            matching: find.byType(SelectionArea),
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.ancestor(
+            of: find.byType(CommentComposer),
+            matching: find.byType(SelectionArea),
+          ),
+          findsNothing,
+        );
+
+        final (cardContainer, _, _) = await makeCardWorld();
+        await tester.pumpWidget(
+          localizedApp(
+            container: cardContainer,
+            body: SelectionArea(
+              child: IllustCard(entity: parseIllust(illustJson(77))),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(registrarOf(richTextFor('illust 77')), isNull);
+
+        debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+        try {
+          await tester.pumpWidget(
+            localizedApp(
+              container: cardContainer,
+              body: SelectionArea(
+                child: TagChip(label: 'original', onTap: () {}),
+              ),
+            ),
+          );
+          await tester.pumpAndSettle();
+          final pointerTagText = find
+              .descendant(
+                of: find.byType(TagChip).first,
+                matching: find.byType(RichText),
+              )
+              .first;
+          expect(registrarOf(pointerTagText), isNotNull);
+        } finally {
+          debugDefaultTargetPlatformOverride = null;
+        }
+      },
+    );
   });
 }

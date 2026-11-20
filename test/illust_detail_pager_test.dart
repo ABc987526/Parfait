@@ -754,5 +754,84 @@ void main() {
         await unmountPastReleaseGrace(tester);
       },
     );
+
+    testWidgets(
+      'DetailImagePager supports hover arrows, mouse wheel, and unfocused arrow keys',
+      (tester) async {
+        setViewSize(tester, const Size(1400, 900));
+        final detailJson = {
+          for (final id in const [42, 43])
+            id: illustJson(id, pageCount: 3, withMetaPages: true),
+        };
+        final (container, _, _) = await makeWorld(detailOverrides: detailJson);
+        container.read(illustStoreProvider).mergeAll([
+          for (final json in detailJson.values) parseIllust(json),
+        ]);
+        await tester.pumpWidget(
+          localizedApp(
+            container: container,
+            home: IllustDetailPagerPage(
+              source: IllustPagerSource()..update(const [42, 43]),
+              initialIllustId: 42,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        double pageOf(Finder f) => tester.widget<PageView>(f).controller!.page!;
+        final innerPager = find.descendant(
+          of: find.byType(DetailImagePager),
+          matching: find.byType(PageView),
+        );
+        final nextBtn = find.byKey(const Key('detail-pager-next'));
+        final prevBtn = find.byKey(const Key('detail-pager-prev'));
+        expect(prevBtn, findsNothing);
+        expect(nextBtn, findsOneWidget);
+        double nextAlpha() => tester
+            .widget<AnimatedOpacity>(
+              find.ancestor(
+                of: nextBtn,
+                matching: find.byType(AnimatedOpacity),
+              ),
+            )
+            .opacity;
+        expect(nextAlpha(), 0.0);
+
+        final mouse = TestPointer(1, PointerDeviceKind.mouse);
+        await tester.sendEventToBinding(
+          mouse.hover(tester.getCenter(find.byType(DetailImagePager))),
+        );
+        await tester.pumpAndSettle();
+        expect(nextAlpha(), 1.0);
+
+        Future<void> step(Future<void> Function() act, double page) async {
+          await act();
+          await tester.pumpAndSettle();
+          expect(pageOf(innerPager), page);
+        }
+
+        await step(() => tester.tap(nextBtn), 1.0);
+        expect(prevBtn, findsOneWidget);
+        await step(() => tester.tap(prevBtn), 0.0);
+        await step(
+          () => tester.sendEventToBinding(mouse.scroll(const Offset(0, 120))),
+          1.0,
+        );
+        await step(
+          () => tester.sendKeyEvent(LogicalKeyboardKey.arrowRight),
+          2.0,
+        );
+        await step(
+          () => tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft),
+          1.0,
+        );
+
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+        await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+        await tester.pumpAndSettle();
+        expect(pageOf(find.byType(PageView).first), 1.0);
+      },
+    );
   });
 }

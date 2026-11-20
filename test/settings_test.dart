@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, debugDefaultTargetPlatformOverride;
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -23,6 +25,7 @@ import 'package:parfait/core/network/compat/network_policy.dart';
 import 'package:parfait/core/network/compat/pixiv_network_factory.dart'
     show PixivNetworkFactory, PixivPolicyHttpClient;
 import 'package:parfait/core/network/compat/network_providers.dart';
+import 'package:parfait/core/download/download_destination.dart';
 import 'package:parfait/core/download/naming_rule.dart';
 import 'package:parfait/core/history/history_repository.dart';
 import 'package:parfait/features/illust/detail/illust_detail_pager_page.dart';
@@ -1429,6 +1432,56 @@ void main() {
       },
     );
   });
+
+  testWidgets(
+    'DownloadDestinationPage hides SAF on iOS and shows desktop folder copy and macOS bookmark label',
+    (tester) async {
+      setViewSize(tester, const Size(800, 1200));
+      Future<void> pumpPlatform(
+        TargetPlatform platform, [
+        AppSettings? s,
+      ]) async {
+        await seedSettings(s ?? baseTestSettings());
+        debugDefaultTargetPlatformOverride = platform;
+        await tester.pumpWidget(
+          localizedApp(
+            overrides: const [],
+            builder: promptHostBuilder,
+            home: const DownloadDestinationPage(),
+          ),
+        );
+        await tester.pumpAndSettle();
+      }
+
+      try {
+        await pumpPlatform(TargetPlatform.iOS);
+        expect(find.text('相册'), findsOneWidget);
+        expect(find.text('文件夹（系统目录选择）'), findsNothing);
+
+        await tester.pumpWidget(const SizedBox.shrink());
+        const fakeBookmark = 'Ym9va21hcmtfbWFjb3Nfc2FuZGJveF90b2tlbg==';
+        await pumpPlatform(
+          TargetPlatform.macOS,
+          baseTestSettings().copyWith(
+            downloadDestination: const DownloadDestination.safFolder(
+              fakeBookmark,
+            ),
+          ),
+        );
+        for (final label in const [
+          '默认文件夹',
+          '自定义子文件夹名称',
+          '自定义目录（系统目录选择）',
+          '已授权目录（macOS 沙盒书签）',
+        ]) {
+          expect(find.text(label), findsOneWidget);
+        }
+        expect(find.text(fakeBookmark), findsNothing);
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    },
+  );
 }
 
 Future<void> _scrollCentered(WidgetTester tester, Finder finder) async {

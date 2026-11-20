@@ -71,7 +71,7 @@ reviewed: 2026-11-17
   and Android tablets full-width mobile bottom sheets; decoupling
   `useWideOverlay` from `usePointerOverlay` gives touch tablets bounded
   dialogs and side sheets while avoiding pointer-anchored popovers.
-- **Check:** `test/architecture/feedback_channels_test.dart` "app modal overlays funnel through app_overlays.dart", `test/app_overlays_test.dart` "a drag outside closes it on release, one layer only" "useWideOverlay and usePointerOverlay split container shape from pointer anchoring" "wide touch viewports render bounded dialog, side sheet, and dialog popover", `test/phase3_forui_bridge_test.dart` "AppDatePickerDialog clamps out-of-range today and returns a local DateTime" "AppAlertDialog mounts FDialog with inner Material for TextField"
+- **Check:** `test/architecture/feedback_channels_test.dart` "app modal overlays funnel through app_overlays.dart", `test/app_overlays_test.dart` "a drag outside closes it on release, one layer only" "useWideOverlay and usePointerOverlay split container shape from pointer anchoring" "wide touch viewports render bounded dialog, side sheet, and dialog popover" "AppDatePickerDialog clamps out-of-range today and returns a local DateTime" "AppAlertDialog mounts FDialog with inner Material for TextField"
 - **Code:** `lib/app/motion/app_overlays.dart`, `lib/app/widgets/app_dialog.dart`, `lib/app/widgets/app_date_picker.dart`
 
 ### FB-03 Each action appears once at a time
@@ -226,7 +226,7 @@ reviewed: 2026-11-17
 - **Why:** Native image copying spans async fetch and OS clipboard codecs;
   capturing the prompt host upfront guarantees feedback outlives a scrolled or
   dismissed opener without showing broken controls on mobile.
-- **Check:** `test/desktop_ux_phase2_test.dart` "ImageClipboard channel and copy-image action copy original bytes with desktop-only gating and deferAppSnackBar"
+- **Check:** `test/illust_detail_actions_test.dart` "ImageClipboard channel and copy-image action copy original bytes with desktop-only gating and deferAppSnackBar"
 - **Code:** `lib/core/platform/image_clipboard.dart`, `lib/app/clipboard.dart`, `lib/app/widgets/card_actions/illust_card_actions.dart`, `windows/runner/flutter_window.cpp`, `macos/Runner/MainFlutterWindow.swift`, `linux/runner/my_application.cc`
 
 ## Late callbacks

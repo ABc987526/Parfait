@@ -3,12 +3,16 @@ import 'dart:typed_data';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:forui/forui.dart';
 import 'package:material_ui/material_ui.dart';
 
+import 'package:parfait/app/motion/motion_tokens.dart';
+import 'package:parfait/app/theme/forui_theme_bridge.dart';
 import 'package:parfait/app/theme/func_semantic_tokens.dart';
 import 'package:parfait/app/theme/func_tokens.dart';
 import 'package:parfait/app/theme/replica_theme.dart';
 import 'package:parfait/app/theme/system_colors.dart';
+import 'helpers/localized_app.dart';
 import 'support/contrast.dart';
 
 List<Color> _surfaces(ColorScheme scheme) => [
@@ -352,5 +356,83 @@ void main() {
 
       expect(await read(), isNull);
     });
+  });
+
+  group('Forui theme bridge', () {
+    test(
+      'foruiThemeFrom bridges colors, hairlines, haptics, and keeps platform font',
+      () {
+        final dynamicScheme = ColorScheme.fromSeed(
+          seedColor: const Color(0xFF006D77),
+          brightness: Brightness.light,
+        );
+        for (final (brightness, scheme) in [
+          (Brightness.light, null),
+          (Brightness.dark, null),
+          (Brightness.light, dynamicScheme),
+        ]) {
+          final material = replicaTheme(brightness, systemColors: scheme);
+          final fTheme = foruiThemeFrom(material, touch: true);
+          final tokens = material.extension<FuncSemanticTokens>()!;
+
+          expect(fTheme.colors.brightness, brightness);
+          expect(fTheme.colors.primary, material.colorScheme.primary);
+          expect(fTheme.colors.border, tokens.brandHairline);
+          expect(fTheme.hapticFeedback, const FHapticFeedback.none());
+
+          final expectedFamily = material.textTheme.bodyMedium?.fontFamily;
+          for (final face in [
+            fTheme.typography.display,
+            fTheme.typography.body,
+          ]) {
+            for (final style in [
+              face.xs3,
+              face.xs2,
+              face.xs,
+              face.sm,
+              face.md,
+              face.lg,
+              face.xl,
+              face.xl2,
+              face.xl3,
+              face.xl4,
+              face.xl5,
+              face.xl6,
+              face.xl7,
+              face.xl8,
+            ]) {
+              expect(style.fontFamily, expectedFamily);
+              expect(style.fontFamily, isNot('packages/forui/Inter'));
+            }
+          }
+        }
+      },
+    );
+
+    testWidgets(
+      'ForuiThemeHost forwards MotionScope reduce to FAccessibilityMotion.disabled',
+      (tester) async {
+        FAccessibilityMotion? captured;
+        Widget probe(bool reduce) => localizedApp(
+          body: MotionScope(
+            reduce: reduce,
+            child: ForuiThemeHost(
+              child: Builder(
+                builder: (context) {
+                  captured = FAccessibilityScope.motionOf(context);
+                  return const SizedBox();
+                },
+              ),
+            ),
+          ),
+        );
+
+        await tester.pumpWidget(probe(true));
+        expect(captured, FAccessibilityMotion.disabled);
+
+        await tester.pumpWidget(probe(false));
+        expect(captured, FAccessibilityMotion.all);
+      },
+    );
   });
 }

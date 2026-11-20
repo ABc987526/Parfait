@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:forui/forui.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'package:parfait/app/layout/content_widths.dart';
@@ -8,6 +9,8 @@ import 'package:parfait/app/pull_to_refresh.dart';
 import 'package:parfait/app/scroll_behavior.dart';
 import 'package:parfait/app/theme/func_semantic_tokens.dart';
 import 'package:parfait/app/theme/replica_theme.dart';
+import 'package:parfait/app/widgets/app_progress_bar.dart';
+import 'package:parfait/app/widgets/app_slider.dart';
 import 'package:parfait/app/widgets/app_spinner.dart';
 import 'package:parfait/app/widgets/app_tab_bar.dart';
 import 'package:parfait/app/widgets/app_top_bar.dart';
@@ -524,6 +527,60 @@ void main() {
         (navBox.decoration as BoxDecoration).border,
         Border(top: BorderSide(color: tokens.brandHairline)),
       );
+    },
+  );
+
+  testWidgets(
+    'AppSlider bridges FSlider with ExcludeFocus and preserves scrubber Slider',
+    (tester) async {
+      await tester.pumpWidget(
+        localizedApp(
+          body: Column(
+            children: [
+              AppSlider(
+                value: 2,
+                min: 1,
+                max: 5,
+                divisions: 4,
+                onChanged: (_) {},
+              ),
+              AppSlider(value: 0.5, onChanged: (_) {}),
+              AppSlider.scrubber(value: 0.5, onChanged: (_) {}),
+            ],
+          ),
+        ),
+      );
+
+      expect(find.byType(FSlider), findsNWidgets(2));
+      expect(
+        find.ancestor(
+          of: find.byType(FSlider),
+          matching: find.byWidgetPredicate(
+            (w) => w is ExcludeFocus && w.excluding,
+          ),
+        ),
+        findsNWidgets(2),
+      );
+      expect(find.byType(Slider), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'AppProgressBar renders FDeterminateProgress when bounded and FProgress when null',
+    (tester) async {
+      await tester.pumpWidget(
+        localizedApp(
+          body: const Column(
+            children: [AppProgressBar(value: 1.5), AppProgressBar()],
+          ),
+        ),
+      );
+
+      final determinate = tester.widget<FDeterminateProgress>(
+        find.byType(FDeterminateProgress),
+      );
+      expect(determinate.value, 1.0);
+      expect(find.byType(FProgress), findsOneWidget);
     },
   );
 }

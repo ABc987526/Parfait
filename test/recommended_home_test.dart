@@ -17,6 +17,7 @@ import 'package:parfait/core/settings/settings_controller.dart';
 import 'package:parfait/core/user/follow_store.dart';
 import 'package:parfait/core/user/user_store.dart';
 import 'package:parfait/app/widgets/func_bottom_nav.dart';
+import 'package:parfait/app/widgets/skeleton/list_skeletons.dart';
 import 'package:parfait/core/illust/recommended_feed_controller.dart';
 import 'package:parfait/core/illust/recommended_repository.dart';
 import 'package:parfait/core/paging/feed_snapshot_store.dart';
@@ -421,4 +422,49 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets(
+    'RecommendedHomePage matches novel and user initial loading skeletons',
+    (tester) async {
+      final pending = Completer<http.Response>();
+      addTearDown(() {
+        if (!pending.isCompleted) {
+          pending.complete(http.Response('{}', 500));
+        }
+      });
+      final container = await signedInApiContainer(
+        MockClient((_) => pending.future),
+        overrides: [
+          feedSnapshotStoreProvider.overrideWithValue(
+            MemoryFeedSnapshotStore(),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      for (final (type, skeleton) in [
+        (RecommendedContentType.novel, NovelListSkeleton),
+        (RecommendedContentType.user, UserListSkeleton),
+      ]) {
+        await tester.pumpWidget(
+          localizedApp(
+            container: container,
+            builder: promptHostBuilder,
+            home: RecommendedHomePage(initialType: type),
+          ),
+        );
+        await tester.pump();
+        expect(find.byType(skeleton), findsOneWidget);
+      }
+      pending.complete(
+        jsonResponse({
+          'novels': <Object?>[],
+          'user_previews': <Object?>[],
+          'next_url': null,
+        }),
+      );
+      await tester.pump();
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
 }

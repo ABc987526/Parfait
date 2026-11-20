@@ -32,7 +32,7 @@ reviewed: 2026-11-18
   system colors; a transparent `highlightColor` under `NoSplash` left rows and
   buttons with zero press feedback, and opaque child boxes hid `InkWell` state
   layers.
-- **Check:** `test/replica_theme_test.dart` "replicaTheme provides visible pressed state feedback for InkWell, ListTile, and buttons"; `test/phase3_forui_bridge_test.dart` "foruiThemeFrom bridges colors, hairlines, haptics, and keeps platform font" "ForuiThemeHost forwards MotionScope reduce to FAccessibilityMotion.disabled"
+- **Check:** `test/replica_theme_test.dart` "replicaTheme provides visible pressed state feedback for InkWell, ListTile, and buttons" "foruiThemeFrom bridges colors, hairlines, haptics, and keeps platform font" "ForuiThemeHost forwards MotionScope reduce to FAccessibilityMotion.disabled"
 - **Code:** `lib/app/theme/replica_theme.dart`, `lib/app/theme/forui_theme_bridge.dart`, `lib/l10n/app_localizations_delegates.dart`, `lib/app/app.dart`
 
 ### THEME-02 No bundled font

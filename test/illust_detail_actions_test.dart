@@ -7,8 +7,14 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 
+import 'package:parfait/app/clipboard.dart';
+import 'package:parfait/core/image/image_worker_providers.dart';
+import 'package:parfait/core/platform/image_clipboard.dart';
 import 'package:parfait/core/settings/app_settings.dart';
+import 'package:parfait/l10n/app_localizations.dart';
 import 'package:parfait/core/translation/translation_service.dart';
 import 'package:parfait/app/layout/two_pane.dart';
 import 'package:parfait/core/bookmark/bookmark_tag_providers.dart';
@@ -34,8 +40,10 @@ import 'package:parfait/core/share/share_service.dart';
 import 'helpers/detail_world.dart';
 import 'helpers/download_world.dart';
 import 'helpers/illust_fixtures.dart';
+import 'helpers/image_network.dart';
 import 'helpers/settings_world.dart' show RecordingTranslationEngine;
 import 'helpers/view_size.dart';
+import 'helpers/waits.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
 import 'package:parfait/app/navigation/route_extras.dart';
@@ -1152,6 +1160,133 @@ void main() {
         await tester.pumpAndSettle();
         final scrolledAfter = metaOffset();
         expect(scrolledAfter, closeTo(scrolledBefore, 20));
+      },
+    );
+
+    testWidgets(
+      'ImageClipboard channel and copy-image action copy original bytes with desktop-only gating and deferAppSnackBar',
+      (tester) async {
+        for (final (platform, expected) in [
+          (TargetPlatform.windows, true),
+          (TargetPlatform.macOS, true),
+          (TargetPlatform.linux, true),
+          (TargetPlatform.android, false),
+          (TargetPlatform.iOS, false),
+        ]) {
+          debugDefaultTargetPlatformOverride = platform;
+          try {
+            expect(
+              isDesktopImageClipboardSupported,
+              expected,
+              reason: 'desktop image clipboard gating on $platform',
+            );
+          } finally {
+            debugDefaultTargetPlatformOverride = null;
+          }
+        }
+
+        debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+        try {
+          const channel = MethodChannel('parfait/image_clipboard');
+          final copiedPayloads = <Uint8List>[];
+          var channelResult = true;
+          Completer<bool>? pendingReply;
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+              .setMockMethodCallHandler(channel, (call) async {
+                if (call.method == 'copyImage') {
+                  final args = call.arguments as Map<dynamic, dynamic>;
+                  copiedPayloads.add(args['bytes'] as Uint8List);
+                  if (pendingReply case final pending?) {
+                    return pending.future;
+                  }
+                  return channelResult;
+                }
+                return null;
+              });
+          addTearDown(
+            () => TestDefaultBinaryMessengerBinding
+                .instance
+                .defaultBinaryMessenger
+                .setMockMethodCallHandler(channel, null),
+          );
+
+          final worker = inProcessImageWorker(
+            () =>
+                MockClient((_) async => http.Response.bytes(onePixelPng, 200)),
+          );
+          final (container, _, _) = await makeWorld(
+            extraOverrides: [imageWorkerProvider.overrideWithValue(worker)],
+          );
+          final entity = parseIllust(
+            illustJson(42, pageCount: 1, withMetaSinglePage: true),
+          );
+          final mountHost = ValueNotifier<bool>(true);
+          addTearDown(mountHost.dispose);
+          BuildContext? openerContext;
+
+          await tester.pumpWidget(
+            localizedApp(
+              container: container,
+              builder: promptHostBuilder,
+              body: ValueListenableBuilder<bool>(
+                valueListenable: mountHost,
+                builder: (context, show, _) => show
+                    ? Builder(
+                        builder: (inner) {
+                          openerContext = inner;
+                          return const Text('opener');
+                        },
+                      )
+                    : const SizedBox.shrink(),
+              ),
+            ),
+          );
+          await tester.pump();
+
+          pendingReply = Completer<bool>();
+          unawaited(
+            copyIllustOriginalImageToClipboard(
+              openerContext!,
+              container,
+              entity,
+            ),
+          );
+          await pumpIoUntil(tester, () => copiedPayloads.length == 1);
+          mountHost.value = false;
+          await tester.pump();
+          pendingReply.complete(true);
+          pendingReply = null;
+          await tester.pump();
+          await tester.pumpAndSettle();
+          expect(copiedPayloads, hasLength(1));
+          expect(copiedPayloads.single, orderedEquals(onePixelPng));
+          expect(
+            find.text(lookupAppLocalizations(zhCN).imageCopiedToClipboard),
+            findsOneWidget,
+          );
+
+          await tester.pump(const Duration(seconds: 5));
+          mountHost.value = true;
+          await tester.pump();
+          channelResult = false;
+          unawaited(
+            copyIllustOriginalImageToClipboard(
+              openerContext!,
+              container,
+              entity,
+            ),
+          );
+          await pumpIoUntil(tester, () => copiedPayloads.length == 2);
+          await tester.pumpAndSettle();
+          expect(
+            find.text(lookupAppLocalizations(zhCN).imageCopyFailed),
+            findsOneWidget,
+          );
+          await tester.pumpWidget(const SizedBox());
+          await tester.pump();
+        } finally {
+          debugDefaultTargetPlatformOverride = null;
+        }
       },
     );
   });

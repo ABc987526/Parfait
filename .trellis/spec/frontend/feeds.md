@@ -211,7 +211,7 @@ reviewed: 2026-11-18
   (`BookmarkActions.addBatch`) and original downloads.
 - **Why:** Wide desktop and tablet feeds need fast batch triage without polluting
   compact phone browsing or firing uncapped parallel network writes.
-- **Check:** `test/desktop_ux_phase2_test.dart` "SelectableFeedHost gates >=600dp multi-select, Ctrl/Cmd+Click, Shift range, Ctrl+A, Esc, and batch bookmark/download"
+- **Check:** `test/feed_selection_test.dart` "SelectableFeedHost gates >=600dp multi-select, Ctrl/Cmd+Click, Shift range, Ctrl+A, Esc, and batch bookmark/download"
 - **Code:** `lib/app/widgets/feed/feed_selection.dart`, `lib/app/widgets/feed/feed_grid.dart`, `lib/app/widgets/feed/illust_card.dart`, `lib/core/bookmark/bookmark_actions.dart`
 
 ## Pull to refresh
