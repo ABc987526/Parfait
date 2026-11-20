@@ -8,6 +8,7 @@ import '../auth/account_store.dart';
 import '../log.dart';
 import '../network/pixiv_client_identity.dart';
 import '../network/pixiv_http_client.dart';
+import '../platform/app_storage_paths.dart';
 import 'history_database.dart';
 import 'history_models.dart';
 
@@ -466,15 +467,19 @@ class HistoryRepository {
   ];
 }
 
-final _historyDatabaseProvider = Provider<HistoryDatabase>((ref) {
-  final database = HistoryDatabase();
+final historyDatabaseProvider = Provider<HistoryDatabase>((ref) {
+  final database = HistoryDatabase(
+    databasePath: ref
+        .watch(appStoragePathsProvider)
+        .databasePath(HistoryDatabase.databaseName),
+  );
   ref.onDispose(() => unawaited(database.close()));
   return database;
 });
 
 final historyRepositoryProvider = Provider<HistoryRepository>((ref) {
   final repository = HistoryRepository(
-    database: ref.watch(_historyDatabaseProvider),
+    database: ref.watch(historyDatabaseProvider),
   );
   ref.onDispose(repository.dispose);
   return repository;

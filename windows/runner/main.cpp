@@ -12,21 +12,71 @@ namespace {
 
 constexpr wchar_t kSingleInstanceMutexName[] =
     L"Local\\io.github.lopution.parfait.SingleInstance";
+constexpr wchar_t kDevSingleInstanceMutexName[] =
+    L"Local\\io.github.lopution.parfait.dev.SingleInstance";
+
+#if !(defined(PARFAIT_DEV_TARGET) && PARFAIT_DEV_TARGET)
+bool IsTruthyEnv(const wchar_t* name) {
+  wchar_t buf[8]{};
+  DWORD len = ::GetEnvironmentVariableW(name, buf, 8);
+  return len > 0 && (buf[0] == L'1' || buf[0] == L't' || buf[0] == L'T');
+}
+
+bool HasNonEmptyEnv(const wchar_t* name) {
+  return ::GetEnvironmentVariableW(name, nullptr, 0) > 1;
+}
+
+bool HasFlag(const std::string& arg, const char* flag) {
+  const std::string prefix = std::string(flag) + "=";
+  return arg == flag || arg.rfind(prefix, 0) == 0;
+}
+#endif
+
+bool HasDevProfileFlag(const std::vector<std::string>& args) {
+#if defined(PARFAIT_DEV_TARGET) && PARFAIT_DEV_TARGET
+  (void)args;
+  return true;
+#else
+  for (const auto& arg : args) {
+    if (HasFlag(arg, "--dev-profile") || HasFlag(arg, "--profile") ||
+        HasFlag(arg, "--source") || HasFlag(arg, "--loopback") ||
+        HasFlag(arg, "--workbench-url")) {
+      return true;
+    }
+  }
+  return IsTruthyEnv(L"PARFAIT_DEV_PROFILE") ||
+         IsTruthyEnv(L"PARFAIT_DEV_INSTANCE") ||
+         HasNonEmptyEnv(L"PARFAIT_DEV_ROOT") ||
+         HasNonEmptyEnv(L"PARFAIT_DEV_PROFILE_NAME") ||
+         HasNonEmptyEnv(L"PARFAIT_WORKBENCH_URL") ||
+         HasNonEmptyEnv(L"PARFAIT_DEV_WORKBENCH_URL") ||
+         HasNonEmptyEnv(L"PARFAIT_DEV_SOURCE") ||
+         HasNonEmptyEnv(L"PARFAIT_DEV_LOOPBACK_URL");
+#endif
+}
+
+struct WindowSearchQuery {
+  const wchar_t* prop = kParfaitMainWindowProp;
+  HWND found = nullptr;
+};
 
 BOOL CALLBACK FindParfaitWindowCallback(HWND hwnd, LPARAM lparam) {
-  if (::GetPropW(hwnd, kParfaitMainWindowProp) != nullptr) {
-    *reinterpret_cast<HWND*>(lparam) = hwnd;
+  auto* query = reinterpret_cast<WindowSearchQuery*>(lparam);
+  if (::GetPropW(hwnd, query->prop) != nullptr) {
+    query->found = hwnd;
     return FALSE;
   }
   return TRUE;
 }
 
-HWND FindExistingParfaitWindow() {
+HWND FindExistingParfaitWindow(bool is_dev_profile) {
+  const wchar_t* prop =
+      is_dev_profile ? kParfaitDevMainWindowProp : kParfaitMainWindowProp;
   for (int attempt = 0; attempt < 20; ++attempt) {
-    HWND found = nullptr;
-    ::EnumWindows(FindParfaitWindowCallback, reinterpret_cast<LPARAM>(&found));
-    if (found != nullptr) {
-      return found;
+    WindowSearchQuery query{prop, nullptr};
+    ::EnumWindows(FindParfaitWindowCallback, reinterpret_cast<LPARAM>(&query));
+    if (query.found != nullptr) {
+      return query.found;
     }
     ::Sleep(50);
   }
@@ -49,12 +99,14 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   std::vector<std::string> command_line_arguments =
       GetCommandLineArguments();
   std::string initial_uri = ExtractInitialUri(command_line_arguments);
+  const bool is_dev_profile = HasDevProfileFlag(command_line_arguments);
 
-  HANDLE single_instance_mutex =
-      ::CreateMutexW(nullptr, TRUE, kSingleInstanceMutexName);
+  HANDLE single_instance_mutex = ::CreateMutexW(
+      nullptr, TRUE,
+      is_dev_profile ? kDevSingleInstanceMutexName : kSingleInstanceMutexName);
   if (single_instance_mutex != nullptr &&
       ::GetLastError() == ERROR_ALREADY_EXISTS) {
-    HWND existing_hwnd = FindExistingParfaitWindow();
+    HWND existing_hwnd = FindExistingParfaitWindow(is_dev_profile);
     if (existing_hwnd != nullptr) {
       DWORD target_pid = 0;
       ::GetWindowThreadProcessId(existing_hwnd, &target_pid);
@@ -88,13 +140,13 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   flutter::DartProject project(L"data");
   project.set_dart_entrypoint_arguments(std::move(command_line_arguments));
 
-  FlutterWindow window(project, std::move(initial_uri));
+  FlutterWindow window(project, std::move(initial_uri), is_dev_profile);
   Win32Window::Point origin(10, 10);
   // Desktop default: wide enough for the expanded rail and a content column
   // (see lib/app/window/window_geometry.dart, which fits the saved place to
   // a display's work area before the window is shown).
   Win32Window::Size size(1280, 800);
-  if (!window.Create(L"Parfait", origin, size)) {
+  if (!window.Create(is_dev_profile ? L"Parfait Dev" : L"Parfait", origin, size)) {
     if (single_instance_mutex != nullptr) {
       ::CloseHandle(single_instance_mutex);
     }

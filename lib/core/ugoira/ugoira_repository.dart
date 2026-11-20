@@ -1,16 +1,18 @@
 import 'dart:async';
+
 import '../network/pixiv_headers.dart';
+
 import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 
 import '../download/download_transport.dart';
 import '../download/pixiv_download_transport.dart';
 import '../network/api_error.dart';
 import '../network/pixiv_client_identity.dart';
 import '../network/pixiv_http_client.dart';
+import '../platform/app_storage_paths.dart';
 import 'ugoira_decoder.dart';
 import 'ugoira_limits.dart';
 import 'ugoira_metadata.dart';
@@ -81,7 +83,8 @@ class UgoiraRepository {
     this.limits = const UgoiraLimits(),
   }) : _client = client,
        _transport = transport,
-       _temporaryDirectory = temporaryDirectory ?? getTemporaryDirectory;
+       _temporaryDirectory =
+           temporaryDirectory ?? AppStoragePaths.active.resolveTempDir;
 
   final PixivHttpClient _client;
   final DownloadTransport _transport;

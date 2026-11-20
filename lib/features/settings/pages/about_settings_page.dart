@@ -8,7 +8,6 @@ import 'package:flutter_displaymode/flutter_displaymode.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -26,6 +25,7 @@ import '../../../app/widgets/settings/settings_group.dart';
 import '../../../app/widgets/settings/settings_group_content.dart';
 import '../../../app/widgets/settings/settings_tile.dart';
 import '../../../core/logging/crash_log.dart';
+import '../../../core/platform/app_storage_paths.dart';
 import '../../../core/platform/platform_caps.dart';
 import '../../../core/settings/shared_preferences.dart';
 import '../../../core/updater/update_manifest.dart';
@@ -230,7 +230,7 @@ Future<void> _exportCrashLog(
   BuildContext context, {
   required bool isDesktop,
 }) async {
-  final directory = await getApplicationSupportDirectory();
+  final directory = await AppStoragePaths.active.resolveSupportDir();
   final file = CrashLog.fileFor(directory);
   final hasLog = await file.exists() && await file.length() > 0;
   if (!context.mounted) return;

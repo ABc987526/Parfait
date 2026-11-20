@@ -30,6 +30,16 @@ target_compile_definitions(${BINARY_NAME} PRIVATE "FLUTTER_VERSION_BUILD=${FLUTT
 # Disable Windows macros that collide with C++ standard library functions.
 target_compile_definitions(${BINARY_NAME} PRIVATE "NOMINMAX")
 
+set(PARFAIT_DEV_TARGET 0)
+set(_parfait_generated_config "${CMAKE_CURRENT_SOURCE_DIR}/../flutter/ephemeral/generated_config.cmake")
+if(EXISTS "${_parfait_generated_config}")
+  file(READ "${_parfait_generated_config}" _parfait_generated_config_text)
+  if(_parfait_generated_config_text MATCHES "FLUTTER_TARGET=[^\r\n\"]*main_dev\\.dart")
+    set(PARFAIT_DEV_TARGET 1)
+  endif()
+endif()
+target_compile_definitions(${BINARY_NAME} PRIVATE "PARFAIT_DEV_TARGET=${PARFAIT_DEV_TARGET}")
+
 # Add dependency libraries and include directories. Add any application-specific
 # dependencies here.
 target_link_libraries(${BINARY_NAME} PRIVATE flutter flutter_wrapper_app)

@@ -9,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import '../download/download_recovery.dart';
 import '../download/resume_anchor.dart';
 import 'android_platform_interfaces.dart';
+import 'app_storage_paths.dart';
 import 'saf_tree.dart';
 
 const _windowsReservedNames = <String>{
@@ -288,7 +289,7 @@ class DesktopFileMediaStoreSession
   Future<Directory> _base() async {
     if (baseDirectory != null) return baseDirectory!();
     return await getDownloadsDirectory() ??
-        await getApplicationSupportDirectory();
+        await AppStoragePaths.active.resolveSupportDir();
   }
 
   String _albumOf(String? relativePath) {

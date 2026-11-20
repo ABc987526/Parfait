@@ -30,6 +30,10 @@ class CrashLog {
   static File? _file;
   static Future<void> _tail = Future<void>.value();
 
+  /// Optional listener installed only by `main_dev.dart` with path-stripped
+  /// [describe] summaries. Always `null` in production.
+  static void Function(String? action, String summary)? devCrashListener;
+
   /// Returns the log file for [directory] (created on first record).
   static File fileFor(Directory directory) =>
       File(p.join(directory.path, 'logs', fileName));
@@ -81,6 +85,9 @@ class CrashLog {
   }
 
   static void _enqueue(String? action, Object error, StackTrace? stack) {
+    if (!kReleaseMode) {
+      devCrashListener?.call(action, describe(error));
+    }
     final file = _file;
     if (file == null) return;
     _tail = _tail

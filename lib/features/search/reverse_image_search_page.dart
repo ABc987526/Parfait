@@ -10,6 +10,7 @@ import '../../app/widgets/app_top_bar.dart';
 import '../../app/widgets/web_navigation_guard.dart';
 import '../../core/format/byte_size.dart';
 import '../../core/platform/android_intent_channel.dart';
+import '../../core/platform/dev_webview_environment.dart';
 import '../../core/platform/intent_router.dart';
 import '../../app/widgets/app_spinner.dart';
 import '../../core/platform/platform_caps.dart';
