@@ -19,6 +19,8 @@ Exit 1 and print a ::error:: line on any violation.
 from __future__ import annotations
 
 import argparse
+from contextlib import redirect_stdout
+import io
 import os
 import sys
 import tempfile
@@ -30,6 +32,7 @@ ARM64 = "arm64-v8a"
 ARMV7 = "armeabi-v7a"
 KNOWN_ABIS = (ARM64, ARMV7)
 ARM64_HARD_CAP = 32_000_000
+HEADROOM_WARN_BYTES = 500_000
 ENV_ARM64 = "PIXIV_APK_MAX_BYTES_ARM64_V8A"
 ENV_ARMV7 = "PIXIV_APK_MAX_BYTES_ARMEABI_V7A"
 
@@ -136,6 +139,7 @@ def print_apk(report: dict) -> None:
     limit = report["limit"]
     if limit is not None:
         print(f"  limit: {limit}")
+        print(f"  headroom: {limit - report['file_bytes']}")
 
 
 def print_summary(reports: list[dict]) -> None:
@@ -179,6 +183,17 @@ def self_test() -> int:
             return fail("self-test fail path unexpectedly passed")
         print("self-test fail path: ok")
 
+        os.environ[ENV_ARM64] = str(good.stat().st_size + 1024)
+        try:
+            buf = io.StringIO()
+            with redirect_stdout(buf):
+                code = main([str(good)])
+            if code != 0 or "::warning::" not in buf.getvalue():
+                return fail("self-test low-headroom warning did not emit ::warning::")
+        finally:
+            os.environ.pop(ENV_ARM64, None)
+        print("self-test headroom warning: ok")
+
         os.environ[ENV_ARM64] = "1"
         try:
             if threshold_for(ARM64) != 1:
@@ -216,11 +231,19 @@ def main(argv: list[str] | None = None) -> int:
             continue
         print_apk(report)
         limit = report["limit"]
-        if limit is not None and report["file_bytes"] > limit:
-            errors.append(
-                f"{report['abi']} APK exceeds size cap: "
-                f"{report['file_bytes']} > {limit} ({report['name']})"
-            )
+        if limit is not None:
+            if report["file_bytes"] > limit:
+                errors.append(
+                    f"{report['abi']} APK exceeds size cap: "
+                    f"{report['file_bytes']} > {limit} ({report['name']})"
+                )
+            elif limit - report["file_bytes"] < HEADROOM_WARN_BYTES:
+                headroom = limit - report["file_bytes"]
+                print(
+                    f"::warning::{report['abi']} APK headroom below "
+                    f"{HEADROOM_WARN_BYTES} bytes: {headroom} bytes left "
+                    f"({report['file_bytes']} / {limit}, {report['name']})"
+                )
         reports.append(report)
     if reports:
         print_summary(reports)

@@ -85,3 +85,53 @@ jobs:
         with:
           name: parfait-linux-x64
           path: build/linux/x64/release/bundle
+
+  prune-pr-caches:
+    # Keep total repository Actions cache safely under the 10 GB eviction
+    # ceiling by pruning stale PR-scoped caches nightly.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: Delete PR caches untouched for >24h
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          python3 - <<'PY'
+          import datetime, os, subprocess
+
+          repo = os.environ["REPO"]
+          cutoff = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=24)
+          raw = subprocess.run(
+              [
+                  "gh",
+                  "api",
+                  "--paginate",
+                  f"repos/{repo}/actions/caches?per_page=100",
+                  "--jq",
+                  ".actions_caches[] | [.id, .ref, .last_accessed_at] | @tsv",
+              ],
+              check=True,
+              capture_output=True,
+              text=True,
+          ).stdout
+          deleted = 0
+          for line in raw.splitlines():
+              if not line.strip():
+                  continue
+              cid, ref, last_accessed = line.split("\t")
+              if not ref.startswith("refs/pull/"):
+                  continue
+              seen = datetime.datetime.fromisoformat(
+                  last_accessed.replace("Z", "+00:00")
+              )
+              if seen < cutoff:
+                  subprocess.run(
+                      ["gh", "api", "-X", "DELETE", f"repos/{repo}/actions/caches/{cid}"],
+                      check=False,
+                  )
+                  deleted += 1
+          print(f"Pruned {deleted} stale PR cache(s).")
+          PY
