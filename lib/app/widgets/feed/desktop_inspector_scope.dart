@@ -106,6 +106,9 @@ typedef DesktopGalleryInspectorBuilder =
 
 DesktopGalleryInspectorBuilder? _desktopGalleryInspectorBuilder;
 
+/// Whether a desktop gallery inspector builder has been registered.
+bool get hasDesktopGalleryInspector => _desktopGalleryInspectorBuilder != null;
+
 /// Registers the desktop gallery inspector builder once from router assembly.
 void registerDesktopGalleryInspector(DesktopGalleryInspectorBuilder builder) {
   _desktopGalleryInspectorBuilder = builder;

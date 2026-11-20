@@ -165,6 +165,7 @@ class _DesktopInspectableGalleryState
     });
     final detailMode = ref.watch(desktopDetailModeProvider);
     final modeEnabled =
+        hasDesktopGalleryInspector &&
         widget.enabled &&
         widget.active &&
         canUseDesktopInspector(context, detailMode);
