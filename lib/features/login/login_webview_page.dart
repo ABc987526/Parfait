@@ -19,6 +19,7 @@ import '../../core/auth/account_store.dart';
 import '../../core/auth/oauth_service.dart';
 import '../../core/logging/crash_log.dart';
 import '../../core/network/local_network_address.dart';
+import '../../core/platform/dev_webview_environment.dart';
 import '../../core/platform/local_network.dart';
 import '../../core/platform/platform_caps.dart';
 
@@ -395,6 +396,7 @@ class _LoginWebViewPageState extends ConsumerState<LoginWebViewPage>
   }
 
   Widget _webView() => InAppWebView(
+    webViewEnvironment: DevWebViewEnvironmentHolder.resolveForWebView(),
     // No initialUrlRequest: the first load goes through [_load] and its
     // local network check like every other.
     initialSettings: _guard.settings,
@@ -412,6 +414,29 @@ class _LoginWebViewPageState extends ConsumerState<LoginWebViewPage>
     },
     onReceivedError: _onReceivedError,
     onReceivedHttpError: _onReceivedHttpError,
+  );
+
+  Widget _devWebViewErrorView(BuildContext context) => Center(
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(AppIcons.globeOff, size: 56),
+        const SizedBox(height: FuncSpacing.md),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: FuncSpacing.xl),
+          child: Text(
+            '${DevWebViewEnvironmentHolder.initError ?? 'Dev WebView2 environment unavailable'}',
+            textAlign: TextAlign.center,
+          ),
+        ),
+        const SizedBox(height: FuncSpacing.lg),
+        FilledButton.icon(
+          onPressed: _openExternalBrowser,
+          icon: const Icon(AppIcons.externalLink),
+          label: Text(context.l10n.openInBrowser),
+        ),
+      ],
+    ),
   );
 
   Widget _webView2Prompt(BuildContext context) => Center(
@@ -536,6 +561,8 @@ class _LoginWebViewPageState extends ConsumerState<LoginWebViewPage>
         children: [
           if (!supportsWebView)
             _externalBrowserView(context)
+          else if (DevWebViewEnvironmentHolder.isUnavailableInDevWindows())
+            _devWebViewErrorView(context)
           else if (_webView2Missing)
             _webView2Prompt(context)
           else

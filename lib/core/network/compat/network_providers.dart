@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/services.dart' show ServicesBinding;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../settings/shared_preferences.dart';
 
 import '../../log.dart';
@@ -14,6 +15,7 @@ import 'network_contracts.dart' as contracts;
 import 'auto_image_source.dart';
 import 'pixiv_network_factory.dart';
 import 'network_policy.dart';
+import '../dev_transport_override.dart';
 import 'network_fast_route_store.dart';
 import 'image_route_score_store.dart';
 import 'route_kind_store.dart';
@@ -35,22 +37,39 @@ final networkAccessPolicyProvider = Provider<NetworkAccessPolicy>((ref) {
   // The compatibility transport is an internal performance tier, not a
   // user-facing security switch. It uses persisted/bootstrap host addresses
   // and remains behind the explicit directOnly escape hatch.
+  final devTransport = ref.watch(devTransportProvider);
+  final loopbackOrigin = devTransport.activeLoopbackOrigin;
   final policy = NetworkAccessPolicy(
     registry: contracts.PixivDestinationRegistry(
       extraImageHosts: imageMirrorHosts,
     ),
-    dohEndpoints: dohEnabled ? endpoints : const [],
+    dohEndpoints: loopbackOrigin != null
+        ? const []
+        : (dohEnabled ? endpoints : const []),
     echFrontHost: echFrontHost,
     bootstrapNoSniEnabled: true,
-    localNetworkBlockedHosts: localNetworkBlockedHosts,
-    fastRouteStore: ref.watch(fastRouteStoreProvider),
-    routeKindStore: ref.watch(routeKindStoreProvider),
-    imageRouteScoreStore: ref.watch(imageRouteScoreStoreProvider),
-    mode: switch (mode) {
-      NetworkMode.automatic => contracts.NetworkMode.automatic,
-      NetworkMode.directOnly => contracts.NetworkMode.directOnly,
-      NetworkMode.compatPrefer => contracts.NetworkMode.compatPrefer,
-    },
+    localNetworkBlockedHosts: loopbackOrigin != null
+        ? const {}
+        : localNetworkBlockedHosts,
+    fastRouteStore: loopbackOrigin != null
+        ? null
+        : ref.watch(fastRouteStoreProvider),
+    routeKindStore: loopbackOrigin != null
+        ? null
+        : ref.watch(routeKindStoreProvider),
+    imageRouteScoreStore: loopbackOrigin != null
+        ? null
+        : ref.watch(imageRouteScoreStoreProvider),
+    mode: loopbackOrigin != null
+        ? contracts.NetworkMode.directOnly
+        : switch (mode) {
+            NetworkMode.automatic => contracts.NetworkMode.automatic,
+            NetworkMode.directOnly => contracts.NetworkMode.directOnly,
+            NetworkMode.compatPrefer => contracts.NetworkMode.compatPrefer,
+          },
+    clientFactory: loopbackOrigin == null
+        ? null
+        : loopbackNetworkClientFactory(loopbackOrigin),
   );
 
   // A network change (Wi-Fi↔cellular, VPN toggle, captive portal escape)

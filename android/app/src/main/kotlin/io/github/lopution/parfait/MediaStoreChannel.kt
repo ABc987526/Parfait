@@ -45,6 +45,7 @@ object MediaStoreChannel {
     private const val CHANNEL = "parfait/mediastore"
     private const val PREFIX = "mediastore_"
     private const val RELATIVE_PATH = "Pictures/Parfait"
+    private const val DEV_RELATIVE_PATH = "Pictures/ParfaitDev"
     private const val OWNER_PREFIX = "parfait-owner:"
 
     // Handler-only: the channel TaskQueue is serial, so these caches are
@@ -196,14 +197,20 @@ object MediaStoreChannel {
         }
         // D5: custom album destination. Only a normalized `Pictures/<name>`
         // relative path is accepted; traversal and separators are rejected.
+        val isDevApp = context.packageName.endsWith(".dev")
+        val defaultRelativePath = if (isDevApp) DEV_RELATIVE_PATH else RELATIVE_PATH
         val effectiveRelativePath = if (relativePath.isNullOrBlank()) {
-            RELATIVE_PATH
+            defaultRelativePath
         } else {
             require(relativePath.startsWith("Pictures/"))
             require(!relativePath.contains(".."))
             require(relativePath.length <= 128)
             require(!relativePath.split("/").any { it.isEmpty() || it == "." })
-            relativePath
+            if (isDevApp && relativePath == RELATIVE_PATH) {
+                DEV_RELATIVE_PATH
+            } else {
+                relativePath
+            }
         }
         val values = ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME, displayName)

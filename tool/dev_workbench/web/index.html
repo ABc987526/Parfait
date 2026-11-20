@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="parfait-workbench-token" content="{{WORKBENCH_TOKEN}}" />
+  <title>Parfait Dev Workbench</title>
+  <link rel="stylesheet" href="/app.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>Parfait Dev Workbench</h1>
+      <p class="subtitle">本机全隔离开发端控制台 &amp; Pixiv Loopback 网关（实时日志已强制脱敏）</p>
+    </div>
+    <div class="status-pills">
+      <span id="server-origin" class="pill">127.0.0.1</span>
+      <span id="gateway-count" class="pill">Gateway: 0</span>
+      <button id="btn-reset-faults" class="btn-secondary">清空全部故障</button>
+    </div>
+  </header>
+
+  <main class="grid">
+    <section class="panel" aria-labelledby="clients-title">
+      <h2 id="clients-title">在线客户端节点</h2>
+      <div id="clients-list" class="clients-list">暂无连接客户端（请带 `--workbench-url` 启动）</div>
+    </section>
+
+    <section class="panel" aria-labelledby="controls-title">
+      <h2 id="controls-title">控制与导航</h2>
+      <div class="control-row">
+        <label for="target-client">目标节点</label>
+        <select id="target-client"></select>
+        <button data-cmd="snapshot" class="btn-secondary">立即快照</button>
+        <button data-cmd="loopbackSignIn" class="btn-secondary">Loopback 登录态</button>
+      </div>
+
+      <div class="control-row">
+        <span>数据源</span>
+        <button data-source="loopback" class="btn-primary">Loopback 确定性回放</button>
+        <button data-source="live" class="btn-secondary">Live 真实 Pixiv</button>
+      </div>
+
+      <div class="control-row">
+        <span>路由跳转</span>
+        <button data-nav="/recommended" class="btn-secondary">推荐</button>
+        <button data-nav="/ranking" class="btn-secondary">排行</button>
+        <button data-nav="/search" class="btn-secondary">搜索</button>
+        <button data-nav="/new" class="btn-secondary">动态</button>
+        <button data-nav="/recommended/spotlight" class="btn-secondary">特辑</button>
+        <button data-nav="/recommended/history" class="btn-secondary">历史</button>
+        <button data-nav="/downloads" class="btn-secondary">下载</button>
+        <button data-nav="/settings" class="btn-secondary">设置</button>
+      </div>
+
+      <div class="control-row">
+        <input id="custom-route" type="text" placeholder="/recommended/illust/900001 或 /recommended/novel/800001" />
+        <button id="btn-go-route" class="btn-primary">跳转</button>
+        <button data-history="back" class="btn-secondary">后退</button>
+        <button data-history="forward" class="btn-secondary">前进</button>
+      </div>
+
+      <div class="control-row">
+        <span>桌面视口</span>
+        <button data-size="1440x900" class="btn-secondary">1440×900</button>
+        <button data-size="1280x800" class="btn-secondary">1280×800</button>
+        <button data-size="1024x768" class="btn-secondary">1024×768</button>
+        <button data-size="412x915" class="btn-secondary">412×915</button>
+      </div>
+
+      <div class="control-row">
+        <select id="bounds-kind">
+          <option value="key">key</option>
+          <option value="semantics">semantics</option>
+          <option value="text">text</option>
+        </select>
+        <input id="bounds-query" type="text" placeholder="控件定位查询词" />
+        <button id="btn-find-bounds" class="btn-secondary">findBounds</button>
+      </div>
+      <pre id="command-output" class="code-box"></pre>
+    </section>
+
+    <section class="panel" aria-labelledby="faults-title">
+      <h2 id="faults-title">Loopback 故障注入</h2>
+      <div class="control-row">
+        <input id="fault-prefix" type="text" value="/v1/illust/recommended" />
+        <select id="fault-mode">
+          <option value="none">none（正常）</option>
+          <option value="delay_2s">delay_2s（2秒延迟）</option>
+          <option value="rate_limit_429">rate_limit_429</option>
+          <option value="server_500">server_500</option>
+          <option value="empty">empty（空页）</option>
+          <option value="offline">offline（直接断连）</option>
+        </select>
+        <button id="btn-apply-fault" class="btn-primary">应用故障规则</button>
+      </div>
+      <pre id="faults-box" class="code-box">{}</pre>
+    </section>
+
+    <section class="panel" aria-labelledby="traces-title">
+      <h2 id="traces-title">脱敏网关流量 &amp; 客户端日志</h2>
+      <pre id="logs-box" class="code-box logs-tall"></pre>
+    </section>
+
+    <section class="panel span-2" aria-labelledby="artifacts-title">
+      <h2 id="artifacts-title">动态录屏产物画廊（Artifacts Shell）</h2>
+      <div id="artifacts-grid" class="artifacts-grid">暂未挂载产物目录</div>
+    </section>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>

@@ -279,8 +279,9 @@ class DevShellHostState extends State<DevShellHost> {
   DesktopWindowPlatformMetrics? _resolveDesktopMetrics(
     DevShellPlatform p,
     TargetPlatform target,
+    bool isHostViewport,
   ) {
-    if (p == DevShellPlatform.host) return null;
+    if (p == DevShellPlatform.host && isHostViewport) return null;
     return switch (target) {
       TargetPlatform.macOS => const DesktopWindowPlatformMetrics(
         usesSystemTitleBar: false,
@@ -293,7 +294,7 @@ class DevShellHostState extends State<DevShellHost> {
       TargetPlatform.linux => const DesktopWindowPlatformMetrics(
         usesSystemTitleBar: true,
       ),
-      _ => null,
+      _ => isHostViewport ? null : DesktopWindowPlatformMetrics.fallback,
     };
   }
 
@@ -369,11 +370,15 @@ class DevShellHostState extends State<DevShellHost> {
   Widget _buildViewportStage(BuildContext context, MediaQueryData hostMedia) {
     final platformChoice = _controller.platform;
     final preset = _controller.viewport;
+    final isHostViewport = preset == DevShellViewportPreset.host;
+    final passthroughHostWindow =
+        platformChoice == DevShellPlatform.host && isHostViewport;
     final targetPlatform = _resolveTargetPlatform(platformChoice);
     final caps = _resolvePlatformCaps(platformChoice);
     final desktopMetrics = _resolveDesktopMetrics(
       platformChoice,
       targetPlatform,
+      isHostViewport,
     );
     final showMacLights =
         targetPlatform == TargetPlatform.macOS &&
@@ -390,7 +395,6 @@ class DevShellHostState extends State<DevShellHost> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final stageSize = constraints.biggest;
-        final isHostViewport = preset == DevShellViewportPreset.host;
         final viewportSize = preset.logicalSize ?? stageSize;
         final dpr =
             _controller.dprOverride ??
@@ -415,8 +419,10 @@ class DevShellHostState extends State<DevShellHost> {
               displaySize: preset.logicalSize,
               targetPlatform: targetPlatform,
               platformCaps: caps,
-              desktopMetrics: desktopMetrics,
-              desktopActions: DesktopWindowActions.noop,
+              desktopMetrics: passthroughHostWindow ? null : desktopMetrics,
+              desktopActions: passthroughHostWindow
+                  ? null
+                  : DesktopWindowActions.noop,
               showSimulatedTrafficLights: showMacLights,
               child: InputModalityScope(
                 initialModality: effectiveModality,

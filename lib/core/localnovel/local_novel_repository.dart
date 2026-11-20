@@ -7,9 +7,9 @@ import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as path;
-import 'package:path_provider/path_provider.dart';
 
 import '../log.dart';
+import '../platform/app_storage_paths.dart';
 import '../platform/saf_tree.dart';
 import 'local_novel_database.dart';
 import 'local_novel_decoder.dart';
@@ -58,7 +58,7 @@ class LocalNovelRepository {
 
   /// Directory that owns copied-in TXT files; injectable for tests.
   static Future<Directory> defaultNovelsDirectory() async {
-    final support = await getApplicationSupportDirectory();
+    final support = await AppStoragePaths.active.resolveSupportDir();
     return Directory(path.join(support.path, 'local_novels'));
   }
 
@@ -194,7 +194,11 @@ class LocalNovelRepository {
 }
 
 final localNovelDatabaseProvider = Provider<LocalNovelDatabase>((ref) {
-  final database = LocalNovelDatabase();
+  final database = LocalNovelDatabase(
+    databasePath: ref
+        .watch(appStoragePathsProvider)
+        .databasePath(LocalNovelDatabase.databaseName),
+  );
   ref.onDispose(database.close);
   return database;
 });

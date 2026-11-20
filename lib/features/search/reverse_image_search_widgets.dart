@@ -301,13 +301,18 @@ class _ControlledSauceNaoWebViewState
         onOpen: () => widget.onOpenExternal(externalUri),
       );
     }
-    final error = _error;
+    final error =
+        _error ??
+        (DevWebViewEnvironmentHolder.isUnavailableInDevWindows()
+            ? '${DevWebViewEnvironmentHolder.initError ?? 'Dev WebView2 environment unavailable'}'
+            : null);
     if (error != null) {
       return _webViewErrorBody(context, error);
     }
     return Stack(
       children: [
         InAppWebView(
+          webViewEnvironment: DevWebViewEnvironmentHolder.resolveForWebView(),
           initialUrlRequest: result.resultUrl != null
               ? URLRequest(url: WebUri.uri(result.resultUrl!))
               : null,
@@ -414,39 +419,50 @@ class _UploadInAppWebViewState extends State<_UploadInAppWebView> {
                 ),
         ),
         Expanded(
-          child: Stack(
-            children: [
-              InAppWebView(
-                initialUrlRequest: URLRequest(
-                  url: WebUri.uri(widget.upload.uploadPageUrl),
+          child: DevWebViewEnvironmentHolder.isUnavailableInDevWindows()
+              ? _webViewErrorBody(
+                  context,
+                  '${DevWebViewEnvironmentHolder.initError ?? 'Dev WebView2 environment unavailable'}',
+                )
+              : Stack(
+                  children: [
+                    InAppWebView(
+                      webViewEnvironment:
+                          DevWebViewEnvironmentHolder.resolveForWebView(),
+                      initialUrlRequest: URLRequest(
+                        url: WebUri.uri(widget.upload.uploadPageUrl),
+                      ),
+                      initialSettings: InAppWebViewSettings(
+                        javaScriptEnabled: true,
+                      ),
+                      onLoadStart: (controller, url) {
+                        if (url == null) return;
+                        final raw = url.toString();
+                        if (_applyNavigationAction(
+                          context,
+                          widget.policy.decide(Uri.tryParse(raw)),
+                          raw,
+                          widget.onOpenExternal,
+                        )) {
+                          unawaited(controller.stopLoading());
+                        }
+                      },
+                      onProgressChanged: (controller, progress) {
+                        if (mounted) {
+                          setState(() => _progress = progress / 100.0);
+                        }
+                      },
+                      onReceivedError: (controller, request, error) {
+                        if (request.isForMainFrame == false || !mounted) return;
+                        setState(() {
+                          _error = '${error.type}: ${error.description}';
+                        });
+                      },
+                    ),
+                    if (_progress != null && _progress! < 1.0)
+                      AppProgressBar(value: _progress, minHeight: 2),
+                  ],
                 ),
-                initialSettings: InAppWebViewSettings(javaScriptEnabled: true),
-                onLoadStart: (controller, url) {
-                  if (url == null) return;
-                  final raw = url.toString();
-                  if (_applyNavigationAction(
-                    context,
-                    widget.policy.decide(Uri.tryParse(raw)),
-                    raw,
-                    widget.onOpenExternal,
-                  )) {
-                    unawaited(controller.stopLoading());
-                  }
-                },
-                onProgressChanged: (controller, progress) {
-                  if (mounted) setState(() => _progress = progress / 100.0);
-                },
-                onReceivedError: (controller, request, error) {
-                  if (request.isForMainFrame == false || !mounted) return;
-                  setState(() {
-                    _error = '${error.type}: ${error.description}';
-                  });
-                },
-              ),
-              if (_progress != null && _progress! < 1.0)
-                AppProgressBar(value: _progress, minHeight: 2),
-            ],
-          ),
         ),
       ],
     );

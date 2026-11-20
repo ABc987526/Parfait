@@ -383,9 +383,11 @@ bool CopyEncodedImageToClipboard(HWND hwnd, const std::vector<uint8_t>& bytes) {
 }
 
 FlutterWindow::FlutterWindow(const flutter::DartProject& project,
-                             std::string initial_intent_uri)
+                             std::string initial_intent_uri,
+                             bool is_dev_profile)
     : project_(project),
-      initial_intent_uri_(std::move(initial_intent_uri)) {}
+      initial_intent_uri_(std::move(initial_intent_uri)),
+      is_dev_profile_(is_dev_profile) {}
 
 FlutterWindow::~FlutterWindow() {}
 
@@ -396,7 +398,10 @@ bool FlutterWindow::OnCreate() {
 
   HWND hwnd = GetHandle();
   if (hwnd != nullptr) {
-    ::SetPropW(hwnd, kParfaitMainWindowProp, reinterpret_cast<HANDLE>(1));
+    ::SetPropW(hwnd,
+               is_dev_profile_ ? kParfaitDevMainWindowProp
+                               : kParfaitMainWindowProp,
+               reinterpret_cast<HANDLE>(1));
     taskbar_created_message_ = ::RegisterWindowMessageW(L"TaskbarCreated");
     is_active_ = (::GetForegroundWindow() == hwnd);
   }
@@ -479,7 +484,8 @@ void FlutterWindow::OnDestroy() {
     child_view_hwnd_ = nullptr;
   }
   if (HWND hwnd = GetHandle(); hwnd != nullptr) {
-    ::RemovePropW(hwnd, kParfaitMainWindowProp);
+    ::RemovePropW(hwnd, is_dev_profile_ ? kParfaitDevMainWindowProp
+                                        : kParfaitMainWindowProp);
   }
 
   if (flutter_controller_) {

@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../app/theme/func_semantic_tokens.dart';
 import '../../app/widgets/feed/feed_states.dart';
 import '../../app/widgets/edge_icon_buttons.dart';
+import '../../core/platform/dev_webview_environment.dart';
 import '../../core/platform/platform_caps.dart';
 import '../../core/settings/settings_controller.dart';
 import '../../core/spotlight/article_parser.dart';
@@ -104,11 +105,18 @@ class _SpotlightChallengeViewState
       _controller = null;
       return;
     }
+    if (DevWebViewEnvironmentHolder.isUnavailableInDevWindows()) {
+      _phase = _ChallengePhase.failed;
+      _handedOver = false;
+      _controller = null;
+      return;
+    }
     final languageTag = ref.read(settingsProvider).value?.languageTag;
     _phase = _ChallengePhase.verifying;
     _handedOver = false;
     _controller = null;
     _headless = HeadlessInAppWebView(
+      webViewEnvironment: DevWebViewEnvironmentHolder.resolveForWebView(),
       initialUrlRequest: URLRequest(
         url: WebUri.uri(widget.uri),
         headers: {'Accept-Language': languageTag ?? 'zh-CN'},
@@ -257,6 +265,7 @@ class _SpotlightChallengeViewState
         Expanded(
           child: InAppWebView(
             key: ValueKey(_attempt),
+            webViewEnvironment: DevWebViewEnvironmentHolder.resolveForWebView(),
             headlessWebView: _headless,
             initialSettings: _settings,
             onWebViewCreated: (controller) {

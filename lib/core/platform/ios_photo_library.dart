@@ -2,11 +2,11 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/services.dart';
-import 'package:path_provider/path_provider.dart';
 
 import '../download/download_recovery.dart';
 import '../download/resume_anchor.dart';
 import 'android_platform_interfaces.dart';
+import 'app_storage_paths.dart';
 import 'desktop_file_sink.dart';
 
 /// iOS `MediaStoreSession` backed by `PHPhotoLibrary` over the
@@ -37,7 +37,7 @@ class IosPhotoLibraryMediaStoreSession
 
   Future<Directory> _root() async {
     if (stagingDirectory != null) return stagingDirectory!();
-    return getTemporaryDirectory();
+    return AppStoragePaths.active.resolveTempDir();
   }
 
   static String _albumOf(String? relativePath) {

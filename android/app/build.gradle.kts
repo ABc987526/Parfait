@@ -1,4 +1,5 @@
 import java.io.File
+import java.util.Base64
 
 plugins {
     id("com.android.application")
@@ -23,6 +24,24 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+
+    val devDartDefineRequested = (project.findProperty("dart-defines") as String?)
+        ?.split(",")
+        ?.any { raw ->
+            runCatching {
+                String(Base64.getDecoder().decode(raw))
+            }.getOrNull() == "PARFAIT_DEV_APP_ID=true"
+        } == true
+    val devTargetRequested = (project.findProperty("target") as String?)
+        ?.trim()
+        ?.replace('\\', '/')
+        ?.let { normalized ->
+            normalized == "lib/main_dev.dart" || normalized.endsWith("/main_dev.dart")
+        } == true
+    val devAppIdRequested =
+        project.findProperty("parfaitDevAppId")?.toString()?.toBoolean() == true ||
+            devDartDefineRequested ||
+            devTargetRequested
 
     defaultConfig {
         applicationId = "io.github.lopution.parfait"
@@ -137,6 +156,13 @@ android {
     }
 
     buildTypes {
+        configureEach {
+            if (devAppIdRequested) {
+                applicationIdSuffix = ".dev"
+            }
+        }
+        debug {
+        }
         release {
             // R8 + resource shrinking: classes.dex was ~2.2MB of unshrunk
             // plugin/androidx code. Flutter embedding and channel-called

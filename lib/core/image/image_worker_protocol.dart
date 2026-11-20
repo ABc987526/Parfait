@@ -34,6 +34,7 @@ class ImageWorkerConfig {
     this.routeScores = const {},
     this.routeDiscovery,
     this.provenOrigins,
+    this.devLoopbackOrigin,
   });
 
   /// Persisted `imageSource` setting (`i.pximg.net`, `auto`, a preset host
@@ -89,6 +90,10 @@ class ImageWorkerConfig {
   /// refresh; null before the first.
   final ProvenOrigins? provenOrigins;
 
+  /// Active dev loopback gateway origin (`http://127.0.0.1:<port>`), or null
+  /// in production / live mode.
+  final String? devLoopbackOrigin;
+
   Map<String, Object?> toJson() => {
     'imageSource': imageSource,
     'autoWinnerHost': autoWinnerHost,
@@ -106,6 +111,7 @@ class ImageWorkerConfig {
     },
     'routeDiscovery': routeDiscovery?.toJson(),
     'provenOrigins': provenOrigins?.toJson(),
+    'devLoopbackOrigin': devLoopbackOrigin,
   };
 
   static ImageWorkerConfig fromJson(Map<String, Object?> json) {
@@ -131,6 +137,7 @@ class ImageWorkerConfig {
           ? null
           : ImageRouteDiscovery.fromJson(json['routeDiscovery']),
       provenOrigins: ProvenOrigins.fromJson(json['provenOrigins']),
+      devLoopbackOrigin: json['devLoopbackOrigin'] as String?,
     );
   }
 }
