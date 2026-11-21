@@ -13,6 +13,7 @@ import '../../app/motion/app_overlays.dart';
 import '../../app/motion/motion_tokens.dart';
 import '../../app/navigation/home_shell_metrics.dart';
 import '../../app/navigation/route_facade.dart';
+import '../../app/widgets/app_dialog.dart';
 import '../../app/widgets/app_spinner.dart';
 import '../../app/system_ui.dart';
 import '../../app/widgets/app_snack_bar.dart';

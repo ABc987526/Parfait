@@ -94,7 +94,6 @@ class LocalNovelDatabase {
       await db.execute(
         'ALTER TABLE $table ADD COLUMN source_content_version TEXT',
       );
-      await _createTranslationTable(db);
     }
     if (oldVersion < 3) {
       // Rows saved before the snapshot existed keep their TXT rendering.
