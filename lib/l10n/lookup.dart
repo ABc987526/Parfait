@@ -919,6 +919,7 @@ String l10nLookup(AppLocalizations l10n, String key) => switch (key) {
   'translateCredentialsClear' => l10n.translateCredentialsClear,
   'translateCredentialsClearConfirm' => l10n.translateCredentialsClearConfirm,
   'translateCredentialsCleared' => l10n.translateCredentialsCleared,
+  'translateCredentialsInvalid' => l10n.translateCredentialsInvalid,
   'translateCredentialsSave' => l10n.translateCredentialsSave,
   'translateCredentialsSaved' => l10n.translateCredentialsSaved,
   'translateCredentialsStoreError' => l10n.translateCredentialsStoreError,

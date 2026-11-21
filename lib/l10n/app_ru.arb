@@ -520,6 +520,7 @@
   "translateCredentialsSaved": "Сохранено в защищённое хранилище",
   "translateCredentialsCleared": "Учётные данные очищены",
   "translateCredentialsStoreError": "Ошибка защищённого хранилища",
+  "translateCredentialsInvalid": "Неполный ввод или неверный адрес",
   "translateCacheClear": "Очистить кэш переводов",
   "translateCacheCleared": "Кэш переводов очищен",
   "downloadTasksEmpty": "Нет задач загрузки",

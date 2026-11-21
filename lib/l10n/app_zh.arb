@@ -598,6 +598,7 @@
   "translateCredentialsSaved": "已保存到安全存储",
   "translateCredentialsCleared": "凭据已清除",
   "translateCredentialsStoreError": "安全存储操作失败",
+  "translateCredentialsInvalid": "输入不完整或接口地址无效",
   "translateCacheClear": "清除译文缓存",
   "translateCacheCleared": "译文缓存已清除",
   "downloadTasksEmpty": "暂无下载任务",

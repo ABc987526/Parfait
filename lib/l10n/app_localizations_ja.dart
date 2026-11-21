@@ -1238,6 +1238,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get translateCredentialsStoreError => '安全なストレージの操作に失敗しました';
 
   @override
+  String get translateCredentialsInvalid => '入力が不完全か、エンドポイント URL が不正です';
+
+  @override
   String get translateCacheClear => '翻訳キャッシュを消去';
 
   @override

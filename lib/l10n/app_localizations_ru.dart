@@ -1266,6 +1266,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get translateCredentialsStoreError => 'Ошибка защищённого хранилища';
 
   @override
+  String get translateCredentialsInvalid => 'Неполный ввод или неверный адрес';
+
+  @override
   String get translateCacheClear => 'Очистить кэш переводов';
 
   @override

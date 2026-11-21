@@ -2405,6 +2405,12 @@ abstract class AppLocalizations {
   /// **'安全存储操作失败'**
   String get translateCredentialsStoreError;
 
+  /// No description provided for @translateCredentialsInvalid.
+  ///
+  /// In zh, this message translates to:
+  /// **'输入不完整或接口地址无效'**
+  String get translateCredentialsInvalid;
+
   /// No description provided for @translateCacheClear.
   ///
   /// In zh, this message translates to:

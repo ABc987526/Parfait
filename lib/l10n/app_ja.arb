@@ -520,6 +520,7 @@
   "translateCredentialsSaved": "安全なストレージに保存しました",
   "translateCredentialsCleared": "認証情報を削除しました",
   "translateCredentialsStoreError": "安全なストレージの操作に失敗しました",
+  "translateCredentialsInvalid": "入力が不完全か、エンドポイント URL が不正です",
   "translateCacheClear": "翻訳キャッシュを消去",
   "translateCacheCleared": "翻訳キャッシュを消去しました",
   "downloadTasksEmpty": "ダウンロードタスクはありません",

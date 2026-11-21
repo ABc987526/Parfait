@@ -527,6 +527,7 @@
   "translateCredentialsSaved": "Saved to secure storage",
   "translateCredentialsCleared": "Credentials cleared",
   "translateCredentialsStoreError": "Secure storage operation failed",
+  "translateCredentialsInvalid": "Incomplete input or an invalid endpoint URL",
   "translateCacheClear": "Clear translation cache",
   "translateCacheCleared": "Translation cache cleared",
   "downloadTasksEmpty": "No download tasks",
