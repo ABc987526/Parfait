@@ -11,7 +11,9 @@ import 'package:parfait/core/localnovel/local_novel_decoder.dart';
 import 'package:parfait/core/localnovel/local_novel_repository.dart';
 import 'package:parfait/core/localnovel/local_novel_store.dart';
 import 'package:parfait/core/localnovel/read_offset_anchor.dart';
+import 'package:parfait/core/novel/novel_entity.dart';
 import 'package:parfait/core/platform/saf_tree.dart';
+import 'package:parfait/core/user/user_entity.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() {
@@ -181,6 +183,71 @@ void main() {
       await repository.updateReadOffset(novel.id, 1234);
       final reloaded = await repository.get(novel.id);
       expect(reloaded!.readOffset, 1234);
+    });
+
+    test('saveFromNovel writes the text and indexes its source', () async {
+      final novel = NovelEntity(
+        id: 4242,
+        title: '落花',
+        caption: '',
+        user: const UserEntity(id: 7, name: '作者', account: 'a'),
+        tags: const [],
+        textLength: 7,
+        contentVersion: 'v1',
+        paragraphs: [
+          NovelParagraph(id: 'p0', text: '春眠'),
+          NovelParagraph(id: 'p1', text: '不觉晓'),
+        ],
+      );
+
+      final saved = await repository.saveFromNovel(
+        novel: novel,
+        targetDir: Directory('${dir.path}/saved'),
+      );
+
+      expect(saved.title, '落花');
+      expect(saved.author, '作者');
+      expect(saved.sourceNovelId, 4242);
+      expect(saved.sourceContentVersion, 'v1');
+      expect(await File(saved.path).readAsString(), '春眠\n不觉晓');
+      expect((await repository.findBySourceNovel(4242))?.id, saved.id);
+      expect(await repository.findBySourceNovel(1), isNull);
+    });
+
+    test('translations survive a reopen and go with the novel', () async {
+      final novel = await repository.importBytes(
+        fileName: 'translated.txt',
+        bytes: Uint8List.fromList(utf8.encode('a\nb')),
+        targetDir: dir,
+      );
+      await repository.writeTranslations(
+        localId: novel.id,
+        language: 'zh',
+        engine: 'llm:m:abc',
+        entries: {'p0': '甲', 'p1': '乙'},
+      );
+
+      expect(
+        await repository.readTranslations(
+          localId: novel.id,
+          language: 'zh',
+          engine: 'llm:m:abc',
+        ),
+        {'p0': '甲', 'p1': '乙'},
+      );
+      // Another engine is another cache: the old rows must not answer it.
+      expect(
+        await repository.readTranslations(
+          localId: novel.id,
+          language: 'zh',
+          engine: 'llm:other:abc',
+        ),
+        isEmpty,
+      );
+
+      await repository.delete(novel);
+      final db = await database.database;
+      expect(await db.query(LocalNovelDatabase.translationTable), isEmpty);
     });
   });
 

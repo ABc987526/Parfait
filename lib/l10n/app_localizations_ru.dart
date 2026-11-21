@@ -2978,6 +2978,16 @@ class AppLocalizationsRu extends AppLocalizations {
   String get localNovelsImport => 'Импорт TXT';
 
   @override
+  String get novelSaveToLocal => 'Сохранить на устройство';
+
+  @override
+  String get novelSavedLocally =>
+      'Сохранено в локальные новеллы — читается без сети';
+
+  @override
+  String get novelSaveFailed => 'Не удалось сохранить на устройство';
+
+  @override
   String get localNovelsImportFailed => 'Не удалось импортировать';
 
   @override

@@ -5549,6 +5549,24 @@ abstract class AppLocalizations {
   /// **'导入 TXT'**
   String get localNovelsImport;
 
+  /// No description provided for @novelSaveToLocal.
+  ///
+  /// In zh, this message translates to:
+  /// **'保存到本地'**
+  String get novelSaveToLocal;
+
+  /// No description provided for @novelSavedLocally.
+  ///
+  /// In zh, this message translates to:
+  /// **'已保存到本地小说，可离线阅读'**
+  String get novelSavedLocally;
+
+  /// No description provided for @novelSaveFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'保存到本地失败'**
+  String get novelSaveFailed;
+
   /// No description provided for @localNovelsImportFailed.
   ///
   /// In zh, this message translates to:

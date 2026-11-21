@@ -66,6 +66,7 @@ class NovelReaderStageSpec {
     required this.progress,
     this.titleBlock,
     this.topActions = const [],
+    this.translationCacheNovelId,
     this.onImageTap,
     this.onLinkTap,
     this.marker,
@@ -83,6 +84,10 @@ class NovelReaderStageSpec {
   /// Extra actions rendered before the info button in the top bar
   /// (online: share + bookmark; local: none).
   final List<Widget> topActions;
+
+  /// The local library row whose translations persist, or null for an online
+  /// novel (translations then stay for the stage's life).
+  final int? translationCacheNovelId;
 
   /// Opens a tapped illustration (online: the image viewer; a TXT file
   /// has none).
@@ -324,6 +329,9 @@ class _NovelReaderStageState extends ConsumerState<NovelReaderStage>
 
   @override
   NovelReaderHandle get bilingualReader => _readerHandle;
+
+  @override
+  int? get translationCacheNovelId => widget.spec.translationCacheNovelId;
 
   /// The settings page needs the system bars the immersive reader hides.
   @override

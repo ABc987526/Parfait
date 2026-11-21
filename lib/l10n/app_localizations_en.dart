@@ -2994,6 +2994,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get localNovelsImport => 'Import TXT';
 
   @override
+  String get novelSaveToLocal => 'Save to device';
+
+  @override
+  String get novelSavedLocally =>
+      'Saved to your local novels; it reads offline';
+
+  @override
+  String get novelSaveFailed => 'Could not save to the device';
+
+  @override
   String get localNovelsImportFailed => 'Import failed';
 
   @override

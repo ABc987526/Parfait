@@ -66,6 +66,7 @@ class LocalNovelReaderPage extends ConsumerWidget {
     return NovelReaderStage(
       spec: NovelReaderStageSpec(
         novel: entity,
+        translationCacheNovelId: novel.id,
         infoTooltip: context.l10n.localNovelFileInfo,
         infoSheet: (_) => _LocalNovelInfoSheet(novel: novel),
         progress: _LocalProgressBinding(

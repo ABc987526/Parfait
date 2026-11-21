@@ -1203,6 +1203,9 @@
   "localNovelsEmpty": "インポートした小説はまだありません",
   "localNovelsLoadFailed": "ローカル小説の読み込みに失敗しました",
   "localNovelsImport": "TXT をインポート",
+  "novelSaveToLocal": "端末に保存",
+  "novelSavedLocally": "ローカル小説に保存しました。オフラインで読めます",
+  "novelSaveFailed": "端末への保存に失敗しました",
   "localNovelsImportFailed": "インポートに失敗しました",
   "localNovelsImported": "「{title}」をインポートしました",
   "@localNovelsImported": {

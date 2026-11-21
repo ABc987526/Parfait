@@ -25,6 +25,7 @@ import '../../core/history/history_models.dart';
 import '../../core/history/history_repository.dart';
 import '../../core/history/history_snapshot.dart';
 import '../../core/history/history_visibility.dart';
+import '../../core/localnovel/local_novel_repository.dart';
 import '../../core/log.dart';
 import '../../core/mute/mute_store.dart';
 import '../../core/network/api_error.dart';
@@ -130,6 +131,11 @@ class NovelPage extends ConsumerWidget {
       ),
       topActions: [
         IconButton(
+          tooltip: context.l10n.novelSaveToLocal,
+          onPressed: () => _saveToLocal(context, ref, novel),
+          icon: const Icon(AppIcons.save),
+        ),
+        IconButton(
           tooltip: context.l10n.cardActionShare,
           onPressed: () => _shareNovel(context, ref, novel),
           icon: const Icon(AppIcons.share),
@@ -210,6 +216,33 @@ class NovelPage extends ConsumerWidget {
         );
     if (outcome == ShareOutcome.copiedToClipboard && context.mounted) {
       showAppSnackBar(context, context.l10n.linkCopied);
+    }
+  }
+
+  /// Saves this novel into the local library, where it reads offline and its
+  /// translations persist. Saving an already saved novel says so instead of
+  /// stacking copies.
+  Future<void> _saveToLocal(
+    BuildContext context,
+    WidgetRef ref,
+    NovelEntity novel,
+  ) async {
+    final repository = ref.read(localNovelRepositoryProvider);
+    try {
+      final existing = await repository.findBySourceNovel(novel.id);
+      if (!context.mounted) return;
+      if (existing == null) {
+        await repository.saveFromNovel(
+          novel: novel,
+          targetDir: await LocalNovelRepository.defaultNovelsDirectory(),
+        );
+        if (!context.mounted) return;
+      }
+      showAppSnackBar(context, context.l10n.novelSavedLocally);
+    } on Object catch (error) {
+      log('novel: saving to the local library failed: $error');
+      if (!context.mounted) return;
+      showAppSnackBar(context, context.l10n.novelSaveFailed);
     }
   }
 

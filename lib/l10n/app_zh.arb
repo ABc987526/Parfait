@@ -1679,6 +1679,9 @@
   "localNovelsEmpty": "暂无导入的本地小说",
   "localNovelsLoadFailed": "本地小说加载失败",
   "localNovelsImport": "导入 TXT",
+  "novelSaveToLocal": "保存到本地",
+  "novelSavedLocally": "已保存到本地小说，可离线阅读",
+  "novelSaveFailed": "保存到本地失败",
   "localNovelsImportFailed": "导入失败",
   "localNovelsImported": "已导入「{title}」",
   "@localNovelsImported": {

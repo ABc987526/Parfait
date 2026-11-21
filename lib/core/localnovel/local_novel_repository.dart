@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as path;
 
 import '../log.dart';
+import '../novel/novel_entity.dart';
 import '../platform/app_storage_paths.dart';
 import '../platform/saf_tree.dart';
 import 'local_novel_database.dart';
@@ -25,6 +26,8 @@ class LocalNovel {
     this.author,
     this.encoding,
     this.readOffset,
+    this.sourceNovelId,
+    this.sourceContentVersion,
   });
 
   final int id;
@@ -39,6 +42,12 @@ class LocalNovel {
 
   /// Reading cursor written by the local reader (character offset).
   final int? readOffset;
+
+  /// The online novel this copy was saved from, or null for a file import.
+  final int? sourceNovelId;
+
+  /// That novel's `contentVersion` when it was saved.
+  final String? sourceContentVersion;
 
   File get file => File(path);
 }
@@ -127,10 +136,16 @@ class LocalNovelRepository {
     );
   }
 
-  /// Removes the index row and the stored file together; a missing file is
-  /// tolerated so cleanup of a half-deleted entry still completes.
+  /// Removes the index row, the stored file and every translation of it; a
+  /// missing file is tolerated so cleanup of a half-deleted entry still
+  /// completes.
   Future<void> delete(LocalNovel novel) async {
     final db = await _database.database;
+    await db.delete(
+      LocalNovelDatabase.translationTable,
+      where: 'local_id = ?',
+      whereArgs: [novel.id],
+    );
     await db.delete(
       LocalNovelDatabase.table,
       where: 'id = ?',
@@ -140,6 +155,115 @@ class LocalNovelRepository {
     if (await file.exists()) {
       await file.delete();
     }
+  }
+
+  /// Saves the reader's copy of an online [novel] as a local one: its
+  /// paragraphs become one UTF-8 text file in the library, so the work stays
+  /// readable offline and its translations can be cached against the row.
+  ///
+  /// Markup is flattened: images and Pixiv page breaks do not survive, since
+  /// the local reader lays out plain lines.
+  Future<LocalNovel> saveFromNovel({
+    required NovelEntity novel,
+    required Directory targetDir,
+  }) async {
+    final blocks = novel.markup?.blocks ?? novel.paragraphs;
+    final text = [for (final block in blocks) block.plainText].join('\n');
+    if (text.length > maxImportBytes) {
+      throw const DocumentTooLargeException(maxImportBytes);
+    }
+    await targetDir.create(recursive: true);
+    final file = await _createUniqueFile(targetDir, '${novel.title}.txt');
+    final author = novel.user.name.trim().isEmpty ? null : novel.user.name;
+    final int id;
+    try {
+      await file.writeAsString(text, flush: true);
+      final db = await _database.database;
+      id = await db.insert(LocalNovelDatabase.table, {
+        'title': novel.title,
+        'author': author,
+        'path': file.path,
+        'char_count': text.length,
+        'imported_at': DateTime.now().millisecondsSinceEpoch,
+        'read_offset': null,
+        'source_novel_id': novel.id,
+        'source_content_version': novel.contentVersion,
+      });
+    } on Object {
+      try {
+        await file.delete();
+      } on FileSystemException catch (error) {
+        log('local novel: orphaned file not removed: $error');
+      }
+      rethrow;
+    }
+    return LocalNovel(
+      id: id,
+      title: novel.title,
+      author: author,
+      path: file.path,
+      charCount: text.length,
+      importedAt: DateTime.now(),
+      sourceNovelId: novel.id,
+      sourceContentVersion: novel.contentVersion,
+    );
+  }
+
+  /// The saved copy of online novel [novelId], if this library has one.
+  Future<LocalNovel?> findBySourceNovel(int novelId) async {
+    final db = await _database.database;
+    final rows = await db.query(
+      LocalNovelDatabase.table,
+      where: 'source_novel_id = ?',
+      whereArgs: [novelId],
+      orderBy: 'imported_at DESC, id DESC',
+      limit: 1,
+    );
+    if (rows.isEmpty) return null;
+    return _fromRow(rows.first);
+  }
+
+  /// Cached translations of [localId] for one language and engine
+  /// configuration, by paragraph id.
+  Future<Map<String, String>> readTranslations({
+    required int localId,
+    required String language,
+    required String engine,
+  }) async {
+    final db = await _database.database;
+    final rows = await db.query(
+      LocalNovelDatabase.translationTable,
+      columns: ['paragraph_id', 'text'],
+      where: 'local_id = ? AND language = ? AND engine = ?',
+      whereArgs: [localId, language, engine],
+    );
+    return {
+      for (final row in rows)
+        row['paragraph_id']! as String: row['text']! as String,
+    };
+  }
+
+  /// Stores [entries] (paragraph id → translation), replacing rows for the
+  /// same paragraph, language and engine.
+  Future<void> writeTranslations({
+    required int localId,
+    required String language,
+    required String engine,
+    required Map<String, String> entries,
+  }) async {
+    if (entries.isEmpty) return;
+    final db = await _database.database;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final batch = db.batch();
+    for (final entry in entries.entries) {
+      batch.rawInsert(
+        'INSERT OR REPLACE INTO ${LocalNovelDatabase.translationTable} '
+        '(local_id, paragraph_id, language, engine, text, created_at) '
+        'VALUES (?, ?, ?, ?, ?, ?)',
+        [localId, entry.key, language, engine, entry.value, now],
+      );
+    }
+    await batch.commit(noResult: true);
   }
 
   Future<void> updateReadOffset(int id, int offset) async {
@@ -189,6 +313,8 @@ class LocalNovelRepository {
         row['imported_at']! as int,
       ),
       readOffset: row['read_offset'] as int?,
+      sourceNovelId: row['source_novel_id'] as int?,
+      sourceContentVersion: row['source_content_version'] as String?,
     );
   }
 }

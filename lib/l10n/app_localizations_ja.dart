@@ -2914,6 +2914,15 @@ class AppLocalizationsJa extends AppLocalizations {
   String get localNovelsImport => 'TXT をインポート';
 
   @override
+  String get novelSaveToLocal => '端末に保存';
+
+  @override
+  String get novelSavedLocally => 'ローカル小説に保存しました。オフラインで読めます';
+
+  @override
+  String get novelSaveFailed => '端末への保存に失敗しました';
+
+  @override
   String get localNovelsImportFailed => 'インポートに失敗しました';
 
   @override

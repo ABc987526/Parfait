@@ -1210,6 +1210,9 @@
   "localNovelsEmpty": "No imported local novels yet",
   "localNovelsLoadFailed": "Failed to load local novels",
   "localNovelsImport": "Import TXT",
+  "novelSaveToLocal": "Save to device",
+  "novelSavedLocally": "Saved to your local novels; it reads offline",
+  "novelSaveFailed": "Could not save to the device",
   "localNovelsImportFailed": "Import failed",
   "localNovelsImported": "Imported \"{title}\"",
   "@localNovelsImported": {

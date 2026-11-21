@@ -34,10 +34,10 @@ reviewed: 2026-11-21
 - **Code:** `lib/features/novel/novel_reader.dart`, `lib/features/novel/novel_reader_handle.dart`
 
 ### NOVEL-04 Translations add lines, never characters
-- **Rule:** Bilingual translations lay out under their paragraph carrying its ID at end offset so anchors and history stay stable. The stage translates one page's missing paragraphs per batch (disabling mode with a prompt on failure); translations live in memory only.
+- **Rule:** Bilingual translations lay out under their paragraph carrying its ID at end offset so anchors and history stay stable. The stage translates one page's missing paragraphs per batch (disabling mode with a prompt on failure). Translations live in memory only, except for a local novel: its paragraphs are cached in `local_novels.db` under their id, the reading language and the engine configuration (model, prompt hash), so reopening a saved novel costs no network and another configuration never reads them.
 - **Why:** Anchors inside translations broke position restore when bilingual mode turned off.
-- **Check:** `test/novel_reader_test.dart` "a translation lays out under its paragraph and moves no anchor", `test/novel_reader_stage_test.dart` "translate this page: translations under the paragraphs, on with each"
-- **Code:** `lib/features/novel/novel_bilingual.dart`, `lib/features/novel/novel_layout.dart`
+- **Check:** `test/novel_reader_test.dart` "a translation lays out under its paragraph and moves no anchor", `test/novel_reader_stage_test.dart` "translate this page: translations under the paragraphs, on with each", `test/local_novel_test.dart` "translations survive a reopen and go with the novel"
+- **Code:** `lib/features/novel/novel_bilingual.dart`, `lib/features/novel/novel_layout.dart`, `lib/core/localnovel/local_novel_repository.dart`
 
 ### NOVEL-11 A pixiv novel opens on its title block; headings read as headings
 - **Rule:** Every laid-out line carries a `NovelLineKind` measured and painted with `NovelLayoutStyle.lineStyle` (LAYOUT-04). Online novels open page 1 with a title block (heading title, author/series byline, blank-line gap) sharing paragraph 0 offset 0 (skipped by bilingual mode; omitted for local TXT); an initial chapter shares page 1 with it.

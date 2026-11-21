@@ -2888,6 +2888,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get localNovelsImport => '导入 TXT';
 
   @override
+  String get novelSaveToLocal => '保存到本地';
+
+  @override
+  String get novelSavedLocally => '已保存到本地小说，可离线阅读';
+
+  @override
+  String get novelSaveFailed => '保存到本地失败';
+
+  @override
   String get localNovelsImportFailed => '导入失败';
 
   @override

@@ -6,6 +6,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../app/widgets/app_snack_bar.dart';
 import '../../app/widgets/inline_translation.dart';
 import '../../core/logging/crash_log.dart';
+import '../../core/localnovel/local_novel_repository.dart';
 import '../../core/novel/novel_entity.dart';
 import '../../core/translation/translation_service.dart';
 import '../../l10n/context.dart';
@@ -25,6 +26,10 @@ mixin BilingualReading<T extends ConsumerStatefulWidget> on ConsumerState<T> {
   /// The reader whose pages are translated.
   NovelReaderHandle get bilingualReader;
 
+  /// The local library row whose translations persist between sessions, or
+  /// null when the source cannot cache (an online novel).
+  int? get translationCacheNovelId => null;
+
   bool bilingual = false;
 
   /// A batch is being translated.
@@ -33,6 +38,11 @@ mixin BilingualReading<T extends ConsumerStatefulWidget> on ConsumerState<T> {
   Map<String, String> _translations = const {};
   Map<String, String> _sources = const {};
   String? _sourcesVersion;
+
+  /// What the last cache read covered (`localId|language|engine`), so a page
+  /// turn does not read the same rows again.
+  String? _cacheKey;
+  String? _engine;
 
   /// What the reader shows under its paragraphs.
   Map<String, String> get pageTranslations =>
@@ -57,6 +67,7 @@ mixin BilingualReading<T extends ConsumerStatefulWidget> on ConsumerState<T> {
     final page = bilingualReader.currentPage?.call();
     if (layout == null || page == null) return;
     _syncSources();
+    await _restoreTranslations();
     var ids = _untranslated(layout, page);
     if (ids.isEmpty) ids = _untranslated(layout, page + 1);
     if (ids.isEmpty) return;
@@ -107,6 +118,64 @@ mixin BilingualReading<T extends ConsumerStatefulWidget> on ConsumerState<T> {
           id: _shown(sources[index], results[index]),
       });
     });
+    unawaited(_persistTranslations(ids, sources, results, target));
+  }
+
+  /// Fills [_translations] from the local library for this book, language
+  /// and engine configuration, before the network is asked for anything.
+  Future<void> _restoreTranslations() async {
+    final localId = translationCacheNovelId;
+    if (localId == null) return;
+    final language = Localizations.localeOf(context).languageCode;
+    final engine = await ref.read(translationEngineSignatureProvider.future);
+    if (!mounted) return;
+    _engine = engine;
+    final key = '$localId|$language|$engine';
+    if (_cacheKey == key) return;
+    _cacheKey = key;
+    try {
+      final stored = await ref
+          .read(localNovelRepositoryProvider)
+          .readTranslations(
+            localId: localId,
+            language: language,
+            engine: engine,
+          );
+      if (!mounted || _cacheKey != key || stored.isEmpty) return;
+      setState(() {
+        _translations = Map.unmodifiable({...stored, ..._translations});
+      });
+    } on Object catch (error, stack) {
+      CrashLog.record(error, stack);
+    }
+  }
+
+  /// Writes a finished batch so the next open costs no network.
+  Future<void> _persistTranslations(
+    List<String> ids,
+    List<String> sources,
+    List<String> results,
+    String language,
+  ) async {
+    final localId = translationCacheNovelId;
+    final engine = _engine;
+    if (localId == null || engine == null) return;
+    final entries = {
+      for (final (index, id) in ids.indexed)
+        id: _shown(sources[index], results[index]),
+    };
+    try {
+      await ref
+          .read(localNovelRepositoryProvider)
+          .writeTranslations(
+            localId: localId,
+            language: language,
+            engine: engine,
+            entries: entries,
+          );
+    } on Object catch (error, stack) {
+      CrashLog.record(error, stack);
+    }
   }
 
   /// Paragraph texts by id, rebuilt when the body changes; translations
@@ -118,6 +187,7 @@ mixin BilingualReading<T extends ConsumerStatefulWidget> on ConsumerState<T> {
     final blocks = novel.markup?.blocks ?? novel.paragraphs;
     _sources = {for (final block in blocks) block.id: block.plainText};
     _translations = const {};
+    _cacheKey = null;
   }
 
   /// Paragraphs on [page] with text and no translation yet, in order.

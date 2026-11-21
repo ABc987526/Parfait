@@ -528,6 +528,38 @@ final translationCredentialStoreProvider = Provider<TranslationCredentialStore>(
   (ref) => SecureTranslationCredentialStore(),
 );
 
+/// Fingerprint of the translation configuration, so a cached translation is
+/// reused only under the engine and tuning that produced it: another model,
+/// another prompt or another provider starts a fresh cache.
+final translationEngineSignatureProvider = FutureProvider<String>((ref) async {
+  final settings = ref.watch(settingsProvider).value;
+  final provider =
+      settings?.translationProvider ?? TranslationProvider.disabled;
+  switch (provider) {
+    case TranslationProvider.translationLlm:
+      final credentials = await ref
+          .watch(translationCredentialStoreProvider)
+          .readLlm();
+      final model = credentials?.model ?? '';
+      return 'llm:$model:${_shortDigest(credentials?.prompt ?? '')}';
+    case TranslationProvider.indexTranslate:
+      final model = settings?.indexTranslateModel.name ?? '';
+      final thinking = settings?.indexTranslateThinking ?? false;
+      return 'index:$model:$thinking';
+    case TranslationProvider.baidu:
+      return 'baidu';
+    case TranslationProvider.google:
+      return 'google';
+    case TranslationProvider.disabled:
+      return 'disabled';
+  }
+});
+
+String _shortDigest(String value) {
+  if (value.isEmpty) return 'none';
+  return sha1.convert(utf8.encode(value)).toString().substring(0, 8);
+}
+
 /// Live translation provider selection (non-secret). A cleared credential is
 /// observed on the next tap because selection and credentials are read per
 /// request.

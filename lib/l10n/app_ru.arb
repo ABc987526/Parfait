@@ -1203,6 +1203,9 @@
   "localNovelsEmpty": "Пока нет импортированных новелл",
   "localNovelsLoadFailed": "Не удалось загрузить локальные новеллы",
   "localNovelsImport": "Импорт TXT",
+  "novelSaveToLocal": "Сохранить на устройство",
+  "novelSavedLocally": "Сохранено в локальные новеллы — читается без сети",
+  "novelSaveFailed": "Не удалось сохранить на устройство",
   "localNovelsImportFailed": "Не удалось импортировать",
   "localNovelsImported": "Импортировано «{title}»",
   "@localNovelsImported": {
