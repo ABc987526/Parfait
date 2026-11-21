@@ -30,6 +30,10 @@ mixin BilingualReading<T extends ConsumerStatefulWidget> on ConsumerState<T> {
 
   bool bilingual = false;
 
+  /// Reads the page in the target language only: a translated paragraph takes
+  /// its source's place instead of gaining a line under it.
+  bool translationOnly = false;
+
   /// A batch is being translated.
   bool translatingPage = false;
 
@@ -49,12 +53,19 @@ mixin BilingualReading<T extends ConsumerStatefulWidget> on ConsumerState<T> {
   /// about to overwrite.
   bool _skipCacheOnce = false;
 
-  /// What the reader shows under its paragraphs.
+  /// What the reader shows: under its paragraphs in bilingual mode, in their
+  /// place when reading translations only.
   Map<String, String> get pageTranslations =>
-      bilingual ? _translations : const {};
+      bilingual || translationOnly ? _translations : const {};
 
   void toggleBilingual() {
     setState(() => bilingual = !bilingual);
+    bilingualPageSettled();
+  }
+
+  /// Switches between the source and a translation-only page.
+  void toggleTranslationOnly() {
+    setState(() => translationOnly = !translationOnly);
     bilingualPageSettled();
   }
 
@@ -79,7 +90,9 @@ mixin BilingualReading<T extends ConsumerStatefulWidget> on ConsumerState<T> {
   /// The reader settled on a page — a turn or a relayout: translate what
   /// it shows, then the page after it.
   void bilingualPageSettled() {
-    if (bilingual && !translatingPage) unawaited(_translateAhead());
+    if ((bilingual || translationOnly) && !translatingPage) {
+      unawaited(_translateAhead());
+    }
   }
 
   /// The way out of a failure the translation settings can fix.

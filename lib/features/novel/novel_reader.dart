@@ -61,6 +61,7 @@ class NovelReader extends StatefulWidget {
     this.initialAnchor,
     this.textColor,
     this.translations = const {},
+    this.translationsOnly = false,
     this.titleBlock,
     this.scrollTopPadding,
     this.scrollBottomPadding,
@@ -90,6 +91,11 @@ class NovelReader extends StatefulWidget {
   /// Paragraph translations shown under their paragraphs (bilingual
   /// reading), by paragraph id. A new map relayouts, keeping the page.
   final Map<String, String> translations;
+
+  /// A translated paragraph shows its translation instead of its source, so
+  /// the page reads in the target language; untranslated ones stay as they
+  /// are. Slower to switch than [translations], which only adds lines.
+  final bool translationsOnly;
 
   /// Title and byline at the top of the first page; null shows none.
   final NovelTitleBlock? titleBlock;
@@ -379,6 +385,7 @@ class _NovelReaderState extends State<NovelReader> with WidgetsBindingObserver {
             ) !=
             widget.settings ||
         oldWidget.titleBlock != widget.titleBlock ||
+        oldWidget.translationsOnly != widget.translationsOnly ||
         !identical(oldWidget.translations, widget.translations)) {
       _scheduleLayout(force: true);
     }
@@ -1087,6 +1094,7 @@ class _NovelReaderState extends State<NovelReader> with WidgetsBindingObserver {
         textDirection: direction,
         textScaler: _requestedTextScaler ?? TextScaler.noScaling,
         translations: widget.translations,
+        translationsOnly: widget.translationsOnly,
         titleBlock: widget.titleBlock,
         cancelToken: layoutContext.cancelToken,
         budget: widget.budget,

@@ -2903,6 +2903,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get novelRetranslate => '重新翻译';
 
   @override
+  String get novelTranslationOnly => '只显示译文';
+
+  @override
   String get novelPromptTitle => '本书提示词';
 
   @override

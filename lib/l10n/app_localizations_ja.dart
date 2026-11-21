@@ -2929,6 +2929,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get novelRetranslate => '翻訳し直す';
 
   @override
+  String get novelTranslationOnly => '訳文のみ表示';
+
+  @override
   String get novelPromptTitle => 'この作品のプロンプト';
 
   @override

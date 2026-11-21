@@ -1215,6 +1215,7 @@
   "novelSaveFailed": "Could not save to the device",
   "novelTranslationActions": "Translation options",
   "novelRetranslate": "Translate again",
+  "novelTranslationOnly": "Translations only",
   "novelPromptTitle": "Prompt for this work",
   "novelPromptHint": "Applies to this work only; leave empty to follow the global prompt",
   "novelPromptRoleName": "Name",

@@ -5579,6 +5579,12 @@ abstract class AppLocalizations {
   /// **'重新翻译'**
   String get novelRetranslate;
 
+  /// No description provided for @novelTranslationOnly.
+  ///
+  /// In zh, this message translates to:
+  /// **'只显示译文'**
+  String get novelTranslationOnly;
+
   /// No description provided for @novelPromptTitle.
   ///
   /// In zh, this message translates to:

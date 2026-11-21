@@ -2994,6 +2994,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get novelRetranslate => 'Перевести заново';
 
   @override
+  String get novelTranslationOnly => 'Только перевод';
+
+  @override
   String get novelPromptTitle => 'Промпт для этой работы';
 
   @override

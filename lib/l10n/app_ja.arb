@@ -1208,6 +1208,7 @@
   "novelSaveFailed": "端末への保存に失敗しました",
   "novelTranslationActions": "翻訳オプション",
   "novelRetranslate": "翻訳し直す",
+  "novelTranslationOnly": "訳文のみ表示",
   "novelPromptTitle": "この作品のプロンプト",
   "novelPromptHint": "この作品だけに適用。空欄なら全体のプロンプトに従います",
   "novelPromptRoleName": "名前",

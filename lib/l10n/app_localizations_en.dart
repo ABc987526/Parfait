@@ -3010,6 +3010,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get novelRetranslate => 'Translate again';
 
   @override
+  String get novelTranslationOnly => 'Translations only';
+
+  @override
   String get novelPromptTitle => 'Prompt for this work';
 
   @override

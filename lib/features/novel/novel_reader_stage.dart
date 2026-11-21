@@ -804,12 +804,14 @@ class _NovelReaderStageState extends ConsumerState<NovelReaderStage>
     // The reserve depends only on the stable insets and the text scaler,
     // so chrome show/hide never repaginates (C6 R3 contract).
     final translations = pageTranslations;
+    final translationsOnly = this.translationOnly;
     final inputs = (
       novel,
       _settings,
       _initialAnchor,
       palette.foreground,
       translations,
+      translationsOnly,
       widget.spec.titleBlock,
       padding,
     );
@@ -830,6 +832,7 @@ class _NovelReaderStageState extends ConsumerState<NovelReaderStage>
           initialAnchor: _initialAnchor,
           textColor: palette.foreground,
           translations: translations,
+          translationsOnly: translationsOnly,
           titleBlock: widget.spec.titleBlock,
           scrollTopPadding: kToolbarHeight + FuncSpacing.sm,
           scrollBottomPadding:
@@ -957,12 +960,11 @@ class _NovelReaderStageState extends ConsumerState<NovelReaderStage>
                                 color: Theme.of(context).colorScheme.primary,
                               ),
                       ),
-                      if (hasTranslations)
-                        IconButton(
-                          tooltip: context.l10n.novelTranslationActions,
-                          onPressed: () => _showTranslationActions(context),
-                          icon: const Icon(AppIcons.update),
-                        ),
+                      IconButton(
+                        tooltip: context.l10n.novelTranslationActions,
+                        onPressed: () => _showTranslationActions(context),
+                        icon: const Icon(AppIcons.update),
+                      ),
                       IconButton(
                         tooltip: widget.spec.infoTooltip,
                         onPressed: () => _showInfoSheet(context),
@@ -1150,6 +1152,15 @@ class _NovelReaderStageState extends ConsumerState<NovelReaderStage>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            SwitchListTile(
+              secondary: const Icon(AppIcons.translate),
+              title: Text(sheetContext.l10n.novelTranslationOnly),
+              value: translationOnly,
+              onChanged: (value) {
+                Navigator.of(sheetContext).pop();
+                if (value != translationOnly) toggleTranslationOnly();
+              },
+            ),
             ListTile(
               leading: const Icon(AppIcons.update),
               title: Text(sheetContext.l10n.novelRetranslate),

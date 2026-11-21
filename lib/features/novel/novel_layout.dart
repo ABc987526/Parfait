@@ -718,13 +718,19 @@ class NovelLayoutEngine {
     TextDirection textDirection = TextDirection.ltr,
     TextScaler textScaler = TextScaler.noScaling,
     Map<String, String> translations = const {},
+    bool translationsOnly = false,
     NovelTitleBlock? titleBlock,
     CancelToken? cancelToken,
     NovelLayoutBudget budget = const NovelLayoutBudget(),
     NovelLayoutProgressCallback? onProgress,
   }) async {
     final key = _key(
-      contentVersion: _versionWith(contentVersion, translations, titleBlock),
+      contentVersion: _versionWith(
+        contentVersion,
+        translations,
+        titleBlock,
+        translationsOnly,
+      ),
       viewport: viewport,
       style: style,
       brightness: brightness,
@@ -742,6 +748,7 @@ class NovelLayoutEngine {
       paragraphs: paragraphs,
       contentVersion: contentVersion,
       translations: translations,
+      translationsOnly: translationsOnly,
       titleBlock: titleBlock,
       key: key,
       style: style,
@@ -792,6 +799,7 @@ class NovelLayoutEngine {
     TextDirection textDirection = TextDirection.ltr,
     TextScaler textScaler = TextScaler.noScaling,
     Map<String, String> translations = const {},
+    bool translationsOnly = false,
     NovelTitleBlock? titleBlock,
     CancelToken? cancelToken,
     NovelLayoutBudget budget = const NovelLayoutBudget(),
@@ -808,6 +816,7 @@ class NovelLayoutEngine {
       textDirection: textDirection,
       textScaler: textScaler,
       translations: translations,
+      translationsOnly: translationsOnly,
       titleBlock: titleBlock,
       cancelToken: cancelToken,
       budget: budget,
@@ -1023,11 +1032,12 @@ class NovelLayoutEngine {
   }
 
   /// The cache identity of a body laid out with [translations] under
-  /// [titleBlock].
+  /// [titleBlock], in the given display mode.
   static String _versionWith(
     String contentVersion,
     Map<String, String> translations,
     NovelTitleBlock? titleBlock,
+    bool translationsOnly,
   ) {
     var version = contentVersion;
     if (translations.isNotEmpty) {
@@ -1037,6 +1047,7 @@ class NovelLayoutEngine {
       ]);
       version = '$version+${translations.length}:$digest';
     }
+    if (translationsOnly) version = '$version+only';
     if (titleBlock != null) version = '$version+title:${titleBlock.hashCode}';
     return version;
   }
@@ -1067,6 +1078,7 @@ class NovelLayoutEngine {
     required List<NovelParagraph> paragraphs,
     required String contentVersion,
     required Map<String, String> translations,
+    required bool translationsOnly,
     required NovelTitleBlock? titleBlock,
     required NovelLayoutKey key,
     required NovelLayoutStyle style,
@@ -1102,12 +1114,25 @@ class NovelLayoutEngine {
       for (var index = 0; index < paragraphs.length; index++) {
         if (cancelToken?.isCancelled ?? false) throw const ApiCancelled();
         final paragraph = paragraphs[index];
-        lines.addAll(_measureCached(measure, paragraph, index));
         final translation = translations[paragraph.id];
-        if (translation != null && translation.isNotEmpty) {
+        final translated = translation != null && translation.isNotEmpty;
+        if (translationsOnly && translated) {
+          // The translation takes the paragraph's place, carrying its id so
+          // anchors stay paragraph-level; the source line is not laid out.
           lines.addAll(
-            _measureTranslationCached(measure, paragraph, index, translation),
+            _measureCached(
+              measure,
+              NovelParagraph(id: paragraph.id, text: translation),
+              index,
+            ),
           );
+        } else {
+          lines.addAll(_measureCached(measure, paragraph, index));
+          if (translated) {
+            lines.addAll(
+              _measureTranslationCached(measure, paragraph, index, translation),
+            );
+          }
         }
         if (lines.length > budget.maxLines) {
           throw NovelLayoutBudgetExceeded(

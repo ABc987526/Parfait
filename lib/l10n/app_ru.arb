@@ -1208,6 +1208,7 @@
   "novelSaveFailed": "Не удалось сохранить на устройство",
   "novelTranslationActions": "Действия перевода",
   "novelRetranslate": "Перевести заново",
+  "novelTranslationOnly": "Только перевод",
   "novelPromptTitle": "Промпт для этой работы",
   "novelPromptHint": "Только для этой работы; пусто — общий промпт",
   "novelPromptRoleName": "Имя",
