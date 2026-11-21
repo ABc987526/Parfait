@@ -54,13 +54,14 @@ class LocalNovelReaderPage extends ConsumerWidget {
           ),
         ),
         data: (loaded) =>
-            _buildReader(context, novel: loaded.$1, text: loaded.$2),
+            _buildReader(context, ref: ref, novel: loaded.$1, text: loaded.$2),
       ),
     );
   }
 
   Widget _buildReader(
     BuildContext context, {
+    required WidgetRef ref,
     required LocalNovel novel,
     required String text,
   }) {

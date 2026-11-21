@@ -1182,8 +1182,8 @@ class _NovelReaderStageState extends ConsumerState<NovelReaderStage>
           .insertLocalImage(
             localId: -novel.id,
             afterIndex: index,
-            fileName: picked.$1,
-            bytes: picked.$2,
+            fileName: picked.name,
+            bytes: picked.bytes,
             imagesDir: await LocalNovelRepository.localImagesDirectory(),
           );
       if (!mounted) return;
