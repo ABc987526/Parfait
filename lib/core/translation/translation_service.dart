@@ -421,7 +421,14 @@ class LlmTranslationTransport
         'temperature': 0.2,
         'messages': [
           {'role': 'system', 'content': _systemPrompt(credentials.prompt)},
-          {'role': 'user', 'content': 'Translate into $target:\n$source'},
+          {
+            'role': 'user',
+            'content': _userPrompt(
+              target: target,
+              source: source,
+              extra: credentials.prompt,
+            ),
+          },
         ],
       });
     final http.Response response;
@@ -486,6 +493,22 @@ class LlmTranslationTransport
       );
     }
     return content;
+  }
+
+  /// The user turn repeats the requirements because not every server keeps
+  /// the system message: Gemma's chat template has no system role, so a local
+  /// runtime may merge or drop it, and the prompt would read as unused.
+  static String _userPrompt({
+    required String target,
+    required String source,
+    required String? extra,
+  }) {
+    final requirement = extra?.trim() ?? '';
+    final style = requirement.isEmpty
+        ? ''
+        : '\nRequirements for this translation: $requirement';
+    return 'Translate into $target. Return only the translation.$style\n\n'
+        '$source';
   }
 
   /// A page's paragraphs in one round trip: the model answers with the same
@@ -587,6 +610,10 @@ class LlmTranslationTransport
         '${_systemPrompt(credentials.prompt)}\n\nA user message with '
         '[[n]]-marked segments must be answered with the same markers, one '
         'translated segment each.';
+    final requirement = credentials.prompt?.trim() ?? '';
+    final user = requirement.isEmpty
+        ? userText
+        : 'Requirements for the translation: $requirement\n\n$userText';
     final request = http.Request('POST', endpoint)
       ..headers['Content-Type'] = 'application/json'
       ..headers['Authorization'] = 'Bearer ${credentials.apiKey}'
@@ -598,7 +625,7 @@ class LlmTranslationTransport
         'temperature': 0.2,
         'messages': [
           {'role': 'system', 'content': system},
-          {'role': 'user', 'content': userText},
+          {'role': 'user', 'content': user},
         ],
       });
     final http.Response response;

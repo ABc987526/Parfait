@@ -29,6 +29,7 @@ User-facing changes in each Parfait release. The format follows [Keep a Changelo
 - **翻页动画：** 小说翻页模式换成带透视的书页翻转——页面从内侧边卷起并压暗，翻到一半能看出是「纸」而不是滑动；双页排版和系统「减少动画」时自动回到普通滑动。
 - **共享译文缓存与本书提示词：** 译文缓存改成按原文共享，评论、在线小说和保存到本地的副本命中同一份；阅读页新增「翻译选项」，可以重新翻译整页，或给这本书单独写提示词（留空跟随全局），改过提示词不会再显示旧提示词的译文。
 - **整页一次请求：** 自定义 LLM 把一页的段落合成一次请求（带 `[[n]]` 编号），翻页时的往返次数从「每段一次」降到「每页一次」；模型没按编号返回时自动退回逐段，不会出现半页译文。
+- **提示词对本地模型生效：** 提示词除了 system 消息，也写进 user 消息——Gemma 这类没有 system 角色的模型模板、以及会丢掉 system 的本地服务，现在也会照着提示词翻译；改这本书的提示词后会立刻作废旧译文。
 
 ### 修复
 
@@ -68,6 +69,7 @@ User-facing changes in each Parfait release. The format follows [Keep a Changelo
 - **Page-turn animation:** the page reader now turns leaves with perspective: a page hinges on its inner edge and darkens as it goes, so a turn reads as paper rather than a slide. Spreads and the system's remove-animations setting keep the plain slide.
 - **Shared translation cache and a per-work prompt:** cached translations are keyed by the source text, so comments, online novels and saved copies read one row; the reader's Translation options redo the page or write a prompt for this work alone (empty follows the global one), and changing it never shows the old prompt's output.
 - **One request per page:** the custom LLM endpoint now takes a page's paragraphs in a single request with `[[n]]` markers, so a turn costs one round trip instead of one per paragraph; an answer without the markers falls back to one request each, never a half-translated page.
+- **The prompt reaches local models:** it now goes into the user turn as well as the system message, so templates without a system role (Gemma) and runtimes that drop it still follow it; editing a work's prompt voids its old translations immediately.
 
 ### Fixed
 

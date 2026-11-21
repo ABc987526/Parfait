@@ -1209,8 +1209,12 @@ class _NovelReaderStageState extends ConsumerState<NovelReaderStage>
     if (saved == null) return;
     await repository.writeNovelPrompt(novel.id, saved);
     if (!mounted) return;
-    // The page holds translations the old prompt produced.
+    // The signature provider caches this work's prompt, so it must be
+    // recomputed before the next restore: otherwise the old prompt's engine
+    // key would still match and the page would keep its old translations.
+    ref.invalidate(translationEngineSignatureProvider(novel.id));
     invalidateTranslations();
+    bilingualPageSettled();
   }
 
   void _showInfoSheet(BuildContext context) {
