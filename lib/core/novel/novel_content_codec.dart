@@ -14,14 +14,32 @@ const int _version = 1;
 /// The entity's body as JSON.
 Map<String, Object?> encodeNovelContent(NovelEntity novel) {
   final document = novel.markup;
-  final blocks = document?.blocks ?? novel.paragraphs;
-  return {
-    'version': _version,
-    'content_version': novel.contentVersion,
-    'source_length': document?.sourceLength ?? novel.textLength,
-    'blocks': [for (final block in blocks) _encodeBlock(block)],
-  };
+  if (document != null) {
+    return encodeNovelDocument(
+      document,
+      contentVersion: novel.contentVersion,
+      sourceLength: document.sourceLength,
+    );
+  }
+  return encodeNovelDocument(
+    NovelMarkupDocument.fromParagraphs(novel.paragraphs),
+    contentVersion: novel.contentVersion,
+    sourceLength: novel.textLength,
+  );
 }
+
+/// A block list as JSON, for a copy that was edited on the device (an
+/// illustration inserted) and must be stored again.
+Map<String, Object?> encodeNovelDocument(
+  NovelMarkupDocument document, {
+  required String contentVersion,
+  required int sourceLength,
+}) => {
+  'version': _version,
+  'content_version': contentVersion,
+  'source_length': sourceLength,
+  'blocks': [for (final block in document.blocks) _encodeBlock(block)],
+};
 
 /// The body a payload from [encodeNovelContent] holds, or null when the JSON
 /// is not one of ours (or holds no block).

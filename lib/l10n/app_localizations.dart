@@ -5651,6 +5651,30 @@ abstract class AppLocalizations {
   /// **'正在续写，请稍候…'**
   String get novelContinuing;
 
+  /// No description provided for @novelImageInsert.
+  ///
+  /// In zh, this message translates to:
+  /// **'插入插图'**
+  String get novelImageInsert;
+
+  /// No description provided for @novelImagePickParagraph.
+  ///
+  /// In zh, this message translates to:
+  /// **'选择插图放在哪一段之后'**
+  String get novelImagePickParagraph;
+
+  /// No description provided for @novelImageInserted.
+  ///
+  /// In zh, this message translates to:
+  /// **'插图已插入'**
+  String get novelImageInserted;
+
+  /// No description provided for @novelImageInsertFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'插入插图失败'**
+  String get novelImageInsertFailed;
+
   /// No description provided for @novelRetranslate.
   ///
   /// In zh, this message translates to:

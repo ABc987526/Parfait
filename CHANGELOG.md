@@ -38,6 +38,7 @@ User-facing changes in each Parfait release. The format follows [Keep a Changelo
 - **续写本地小说：** 本地小说阅读页的「阅读选项 → 续写」里，可以挑一段作为起点，按你写的剧情方向和字数让模型接着写；结果另存为「书名 + 续写版」的新本地小说，原作不动。
 - **修复保存的小说打开白屏：** 落盘时存的那份「快照」其实只有元数据、没有正文，阅读器却优先用它；现在快照不含正文时改用文本文件，已经保存过的书不用重存也能正常显示。
 - **保存的小说保留插图和分页：** 新增正文序列化（段落、章节标题、pixiv 分页、插图块及其解析信息），保存时一起落盘；阅读时按原样恢复排版，插图仍能加载。旧已保存的书重新保存一次即可获得插图。
+- **本地小说可以自己插图：** 阅读页「阅读选项 → 插入插图」选一个段落，再从文件/相册挑一张图，图片复制进应用目录并插在该段之后，随书显示、只在本机。
 
 ### 修复
 
@@ -86,6 +87,7 @@ User-facing changes in each Parfait release. The format follows [Keep a Changelo
 - **Continue a local novel:** Reading options → Continue the story picks a paragraph as the start, takes a plot direction and a length, and writes the next part into a new library entry named after the work (the original stays untouched).
 - **A saved novel no longer opens blank:** the stored snapshot holds metadata only, and the reader preferred it over the text file; a payload without a body now falls back to the text, so copies saved before this build open correctly too.
 - **Saved novels keep their illustrations and page breaks:** a body serializer stores paragraphs, chapter headings, Pixiv page breaks and image blocks with their identifiers, so the layout restores as it was read and illustrations still load. A copy saved earlier needs one more save to gain them.
+- **A local novel takes your own illustrations:** Reading options → Insert an illustration picks a paragraph, then a picture; the file is copied into the app directory and placed after that paragraph, shown with the work and kept on this device only.
 
 ### Fixed
 

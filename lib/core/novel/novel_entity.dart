@@ -637,6 +637,7 @@ class NovelEntity {
     this.contentAvailable = false,
     this.embeddedImages = const {},
     this.embeddedIllustThumbs = const {},
+    this.localImages = const {},
     this.seriesPrevId,
     this.seriesNextId,
     this.markerPage,
@@ -654,6 +655,11 @@ class NovelEntity {
   final String? seriesTitle;
   final String? coverImageUrl;
   final NovelMarkupDocument? markup;
+
+  /// Image identifiers that load from a file on this device instead of a
+  /// server (identifier → absolute path). A saved novel the user illustrated
+  /// carries these; every other work has none.
+  final Map<String, String> localImages;
   final int restrict;
   final int xRestrict;
   final bool isOriginal;

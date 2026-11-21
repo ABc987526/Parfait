@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -35,6 +37,11 @@ class NovelIllustration extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // A user's own illustration lives on the device, so it never touches the
+    // network layer.
+    if (novel.localImages[image.identifier] case final path?) {
+      return _localImage(context, path);
+    }
     final quality = ref.watch(novelImageQualityProvider);
     final illustId = image.illustId;
     if (illustId == null) {
@@ -76,6 +83,28 @@ class NovelIllustration extends ConsumerWidget {
         null => Center(child: _placeholder()),
       },
     };
+  }
+
+  /// A file the user inserted: same placement and tap behaviour as a payload
+  /// image, with a missing or unreadable file falling back to the notice.
+  Widget _localImage(BuildContext context, String path) {
+    final onTap = this.onTap;
+    final open = onTap == null ? null : () => onTap(image);
+    return Center(
+      child: Semantics(
+        button: open != null,
+        label: context.l10n.novelIllustration,
+        onTap: open,
+        child: GestureDetector(
+          onTap: open,
+          child: Image.file(
+            File(path),
+            fit: BoxFit.contain,
+            errorBuilder: (context, error, stack) => _unavailable(context),
+          ),
+        ),
+      ),
+    );
   }
 
   /// Contained and centred; only the image takes the tap, so the margins

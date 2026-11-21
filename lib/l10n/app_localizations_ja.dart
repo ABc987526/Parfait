@@ -2965,6 +2965,18 @@ class AppLocalizationsJa extends AppLocalizations {
   String get novelContinuing => '続きを書いています…';
 
   @override
+  String get novelImageInsert => '挿絵を挿入';
+
+  @override
+  String get novelImagePickParagraph => 'どの段落の後に置くか選択';
+
+  @override
+  String get novelImageInserted => '挿絵を挿入しました';
+
+  @override
+  String get novelImageInsertFailed => '挿絵を挿入できませんでした';
+
+  @override
   String get novelRetranslate => '翻訳し直す';
 
   @override

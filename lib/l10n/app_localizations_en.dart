@@ -3046,6 +3046,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get novelContinuing => 'Writing the next part…';
 
   @override
+  String get novelImageInsert => 'Insert an illustration';
+
+  @override
+  String get novelImagePickParagraph => 'Choose the paragraph it follows';
+
+  @override
+  String get novelImageInserted => 'Illustration inserted';
+
+  @override
+  String get novelImageInsertFailed => 'Could not insert the illustration';
+
+  @override
   String get novelRetranslate => 'Translate again';
 
   @override

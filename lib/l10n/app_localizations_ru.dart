@@ -3030,6 +3030,19 @@ class AppLocalizationsRu extends AppLocalizations {
   String get novelContinuing => 'Пишу продолжение…';
 
   @override
+  String get novelImageInsert => 'Вставить иллюстрацию';
+
+  @override
+  String get novelImagePickParagraph =>
+      'Выберите абзац, после которого она встанет';
+
+  @override
+  String get novelImageInserted => 'Иллюстрация вставлена';
+
+  @override
+  String get novelImageInsertFailed => 'Не удалось вставить иллюстрацию';
+
+  @override
   String get novelRetranslate => 'Перевести заново';
 
   @override

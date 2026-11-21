@@ -275,6 +275,107 @@ class LocalNovelRepository {
     );
   }
 
+  /// Directory that owns a saved novel's own illustrations.
+  static Future<Directory> localImagesDirectory() async {
+    final support = await AppStoragePaths.active.resolveSupportDir();
+    return Directory(path.join(support.path, 'local_novels', 'images'));
+  }
+
+  /// Copies a picked image beside the library and places it after the block at
+  /// [afterIndex] of the saved body, bumping the body's version so the reader
+  /// lays the page out again on the next open.
+  Future<void> insertLocalImage({
+    required int localId,
+    required int afterIndex,
+    required String fileName,
+    required Uint8List bytes,
+    required Directory imagesDir,
+  }) async {
+    final row = await get(localId);
+    if (row == null) throw StateError('local novel $localId not found');
+    final payload = row.payloadJson;
+    if (payload == null) {
+      throw StateError('local novel $localId has no body to illustrate');
+    }
+    final decoded = jsonDecode(payload);
+    if (decoded is! Map<String, dynamic>) {
+      throw StateError('local novel $localId has an unreadable payload');
+    }
+    final document = decodeNovelContent(decoded['content']);
+    if (document == null || document.blocks.isEmpty) {
+      throw StateError('local novel $localId has no body to illustrate');
+    }
+    await imagesDir.create(recursive: true);
+    final name = await _uniqueImageName(imagesDir, fileName);
+    final file = File(path.join(imagesDir.path, name));
+    await file.writeAsBytes(bytes, flush: true);
+
+    final blocks = document.blocks;
+    final index = afterIndex.clamp(0, blocks.length - 1);
+    final anchor = blocks[index];
+    final insertAt = blocks.indexWhere((block) => block.id == anchor.id) + 1;
+    final identifier = 'local:$name';
+    final nextBlocks = [...blocks]
+      ..insert(
+        insertAt,
+        NovelImageBlock(
+          id: '${anchor.id}-img',
+          image: NovelImageLoadRequest(
+            source: NovelImageSource.uploaded,
+            identifier: identifier,
+          ),
+        ),
+      );
+    final nextDocument = NovelMarkupDocument(
+      tokens: const [],
+      blocks: nextBlocks,
+      diagnostics: const [],
+      sourceLength: document.sourceLength,
+      budgetExceeded: false,
+    );
+    final previousVersion = decoded['content'] is Map<String, dynamic>
+        ? (decoded['content'] as Map<String, dynamic>)['content_version']
+              as String?
+        : null;
+    final version = '${previousVersion ?? 'local:$localId'}+img$insertAt';
+    final previousImages = decoded['local_images'];
+    final next = <String, Object?>{
+      ...decoded,
+      'content': encodeNovelDocument(
+        nextDocument,
+        contentVersion: version,
+        sourceLength: document.sourceLength,
+      ),
+      'local_images': {
+        if (previousImages is Map)
+          for (final entry in previousImages.entries)
+            if (entry.key is String && entry.value is String)
+              entry.key as String: entry.value as String,
+        identifier: file.path,
+      },
+    };
+    final db = await _database.database;
+    await db.update(
+      LocalNovelDatabase.table,
+      {'payload_json': jsonEncode(next)},
+      where: 'id = ?',
+      whereArgs: [localId],
+    );
+  }
+
+  /// A file name the images directory does not hold yet.
+  static Future<String> _uniqueImageName(Directory dir, String fileName) async {
+    final base = path.basename(fileName);
+    final dot = base.lastIndexOf('.');
+    final rawStem = dot > 0 ? base.substring(0, dot) : base;
+    final stem = rawStem.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
+    final extension = dot > 0 ? base.substring(dot) : '.jpg';
+    for (var suffix = 0; ; suffix++) {
+      final name = suffix == 0 ? '$stem$extension' : '$stem-$suffix$extension';
+      if (!await File(path.join(dir.path, name)).exists()) return name;
+    }
+  }
+
   /// The saved copy of online novel [novelId], if this library has one.
   Future<LocalNovel?> findBySourceNovel(int novelId) async {
     final db = await _database.database;

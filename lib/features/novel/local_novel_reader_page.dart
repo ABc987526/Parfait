@@ -69,6 +69,8 @@ class LocalNovelReaderPage extends ConsumerWidget {
       spec: NovelReaderStageSpec(
         novel: entity,
         infoTooltip: context.l10n.localNovelFileInfo,
+        onContentChanged: () =>
+            ref.invalidate(_localNovelContentProvider(localId)),
         infoSheet: (_) => _LocalNovelInfoSheet(novel: novel),
         progress: _LocalProgressBinding(
           ProviderScope.containerOf(context, listen: false),
@@ -91,12 +93,22 @@ class LocalNovelReaderPage extends ConsumerWidget {
       return _entityFor(novel, text);
     }
     final metadata = NovelSnapshotCodec().decodeEntity(decoded);
-    final document = decodeNovelContent(
-      decoded is Map<String, dynamic> ? decoded['content'] : null,
-    );
+    final map = decoded is Map<String, dynamic> ? decoded : const {};
+    final document = decodeNovelContent(map['content']);
     if (document == null || document.blocks.isEmpty) {
       return _entityFor(novel, text);
     }
+    final content = map['content'];
+    final version = content is Map<String, dynamic>
+        ? content['content_version'] as String?
+        : null;
+    final rawImages = map['local_images'];
+    final localImages = <String, String>{
+      if (rawImages is Map)
+        for (final entry in rawImages.entries)
+          if (entry.key is String && entry.value is String)
+            entry.key as String: entry.value as String,
+    };
     // The negative id keeps the local copy disjoint from the real novel id
     // anywhere an id leaks into an observer.
     return NovelEntity(
@@ -108,9 +120,11 @@ class LocalNovelReaderPage extends ConsumerWidget {
           UserEntity(id: 0, name: novel.author ?? '', account: 'local'),
       tags: metadata?.tags ?? const [],
       textLength: metadata?.textLength ?? novel.charCount,
-      contentVersion: metadata?.contentVersion ?? 'local:${novel.id}',
+      contentVersion:
+          version ?? metadata?.contentVersion ?? 'local:${novel.id}',
       paragraphs: document.paragraphs,
       markup: document,
+      localImages: localImages,
     );
   }
 

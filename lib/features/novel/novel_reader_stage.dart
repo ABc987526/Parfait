@@ -27,6 +27,7 @@ import '../../core/auth/account_store.dart';
 import '../../core/errors/no_retry.dart';
 import '../../core/localnovel/local_novel_repository.dart';
 import '../../core/localnovel/local_novel_store.dart';
+import '../../core/platform/saf_tree.dart';
 import '../../core/novel/novel_completion.dart';
 import '../../core/log.dart';
 import '../../core/network/pixiv_http_client.dart';
@@ -40,6 +41,7 @@ import '../../l10n/context.dart';
 import 'novel_bilingual.dart';
 import 'novel_layout.dart';
 import 'novel_continuation_sheet.dart';
+import 'novel_image_insert_sheet.dart';
 import 'novel_prompt_sheet.dart';
 import 'novel_reader.dart';
 import '../../app/theme/func_semantic_tokens.dart';
@@ -73,6 +75,7 @@ class NovelReaderStageSpec {
     this.topActions = const [],
     this.onImageTap,
     this.onLinkTap,
+    this.onContentChanged,
     this.marker,
     this.bodyWrapper,
   });
@@ -108,6 +111,10 @@ class NovelReaderStageSpec {
 
   /// Reading-position persistence adapter for this data source.
   final ReaderProgressBinding progress;
+
+  /// Called after the body changed on the device (an illustration inserted):
+  /// the owner re-reads the saved copy and rebuilds the stage with it.
+  final VoidCallback? onContentChanged;
 
   /// The account's bookmark of the novel in the progress sheet (online
   /// with an account; a file and a guest have none).
@@ -1149,6 +1156,46 @@ class _NovelReaderStageState extends ConsumerState<NovelReaderStage>
     );
   }
 
+  /// Copies a picked picture beside the saved novel and places it after the
+  /// paragraph the reader chose.
+  Future<void> _insertIllustration() async {
+    final blocks = novel.markup?.blocks ?? novel.paragraphs;
+    final paragraphs = [for (final block in blocks) block.plainText];
+    if (paragraphs.isEmpty) return;
+    final index = await showNovelImageInsertSheet(
+      context,
+      paragraphs: paragraphs,
+    );
+    if (index == null || !mounted) return;
+    final picked = await ref
+        .read(documentPickerProvider)
+        .pickDocument(
+          label: context.l10n.novelImageInsert,
+          extensions: const ['jpg', 'jpeg', 'png', 'webp'],
+          mimeTypes: const ['image/jpeg', 'image/png', 'image/webp'],
+          maxBytes: 30 * 1024 * 1024,
+        );
+    if (picked == null || !mounted) return;
+    try {
+      await ref
+          .read(localNovelRepositoryProvider)
+          .insertLocalImage(
+            localId: -novel.id,
+            afterIndex: index,
+            fileName: picked.$1,
+            bytes: picked.$2,
+            imagesDir: await LocalNovelRepository.localImagesDirectory(),
+          );
+      if (!mounted) return;
+      widget.spec.onContentChanged?.call();
+      showAppSnackBar(context, context.l10n.novelImageInserted);
+    } on Object catch (error) {
+      log('novel: inserting an illustration failed: $error');
+      if (!mounted) return;
+      showAppSnackBar(context, context.l10n.novelImageInsertFailed);
+    }
+  }
+
   /// Writes the next part of this local copy into a new library entry named
   /// after the work, leaving the original untouched.
   Future<void> _continueNovel() async {
@@ -1259,6 +1306,15 @@ class _NovelReaderStageState extends ConsumerState<NovelReaderStage>
                 _editNovelPrompt(context);
               },
             ),
+            if (novel.id < 0)
+              ListTile(
+                leading: const Icon(AppIcons.illust),
+                title: Text(sheetContext.l10n.novelImageInsert),
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  unawaited(_insertIllustration());
+                },
+              ),
             if (novel.id < 0)
               ListTile(
                 leading: const Icon(AppIcons.edit),

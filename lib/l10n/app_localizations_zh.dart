@@ -2939,6 +2939,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get novelContinuing => '正在续写，请稍候…';
 
   @override
+  String get novelImageInsert => '插入插图';
+
+  @override
+  String get novelImagePickParagraph => '选择插图放在哪一段之后';
+
+  @override
+  String get novelImageInserted => '插图已插入';
+
+  @override
+  String get novelImageInsertFailed => '插入插图失败';
+
+  @override
   String get novelRetranslate => '重新翻译';
 
   @override
