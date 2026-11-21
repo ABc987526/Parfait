@@ -153,11 +153,16 @@ class NovelReaderController {
 
   double get progressPercent => _progressFor(_currentPage);
 
+  /// The outer quarter of each side turns a page; the middle half toggles
+  /// the chrome. Reading runs right to left here, so the left edge steps on
+  /// and the right edge steps back.
+  static const double _tapZoneWidth = 0.25;
+
   NovelTapZone zoneForTap(double dx, double width) {
     if (width <= 0 || dx < 0 || dx > width) return NovelTapZone.center;
     final ratio = dx / width;
-    if (ratio < 0.3) return NovelTapZone.previous;
-    if (ratio > 0.7) return NovelTapZone.next;
+    if (ratio <= _tapZoneWidth) return NovelTapZone.next;
+    if (ratio >= 1 - _tapZoneWidth) return NovelTapZone.previous;
     return NovelTapZone.center;
   }
 

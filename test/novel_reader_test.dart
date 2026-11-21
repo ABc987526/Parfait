@@ -363,14 +363,16 @@ void main() {
   test('reader tap zones and page progress are bounded and monotonic', () {
     final reader = NovelReaderController(pageCount: 4);
 
-    expect(reader.zoneForTap(0, 100), NovelTapZone.previous);
-    expect(reader.zoneForTap(29, 100), NovelTapZone.previous);
+    // Reading runs right to left: the left quarter steps on, the right
+    // quarter steps back, and the middle half toggles the chrome.
+    expect(reader.zoneForTap(0, 100), NovelTapZone.next);
+    expect(reader.zoneForTap(24, 100), NovelTapZone.next);
     expect(reader.zoneForTap(50, 100), NovelTapZone.center);
-    expect(reader.zoneForTap(71, 100), NovelTapZone.next);
-    expect(reader.zoneForTap(100, 100), NovelTapZone.next);
+    expect(reader.zoneForTap(76, 100), NovelTapZone.previous);
+    expect(reader.zoneForTap(100, 100), NovelTapZone.previous);
     expect(reader.handleTap(50, 100), isFalse);
     expect(reader.currentPage, 0);
-    expect(reader.handleTap(90, 100), isTrue);
+    expect(reader.handleTap(10, 100), isTrue);
     expect(reader.currentPage, 1);
     expect(reader.progressPercent, closeTo(33.333, 0.01));
     reader.setPage(99);

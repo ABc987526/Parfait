@@ -24,6 +24,7 @@ User-facing changes in each Parfait release. The format follows [Keep a Changelo
 - **自定义 LLM 接口：** 「设置 → 翻译 → 自定义 LLM」的接口地址现在也接受 `http://` 明文地址，可以把局域网里自建的模型服务填进来；密钥会以明文发送到该地址。
 - **自定义 LLM 提示词：** 「LLM 接口与密钥」新增可选的提示词，用来要求文风、人称等；「只输出译文」的规则仍然生效，评论和小说的排版不会被解释性文字打乱。
 - **小说保存到本地：** 小说阅读页新增「保存到本地」，把在线小说存成本地小说，离线也能读；在本地版里翻译过的段落会随书保存，下次打开不用重新翻译。
+- **小说翻页的点击区域：** 翻页模式下点左侧 25% 到下一页、点右侧 25% 到上一页（按从右往左的阅读顺序），中间一半仍然是切换界面。
 
 ### 修复
 
@@ -58,6 +59,7 @@ User-facing changes in each Parfait release. The format follows [Keep a Changelo
 - **Custom LLM endpoint:** Under Settings → Translation → Custom LLM, the base URL now also accepts a plain `http://` address, so a model server on your own network can be used; the key is sent to that address in clear text.
 - **Custom LLM prompt:** LLM endpoint & key gains an optional prompt for tone, person and similar requests; the translation-only rule still applies, so comments and novels are not padded with explanations.
 - **Save a novel to the device:** the novel reader gains a Save action that keeps an online novel as a local one, readable offline; paragraphs translated in the local copy are saved with it, so reopening costs no network.
+- **Novel tap zones:** in the page reader, the left 25% turns to the next page and the right 25% to the previous one (right-to-left reading order); the middle half still toggles the chrome.
 
 ### Fixed
 
