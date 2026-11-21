@@ -77,7 +77,7 @@ class _NovelContinuationSheetState extends State<_NovelContinuationSheet> {
 
   int get _wordCount {
     final parsed = int.tryParse(_words.text.trim()) ?? 500;
-    return parsed.clamp(_minWords, _maxWords);
+    return parsed.clamp(_minWords, _maxWords).toInt();
   }
 
   @override

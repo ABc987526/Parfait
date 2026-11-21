@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 
 import '../network/http_client_providers.dart';
+import '../network/local_network_address.dart';
 import '../platform/local_network.dart';
 import '../translation/translation_credentials.dart';
 import '../translation/translation_service.dart';
