@@ -265,6 +265,76 @@ void main() {
       expect(system, contains('用古风，人称用「吾」'));
     });
 
+    test('translates a batch in one request', () async {
+      store.llm = const LlmTranslationCredentials(
+        baseUrl: 'https://llm.example.com/v1',
+        apiKey: 'key-secret',
+      );
+      var requests = 0;
+      final service = LlmTranslationTransport(
+        MockClient((_) async {
+          requests++;
+          return http.Response.bytes(
+            utf8.encode(
+              jsonEncode({
+                'choices': [
+                  {
+                    'message': {'content': '[[1]]\n甲\n\n[[2]]\n乙'},
+                  },
+                ],
+              }),
+            ),
+            200,
+          );
+        }),
+        store,
+        unrestricted,
+      );
+
+      final result = await service.translateAll([
+        'one',
+        'two',
+      ], targetLanguage: 'zh');
+
+      expect(result, ['甲', '乙']);
+      expect(requests, 1);
+    });
+
+    test('a batch without markers falls back to one request each', () async {
+      store.llm = const LlmTranslationCredentials(
+        baseUrl: 'https://llm.example.com/v1',
+        apiKey: 'key-secret',
+      );
+      var requests = 0;
+      final service = LlmTranslationTransport(
+        MockClient((_) async {
+          requests++;
+          return http.Response.bytes(
+            utf8.encode(
+              jsonEncode({
+                'choices': [
+                  {
+                    'message': {'content': '甲'},
+                  },
+                ],
+              }),
+            ),
+            200,
+          );
+        }),
+        store,
+        unrestricted,
+      );
+
+      final result = await service.translateAll([
+        'one',
+        'two',
+      ], targetLanguage: 'zh');
+
+      expect(result, ['甲', '甲']);
+      expect(requests, 2);
+    });
+
     test('rejects an endpoint that is not an HTTP(S) URL', () async {
       for (final baseUrl in [
         'ftp://llm.example.com/v1',

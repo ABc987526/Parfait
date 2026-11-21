@@ -488,6 +488,183 @@ class LlmTranslationTransport
     return content;
   }
 
+  /// A page's paragraphs in one round trip: the model answers with the same
+  /// `[[n]]` markers, and a batch that comes back incomplete falls back to
+  /// the per-item path rather than showing a half-translated page.
+  ///
+  /// Only the LLM transport batches: Google's and Baidu's endpoints take one
+  /// text per call, and Index Translate's public contract does too.
+  @override
+  Future<List<String>> translateAll(
+    List<String> texts, {
+    required String targetLanguage,
+  }) async {
+    final sources = [for (final text in texts) text.trim()];
+    final filled = [
+      for (final text in sources)
+        if (text.isNotEmpty) text,
+    ];
+    if (filled.length < 2) {
+      return super.translateAll(texts, targetLanguage: targetLanguage);
+    }
+    final String answer;
+    try {
+      final target = _targetOf(targetLanguage);
+      final numbered = [
+        for (final (index, text) in filled.indexed) '[[${index + 1}]]\n$text',
+      ].join('\n\n');
+      answer = await _batchRequest(
+        'Translate every segment below into $target. Keep each [[n]] marker '
+        'at the start of its translated segment, in order, and return no '
+        'commentary:\n\n$numbered',
+      );
+    } on Object {
+      return super.translateAll(texts, targetLanguage: targetLanguage);
+    }
+    final segments = _splitNumbered(answer);
+    if (segments.length != filled.length) {
+      return super.translateAll(texts, targetLanguage: targetLanguage);
+    }
+    final out = <String>[];
+    var next = 0;
+    for (final source in sources) {
+      out.add(source.isEmpty ? '' : segments[next++]);
+    }
+    return out;
+  }
+
+  static String _targetOf(String targetLanguage) {
+    final target = targetLanguage.trim().toLowerCase();
+    if (!RegExp(r'^[a-z]{2,3}(?:-[a-z]{2,4})?$').hasMatch(target)) {
+      throw const TranslationError(
+        'invalid target language',
+        TranslationFailureKind.unsupportedLanguage,
+      );
+    }
+    return target;
+  }
+
+  /// Splits an answer written with `[[n]]` markers into its segments, in the
+  /// order they appear.
+  static List<String> _splitNumbered(String text) {
+    final matches = RegExp(r'\[\[(\d+)\]\]').allMatches(text).toList();
+    if (matches.isEmpty) return const [];
+    return [
+      for (var i = 0; i < matches.length; i++)
+        text
+            .substring(
+              matches[i].end,
+              i + 1 < matches.length ? matches[i + 1].start : text.length,
+            )
+            .trim(),
+    ];
+  }
+
+  /// One batch round trip. Same setup as [translate] plus the batching rule;
+  /// kept apart so a batch failure can fall back without touching the
+  /// single-text path.
+  Future<String> _batchRequest(String userText) async {
+    final credentials = await _store.readLlm();
+    if (credentials == null) {
+      throw const TranslationUnavailable(TranslationFailureKind.notConfigured);
+    }
+    final endpoint = llmChatCompletionsEndpoint(credentials.baseUrl);
+    if (endpoint == null) {
+      throw const TranslationError(
+        'LLM endpoint is not an HTTP(S) URL',
+        TranslationFailureKind.invalidCredentials,
+      );
+    }
+    try {
+      await _localNetwork.ensure(endpoint.host);
+    } on LocalNetworkBlocked {
+      throw const TranslationError(
+        'LLM endpoint on the local network is not allowed',
+        TranslationFailureKind.localNetwork,
+      );
+    }
+    final system =
+        '${_systemPrompt(credentials.prompt)}\n\nA user message with '
+        '[[n]]-marked segments must be answered with the same markers, one '
+        'translated segment each.';
+    final request = http.Request('POST', endpoint)
+      ..headers['Content-Type'] = 'application/json'
+      ..headers['Authorization'] = 'Bearer ${credentials.apiKey}'
+      ..headers['User-Agent'] = 'Parfait/1.0'
+      ..body = jsonEncode({
+        'model': (credentials.model?.isEmpty ?? true)
+            ? 'gpt-4o-mini'
+            : credentials.model,
+        'temperature': 0.2,
+        'messages': [
+          {'role': 'system', 'content': system},
+          {'role': 'user', 'content': userText},
+        ],
+      });
+    final http.Response response;
+    try {
+      response = await http.Response.fromStream(
+        await _client.send(request).timeout(_timeout),
+      ).timeout(_timeout);
+    } on TimeoutException {
+      throw const TranslationError(
+        'translation timed out',
+        TranslationFailureKind.network,
+      );
+    } on SocketException {
+      throw const TranslationError(
+        'translation network failure',
+        TranslationFailureKind.network,
+      );
+    } on http.ClientException {
+      throw const TranslationError(
+        'translation network failure',
+        TranslationFailureKind.network,
+      );
+    }
+    if (response.statusCode == 401 || response.statusCode == 403) {
+      throw const TranslationError(
+        'LLM credentials invalid',
+        TranslationFailureKind.invalidCredentials,
+      );
+    }
+    if (response.statusCode == 429) {
+      throw const TranslationError(
+        'LLM rate limited',
+        TranslationFailureKind.rateLimited,
+      );
+    }
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw const TranslationError(
+        'LLM http failure',
+        TranslationFailureKind.network,
+      );
+    }
+    if (response.bodyBytes.length > _maxResponseBytes) {
+      throw const TranslationError(
+        'LLM response too large',
+        TranslationFailureKind.malformed,
+      );
+    }
+    final dynamic decoded;
+    try {
+      decoded = jsonDecode(utf8.decode(response.bodyBytes));
+    } on FormatException {
+      throw const TranslationError(
+        'malformed response',
+        TranslationFailureKind.malformed,
+      );
+    }
+    final content = _extractContent(decoded);
+    if (content == null) {
+      throw const TranslationError(
+        'malformed response',
+        TranslationFailureKind.malformed,
+      );
+    }
+    return content;
+  }
+
   static String? _extractContent(Object? decoded) {
     if (decoded is! Map<String, dynamic>) return null;
     final choices = decoded['choices'];
