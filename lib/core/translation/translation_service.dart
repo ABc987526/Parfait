@@ -541,6 +541,15 @@ class LlmTranslationTransport
         'at the start of its translated segment, in order, and return no '
         'commentary:\n\n$numbered',
       );
+    } on TranslationError catch (error) {
+      // A wrong key, a rate limit or a network failure fails the same way one
+      // request per paragraph, so it is not worth another round trip.
+      if (error.kind == TranslationFailureKind.invalidCredentials ||
+          error.kind == TranslationFailureKind.rateLimited ||
+          error.kind == TranslationFailureKind.network) {
+        rethrow;
+      }
+      return super.translateAll(texts, targetLanguage: targetLanguage);
     } on Object {
       return super.translateAll(texts, targetLanguage: targetLanguage);
     }
