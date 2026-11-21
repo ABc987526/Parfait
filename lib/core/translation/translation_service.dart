@@ -339,8 +339,12 @@ class BaiduTranslationTransport
   }
 }
 
-/// OpenAI-compatible chat completions transport (D2): HTTPS only, fixed
-/// system prompt, zero configurable prompt/model advanced parameters.
+/// OpenAI-compatible chat completions transport (D2): HTTP(S), fixed system
+/// prompt, zero configurable prompt/model advanced parameters.
+///
+/// Plain HTTP is accepted because a model server on the user's own network
+/// usually offers no certificate the app can verify; the key then travels in
+/// clear text to that host only.
 class LlmTranslationTransport
     with SequentialBatchTranslation
     implements TranslationTransport {
@@ -380,14 +384,10 @@ class LlmTranslationTransport
     if (credentials == null) {
       throw const TranslationUnavailable(TranslationFailureKind.notConfigured);
     }
-    final base = credentials.baseUrl.trim().replaceFirst(RegExp(r'/+$'), '');
-    final endpoint = Uri.tryParse('$base/chat/completions');
-    if (endpoint == null ||
-        endpoint.scheme != 'https' ||
-        endpoint.host.isEmpty ||
-        endpoint.userInfo.isNotEmpty) {
+    final endpoint = llmChatCompletionsEndpoint(credentials.baseUrl);
+    if (endpoint == null) {
       throw const TranslationError(
-        'LLM endpoint is not HTTPS',
+        'LLM endpoint is not an HTTP(S) URL',
         TranslationFailureKind.invalidCredentials,
       );
     }

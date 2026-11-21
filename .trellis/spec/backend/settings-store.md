@@ -50,13 +50,17 @@ reviewed: 2026-10-14
 - **Check:** `test/app_settings_test.dart` "plain settings JSON never contains translation credentials", `test/translation_service_test.dart` "never exposes secrets in toString", `test/account_store_test.dart` "credential toString is redacted"
 - **Code:** `lib/core/auth/credential_store.dart`, `lib/core/translation/translation_credentials.dart`
 
-### PREF-04 Remote credentials travel over HTTPS only
-- **Rule:** A configured endpoint with an `http://` base URL is rejected
-  before any request is built.
-- **Why:** User-supplied translation endpoints would otherwise send keys in
-  clear text.
-- **Check:** `test/translation_service_test.dart` "rejects plain HTTP endpoints as invalid credentials"
-- **Code:** `lib/core/translation/translation_service.dart`
+### PREF-04 An endpoint is an HTTP(S) URL the transport can call
+- **Rule:** A configured endpoint is an absolute `http://` or `https://` URL
+  with a host and without `user:pass@`. The settings form and the transport
+  accept exactly that set and reject anything else before a request is built.
+  Plain HTTP is accepted: a model server the user runs themselves usually
+  has no certificate the app can verify.
+- **Why:** User decision: a self-hosted OpenAI-compatible server answers
+  plain HTTP on a LAN address, and the key then travels in clear text to that
+  host only.
+- **Check:** `test/translation_service_test.dart` "posts to a plain HTTP endpoint on a self-hosted server", "rejects an endpoint that is not an HTTP(S) URL", `test/translation_credentials_page_test.dart` "saves a plain HTTP endpoint"
+- **Code:** `lib/core/translation/translation_credentials.dart`, `lib/core/translation/translation_service.dart`
 
 ### PREF-05 A public translation provider has no secret state
 - **Rule:** A credential-free public translation provider never reads or

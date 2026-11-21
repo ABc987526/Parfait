@@ -1228,7 +1228,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get translateBaiduSecret => 'Секрет';
 
   @override
-  String get translateLlmBaseUrl => 'Базовый URL (HTTPS)';
+  String get translateLlmBaseUrl => 'Базовый URL';
 
   @override
   String get translateLlmApiKey => 'API-ключ';
@@ -1259,7 +1259,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get translateCredentialsStoreError => 'Ошибка защищённого хранилища';
 
   @override
-  String get translateCredentialsInvalid => 'Неполный ввод или адрес не HTTPS';
+  String get translateCredentialsInvalid => 'Неполный ввод или неверный адрес';
 
   @override
   String get downloadTasksEmpty => 'Нет задач загрузки';

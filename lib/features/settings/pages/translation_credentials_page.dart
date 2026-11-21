@@ -157,12 +157,8 @@ class _TranslationCredentialsPageState
       } else {
         final baseUrl = _baseUrlController.text.trim();
         final apiKey = _apiKeyController.text.trim();
-        final uri = Uri.tryParse(baseUrl);
-        if (baseUrl.isEmpty ||
-            apiKey.isEmpty ||
-            uri == null ||
-            uri.scheme != 'https' ||
-            uri.host.isEmpty) {
+        final endpoint = llmChatCompletionsEndpoint(baseUrl);
+        if (baseUrl.isEmpty || apiKey.isEmpty || endpoint == null) {
           throw const TranslationError('invalid LLM endpoint');
         }
         final model = _modelController.text.trim();

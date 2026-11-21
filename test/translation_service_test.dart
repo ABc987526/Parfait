@@ -193,16 +193,27 @@ void main() {
       expect(messages.last['content'] as String, contains('Translate into zh'));
     });
 
-    test('rejects plain HTTP endpoints as invalid credentials', () async {
+    test('posts to a plain HTTP endpoint on a self-hosted server', () async {
       store.llm = const LlmTranslationCredentials(
-        baseUrl: 'http://llm.example.com/v1',
+        baseUrl: 'http://192.168.1.9:8080/v1',
         apiKey: 'key-secret',
       );
-      var called = false;
+      late Uri requested;
       final service = LlmTranslationTransport(
-        MockClient((_) async {
-          called = true;
-          return http.Response('{}', 200);
+        MockClient((request) async {
+          requested = request.url;
+          return http.Response.bytes(
+            utf8.encode(
+              jsonEncode({
+                'choices': [
+                  {
+                    'message': {'content': '你好'},
+                  },
+                ],
+              }),
+            ),
+            200,
+          );
         }),
         store,
         unrestricted,
@@ -210,15 +221,44 @@ void main() {
 
       await expectLater(
         service.translate('hello', targetLanguage: 'zh'),
-        throwsA(
-          isA<TranslationError>().having(
-            (e) => e.kind,
-            'kind',
-            TranslationFailureKind.invalidCredentials,
-          ),
-        ),
+        completion('你好'),
       );
-      expect(called, isFalse);
+      expect(
+        requested,
+        Uri.parse('http://192.168.1.9:8080/v1/chat/completions'),
+      );
+    });
+
+    test('rejects an endpoint that is not an HTTP(S) URL', () async {
+      for (final baseUrl in [
+        'ftp://llm.example.com/v1',
+        'llm.example.com/v1',
+        'http://user:pass@llm.example.com/v1',
+      ]) {
+        store.llm = LlmTranslationCredentials(baseUrl: baseUrl, apiKey: 'k');
+        var called = false;
+        final service = LlmTranslationTransport(
+          MockClient((_) async {
+            called = true;
+            return http.Response('{}', 200);
+          }),
+          store,
+          unrestricted,
+        );
+
+        await expectLater(
+          service.translate('hello', targetLanguage: 'zh'),
+          throwsA(
+            isA<TranslationError>().having(
+              (e) => e.kind,
+              'kind',
+              TranslationFailureKind.invalidCredentials,
+            ),
+          ),
+          reason: baseUrl,
+        );
+        expect(called, isFalse, reason: baseUrl);
+      }
     });
 
     test(
@@ -300,6 +340,30 @@ void main() {
           ),
         ),
       );
+    });
+  });
+
+  group('llmChatCompletionsEndpoint', () {
+    test('accepts HTTP and HTTPS and strips trailing slashes', () {
+      expect(
+        llmChatCompletionsEndpoint('https://llm.example.com/v1'),
+        Uri.parse('https://llm.example.com/v1/chat/completions'),
+      );
+      expect(
+        llmChatCompletionsEndpoint(' http://192.168.1.9:8080/v1/ '),
+        Uri.parse('http://192.168.1.9:8080/v1/chat/completions'),
+      );
+    });
+
+    test('refuses a non-HTTP scheme or a credential in the URL', () {
+      for (final baseUrl in [
+        '',
+        'llm.example.com/v1',
+        'ftp://llm.example.com/v1',
+        'https://user:pass@llm.example.com/v1',
+      ]) {
+        expect(llmChatCompletionsEndpoint(baseUrl), isNull, reason: baseUrl);
+      }
     });
   });
 

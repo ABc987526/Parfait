@@ -1227,7 +1227,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get translateBaiduSecret => 'Secret';
 
   @override
-  String get translateLlmBaseUrl => 'Base URL (HTTPS)';
+  String get translateLlmBaseUrl => 'Base URL';
 
   @override
   String get translateLlmApiKey => 'API key';
@@ -1260,7 +1260,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get translateCredentialsInvalid =>
-      'Incomplete input or endpoint is not HTTPS';
+      'Incomplete input or an invalid endpoint URL';
 
   @override
   String get downloadTasksEmpty => 'No download tasks';

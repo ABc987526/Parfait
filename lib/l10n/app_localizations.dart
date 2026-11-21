@@ -2336,7 +2336,7 @@ abstract class AppLocalizations {
   /// No description provided for @translateLlmBaseUrl.
   ///
   /// In zh, this message translates to:
-  /// **'接口地址（HTTPS）'**
+  /// **'接口地址'**
   String get translateLlmBaseUrl;
 
   /// No description provided for @translateLlmApiKey.
@@ -2396,7 +2396,7 @@ abstract class AppLocalizations {
   /// No description provided for @translateCredentialsInvalid.
   ///
   /// In zh, this message translates to:
-  /// **'输入不完整或接口地址不是 HTTPS'**
+  /// **'输入不完整或接口地址无效'**
   String get translateCredentialsInvalid;
 
   /// No description provided for @downloadTasksEmpty.

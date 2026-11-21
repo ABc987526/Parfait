@@ -1201,7 +1201,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get translateBaiduSecret => 'シークレット';
 
   @override
-  String get translateLlmBaseUrl => 'ベース URL（HTTPS）';
+  String get translateLlmBaseUrl => 'ベース URL';
 
   @override
   String get translateLlmApiKey => 'API キー';
@@ -1232,7 +1232,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get translateCredentialsStoreError => '安全なストレージの操作に失敗しました';
 
   @override
-  String get translateCredentialsInvalid => '入力が不完全か、エンドポイントが HTTPS ではありません';
+  String get translateCredentialsInvalid => '入力が不完全か、エンドポイント URL が不正です';
 
   @override
   String get downloadTasksEmpty => 'ダウンロードタスクはありません';

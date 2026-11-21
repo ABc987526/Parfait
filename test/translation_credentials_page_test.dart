@@ -243,4 +243,22 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(TranslationCredentialsPage), findsNothing);
   });
+
+  testWidgets('saves a plain HTTP endpoint', (tester) async {
+    final store = _FakeStore();
+    await tester.pumpWidget(_app(store, baidu: false));
+    await tester.pump();
+
+    await tester.enterText(
+      find.byType(TextField).at(0),
+      'http://192.168.1.9:8080/v1',
+    );
+    await tester.enterText(find.byType(TextField).at(1), 'key-secret');
+    await tester.tap(find.text('Save to secure storage'));
+    await tester.pump();
+    await tester.pump();
+
+    expect(store.llm?.baseUrl, 'http://192.168.1.9:8080/v1');
+    expect(find.text('Saved to secure storage'), findsOneWidget);
+  });
 }

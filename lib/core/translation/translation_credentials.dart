@@ -48,7 +48,8 @@ class LlmTranslationCredentials {
     this.model,
   });
 
-  /// HTTPS only; the transport rejects plain HTTP endpoints.
+  /// An absolute `http://` or `https://` URL. Plain HTTP is accepted for a
+  /// server the user runs themselves; the key then travels in clear text.
   final String baseUrl;
   final String apiKey;
   final String? model;
@@ -65,6 +66,21 @@ class LlmTranslationCredentials {
 
   @override
   String toString() => 'LlmTranslationCredentials(baseUrl: $baseUrl)';
+}
+
+/// The chat-completions endpoint of a user-configured OpenAI-compatible
+/// base URL, or null when [baseUrl] cannot be one.
+///
+/// Both `https` and `http` are accepted: a model server on the user's own
+/// network usually has no certificate the app can verify. `user:pass@host` is
+/// refused so a second credential cannot ride along in the URL.
+Uri? llmChatCompletionsEndpoint(String baseUrl) {
+  final base = baseUrl.trim().replaceFirst(RegExp(r'/+$'), '');
+  final endpoint = Uri.tryParse('$base/chat/completions');
+  if (endpoint == null) return null;
+  if (endpoint.scheme != 'https' && endpoint.scheme != 'http') return null;
+  if (endpoint.host.isEmpty || endpoint.userInfo.isNotEmpty) return null;
+  return endpoint;
 }
 
 /// Isolated read/write/delete access to translation credentials.

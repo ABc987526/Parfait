@@ -1184,7 +1184,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get translateBaiduSecret => '密钥 (Secret)';
 
   @override
-  String get translateLlmBaseUrl => '接口地址（HTTPS）';
+  String get translateLlmBaseUrl => '接口地址';
 
   @override
   String get translateLlmApiKey => 'API Key';
@@ -1214,7 +1214,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get translateCredentialsStoreError => '安全存储操作失败';
 
   @override
-  String get translateCredentialsInvalid => '输入不完整或接口地址不是 HTTPS';
+  String get translateCredentialsInvalid => '输入不完整或接口地址无效';
 
   @override
   String get downloadTasksEmpty => '暂无下载任务';
