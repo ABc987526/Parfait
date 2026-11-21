@@ -2909,6 +2909,24 @@ class AppLocalizationsZh extends AppLocalizations {
   String get novelPromptHint => '只对这一本生效；留空则跟随全局提示词';
 
   @override
+  String get novelPromptRoleName => '名字';
+
+  @override
+  String get novelPromptRolePersonality => '性格';
+
+  @override
+  String get novelPromptAddRole => '添加角色';
+
+  @override
+  String get novelPromptStyle => '文风';
+
+  @override
+  String get novelPromptWorld => '世界设定';
+
+  @override
+  String get novelPromptExtra => '额外要求';
+
+  @override
   String get localNovelsImportFailed => '导入失败';
 
   @override

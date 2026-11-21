@@ -281,25 +281,38 @@ class LocalNovelRepository {
   }
 
   /// The work's own prompt (its entity id, negative for a local copy), or
-  /// null when it follows the global one.
+  /// null when it follows the global one. Structured parts are composed in.
   Future<String?> readNovelPrompt(int novelId) async {
+    final spec = await readNovelPromptSpec(novelId);
+    if (spec == null) return null;
+    final composed = composeNovelPrompt(spec).trim();
+    return composed.isEmpty ? null : composed;
+  }
+
+  /// The work's structured prompt, or null when it has none.
+  Future<NovelPromptSpec?> readNovelPromptSpec(int novelId) async {
     final db = await _database.database;
     final rows = await db.query(
       LocalNovelDatabase.promptTable,
-      columns: ['prompt'],
       where: 'novel_id = ?',
       whereArgs: [novelId],
       limit: 1,
     );
-    return rows.isEmpty ? null : rows.first['prompt'] as String?;
+    if (rows.isEmpty) return null;
+    final row = rows.first;
+    return NovelPromptSpec(
+      roles: _decodeRoles(row['roles']),
+      style: (row['style'] as String?) ?? '',
+      world: (row['world'] as String?) ?? '',
+      instructions: (row['prompt'] as String?) ?? '',
+    );
   }
 
-  /// Saves the work's own prompt; an empty [prompt] removes it, so the work
-  /// follows the global prompt again.
-  Future<void> writeNovelPrompt(int novelId, String? prompt) async {
+  /// Saves the work's structured prompt; an empty spec removes it, so the
+  /// work follows the global prompt again.
+  Future<void> writeNovelPromptSpec(int novelId, NovelPromptSpec spec) async {
     final db = await _database.database;
-    final text = prompt?.trim() ?? '';
-    if (text.isEmpty) {
+    if (composeNovelPrompt(spec).trim().isEmpty) {
       await db.delete(
         LocalNovelDatabase.promptTable,
         where: 'novel_id = ?',
@@ -309,9 +322,34 @@ class LocalNovelRepository {
     }
     await db.rawInsert(
       'INSERT OR REPLACE INTO ${LocalNovelDatabase.promptTable} '
-      '(novel_id, prompt) VALUES (?, ?)',
-      [novelId, text],
+      '(novel_id, prompt, style, world, roles) VALUES (?, ?, ?, ?, ?)',
+      [
+        novelId,
+        spec.instructions.trim(),
+        spec.style.trim(),
+        spec.world.trim(),
+        jsonEncode([for (final role in spec.roles) role.toJson()]),
+      ],
     );
+  }
+
+  /// Saves the work's own prompt; an empty [prompt] removes it, so the work
+  /// follows the global prompt again.
+  Future<void> writeNovelPrompt(int novelId, String? prompt) =>
+      writeNovelPromptSpec(
+        novelId,
+        NovelPromptSpec(instructions: prompt?.trim() ?? ''),
+      );
+
+  static List<NovelPromptRole> _decodeRoles(Object? raw) {
+    if (raw is! String || raw.isEmpty) return const [];
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return const [];
+      return [for (final entry in decoded) ?NovelPromptRole.fromJson(entry)];
+    } on FormatException {
+      return const [];
+    }
   }
 
   Future<void> updateReadOffset(int id, int offset) async {
@@ -366,6 +404,66 @@ class LocalNovelRepository {
       payloadJson: row['payload_json'] as String?,
     );
   }
+}
+
+/// One character the work's prompt describes.
+class NovelPromptRole {
+  const NovelPromptRole({required this.name, this.personality = ''});
+
+  final String name;
+  final String personality;
+
+  Map<String, Object?> toJson() => {'name': name, 'personality': personality};
+
+  static NovelPromptRole? fromJson(Object? json) {
+    if (json is! Map) return null;
+    final name = json['name'];
+    if (name is! String || name.trim().isEmpty) return null;
+    final personality = json['personality'];
+    return NovelPromptRole(
+      name: name.trim(),
+      personality: personality is String ? personality.trim() : '',
+    );
+  }
+}
+
+/// The parts a work's own prompt is written in: who is in it, how it reads,
+/// where it happens, and anything else in free form.
+class NovelPromptSpec {
+  const NovelPromptSpec({
+    this.roles = const [],
+    this.style = '',
+    this.world = '',
+    this.instructions = '',
+  });
+
+  final List<NovelPromptRole> roles;
+  final String style;
+  final String world;
+  final String instructions;
+
+  bool get isEmpty =>
+      roles.isEmpty &&
+      style.trim().isEmpty &&
+      world.trim().isEmpty &&
+      instructions.trim().isEmpty;
+}
+
+/// The prompt text the model receives: one labelled line per filled part.
+String composeNovelPrompt(NovelPromptSpec spec) {
+  final roles = [
+    for (final role in spec.roles)
+      if (role.name.trim().isNotEmpty)
+        role.personality.trim().isEmpty
+            ? role.name.trim()
+            : '${role.name.trim()}（${role.personality.trim()}）',
+  ];
+  return [
+    if (roles.isNotEmpty) '角色设定：${roles.join('；')}',
+    if (spec.style.trim().isNotEmpty) '文风：${spec.style.trim()}',
+    if (spec.world.trim().isNotEmpty) '世界设定：${spec.world.trim()}',
+    if (spec.instructions.trim().isNotEmpty) spec.instructions.trim(),
+  ].join('\n');
 }
 
 final localNovelDatabaseProvider = Provider<LocalNovelDatabase>((ref) {

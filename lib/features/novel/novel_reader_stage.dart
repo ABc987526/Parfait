@@ -13,7 +13,6 @@ import '../../app/motion/app_overlays.dart';
 import '../../app/motion/motion_tokens.dart';
 import '../../app/navigation/home_shell_metrics.dart';
 import '../../app/navigation/route_facade.dart';
-import '../../app/widgets/app_dialog.dart';
 import '../../app/widgets/app_spinner.dart';
 import '../../app/system_ui.dart';
 import '../../app/widgets/app_snack_bar.dart';
@@ -38,6 +37,7 @@ import '../../l10n/app_localizations.dart';
 import '../../l10n/context.dart';
 import 'novel_bilingual.dart';
 import 'novel_layout.dart';
+import 'novel_prompt_sheet.dart';
 import 'novel_reader.dart';
 import '../../app/theme/func_semantic_tokens.dart';
 import '../../app/widgets/app_choice_chip.dart';
@@ -74,7 +74,7 @@ class NovelReaderStageSpec {
     this.bodyWrapper,
   });
 
-  /// The document being read — a real detail entity online, a synthetic
+  /// The document being read 鈥?a real detail entity online, a synthetic
   /// one built from the TXT file locally.
   final NovelEntity novel;
 
@@ -99,7 +99,7 @@ class NovelReaderStageSpec {
   /// `localNovelFileInfo` for a file).
   final String infoTooltip;
 
-  /// Content builder for the info bottom sheet — the stage owns the
+  /// Content builder for the info bottom sheet 鈥?the stage owns the
   /// `showAppBottomSheet` presentation; the spec owns the fields inside.
   final WidgetBuilder infoSheet;
 
@@ -112,7 +112,7 @@ class NovelReaderStageSpec {
 
   /// Optional wrapper around the reader body. The online page uses it to
   /// attach `HistoryVisibility` (it needs the live anchor for snapshots);
-  /// local passes null — imported files never enter account history (D6).
+  /// local passes null 鈥?imported files never enter account history (D6).
   final Widget Function(
     BuildContext context,
     NovelAnchor? anchor,
@@ -124,11 +124,11 @@ class NovelReaderStageSpec {
 /// Two-method persistence adapter behind the stage: `load` resolves the
 /// resume anchor on open, `save` records user-committed positions.
 abstract interface class ReaderProgressBinding {
-  /// Null means no usable record — the reader opens on the first page.
+  /// Null means no usable record 鈥?the reader opens on the first page.
   Future<NovelAnchor?> load();
 
   /// Persists a user-committed anchor. Called only for
-  /// [NovelAnchorCause.userTurn] notifications — layout echoes never write.
+  /// [NovelAnchorCause.userTurn] notifications 鈥?layout echoes never write.
   Future<void> save(NovelAnchor anchor);
 }
 
@@ -286,7 +286,7 @@ class _NovelReaderStageState extends ConsumerState<NovelReaderStage>
         BilingualReading,
         _ReaderRailSuppression {
   /// One controller drives both bars and the passive hint: the hint
-  /// tracks the *rendered* chrome state, not the user's intent — it
+  /// tracks the *rendered* chrome state, not the user's intent 鈥?it
   /// reappears only once the bottom bar is fully dismissed (R4).
   late final AnimationController _chrome = AnimationController(vsync: this)
     ..addStatusListener(_onChromeStatus);
@@ -364,8 +364,7 @@ class _NovelReaderStageState extends ConsumerState<NovelReaderStage>
 
   @override
   void dispose() {
-    // Leaving without a pop (route replace, go()) skips the pop callback —
-    // restore the ambient bars here as the fallback. Re-setting
+    // Leaving without a pop (route replace, go()) skips the pop callback 鈥?    // restore the ambient bars here as the fallback. Re-setting
     // edgeToEdge is harmless when the route left through a normal pop.
     unawaited(setSystemUiMode(SystemUiMode.edgeToEdge));
     disposeRailSuppression();
@@ -384,7 +383,7 @@ class _NovelReaderStageState extends ConsumerState<NovelReaderStage>
         _prefsReady = true;
       });
     } catch (error) {
-      // A failed read must not leave the stage spinning forever — surface
+      // A failed read must not leave the stage spinning forever 鈥?surface
       // the error with a retry instead of silently defaulting (the saved
       // anchor may still be there).
       if (!mounted) return;
@@ -412,7 +411,7 @@ class _NovelReaderStageState extends ConsumerState<NovelReaderStage>
       ),
     );
     if (!MotionTokens.enabled(context)) {
-      // Reduced motion: land the end state — a zeroed controller still
+      // Reduced motion: land the end state 鈥?a zeroed controller still
       // drives the hittable/dismissed boundary correctly.
       _chrome.value = visible ? 1 : 0;
     } else if (visible) {
@@ -433,7 +432,7 @@ class _NovelReaderStageState extends ConsumerState<NovelReaderStage>
   }
 
   /// Immediate write-through for the settings sheet. A failed save must
-  /// be visible — silently dropping it would leave the on-screen values
+  /// be visible 鈥?silently dropping it would leave the on-screen values
   /// pretending to be persisted.
   Future<void> _saveSettings(NovelReaderSettings next) async {
     try {
@@ -446,8 +445,7 @@ class _NovelReaderStageState extends ConsumerState<NovelReaderStage>
   }
 
   void _persistAnchor(NovelAnchor anchor) {
-    // Anchor writes stay fire-and-forget — a lost position is non-fatal —
-    // but a broken store must still be observable. Log instead of a
+    // Anchor writes stay fire-and-forget 鈥?a lost position is non-fatal 鈥?    // but a broken store must still be observable. Log instead of a
     // snackbar: this fires on every page turn, so a persistently failing
     // write would spam the UI far worse than it informs.
     unawaited(
@@ -467,7 +465,7 @@ class _NovelReaderStageState extends ConsumerState<NovelReaderStage>
     // The series bar mounts only with the chrome; a bare autoDispose
     // provider drops between reveals and refetches, and a manual
     // subscription does not keep it alive. Watching it here holds the
-    // dependency for the stage's lifetime — the fetch starts at open
+    // dependency for the stage's lifetime 鈥?the fetch starts at open
     // and dies with the stage.
     final seriesId = novel.seriesId;
     if (seriesId != null) {
@@ -502,7 +500,7 @@ class _NovelReaderStageState extends ConsumerState<NovelReaderStage>
         canPop: !_chromeVisible,
         onPopInvokedWithResult: (didPop, _) {
           if (didPop) {
-            // Restore the bars as the pop starts — dispose only runs
+            // Restore the bars as the pop starts 鈥?dispose only runs
             // after the pop animation, and the previous route needs its
             // status bar while the transition is still on screen.
             unawaited(setSystemUiMode(SystemUiMode.edgeToEdge));
@@ -510,7 +508,7 @@ class _NovelReaderStageState extends ConsumerState<NovelReaderStage>
             _hideChrome();
           }
         },
-        // Arrow-key paging lives on the stage's own Focus — when a sheet
+        // Arrow-key paging lives on the stage's own Focus 鈥?when a sheet
         // route opens it takes the primary focus, so keys reach the sheet
         // instead of the reader without any extra guard.
         child: Focus(
@@ -646,8 +644,8 @@ class _NovelReaderStageState extends ConsumerState<NovelReaderStage>
                                               ),
                                             ),
                                             Text(
-                                              ' · ${_page + 1}/$_pageCount · $percent%'
-                                              '${bilingual && translatingPage ? ' · ${l10n.novelTranslating}' : ''}',
+                                              ' 路 ${_page + 1}/$_pageCount 路 $percent%'
+                                              '${bilingual && translatingPage ? ' 路 ${l10n.novelTranslating}' : ''}',
                                               maxLines: 1,
                                               style: hintStyle,
                                             ),
@@ -663,7 +661,7 @@ class _NovelReaderStageState extends ConsumerState<NovelReaderStage>
                         ),
                       ),
                     // Dismissed bars go offstage here, on the status-driven
-                    // setState frame — not inside the animation builder,
+                    // setState frame 鈥?not inside the animation builder,
                     // where a mid-flush semantics change can trip the
                     // semantics attach assert. While a wide side sheet covers
                     // the stage, hide the floating bars so their left half
@@ -755,7 +753,7 @@ class _NovelReaderStageState extends ConsumerState<NovelReaderStage>
   }
 
   /// The hint's text style, shared by the rendered `Text` and the
-  /// [TextPainter] that sizes the reserved band — the two must never
+  /// [TextPainter] that sizes the reserved band 鈥?the two must never
   /// diverge or the reserve stops matching the painted glyph height.
   TextStyle? _hintStyle(BuildContext context, NovelReaderPalette palette) =>
       Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -798,7 +796,7 @@ class _NovelReaderStageState extends ConsumerState<NovelReaderStage>
         },
       );
     }
-    // Hold the reader until prefs resolve — mounting early would lay the
+    // Hold the reader until prefs resolve 鈥?mounting early would lay the
     // document out twice (defaults, then the saved settings/anchor).
     if (!_prefsReady) {
       return const FeedLoading();
@@ -868,7 +866,7 @@ class _NovelReaderStageState extends ConsumerState<NovelReaderStage>
   void _onAnchorChanged(NovelAnchor anchor, NovelAnchorCause cause) {
     if (_anchor != anchor) setState(() => _anchor = anchor);
     // D1: only a user-committed turn persists progress. Layout echoes
-    // (open/restore, settings relayout) are not reads — opening and
+    // (open/restore, settings relayout) are not reads 鈥?opening and
     // closing the book leaves no record behind.
     if (cause == NovelAnchorCause.userTurn) _persistAnchor(anchor);
     bilingualPageSettled();
@@ -1044,7 +1042,7 @@ class _NovelReaderStageState extends ConsumerState<NovelReaderStage>
                         iconAlignment: IconAlignment.end,
                         icon: const Icon(UiIcons.expandLess),
                         label: Text(
-                          '${_page + 1}/$_pageCount · ${percent.round()}%',
+                          '${_page + 1}/$_pageCount 路 ${percent.round()}%',
                           semanticsLabel: l10n.novelReadingProgress,
                           maxLines: 1,
                           style: Theme.of(
@@ -1179,40 +1177,8 @@ class _NovelReaderStageState extends ConsumerState<NovelReaderStage>
   /// again, and the engine signature changes either way, so the next batch
   /// never reads rows the old prompt produced.
   Future<void> _editNovelPrompt(BuildContext context) async {
-    final repository = ref.read(localNovelRepositoryProvider);
-    final current = await repository.readNovelPrompt(novel.id) ?? '';
+    await editNovelPrompt(context, ref, novel.id);
     if (!mounted) return;
-    final controller = TextEditingController(text: current);
-    final saved = await showAppDialog<String>(
-      context: context,
-      builder: (dialogContext) => AppAlertDialog(
-        title: Text(context.l10n.novelPromptTitle),
-        content: TextField(
-          controller: controller,
-          minLines: 3,
-          maxLines: 6,
-          decoration: InputDecoration(hintText: context.l10n.novelPromptHint),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: Text(context.l10n.cancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, controller.text),
-            child: Text(context.l10n.save),
-          ),
-        ],
-      ),
-    );
-    controller.dispose();
-    if (saved == null) return;
-    await repository.writeNovelPrompt(novel.id, saved);
-    if (!mounted) return;
-    // The signature provider caches this work's prompt, so it must be
-    // recomputed before the next restore: otherwise the old prompt's engine
-    // key would still match and the page would keep its old translations.
-    ref.invalidate(translationEngineSignatureProvider(novel.id));
     invalidateTranslations();
     bilingualPageSettled();
   }

@@ -1210,6 +1210,12 @@
   "novelRetranslate": "Перевести заново",
   "novelPromptTitle": "Промпт для этой работы",
   "novelPromptHint": "Только для этой работы; пусто — общий промпт",
+  "novelPromptRoleName": "Имя",
+  "novelPromptRolePersonality": "Характер",
+  "novelPromptAddRole": "Добавить персонажа",
+  "novelPromptStyle": "Стиль",
+  "novelPromptWorld": "Мир",
+  "novelPromptExtra": "Дополнительные указания",
   "localNovelsImportFailed": "Не удалось импортировать",
   "localNovelsImported": "Импортировано «{title}»",
   "@localNovelsImported": {

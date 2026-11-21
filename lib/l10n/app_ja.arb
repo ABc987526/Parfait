@@ -1210,6 +1210,12 @@
   "novelRetranslate": "翻訳し直す",
   "novelPromptTitle": "この作品のプロンプト",
   "novelPromptHint": "この作品だけに適用。空欄なら全体のプロンプトに従います",
+  "novelPromptRoleName": "名前",
+  "novelPromptRolePersonality": "性格",
+  "novelPromptAddRole": "キャラクターを追加",
+  "novelPromptStyle": "文体",
+  "novelPromptWorld": "世界設定",
+  "novelPromptExtra": "追加の指示",
   "localNovelsImportFailed": "インポートに失敗しました",
   "localNovelsImported": "「{title}」をインポートしました",
   "@localNovelsImported": {

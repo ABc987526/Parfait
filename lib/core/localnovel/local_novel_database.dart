@@ -34,7 +34,7 @@ class LocalNovelDatabase {
   /// added to the engine signature so changing it never reads stale rows.
   static const promptTable = 'novel_prompt';
 
-  static const schemaVersion = 4;
+  static const schemaVersion = 5;
 
   final SqliteDatabase _sqlite;
 
@@ -74,7 +74,10 @@ class LocalNovelDatabase {
     await db.execute('''
       CREATE TABLE $promptTable (
         novel_id INTEGER NOT NULL PRIMARY KEY,
-        prompt TEXT NOT NULL
+        prompt TEXT NOT NULL,
+        style TEXT,
+        world TEXT,
+        roles TEXT
       )
     ''');
   }
@@ -105,6 +108,12 @@ class LocalNovelDatabase {
       // table is dropped and the first read misses.
       await db.execute('DROP TABLE IF EXISTS local_novel_translations');
       await _createTranslationTable(db);
+    }
+    if (oldVersion < 5) {
+      // Structured prompt parts beside the free-form one.
+      for (final column in ['style', 'world', 'roles']) {
+        await db.execute('ALTER TABLE $promptTable ADD COLUMN $column TEXT');
+      }
     }
   }
 }

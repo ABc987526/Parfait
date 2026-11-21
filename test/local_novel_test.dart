@@ -271,6 +271,29 @@ void main() {
       await repository.writeNovelPrompt(-7, '   ');
       expect(await repository.readNovelPrompt(-7), isNull);
     });
+
+    test('a structured prompt is composed from its parts', () async {
+      await repository.writeNovelPromptSpec(
+        -9,
+        const NovelPromptSpec(
+          roles: [
+            NovelPromptRole(name: '林', personality: '冷静'),
+            NovelPromptRole(name: '夏'),
+          ],
+          style: '古风',
+          world: '海岛',
+          instructions: '多用短句',
+        ),
+      );
+
+      expect(
+        await repository.readNovelPrompt(-9),
+        '角色设定：林（冷静）；夏\n文风：古风\n世界设定：海岛\n多用短句',
+      );
+
+      await repository.writeNovelPromptSpec(-9, const NovelPromptSpec());
+      expect(await repository.readNovelPrompt(-9), isNull);
+    });
   });
 
   group('store', () {

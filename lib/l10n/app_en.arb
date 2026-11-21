@@ -1217,6 +1217,12 @@
   "novelRetranslate": "Translate again",
   "novelPromptTitle": "Prompt for this work",
   "novelPromptHint": "Applies to this work only; leave empty to follow the global prompt",
+  "novelPromptRoleName": "Name",
+  "novelPromptRolePersonality": "Personality",
+  "novelPromptAddRole": "Add character",
+  "novelPromptStyle": "Style",
+  "novelPromptWorld": "World",
+  "novelPromptExtra": "Extra instructions",
   "localNovelsImportFailed": "Import failed",
   "localNovelsImported": "Imported \"{title}\"",
   "@localNovelsImported": {

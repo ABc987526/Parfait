@@ -3017,6 +3017,24 @@ class AppLocalizationsEn extends AppLocalizations {
       'Applies to this work only; leave empty to follow the global prompt';
 
   @override
+  String get novelPromptRoleName => 'Name';
+
+  @override
+  String get novelPromptRolePersonality => 'Personality';
+
+  @override
+  String get novelPromptAddRole => 'Add character';
+
+  @override
+  String get novelPromptStyle => 'Style';
+
+  @override
+  String get novelPromptWorld => 'World';
+
+  @override
+  String get novelPromptExtra => 'Extra instructions';
+
+  @override
   String get localNovelsImportFailed => 'Import failed';
 
   @override

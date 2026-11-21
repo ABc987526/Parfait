@@ -3000,6 +3000,24 @@ class AppLocalizationsRu extends AppLocalizations {
   String get novelPromptHint => 'Только для этой работы; пусто — общий промпт';
 
   @override
+  String get novelPromptRoleName => 'Имя';
+
+  @override
+  String get novelPromptRolePersonality => 'Характер';
+
+  @override
+  String get novelPromptAddRole => 'Добавить персонажа';
+
+  @override
+  String get novelPromptStyle => 'Стиль';
+
+  @override
+  String get novelPromptWorld => 'Мир';
+
+  @override
+  String get novelPromptExtra => 'Дополнительные указания';
+
+  @override
   String get localNovelsImportFailed => 'Не удалось импортировать';
 
   @override

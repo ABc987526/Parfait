@@ -5591,6 +5591,42 @@ abstract class AppLocalizations {
   /// **'只对这一本生效；留空则跟随全局提示词'**
   String get novelPromptHint;
 
+  /// No description provided for @novelPromptRoleName.
+  ///
+  /// In zh, this message translates to:
+  /// **'名字'**
+  String get novelPromptRoleName;
+
+  /// No description provided for @novelPromptRolePersonality.
+  ///
+  /// In zh, this message translates to:
+  /// **'性格'**
+  String get novelPromptRolePersonality;
+
+  /// No description provided for @novelPromptAddRole.
+  ///
+  /// In zh, this message translates to:
+  /// **'添加角色'**
+  String get novelPromptAddRole;
+
+  /// No description provided for @novelPromptStyle.
+  ///
+  /// In zh, this message translates to:
+  /// **'文风'**
+  String get novelPromptStyle;
+
+  /// No description provided for @novelPromptWorld.
+  ///
+  /// In zh, this message translates to:
+  /// **'世界设定'**
+  String get novelPromptWorld;
+
+  /// No description provided for @novelPromptExtra.
+  ///
+  /// In zh, this message translates to:
+  /// **'额外要求'**
+  String get novelPromptExtra;
+
   /// No description provided for @localNovelsImportFailed.
   ///
   /// In zh, this message translates to:

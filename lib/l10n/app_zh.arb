@@ -1686,6 +1686,12 @@
   "novelRetranslate": "重新翻译",
   "novelPromptTitle": "本书提示词",
   "novelPromptHint": "只对这一本生效；留空则跟随全局提示词",
+  "novelPromptRoleName": "名字",
+  "novelPromptRolePersonality": "性格",
+  "novelPromptAddRole": "添加角色",
+  "novelPromptStyle": "文风",
+  "novelPromptWorld": "世界设定",
+  "novelPromptExtra": "额外要求",
   "localNovelsImportFailed": "导入失败",
   "localNovelsImported": "已导入「{title}」",
   "@localNovelsImported": {

@@ -2935,6 +2935,24 @@ class AppLocalizationsJa extends AppLocalizations {
   String get novelPromptHint => 'この作品だけに適用。空欄なら全体のプロンプトに従います';
 
   @override
+  String get novelPromptRoleName => '名前';
+
+  @override
+  String get novelPromptRolePersonality => '性格';
+
+  @override
+  String get novelPromptAddRole => 'キャラクターを追加';
+
+  @override
+  String get novelPromptStyle => '文体';
+
+  @override
+  String get novelPromptWorld => '世界設定';
+
+  @override
+  String get novelPromptExtra => '追加の指示';
+
+  @override
   String get localNovelsImportFailed => 'インポートに失敗しました';
 
   @override
