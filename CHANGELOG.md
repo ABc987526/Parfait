@@ -36,6 +36,7 @@ User-facing changes in each Parfait release. The format follows [Keep a Changelo
 - **阅读器固定翻页：** 移除滚动浏览，阅读设置里不再有「翻页方式」；以前存成滚动模式的设置会自动按翻页打开。
 - **若干修复：** 保存到本地的书能正确记住阅读位置（包括带快照的书）；连点两次「保存到本地」不会再生成两份；批量翻译只在段数、编号都对时采用，否则退回逐段；设置里新增「清除译文缓存」。
 - **续写本地小说：** 本地小说阅读页的「阅读选项 → 续写」里，可以挑一段作为起点，按你写的剧情方向和字数让模型接着写；结果另存为「书名 + 续写版」的新本地小说，原作不动。
+- **修复保存的小说打开白屏：** 落盘时存的那份「快照」其实只有元数据、没有正文，阅读器却优先用它；现在快照不含正文时改用文本文件，已经保存过的书不用重存也能正常显示。
 
 ### 修复
 
@@ -82,6 +83,7 @@ User-facing changes in each Parfait release. The format follows [Keep a Changelo
 - **The reader always pages:** scroll browsing is gone, the setting is gone with it, and a saved scroll preference opens in page mode.
 - **Fixes:** a saved novel keeps its reading position (snapshots included); a second tap on Save no longer writes a second copy; a batch translation is used only when its segments and numbering line up, otherwise it falls back to one request each; Settings gains Clear translation cache.
 - **Continue a local novel:** Reading options → Continue the story picks a paragraph as the start, takes a plot direction and a length, and writes the next part into a new library entry named after the work (the original stays untouched).
+- **A saved novel no longer opens blank:** the stored snapshot holds metadata only, and the reader preferred it over the text file; a payload without a body now falls back to the text, so copies saved before this build open correctly too.
 
 ### Fixed
 

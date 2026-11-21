@@ -177,6 +177,8 @@ class LocalNovelRepository {
   }) async {
     final blocks = novel.markup?.blocks ?? novel.paragraphs;
     final text = [for (final block in blocks) block.plainText].join('\n');
+    // The feed-snapshot codec keeps metadata only (no paragraphs, no images),
+    // so this payload restores nothing on its own; the text file is the body.
     final payload = jsonEncode(NovelSnapshotCodec().encodeEntity(novel));
     if (text.length > maxImportBytes) {
       throw const DocumentTooLargeException(maxImportBytes);

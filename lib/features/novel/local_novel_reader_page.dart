@@ -78,8 +78,8 @@ class LocalNovelReaderPage extends ConsumerWidget {
     );
   }
 
-  /// A saved snapshot when the work came from the reader (it keeps paragraph
-  /// ids, image blocks and page starts), else the imported TXT lines.
+  /// A saved snapshot when it actually carries a body, else the imported TXT
+  /// lines.
   static NovelEntity _entityFrom(LocalNovel novel, String text) {
     final payload = novel.payloadJson;
     if (payload == null) return _entityFor(novel, text);
@@ -89,7 +89,13 @@ class LocalNovelReaderPage extends ConsumerWidget {
     } on FormatException {
       return _entityFor(novel, text);
     }
-    if (saved == null) return _entityFor(novel, text);
+    // The snapshot codec stores metadata only: a payload without a body must
+    // not shadow the text file, or the reader opens a blank page.
+    final hasBody =
+        saved != null &&
+        (saved.paragraphs.isNotEmpty ||
+            (saved.markup?.blocks.isNotEmpty ?? false));
+    if (!hasBody) return _entityFor(novel, text);
     // The negative id keeps the local copy disjoint from the real novel id
     // anywhere an id leaks into an observer.
     return NovelEntity(
