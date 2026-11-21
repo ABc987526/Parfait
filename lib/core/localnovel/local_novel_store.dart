@@ -63,6 +63,14 @@ class LocalNovelStore extends AsyncNotifier<List<LocalNovel>> {
         if (item.id != novel.id) item,
     ]);
   }
+
+  /// Adds a novel saved outside the picker (the reader's save action), so the
+  /// library list shows it without a restart.
+  void insert(LocalNovel novel) {
+    final current = state.value;
+    if (current == null) return;
+    state = AsyncData([novel, ...current]);
+  }
 }
 
 final localNovelStoreProvider =

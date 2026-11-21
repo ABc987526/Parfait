@@ -32,6 +32,7 @@ User-facing changes in each Parfait release. The format follows [Keep a Changelo
 - **提示词对本地模型生效：** 提示词除了 system 消息，也写进 user 消息——Gemma 这类没有 system 角色的模型模板、以及会丢掉 system 的本地服务，现在也会照着提示词翻译；改这本书的提示词后会立刻作废旧译文。
 - **本书提示词可以分项填写：** 现在按「角色（名字、性格，可以加多个）、文风、世界设定、额外要求」分开填，保存时自动拼成一段提示词；空着的项不会写进去。
 - **只显示译文：** 阅读页的「翻译选项」新增开关，打开后已翻译的段落直接以译文排版、原文不再占位（未翻到的段落仍显示原文）；切换时按段落重新定位，翻页位置不会丢。
+- **保存的小说立刻出现在本地列表：** 「保存到本地」写完会同步刷新本地小说列表，不用重开 App。
 
 ### 修复
 
@@ -74,6 +75,7 @@ User-facing changes in each Parfait release. The format follows [Keep a Changelo
 - **The prompt reaches local models:** it now goes into the user turn as well as the system message, so templates without a system role (Gemma) and runtimes that drop it still follow it; editing a work's prompt voids its old translations immediately.
 - **A work's prompt is filled in parts:** characters (a name and personality each, as many as needed), style, world and extra instructions are separate fields, composed into one prompt on save; blank parts are left out.
 - **Translations only:** a switch in the reader's Translation options replaces translated paragraphs with their translation, so the page reads in the target language (untranslated paragraphs keep their source); switching re-anchors by paragraph, so the reading position is kept.
+- **A saved novel shows up at once:** saving to the device refreshes the local library list instead of waiting for a restart.
 
 ### Fixed
 

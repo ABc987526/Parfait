@@ -26,6 +26,7 @@ import '../../core/history/history_repository.dart';
 import '../../core/history/history_snapshot.dart';
 import '../../core/history/history_visibility.dart';
 import '../../core/localnovel/local_novel_repository.dart';
+import '../../core/localnovel/local_novel_store.dart';
 import '../../core/log.dart';
 import '../../core/mute/mute_store.dart';
 import '../../core/network/api_error.dart';
@@ -232,10 +233,13 @@ class NovelPage extends ConsumerWidget {
       final existing = await repository.findBySourceNovel(novel.id);
       if (!context.mounted) return;
       if (existing == null) {
-        await repository.saveFromNovel(
+        final saved = await repository.saveFromNovel(
           novel: novel,
           targetDir: await LocalNovelRepository.defaultNovelsDirectory(),
         );
+        // The library list is a separate store; without this the new copy
+        // only appears after a restart.
+        ref.read(localNovelStoreProvider.notifier).insert(saved);
         if (!context.mounted) return;
       }
       showAppSnackBar(context, context.l10n.novelSavedLocally);
