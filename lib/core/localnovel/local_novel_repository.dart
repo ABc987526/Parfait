@@ -220,6 +220,53 @@ class LocalNovelRepository {
     );
   }
 
+  /// Writes a continuation of a work as a new library entry (the original is
+  /// untouched), titled after it, so both versions read side by side.
+  Future<LocalNovel> saveContinuation({
+    required String title,
+    required String? author,
+    required int? sourceNovelId,
+    required List<String> paragraphs,
+    required Directory targetDir,
+  }) async {
+    final text = paragraphs.join('\n');
+    if (text.length > maxImportBytes) {
+      throw const DocumentTooLargeException(maxImportBytes);
+    }
+    await targetDir.create(recursive: true);
+    final file = await _createUniqueFile(targetDir, '$title.txt');
+    final int id;
+    try {
+      await file.writeAsString(text, flush: true);
+      final db = await _database.database;
+      id = await db.insert(LocalNovelDatabase.table, {
+        'title': title,
+        'author': author,
+        'path': file.path,
+        'char_count': text.length,
+        'imported_at': DateTime.now().millisecondsSinceEpoch,
+        'read_offset': null,
+        'source_novel_id': sourceNovelId,
+      });
+    } on Object {
+      try {
+        await file.delete();
+      } on FileSystemException catch (error) {
+        log('local novel: orphaned continuation not removed: $error');
+      }
+      rethrow;
+    }
+    return LocalNovel(
+      id: id,
+      title: title,
+      author: author,
+      path: file.path,
+      charCount: text.length,
+      importedAt: DateTime.now(),
+      sourceNovelId: sourceNovelId,
+    );
+  }
+
   /// The saved copy of online novel [novelId], if this library has one.
   Future<LocalNovel?> findBySourceNovel(int novelId) async {
     final db = await _database.database;

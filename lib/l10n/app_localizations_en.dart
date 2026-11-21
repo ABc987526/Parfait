@@ -3006,7 +3006,37 @@ class AppLocalizationsEn extends AppLocalizations {
   String get novelSaveFailed => 'Could not save to the device';
 
   @override
-  String get novelTranslationActions => 'Translation options';
+  String get novelTranslationActions => 'Reading options';
+
+  @override
+  String get novelContinue => 'Continue the story';
+
+  @override
+  String get novelContinueStart => 'Start from';
+
+  @override
+  String get novelContinueFromEnd => 'the end';
+
+  @override
+  String get novelContinueInsert => 'Insert after it';
+
+  @override
+  String get novelContinueRewrite => 'Rewrite what follows';
+
+  @override
+  String get novelContinueDirection => 'Direction and plot';
+
+  @override
+  String get novelContinueWords => 'Length in characters';
+
+  @override
+  String get novelContinueGenerate => 'Write';
+
+  @override
+  String get novelContinueSuffix => 'continued';
+
+  @override
+  String get novelContinueFailed => 'Could not continue the story';
 
   @override
   String get novelRetranslate => 'Translate again';

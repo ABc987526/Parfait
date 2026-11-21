@@ -26,6 +26,8 @@ import '../../app/window/desktop_title_bar.dart' show DesktopChromeMetrics;
 import '../../core/auth/account_store.dart';
 import '../../core/errors/no_retry.dart';
 import '../../core/localnovel/local_novel_repository.dart';
+import '../../core/localnovel/local_novel_store.dart';
+import '../../core/novel/novel_completion.dart';
 import '../../core/log.dart';
 import '../../core/network/pixiv_http_client.dart';
 import '../../core/novel/novel_entity.dart';
@@ -37,6 +39,7 @@ import '../../l10n/app_localizations.dart';
 import '../../l10n/context.dart';
 import 'novel_bilingual.dart';
 import 'novel_layout.dart';
+import 'novel_continuation_sheet.dart';
 import 'novel_prompt_sheet.dart';
 import 'novel_reader.dart';
 import '../../app/theme/func_semantic_tokens.dart';
@@ -309,6 +312,9 @@ class _NovelReaderStageState extends ConsumerState<NovelReaderStage>
   Object? _readerInputs;
 
   NovelReaderSettings _settings = const NovelReaderSettings();
+
+  /// A continuation is being written: the entry ignores a second tap.
+  bool _continuing = false;
   NovelAnchor? _initialAnchor;
   bool _prefsReady = false;
   Object? _loadError;
@@ -1143,6 +1149,80 @@ class _NovelReaderStageState extends ConsumerState<NovelReaderStage>
     );
   }
 
+  /// Writes the next part of this local copy into a new library entry named
+  /// after the work, leaving the original untouched.
+  Future<void> _continueNovel() async {
+    if (_continuing) return;
+    final blocks = novel.markup?.blocks ?? novel.paragraphs;
+    final paragraphs = [for (final block in blocks) block.plainText];
+    if (paragraphs.isEmpty) return;
+    final request = await showNovelContinuationSheet(
+      context,
+      paragraphs: paragraphs,
+    );
+    if (request == null || !mounted) return;
+    setState(() => _continuing = true);
+    final repository = ref.read(localNovelRepositoryProvider);
+    try {
+      final workPrompt = await repository.readNovelPrompt(novel.id);
+      final generated = await ref
+          .read(novelCompleterProvider)
+          .complete(
+            context: _continuationContext(paragraphs, request.startIndex),
+            direction: request.direction,
+            words: request.words,
+            workPrompt: workPrompt,
+          );
+      if (!mounted) return;
+      final saved = await repository.saveContinuation(
+        title: '${novel.title} + ${context.l10n.novelContinueSuffix}',
+        author: novel.user.name.trim().isEmpty ? null : novel.user.name,
+        sourceNovelId: novel.id < 0 ? null : novel.id,
+        paragraphs: _mergeContinuation(paragraphs, request, generated),
+        targetDir: await LocalNovelRepository.defaultNovelsDirectory(),
+      );
+      ref.read(localNovelStoreProvider.notifier).insert(saved);
+      if (!mounted) return;
+      showAppSnackBar(context, context.l10n.novelSavedLocally);
+    } on Object catch (error) {
+      log('novel: continuation failed: $error');
+      if (!mounted) return;
+      showAppSnackBar(context, context.l10n.novelContinueFailed);
+    } finally {
+      if (mounted) setState(() => _continuing = false);
+    }
+  }
+
+  /// The text the model sees: the paragraphs around the start point, so it
+  /// knows where the new part is dropped in.
+  static String _continuationContext(List<String> paragraphs, int? start) {
+    final index = start ?? paragraphs.length - 1;
+    final from = math.max(0, index - 6);
+    final to = math.min(paragraphs.length - 1, index + 1);
+    return paragraphs.sublist(from, to + 1).join('\n');
+  }
+
+  /// The new body: appended, inserted after the start paragraph, or replacing
+  /// everything after it.
+  static List<String> _mergeContinuation(
+    List<String> paragraphs,
+    NovelContinuationRequest request,
+    String generated,
+  ) {
+    final added = [
+      for (final line in generated.split(RegExp(r'\n+')))
+        if (line.trim().isNotEmpty) line.trim(),
+    ];
+    final start = request.startIndex;
+    if (start == null) return [...paragraphs, ...added];
+    if (request.rewrite) return [...paragraphs.sublist(0, start + 1), ...added];
+    return [
+      ...paragraphs.sublist(0, start + 1),
+      ...added,
+      ...paragraphs.sublist(start + 1),
+    ];
+  }
+
   /// Actions for a page that already has translations: redo them, or give
   /// this work its own prompt.
   void _showTranslationActions(BuildContext context) {
@@ -1178,6 +1258,15 @@ class _NovelReaderStageState extends ConsumerState<NovelReaderStage>
                 _editNovelPrompt(context);
               },
             ),
+            if (novel.id < 0)
+              ListTile(
+                leading: const Icon(AppIcons.edit),
+                title: Text(sheetContext.l10n.novelContinue),
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  unawaited(_continueNovel());
+                },
+              ),
           ],
         ),
       ),

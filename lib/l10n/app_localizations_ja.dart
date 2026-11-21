@@ -2926,7 +2926,37 @@ class AppLocalizationsJa extends AppLocalizations {
   String get novelSaveFailed => '端末への保存に失敗しました';
 
   @override
-  String get novelTranslationActions => '翻訳オプション';
+  String get novelTranslationActions => '閲覧オプション';
+
+  @override
+  String get novelContinue => '続きを書く';
+
+  @override
+  String get novelContinueStart => '開始位置';
+
+  @override
+  String get novelContinueFromEnd => '末尾';
+
+  @override
+  String get novelContinueInsert => 'この後に挿入';
+
+  @override
+  String get novelContinueRewrite => '以降を書き直す';
+
+  @override
+  String get novelContinueDirection => '展開・筋書き';
+
+  @override
+  String get novelContinueWords => '文字数';
+
+  @override
+  String get novelContinueGenerate => '生成';
+
+  @override
+  String get novelContinueSuffix => '続き';
+
+  @override
+  String get novelContinueFailed => '続きを書けませんでした';
 
   @override
   String get novelRetranslate => '翻訳し直す';

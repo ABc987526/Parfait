@@ -2900,7 +2900,37 @@ class AppLocalizationsZh extends AppLocalizations {
   String get novelSaveFailed => '保存到本地失败';
 
   @override
-  String get novelTranslationActions => '翻译选项';
+  String get novelTranslationActions => '阅读选项';
+
+  @override
+  String get novelContinue => '续写';
+
+  @override
+  String get novelContinueStart => '从哪里开始';
+
+  @override
+  String get novelContinueFromEnd => '结尾';
+
+  @override
+  String get novelContinueInsert => '在后面插入';
+
+  @override
+  String get novelContinueRewrite => '重写后续';
+
+  @override
+  String get novelContinueDirection => '续写方向 / 剧情';
+
+  @override
+  String get novelContinueWords => '字数';
+
+  @override
+  String get novelContinueGenerate => '生成';
+
+  @override
+  String get novelContinueSuffix => '续写版';
+
+  @override
+  String get novelContinueFailed => '续写失败';
 
   @override
   String get novelRetranslate => '重新翻译';

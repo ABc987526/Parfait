@@ -2991,7 +2991,37 @@ class AppLocalizationsRu extends AppLocalizations {
   String get novelSaveFailed => 'Не удалось сохранить на устройство';
 
   @override
-  String get novelTranslationActions => 'Действия перевода';
+  String get novelTranslationActions => 'Действия чтения';
+
+  @override
+  String get novelContinue => 'Продолжить историю';
+
+  @override
+  String get novelContinueStart => 'Начать с';
+
+  @override
+  String get novelContinueFromEnd => 'конца';
+
+  @override
+  String get novelContinueInsert => 'Вставить после';
+
+  @override
+  String get novelContinueRewrite => 'Переписать дальнейшее';
+
+  @override
+  String get novelContinueDirection => 'Направление и сюжет';
+
+  @override
+  String get novelContinueWords => 'Длина в символах';
+
+  @override
+  String get novelContinueGenerate => 'Написать';
+
+  @override
+  String get novelContinueSuffix => 'продолжение';
+
+  @override
+  String get novelContinueFailed => 'Не удалось продолжить историю';
 
   @override
   String get novelRetranslate => 'Перевести заново';

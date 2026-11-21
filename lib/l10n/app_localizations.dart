@@ -5576,8 +5576,68 @@ abstract class AppLocalizations {
   /// No description provided for @novelTranslationActions.
   ///
   /// In zh, this message translates to:
-  /// **'翻译选项'**
+  /// **'阅读选项'**
   String get novelTranslationActions;
+
+  /// No description provided for @novelContinue.
+  ///
+  /// In zh, this message translates to:
+  /// **'续写'**
+  String get novelContinue;
+
+  /// No description provided for @novelContinueStart.
+  ///
+  /// In zh, this message translates to:
+  /// **'从哪里开始'**
+  String get novelContinueStart;
+
+  /// No description provided for @novelContinueFromEnd.
+  ///
+  /// In zh, this message translates to:
+  /// **'结尾'**
+  String get novelContinueFromEnd;
+
+  /// No description provided for @novelContinueInsert.
+  ///
+  /// In zh, this message translates to:
+  /// **'在后面插入'**
+  String get novelContinueInsert;
+
+  /// No description provided for @novelContinueRewrite.
+  ///
+  /// In zh, this message translates to:
+  /// **'重写后续'**
+  String get novelContinueRewrite;
+
+  /// No description provided for @novelContinueDirection.
+  ///
+  /// In zh, this message translates to:
+  /// **'续写方向 / 剧情'**
+  String get novelContinueDirection;
+
+  /// No description provided for @novelContinueWords.
+  ///
+  /// In zh, this message translates to:
+  /// **'字数'**
+  String get novelContinueWords;
+
+  /// No description provided for @novelContinueGenerate.
+  ///
+  /// In zh, this message translates to:
+  /// **'生成'**
+  String get novelContinueGenerate;
+
+  /// No description provided for @novelContinueSuffix.
+  ///
+  /// In zh, this message translates to:
+  /// **'续写版'**
+  String get novelContinueSuffix;
+
+  /// No description provided for @novelContinueFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'续写失败'**
+  String get novelContinueFailed;
 
   /// No description provided for @novelRetranslate.
   ///
