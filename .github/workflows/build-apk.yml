@@ -43,19 +43,19 @@ jobs:
 
       - run: flutter pub get --enforce-lockfile
 
-      - name: Build split APKs
+      - name: Build the arm64 APK
         run: |
           args=(-PPIXIV_ALLOW_DEBUG_RELEASE_SIGNING=true)
           if [ "${{ inputs.dev_app_id }}" = "true" ]; then
             args+=(-PparfaitDevAppId=true)
           fi
           flutter build apk --release --flavor github \
-            --split-per-abi --target-platform android-arm64,android-arm \
+            --target-platform android-arm64 \
             "${args[@]}"
           ls -l build/app/outputs/flutter-apk/
 
       - uses: actions/upload-artifact@v4
         with:
-          name: parfait-apk
+          name: parfait-arm64
           path: build/app/outputs/flutter-apk/*.apk
           if-no-files-found: error
