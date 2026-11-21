@@ -10,7 +10,6 @@ import '../../app/widgets/feed/feed_states.dart';
 import '../../core/errors/no_retry.dart';
 import '../../core/localnovel/local_novel_decoder.dart';
 import '../../core/localnovel/local_novel_repository.dart';
-import '../../core/localnovel/read_offset_anchor.dart';
 import '../../core/novel/novel_entity.dart';
 import '../../core/novel/novel_snapshot_codec.dart';
 import '../../core/user/user_entity.dart';
@@ -73,7 +72,6 @@ class LocalNovelReaderPage extends ConsumerWidget {
         progress: _LocalProgressBinding(
           ProviderScope.containerOf(context, listen: false),
           novel: novel,
-          text: text,
           entity: entity,
         ),
       ),
@@ -197,30 +195,41 @@ class _LocalProgressBinding implements ReaderProgressBinding {
   const _LocalProgressBinding(
     this._container, {
     required this.novel,
-    required this.text,
     required this.entity,
   });
 
   final ProviderContainer _container;
   final LocalNovel novel;
-  final String text;
   final NovelEntity entity;
 
+  /// The stored character offset walks the entity's own paragraphs, so a
+  /// saved novel keeps its place whichever ids its snapshot carries.
   @override
   Future<NovelAnchor?> load() async {
-    final restored = novelAnchorForReadOffset(novel.readOffset, text);
-    if (restored == null) return null;
-    return NovelAnchor(
-      paragraphId: restored.paragraphId,
-      offset: restored.offset,
-    );
+    final stored = novel.readOffset;
+    if (stored == null || stored < 0) return null;
+    var remaining = stored;
+    for (final paragraph in entity.paragraphs) {
+      final length = paragraph.text.length;
+      if (remaining <= length) {
+        return NovelAnchor(paragraphId: paragraph.id, offset: remaining);
+      }
+      remaining -= length + 1;
+    }
+    return null;
   }
 
+  /// Clamped to the paragraph's source length: reading translations only puts
+  /// the anchor in translated space, which must not push the stored offset
+  /// past the paragraph.
   @override
   Future<void> save(NovelAnchor anchor) {
-    var offset = anchor.offset;
+    var offset = 0;
     for (final paragraph in entity.paragraphs) {
-      if (paragraph.id == anchor.paragraphId) break;
+      if (paragraph.id == anchor.paragraphId) {
+        offset += anchor.offset.clamp(0, paragraph.text.length);
+        break;
+      }
       offset += paragraph.text.length + 1;
     }
     return _container

@@ -33,6 +33,8 @@ User-facing changes in each Parfait release. The format follows [Keep a Changelo
 - **本书提示词可以分项填写：** 现在按「角色（名字、性格，可以加多个）、文风、世界设定、额外要求」分开填，保存时自动拼成一段提示词；空着的项不会写进去。
 - **只显示译文：** 阅读页的「翻译选项」新增开关，打开后已翻译的段落直接以译文排版、原文不再占位（未翻到的段落仍显示原文）；切换时按段落重新定位，翻页位置不会丢。
 - **保存的小说立刻出现在本地列表：** 「保存到本地」写完会同步刷新本地小说列表，不用重开 App。
+- **阅读器固定翻页：** 移除滚动浏览，阅读设置里不再有「翻页方式」；以前存成滚动模式的设置会自动按翻页打开。
+- **若干修复：** 保存到本地的书能正确记住阅读位置（包括带快照的书）；连点两次「保存到本地」不会再生成两份；批量翻译只在段数、编号都对时采用，否则退回逐段；设置里新增「清除译文缓存」。
 
 ### 修复
 
@@ -76,6 +78,8 @@ User-facing changes in each Parfait release. The format follows [Keep a Changelo
 - **A work's prompt is filled in parts:** characters (a name and personality each, as many as needed), style, world and extra instructions are separate fields, composed into one prompt on save; blank parts are left out.
 - **Translations only:** a switch in the reader's Translation options replaces translated paragraphs with their translation, so the page reads in the target language (untranslated paragraphs keep their source); switching re-anchors by paragraph, so the reading position is kept.
 - **A saved novel shows up at once:** saving to the device refreshes the local library list instead of waiting for a restart.
+- **The reader always pages:** scroll browsing is gone, the setting is gone with it, and a saved scroll preference opens in page mode.
+- **Fixes:** a saved novel keeps its reading position (snapshots included); a second tap on Save no longer writes a second copy; a batch translation is used only when its segments and numbering line up, otherwise it falls back to one request each; Settings gains Clear translation cache.
 
 ### Fixed
 

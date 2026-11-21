@@ -64,6 +64,10 @@ final _novelDetailProvider = FutureProvider.autoDispose
       return entity;
     }, retry: noRetry);
 
+/// A save is in flight: a second tap would write a second copy of the work
+/// before the first row lands.
+bool _savingToLocal = false;
+
 class NovelPage extends ConsumerWidget {
   const NovelPage({super.key, required this.novelId, this.atPixivPage});
 
@@ -128,7 +132,7 @@ class NovelPage extends ConsumerWidget {
       novel: novel,
       titleBlock: NovelTitleBlock(
         title: novel.title,
-        byline: [novel.user.name, ?novel.seriesTitle].join(' · '),
+        byline: [novel.user.name, ?novel.seriesTitle].join(' 路 '),
       ),
       topActions: [
         IconButton(
@@ -228,6 +232,8 @@ class NovelPage extends ConsumerWidget {
     WidgetRef ref,
     NovelEntity novel,
   ) async {
+    if (_savingToLocal) return;
+    _savingToLocal = true;
     final repository = ref.read(localNovelRepositoryProvider);
     try {
       final existing = await repository.findBySourceNovel(novel.id);
@@ -247,6 +253,8 @@ class NovelPage extends ConsumerWidget {
       log('novel: saving to the local library failed: $error');
       if (!context.mounted) return;
       showAppSnackBar(context, context.l10n.novelSaveFailed);
+    } finally {
+      _savingToLocal = false;
     }
   }
 
@@ -437,7 +445,7 @@ class _NovelProgressBinding implements ReaderProgressBinding {
   }
 
   /// Opening a novel of a series makes it the series' last read, for the
-  /// series page's 「继续」. Fire-and-forget: a lost record only hides the
+  /// series page's 銆岀户缁€? Fire-and-forget: a lost record only hides the
   /// button, but a broken store is logged.
   void _recordSeries(String accountId) {
     final seriesId = _container.read(novelStoreProvider)[_novelId]?.seriesId;
@@ -581,7 +589,7 @@ class _NovelIntroState extends ConsumerState<_NovelIntro>
         _NovelFacts(novel: novel),
         if (novel.caption.isNotEmpty) ...[
           const SizedBox(height: FuncSpacing.md),
-          // Caption HTML renders through the shared parser — <br> tags
+          // Caption HTML renders through the shared parser 鈥?<br> tags
           // become real line breaks and links stay clickable.
           CaptionRichText(caption: novel.caption),
         ],

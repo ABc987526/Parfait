@@ -576,20 +576,26 @@ class LlmTranslationTransport
     return target;
   }
 
-  /// Splits an answer written with `[[n]]` markers into its segments, in the
-  /// order they appear.
+  /// Splits an answer written with `[[n]]` markers into its segments. The
+  /// markers must run 1..n in order: a model that renumbers or reorders them
+  /// gets no answer, and the caller falls back to one request per paragraph
+  /// rather than pairing the wrong translation with a paragraph.
   static List<String> _splitNumbered(String text) {
     final matches = RegExp(r'\[\[(\d+)\]\]').allMatches(text).toList();
     if (matches.isEmpty) return const [];
-    return [
-      for (var i = 0; i < matches.length; i++)
+    final out = <String>[];
+    for (var i = 0; i < matches.length; i++) {
+      if (int.tryParse(matches[i].group(1) ?? '') != i + 1) return const [];
+      out.add(
         text
             .substring(
               matches[i].end,
               i + 1 < matches.length ? matches[i + 1].start : text.length,
             )
             .trim(),
-    ];
+      );
+    }
+    return out;
   }
 
   /// One batch round trip. Same setup as [translate] plus the batching rule;

@@ -1266,8 +1266,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Secure storage operation failed';
 
   @override
-  String get translateCredentialsInvalid =>
-      'Incomplete input or an invalid endpoint URL';
+  String get translateCacheClear => 'Clear translation cache';
+
+  @override
+  String get translateCacheCleared => 'Translation cache cleared';
 
   @override
   String get downloadTasksEmpty => 'No download tasks';

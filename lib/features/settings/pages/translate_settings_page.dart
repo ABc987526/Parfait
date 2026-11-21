@@ -16,6 +16,9 @@ import '../../../core/settings/app_settings.dart';
 import '../../../core/settings/settings_controller.dart';
 import '../../../l10n/context.dart';
 import '../settings_helpers.dart';
+import '../../../app/widgets/settings/settings_action_tile.dart';
+import '../../../app/widgets/app_snack_bar.dart';
+import '../../../core/localnovel/local_novel_repository.dart';
 import '../settings_catalog.dart';
 import '../../../app/layout/content_widths.dart';
 import '../../../app/icons/app_icons.dart';
@@ -89,6 +92,14 @@ class _TranslateSettingsPageState extends ConsumerState<TranslateSettingsPage> {
         );
       },
     );
+  }
+
+  /// Drops the shared translation cache: it is regenerable, so one tap with a
+  /// plain result message is enough.
+  Future<void> _clearTranslationCache(BuildContext context) async {
+    await ref.read(localNovelRepositoryProvider).clearTranslations();
+    if (!context.mounted) return;
+    showAppSnackBar(context, context.l10n.translateCacheCleared);
   }
 
   @override
@@ -191,6 +202,15 @@ class _TranslateSettingsPageState extends ConsumerState<TranslateSettingsPage> {
                       ),
                     )
                   : const SizedBox.shrink(),
+            ),
+            SettingsGroup(
+              children: [
+                SettingsActionTile(
+                  icon: AppIcons.trash,
+                  title: Text(context.l10n.translateCacheClear),
+                  onTap: () => _clearTranslationCache(context),
+                ),
+              ],
             ),
           ],
         ),

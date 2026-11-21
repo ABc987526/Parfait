@@ -280,6 +280,23 @@ class LocalNovelRepository {
     await batch.commit(noResult: true);
   }
 
+  /// Drops every cached translation, for every work, language and engine.
+  Future<void> clearTranslations() async {
+    final db = await _database.database;
+    await db.delete(LocalNovelDatabase.translationTable);
+  }
+
+  /// Roughly how much the cached translations occupy, for the settings row.
+  Future<int> translationCacheBytes() async {
+    final db = await _database.database;
+    final rows = await db.rawQuery(
+      'SELECT COALESCE(SUM(LENGTH(source_hash) + LENGTH(text)), 0) AS bytes '
+      'FROM ${LocalNovelDatabase.translationTable}',
+    );
+    final value = rows.isEmpty ? null : rows.first['bytes'];
+    return value is int ? value : 0;
+  }
+
   /// The work's own prompt (its entity id, negative for a local copy), or
   /// null when it follows the global one. Structured parts are composed in.
   Future<String?> readNovelPrompt(int novelId) async {

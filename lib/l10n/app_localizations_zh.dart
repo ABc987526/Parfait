@@ -1220,7 +1220,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get translateCredentialsStoreError => '安全存储操作失败';
 
   @override
-  String get translateCredentialsInvalid => '输入不完整或接口地址无效';
+  String get translateCacheClear => '清除译文缓存';
+
+  @override
+  String get translateCacheCleared => '译文缓存已清除';
 
   @override
   String get downloadTasksEmpty => '暂无下载任务';

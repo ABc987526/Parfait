@@ -24,18 +24,20 @@ void main() {
       expect(settings.copyWith(lineHeight: 9).lineHeight, 2.4);
     });
 
-    test('theme falls back to system, page turn to scroll', () {
+    test('theme falls back to system, page turn is always pages', () {
       expect(NovelReaderTheme.parse('sepia'), NovelReaderTheme.sepia);
       expect(NovelReaderTheme.parse('bogus'), NovelReaderTheme.system);
       expect(NovelReaderTheme.parse(null), NovelReaderTheme.system);
       expect(NovelPageTurn.parse('pages'), NovelPageTurn.pages);
-      expect(NovelPageTurn.parse('bogus'), NovelPageTurn.scroll);
+      // Scroll browsing is retired: nothing saved can bring it back.
+      expect(NovelPageTurn.parse('bogus'), NovelPageTurn.pages);
+      expect(NovelPageTurn.parse('scroll'), NovelPageTurn.pages);
       expect(NovelSpreadMode.parse('always'), NovelSpreadMode.always);
       expect(NovelSpreadMode.parse('bogus'), NovelSpreadMode.auto);
       expect(NovelSpreadMode.parse(null), NovelSpreadMode.auto);
-      // Settings saved before the mode existed open in scroll mode.
+      // Settings saved before the mode existed open in page mode.
       final legacy = NovelReaderSettings.fromJson(const {'fontSize': 20});
-      expect(legacy.pageTurn, NovelPageTurn.scroll);
+      expect(legacy.pageTurn, NovelPageTurn.pages);
       expect(legacy.spreadMode, NovelSpreadMode.auto);
     });
   });

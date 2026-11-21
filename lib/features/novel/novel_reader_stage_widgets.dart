@@ -242,23 +242,6 @@ extension _NovelReaderStageSheets on _NovelReaderStageState {
                             apply(_settings.copyWith(lineHeight: v)),
                       ),
                       const SizedBox(height: FuncSpacing.md),
-                      Wrap(
-                        spacing: FuncSpacing.sm,
-                        runSpacing: FuncSpacing.xs,
-                        children: [
-                          for (final (pageTurn, label) in [
-                            (NovelPageTurn.scroll, l10n.novelPageTurnScroll),
-                            (NovelPageTurn.pages, l10n.novelPageTurnPages),
-                          ])
-                            AppChoiceChip(
-                              label: Text(label),
-                              selected: _settings.pageTurn == pageTurn,
-                              onSelected: () =>
-                                  apply(_settings.copyWith(pageTurn: pageTurn)),
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: FuncSpacing.sm),
                       Text(
                         l10n.novelSpreadMode,
                         style: theme.textTheme.bodyMedium,
@@ -280,17 +263,8 @@ extension _NovelReaderStageSheets on _NovelReaderStageState {
                             AppChoiceChip(
                               label: Text(label),
                               selected: _settings.spreadMode == mode,
-                              onSelected: () => apply(
-                                _settings.copyWith(
-                                  spreadMode: mode,
-                                  pageTurn:
-                                      mode != NovelSpreadMode.off &&
-                                          _settings.pageTurn ==
-                                              NovelPageTurn.scroll
-                                      ? NovelPageTurn.pages
-                                      : null,
-                                ),
-                              ),
+                              onSelected: () =>
+                                  apply(_settings.copyWith(spreadMode: mode)),
                             ),
                         ],
                       ),

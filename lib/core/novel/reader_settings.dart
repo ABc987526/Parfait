@@ -25,8 +25,7 @@ enum NovelPageTurn {
   scroll,
   pages;
 
-  static NovelPageTurn parse(String? raw) =>
-      NovelPageTurn.values.asNameMap()[raw] ?? NovelPageTurn.scroll;
+  static NovelPageTurn parse(String? raw) => NovelPageTurn.pages;
 }
 
 /// Strategy for rendering two-page spreads in paginated mode.
@@ -85,7 +84,7 @@ class NovelReaderSettings {
     this.fontSize = 17,
     this.lineHeight = 1.7,
     this.theme = NovelReaderTheme.system,
-    this.pageTurn = NovelPageTurn.scroll,
+    this.pageTurn = NovelPageTurn.pages,
     this.spreadMode = NovelSpreadMode.auto,
   });
 
