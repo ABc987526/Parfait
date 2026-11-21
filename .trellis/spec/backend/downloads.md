@@ -169,7 +169,7 @@ reviewed: 2026-10-26
   leaving half-written assets in the Photos library, while native album
   placement avoids dropping custom-album destinations on iOS.
 - **Check:** `test/windows_capability_test.dart` "IosPhotoLibraryMediaStoreSession stages chunks, commits via channel, and resumes detached .part"; `test/settings_test.dart` "DownloadDestinationPage hides SAF on iOS and shows desktop folder copy and macOS bookmark label"
-- **Code:** `lib/core/platform/ios_photo_library.dart`, `ios/Runner/AppDelegate.swift`, `ios/Runner/Info.plist`, `lib/features/settings/pages/download_destination_page.dart`, `lib/features/settings/settings_helpers.dart`
+- **Code:** `lib/core/platform/ios_photo_library.dart`, `lib/features/settings/pages/download_destination_page.dart`, `lib/features/settings/settings_helpers.dart`
 
 ### DL-14 macOS sandboxed tree destinations require security-scoped bookmarks
 - **Rule:** When `supportsSecurityScopedBookmarks` is enabled, picked custom
@@ -182,4 +182,4 @@ reviewed: 2026-10-26
 - **Why:** Under macOS App Sandbox, raw paths outside Downloads lose read/write
   access after app restart or outside user-selected single-use sessions.
 - **Check:** `test/windows_capability_test.dart` "MacosBookmarkDirectoryPicker and sink factory require bookmarks and pair startAccess/stopAccess"; `test/settings_test.dart` "DownloadDestinationPage hides SAF on iOS and shows desktop folder copy and macOS bookmark label"
-- **Code:** `lib/core/platform/desktop_file_sink.dart`, `macos/Runner/MainFlutterWindow.swift`, `lib/features/settings/saf_tree_name.dart`, `lib/features/settings/pages/download_destination_page.dart`
+- **Code:** `lib/core/platform/desktop_file_sink.dart`, `lib/features/settings/saf_tree_name.dart`, `lib/features/settings/pages/download_destination_page.dart`

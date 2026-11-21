@@ -228,7 +228,7 @@ reviewed: 2026-11-17
   capturing the prompt host upfront guarantees feedback outlives a scrolled or
   dismissed opener without showing broken controls on mobile.
 - **Check:** `test/illust_detail_actions_test.dart` "ImageClipboard channel and copy-image action copy original bytes with desktop-only gating and deferAppSnackBar"
-- **Code:** `lib/core/platform/image_clipboard.dart`, `lib/app/clipboard.dart`, `lib/app/widgets/card_actions/illust_card_actions.dart`, `windows/runner/flutter_window.cpp`, `macos/Runner/MainFlutterWindow.swift`, `linux/runner/my_application.cc`
+- **Code:** `lib/core/platform/image_clipboard.dart`, `lib/app/clipboard.dart`, `lib/app/widgets/card_actions/illust_card_actions.dart`
 
 ## Late callbacks
 
@@ -262,4 +262,4 @@ reviewed: 2026-11-17
 - **Rule:** On iOS, `IosHapticsDriver` probes `parfait/haptics` (`capabilities`) for Taptic Engine hardware and maps semantic roles through `UINotificationFeedbackGenerator` (`success`, `warning`, `error`) and `UIImpactFeedbackGenerator`, while `hapticsDriverProvider` watches `hapticsCapabilityProvider` and downgrades unsupported devices (hardwareless iPads) to `NoHapticsDriver` at runtime. Touch long-press on `IllustCard` under `TargetPlatform.iOS` replaces the Material bottom sheet with `IosCardContextMenu` (frosted blur backdrop, spring-lifted card preview respecting mute blur, compact action menu with deduplicated `Semantics`), reflecting live action state updates.
 - **Why:** Hardwareless iPads avoid no-op channel calls while iPhones get system notification waveforms, and frosted card preview keeps visual focus on the long-pressed artwork instead of pulling the thumb across a bottom modal sheet.
 - **Check:** `test/app_haptics_test.dart` "notification waveforms map success, warning, and error" "capability distinguishes iPhone Taptic Engine vs hardwareless iPad" "play swallows platform errors on notification channel", `test/card_action_test.dart` "iOS long-press replaces bottom sheet with frosted preview context menu and runs actions"
-- **Code:** `lib/app/haptics/haptics_driver.dart`, `ios/Runner/AppDelegate.swift`, `lib/app/widgets/card_actions/card_action_sheet.dart`, `lib/app/widgets/card_actions/ios_card_context_menu.dart`
+- **Code:** `lib/app/haptics/haptics_driver.dart`, `lib/app/widgets/card_actions/card_action_sheet.dart`, `lib/app/widgets/card_actions/ios_card_context_menu.dart`

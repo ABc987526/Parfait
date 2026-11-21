@@ -8,8 +8,6 @@ applies_to:
   - lib/core/platform/**
   - lib/core/auth/oauth_service.dart
   - lib/features/login/**
-  - windows/runner/**
-  - macos/Runner/**
 reviewed: 2026-11-14
 ---
 
@@ -109,7 +107,7 @@ reviewed: 2026-11-14
   exported tokens persisted in Windows clipboard history/cloud sync and macOS
   clipboard managers.
 - **Check:** `test/account_transfer_service_test.dart` "conditional clear does not erase content copied after import started" "clipboard read is explicit and malformed input is not cleared", `android/app/src/test/kotlin/io/github/lopution/parfait/PendingTransferClearTest.kt` "an expired export is cleared on the next sweep, even after the process died" "content copied after the export survives and the record is dropped" "without a record a sweep never looks at the clipboard", `test/account_transfer_clipboard_test.dart` "desktop sensitive clipboard uses native privacy channel and falls back honestly when absent"
-- **Code:** `lib/core/platform/account_transfer_clipboard.dart`, `lib/core/platform/desktop_clipboard.dart`, `android/app/src/main/kotlin/io/github/lopution/parfait/AccountTransferClipboardChannel.kt`, `android/app/src/main/kotlin/io/github/lopution/parfait/PendingTransferClear.kt`, `windows/runner/flutter_window.cpp`, `macos/Runner/MainFlutterWindow.swift`
+- **Code:** `lib/core/platform/account_transfer_clipboard.dart`, `lib/core/platform/desktop_clipboard.dart`, `android/app/src/main/kotlin/io/github/lopution/parfait/AccountTransferClipboardChannel.kt`, `android/app/src/main/kotlin/io/github/lopution/parfait/PendingTransferClear.kt`
 
 ## Untrusted input and login
 
