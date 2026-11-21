@@ -352,7 +352,7 @@ class LlmTranslationTransport
 
   static const _timeout = Duration(seconds: 40);
   static const _maxResponseBytes = 256 * 1024;
-  static const _prompt =
+  static const _basePrompt =
       'You are a translation engine for Pixiv text. Translate the user '
       'text into the requested language. Return only the translation with no '
       'quotes, no notes, no explanation. Preserve emoticons, line breaks, '
@@ -363,6 +363,16 @@ class LlmTranslationTransport
 
   /// The endpoint can be a model server on the user's own network.
   final LocalNetworkGate _localNetwork;
+
+  /// Extra instructions the user typed come with the stored credentials, so
+  /// an edit applies to the next request without restarting anything. They
+  /// follow the fixed contract instead of replacing it, so the answer stays
+  /// a bare translation.
+  static String _systemPrompt(String? extra) {
+    if (extra == null || extra.isEmpty) return _basePrompt;
+    return '$_basePrompt\n\nAdditional requirements from the user. Keep the '
+        'output format described above (the translation only):\n$extra';
+  }
 
   @override
   Future<String> translate(
@@ -409,7 +419,7 @@ class LlmTranslationTransport
             : credentials.model,
         'temperature': 0.2,
         'messages': [
-          {'role': 'system', 'content': _prompt},
+          {'role': 'system', 'content': _systemPrompt(credentials.prompt)},
           {'role': 'user', 'content': 'Translate into $target:\n$source'},
         ],
       });

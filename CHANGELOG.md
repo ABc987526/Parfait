@@ -22,6 +22,7 @@ User-facing changes in each Parfait release. The format follows [Keep a Changelo
 - **窗口开合时保留图片：** 详情在单栏和两栏布局之间切换（折叠屏开合、平板转向、拖动窗口）时，保留当前看到的那张图，两个方向都一样。
 - **两栏详情的占位：** 快速滑到还没加载好的作品时，图片区先显示网格里已加载的图，不再是一片空白底色。
 - **自定义 LLM 接口：** 「设置 → 翻译 → 自定义 LLM」的接口地址现在也接受 `http://` 明文地址，可以把局域网里自建的模型服务填进来；密钥会以明文发送到该地址。
+- **自定义 LLM 提示词：** 「LLM 接口与密钥」新增可选的提示词，用来要求文风、人称等；「只输出译文」的规则仍然生效，评论和小说的排版不会被解释性文字打乱。
 
 ### 修复
 
@@ -54,6 +55,7 @@ User-facing changes in each Parfait release. The format follows [Keep a Changelo
 - **Keeping the image when the window changes:** When the detail page switches between the single column and the two-pane layout (a foldable opening or closing, a tablet turning, a dragged window), it keeps the image you were on, in both directions.
 - **Two-pane placeholders:** Swiping quickly to a work that has not loaded yet shows the image already decoded for the grid in the image pane instead of a blank ground.
 - **Custom LLM endpoint:** Under Settings → Translation → Custom LLM, the base URL now also accepts a plain `http://` address, so a model server on your own network can be used; the key is sent to that address in clear text.
+- **Custom LLM prompt:** LLM endpoint & key gains an optional prompt for tone, person and similar requests; the translation-only rule still applies, so comments and novels are not padded with explanations.
 
 ### Fixed
 

@@ -46,6 +46,7 @@ class LlmTranslationCredentials {
     required this.baseUrl,
     required this.apiKey,
     this.model,
+    this.prompt,
   });
 
   /// An absolute `http://` or `https://` URL. Plain HTTP is accepted for a
@@ -54,15 +55,21 @@ class LlmTranslationCredentials {
   final String apiKey;
   final String? model;
 
+  /// Extra instructions for the model (tone, person, terminology). They are
+  /// appended to the fixed translation contract, never replacing it; null
+  /// means the built-in prompt alone.
+  final String? prompt;
+
   @override
   bool operator ==(Object other) =>
       other is LlmTranslationCredentials &&
       other.baseUrl == baseUrl &&
       other.apiKey == apiKey &&
-      other.model == model;
+      other.model == model &&
+      other.prompt == prompt;
 
   @override
-  int get hashCode => Object.hash(baseUrl, apiKey, model);
+  int get hashCode => Object.hash(baseUrl, apiKey, model, prompt);
 
   @override
   String toString() => 'LlmTranslationCredentials(baseUrl: $baseUrl)';
@@ -121,6 +128,7 @@ class SecureTranslationCredentialStore implements TranslationCredentialStore {
   static const _llmBaseUrlKey = '${_keyNamespace}llm.base_url';
   static const _llmApiKeyKey = '${_keyNamespace}llm.api_key';
   static const _llmModelKey = '${_keyNamespace}llm.model';
+  static const _llmPromptKey = '${_keyNamespace}llm.prompt';
   static const _legacyWebCookieKey = '${_keyNamespace}doubao.cookie';
   static const _legacyWebDeviceKey = '${_keyNamespace}doubao.tea_uuid';
 
@@ -149,6 +157,7 @@ class SecureTranslationCredentialStore implements TranslationCredentialStore {
       baseUrl: baseUrl,
       apiKey: apiKey,
       model: await _read(_llmModelKey),
+      prompt: await _read(_llmPromptKey),
     );
   }
 
@@ -161,6 +170,12 @@ class SecureTranslationCredentialStore implements TranslationCredentialStore {
       await _storage.delete(key: _llmModelKey);
     } else {
       await _write(_llmModelKey, model);
+    }
+    final prompt = credentials.prompt;
+    if (prompt == null || prompt.isEmpty) {
+      await _storage.delete(key: _llmPromptKey);
+    } else {
+      await _write(_llmPromptKey, prompt);
     }
   }
 
@@ -186,7 +201,7 @@ class SecureTranslationCredentialStore implements TranslationCredentialStore {
 
   @override
   Future<void> deleteLlm() =>
-      _deleteKeys([_llmBaseUrlKey, _llmApiKeyKey, _llmModelKey]);
+      _deleteKeys([_llmBaseUrlKey, _llmApiKeyKey, _llmModelKey, _llmPromptKey]);
 
   @override
   Future<void> deleteAll() => _deleteKeys([
@@ -195,6 +210,7 @@ class SecureTranslationCredentialStore implements TranslationCredentialStore {
     _llmBaseUrlKey,
     _llmApiKeyKey,
     _llmModelKey,
+    _llmPromptKey,
     _legacyWebCookieKey,
     _legacyWebDeviceKey,
   ]);

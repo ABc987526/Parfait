@@ -512,6 +512,8 @@
   "translateLlmApiKey": "API キー",
   "translateLlmModel": "モデル名",
   "translateLlmModelOptional": "任意",
+  "translateLlmPrompt": "プロンプト",
+  "translateLlmPromptHint": "任意：口調や人称などの追加指示。「訳文のみ出力」の規則は変わりません",
   "translateCredentialsSave": "安全なストレージに保存",
   "translateCredentialsClear": "認証情報を削除",
   "translateCredentialsClearConfirm": "安全ストレージ内の認証情報を削除します。翻訳するには再入力が必要です。",

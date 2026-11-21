@@ -1213,6 +1213,12 @@ class AppLocalizationsJa extends AppLocalizations {
   String get translateLlmModelOptional => '任意';
 
   @override
+  String get translateLlmPrompt => 'プロンプト';
+
+  @override
+  String get translateLlmPromptHint => '任意：口調や人称などの追加指示。「訳文のみ出力」の規則は変わりません';
+
+  @override
   String get translateCredentialsSave => '安全なストレージに保存';
 
   @override

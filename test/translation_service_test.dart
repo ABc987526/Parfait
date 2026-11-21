@@ -229,6 +229,42 @@ void main() {
       );
     });
 
+    test('appends the stored prompt to the fixed contract', () async {
+      store.llm = const LlmTranslationCredentials(
+        baseUrl: 'https://llm.example.com/v1',
+        apiKey: 'key-secret',
+        prompt: '用古风，人称用「吾」',
+      );
+      String? system;
+      final service = LlmTranslationTransport(
+        MockClient((request) async {
+          final body = jsonDecode(request.body) as Map<String, dynamic>;
+          final messages = body['messages'] as List<dynamic>;
+          final first = messages.first as Map<String, dynamic>;
+          system = first['content'] as String;
+          return http.Response.bytes(
+            utf8.encode(
+              jsonEncode({
+                'choices': [
+                  {
+                    'message': {'content': '你好'},
+                  },
+                ],
+              }),
+            ),
+            200,
+          );
+        }),
+        store,
+        unrestricted,
+      );
+
+      await service.translate('hello', targetLanguage: 'zh');
+
+      expect(system, contains('Return only the translation'));
+      expect(system, contains('用古风，人称用「吾」'));
+    });
+
     test('rejects an endpoint that is not an HTTP(S) URL', () async {
       for (final baseUrl in [
         'ftp://llm.example.com/v1',

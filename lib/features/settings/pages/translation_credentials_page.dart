@@ -38,6 +38,10 @@ class _TranslationCredentialsPageState
   final _baseUrlController = TextEditingController();
   final _apiKeyController = TextEditingController();
   final _modelController = TextEditingController();
+
+  /// The optional prompt rides with the credentials: it belongs to the
+  /// endpoint beside it, and a cleared family clears it too.
+  final _promptController = TextEditingController();
   bool _busy = false;
   bool _clearing = false;
 
@@ -54,7 +58,12 @@ class _TranslationCredentialsPageState
 
   List<TextEditingController> get _controllers => widget.baidu
       ? [_appIdController, _secretController]
-      : [_baseUrlController, _apiKeyController, _modelController];
+      : [
+          _baseUrlController,
+          _apiKeyController,
+          _modelController,
+          _promptController,
+        ];
 
   List<String> _snapshot() => [for (final c in _controllers) c.text];
 
@@ -88,6 +97,7 @@ class _TranslationCredentialsPageState
     _baseUrlController.dispose();
     _apiKeyController.dispose();
     _modelController.dispose();
+    _promptController.dispose();
     super.dispose();
   }
 
@@ -112,6 +122,7 @@ class _TranslationCredentialsPageState
                 credentials.baseUrl,
                 credentials.apiKey,
                 credentials.model ?? '',
+                credentials.prompt ?? '',
               ];
       }
       if (stored == null || !mounted || writes != _writes) return;
@@ -162,12 +173,14 @@ class _TranslationCredentialsPageState
           throw const TranslationError('invalid LLM endpoint');
         }
         final model = _modelController.text.trim();
+        final prompt = _promptController.text.trim();
         _writes++;
         await store.writeLlm(
           LlmTranslationCredentials(
             baseUrl: baseUrl,
             apiKey: apiKey,
             model: model.isEmpty ? null : model,
+            prompt: prompt.isEmpty ? null : prompt,
           ),
         );
       }
@@ -392,6 +405,14 @@ class _TranslationCredentialsPageState
         helper: context.l10n.translateLlmModelOptional,
         obscure: false,
       ),
+    if (!widget.baidu)
+      _credentialField(
+        controller: _promptController,
+        label: context.l10n.translateLlmPrompt,
+        helper: context.l10n.translateLlmPromptHint,
+        obscure: false,
+        maxLines: 4,
+      ),
   ];
 
   Widget _credentialField({
@@ -400,6 +421,7 @@ class _TranslationCredentialsPageState
     required bool obscure,
     String? hint,
     String? helper,
+    int maxLines = 1,
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: FuncSpacing.md),
@@ -408,6 +430,9 @@ class _TranslationCredentialsPageState
         obscureText: obscure,
         autocorrect: false,
         enableSuggestions: false,
+        maxLines: maxLines,
+        minLines: maxLines > 1 ? 1 : null,
+        keyboardType: maxLines > 1 ? TextInputType.multiline : null,
         decoration: InputDecoration(
           labelText: label,
           hintText: hint,

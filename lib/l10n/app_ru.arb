@@ -512,6 +512,8 @@
   "translateLlmApiKey": "API-ключ",
   "translateLlmModel": "Модель",
   "translateLlmModelOptional": "Необязательно",
+  "translateLlmPrompt": "Промпт",
+  "translateLlmPromptHint": "Необязательно: дополнительные указания о стиле и лице; правило «только перевод» сохраняется",
   "translateCredentialsSave": "Сохранить в защищённое хранилище",
   "translateCredentialsClear": "Очистить учётные данные",
   "translateCredentialsClearConfirm": "Сохранённые учётные данные будут удалены; для перевода их придётся ввести заново.",

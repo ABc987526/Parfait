@@ -1239,6 +1239,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get translateLlmModelOptional => 'Optional';
 
   @override
+  String get translateLlmPrompt => 'Prompt';
+
+  @override
+  String get translateLlmPromptHint =>
+      'Optional: extra instructions such as tone and person; the translation-only rule stays';
+
+  @override
   String get translateCredentialsSave => 'Save to secure storage';
 
   @override

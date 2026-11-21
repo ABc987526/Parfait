@@ -90,6 +90,16 @@ reviewed: 2026-10-14
 - **Check:** `test/account_transfer_service_test.dart` "exported envelope carries only the account credential, never translation secrets"
 - **Code:** `lib/core/auth/account_transfer.dart`, `lib/core/auth/account_transfer_service.dart`
 
+### PREF-07 The LLM prompt adds to the contract, never replaces it
+- **Rule:** The optional prompt is stored with the LLM credentials and sent
+  after the fixed system prompt, which keeps the "translation only" rule
+  whatever the user asks for. Empty means the built-in prompt alone, and
+  deleting the family deletes it with the rest.
+- **Why:** A tone or person request must not turn comment and novel
+  translations into prose with quotes or explanations.
+- **Check:** `test/translation_service_test.dart` "appends the stored prompt to the fixed contract", `test/translation_credentials_page_test.dart` "saves the prompt beside the credentials"
+- **Code:** `lib/core/translation/translation_credentials.dart`, `lib/core/translation/translation_service.dart`
+
 ## Editable state
 
 ### PREF-07 A user-ordered list is an Arrangement saved only when edited

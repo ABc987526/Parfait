@@ -2357,6 +2357,18 @@ abstract class AppLocalizations {
   /// **'可选'**
   String get translateLlmModelOptional;
 
+  /// No description provided for @translateLlmPrompt.
+  ///
+  /// In zh, this message translates to:
+  /// **'提示词'**
+  String get translateLlmPrompt;
+
+  /// No description provided for @translateLlmPromptHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'可选：文风、人称等额外要求；只输出译文的规则不变'**
+  String get translateLlmPromptHint;
+
   /// No description provided for @translateCredentialsSave.
   ///
   /// In zh, this message translates to:

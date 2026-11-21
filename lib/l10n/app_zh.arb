@@ -590,6 +590,8 @@
   "translateLlmApiKey": "API Key",
   "translateLlmModel": "模型名",
   "translateLlmModelOptional": "可选",
+  "translateLlmPrompt": "提示词",
+  "translateLlmPromptHint": "可选：文风、人称等额外要求；只输出译文的规则不变",
   "translateCredentialsSave": "保存到安全存储",
   "translateCredentialsClear": "清除凭据",
   "translateCredentialsClearConfirm": "将删除安全存储中的凭据；翻译前需要重新输入。",

@@ -261,4 +261,25 @@ void main() {
     expect(store.llm?.baseUrl, 'http://192.168.1.9:8080/v1');
     expect(find.text('Saved to secure storage'), findsOneWidget);
   });
+
+  testWidgets('saves the prompt beside the credentials', (tester) async {
+    final store = _FakeStore();
+    await tester.pumpWidget(_app(store, baidu: false));
+    await tester.pump();
+
+    await tester.enterText(
+      find.byType(TextField).at(0),
+      'https://llm.example.com/v1',
+    );
+    await tester.enterText(find.byType(TextField).at(1), 'key-secret');
+    // The prompt is the fourth field: base URL, key, model, prompt.
+    await tester.enterText(find.byType(TextField).at(3), '用古风');
+    await tester.ensureVisible(find.text('Save to secure storage'));
+    await tester.tap(find.text('Save to secure storage'));
+    await tester.pump();
+    await tester.pump();
+
+    expect(store.llm?.prompt, '用古风');
+    expect(store.llm?.baseUrl, 'https://llm.example.com/v1');
+  });
 }

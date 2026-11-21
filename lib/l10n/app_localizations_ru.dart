@@ -1240,6 +1240,13 @@ class AppLocalizationsRu extends AppLocalizations {
   String get translateLlmModelOptional => 'Необязательно';
 
   @override
+  String get translateLlmPrompt => 'Промпт';
+
+  @override
+  String get translateLlmPromptHint =>
+      'Необязательно: дополнительные указания о стиле и лице; правило «только перевод» сохраняется';
+
+  @override
   String get translateCredentialsSave => 'Сохранить в защищённое хранилище';
 
   @override

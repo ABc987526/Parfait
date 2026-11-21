@@ -1196,6 +1196,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get translateLlmModelOptional => '可选';
 
   @override
+  String get translateLlmPrompt => '提示词';
+
+  @override
+  String get translateLlmPromptHint => '可选：文风、人称等额外要求；只输出译文的规则不变';
+
+  @override
   String get translateCredentialsSave => '保存到安全存储';
 
   @override
