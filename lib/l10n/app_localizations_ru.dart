@@ -3024,6 +3024,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get novelContinueFailed => 'Не удалось продолжить историю';
 
   @override
+  String get novelContinuing => 'Пишу продолжение…';
+
+  @override
   String get novelRetranslate => 'Перевести заново';
 
   @override

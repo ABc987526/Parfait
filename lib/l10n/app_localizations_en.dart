@@ -3039,6 +3039,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get novelContinueFailed => 'Could not continue the story';
 
   @override
+  String get novelContinuing => 'Writing the next part…';
+
+  @override
   String get novelRetranslate => 'Translate again';
 
   @override

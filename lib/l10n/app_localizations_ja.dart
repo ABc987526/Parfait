@@ -2959,6 +2959,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get novelContinueFailed => '続きを書けませんでした';
 
   @override
+  String get novelContinuing => '続きを書いています…';
+
+  @override
   String get novelRetranslate => '翻訳し直す';
 
   @override

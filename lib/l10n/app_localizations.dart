@@ -5639,6 +5639,12 @@ abstract class AppLocalizations {
   /// **'续写失败'**
   String get novelContinueFailed;
 
+  /// No description provided for @novelContinuing.
+  ///
+  /// In zh, this message translates to:
+  /// **'正在续写，请稍候…'**
+  String get novelContinuing;
+
   /// No description provided for @novelRetranslate.
   ///
   /// In zh, this message translates to:

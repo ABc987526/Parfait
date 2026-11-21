@@ -1218,6 +1218,7 @@
   "novelContinueGenerate": "Написать",
   "novelContinueSuffix": "продолжение",
   "novelContinueFailed": "Не удалось продолжить историю",
+  "novelContinuing": "Пишу продолжение…",
   "novelRetranslate": "Перевести заново",
   "novelTranslationOnly": "Только перевод",
   "novelPromptTitle": "Промпт для этой работы",

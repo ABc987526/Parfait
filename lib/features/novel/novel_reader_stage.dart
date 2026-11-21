@@ -1162,6 +1162,7 @@ class _NovelReaderStageState extends ConsumerState<NovelReaderStage>
     );
     if (request == null || !mounted) return;
     setState(() => _continuing = true);
+    showAppSnackBar(context, context.l10n.novelContinuing);
     final repository = ref.read(localNovelRepositoryProvider);
     try {
       final workPrompt = await repository.readNovelPrompt(novel.id);

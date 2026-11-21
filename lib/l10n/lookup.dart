@@ -520,6 +520,7 @@ String l10nLookup(AppLocalizations l10n, String key) => switch (key) {
   'novelContinueStart' => l10n.novelContinueStart,
   'novelContinueSuffix' => l10n.novelContinueSuffix,
   'novelContinueWords' => l10n.novelContinueWords,
+  'novelContinuing' => l10n.novelContinuing,
   'novelDecreaseFont' => l10n.novelDecreaseFont,
   'novelFontSize' => l10n.novelFontSize,
   'novelIllustration' => l10n.novelIllustration,

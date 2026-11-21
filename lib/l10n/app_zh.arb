@@ -1694,6 +1694,7 @@
   "novelContinueGenerate": "生成",
   "novelContinueSuffix": "续写版",
   "novelContinueFailed": "续写失败",
+  "novelContinuing": "正在续写，请稍候…",
   "novelRetranslate": "重新翻译",
   "novelTranslationOnly": "只显示译文",
   "novelPromptTitle": "本书提示词",

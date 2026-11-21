@@ -2933,6 +2933,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get novelContinueFailed => '续写失败';
 
   @override
+  String get novelContinuing => '正在续写，请稍候…';
+
+  @override
   String get novelRetranslate => '重新翻译';
 
   @override

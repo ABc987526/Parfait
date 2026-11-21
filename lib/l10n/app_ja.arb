@@ -1218,6 +1218,7 @@
   "novelContinueGenerate": "生成",
   "novelContinueSuffix": "続き",
   "novelContinueFailed": "続きを書けませんでした",
+  "novelContinuing": "続きを書いています…",
   "novelRetranslate": "翻訳し直す",
   "novelTranslationOnly": "訳文のみ表示",
   "novelPromptTitle": "この作品のプロンプト",

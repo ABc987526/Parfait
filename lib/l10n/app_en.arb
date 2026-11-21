@@ -1225,6 +1225,7 @@
   "novelContinueGenerate": "Write",
   "novelContinueSuffix": "continued",
   "novelContinueFailed": "Could not continue the story",
+  "novelContinuing": "Writing the next part…",
   "novelRetranslate": "Translate again",
   "novelTranslationOnly": "Translations only",
   "novelPromptTitle": "Prompt for this work",
