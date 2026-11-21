@@ -3004,6 +3004,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get novelSaveFailed => 'Could not save to the device';
 
   @override
+  String get novelTranslationActions => 'Translation options';
+
+  @override
+  String get novelRetranslate => 'Translate again';
+
+  @override
+  String get novelPromptTitle => 'Prompt for this work';
+
+  @override
+  String get novelPromptHint =>
+      'Applies to this work only; leave empty to follow the global prompt';
+
+  @override
   String get localNovelsImportFailed => 'Import failed';
 
   @override

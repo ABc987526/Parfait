@@ -25,12 +25,16 @@ class LocalNovelDatabase {
   static const databaseName = 'local_novels.db';
   static const table = 'local_novels';
 
-  /// Translations of a local novel, one row per paragraph and engine
-  /// configuration. Keyed by the paragraph ids the reader derives from the
-  /// text (`p0…pn`), so a rewritten file (new [LocalNovel] row) starts clean.
-  static const translationTable = 'local_novel_translations';
+  /// Translations keyed by the *source text*, not by a paragraph id: the same
+  /// sentence in a comment, an online novel or its saved copy is one row, and
+  /// a body update does not invalidate it.
+  static const translationTable = 'translation_cache';
 
-  static const schemaVersion = 3;
+  /// One saved prompt per work (its entity id: negative for a local copy),
+  /// added to the engine signature so changing it never reads stale rows.
+  static const promptTable = 'novel_prompt';
+
+  static const schemaVersion = 4;
 
   final SqliteDatabase _sqlite;
 
@@ -59,13 +63,18 @@ class LocalNovelDatabase {
   static Future<void> _createTranslationTable(DatabaseExecutor db) async {
     await db.execute('''
       CREATE TABLE $translationTable (
-        local_id INTEGER NOT NULL,
-        paragraph_id TEXT NOT NULL,
+        source_hash TEXT NOT NULL,
         language TEXT NOT NULL,
         engine TEXT NOT NULL,
         text TEXT NOT NULL,
         created_at INTEGER NOT NULL,
-        PRIMARY KEY (local_id, paragraph_id, language, engine)
+        PRIMARY KEY (source_hash, language, engine)
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE $promptTable (
+        novel_id INTEGER NOT NULL PRIMARY KEY,
+        prompt TEXT NOT NULL
       )
     ''');
   }
@@ -90,6 +99,13 @@ class LocalNovelDatabase {
     if (oldVersion < 3) {
       // Rows saved before the snapshot existed keep their TXT rendering.
       await db.execute('ALTER TABLE $table ADD COLUMN payload_json TEXT');
+    }
+    if (oldVersion < 4) {
+      // The per-paragraph cache keyed by local row went away: a row is worth
+      // little and cannot be re-keyed without the source text, so the old
+      // table is dropped and the first read misses.
+      await db.execute('DROP TABLE IF EXISTS local_novel_translations');
+      await _createTranslationTable(db);
     }
   }
 }

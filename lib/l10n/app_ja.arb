@@ -1206,6 +1206,10 @@
   "novelSaveToLocal": "端末に保存",
   "novelSavedLocally": "ローカル小説に保存しました。オフラインで読めます",
   "novelSaveFailed": "端末への保存に失敗しました",
+  "novelTranslationActions": "翻訳オプション",
+  "novelRetranslate": "翻訳し直す",
+  "novelPromptTitle": "この作品のプロンプト",
+  "novelPromptHint": "この作品だけに適用。空欄なら全体のプロンプトに従います",
   "localNovelsImportFailed": "インポートに失敗しました",
   "localNovelsImported": "「{title}」をインポートしました",
   "@localNovelsImported": {

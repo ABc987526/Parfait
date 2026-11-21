@@ -27,6 +27,7 @@ User-facing changes in each Parfait release. The format follows [Keep a Changelo
 - **小说翻页的点击区域：** 翻页模式下点左侧 25% 到下一页、点右侧 25% 到上一页（按从右往左的阅读顺序），中间一半仍然是切换界面。
 - **本地小说保留插图：** 「保存到本地」现在同时存下作品快照，插图和 pixiv 原始分页都保留；以前存的纯文本小说照常能读。
 - **翻页动画：** 小说翻页模式换成带透视的书页翻转——页面从内侧边卷起并压暗，翻到一半能看出是「纸」而不是滑动；双页排版和系统「减少动画」时自动回到普通滑动。
+- **共享译文缓存与本书提示词：** 译文缓存改成按原文共享，评论、在线小说和保存到本地的副本命中同一份；阅读页新增「翻译选项」，可以重新翻译整页，或给这本书单独写提示词（留空跟随全局），改过提示词不会再显示旧提示词的译文。
 
 ### 修复
 
@@ -64,6 +65,7 @@ User-facing changes in each Parfait release. The format follows [Keep a Changelo
 - **Novel tap zones:** in the page reader, the left 25% turns to the next page and the right 25% to the previous one (right-to-left reading order); the middle half still toggles the chrome.
 - **Saved novels keep their images:** Save to device now stores the work's snapshot too, so illustrations and Pixiv page breaks survive; novels saved as plain text still read as before.
 - **Page-turn animation:** the page reader now turns leaves with perspective: a page hinges on its inner edge and darkens as it goes, so a turn reads as paper rather than a slide. Spreads and the system's remove-animations setting keep the plain slide.
+- **Shared translation cache and a per-work prompt:** cached translations are keyed by the source text, so comments, online novels and saved copies read one row; the reader's Translation options redo the page or write a prompt for this work alone (empty follows the global one), and changing it never shows the old prompt's output.
 
 ### Fixed
 

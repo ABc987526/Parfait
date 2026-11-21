@@ -2923,6 +2923,18 @@ class AppLocalizationsJa extends AppLocalizations {
   String get novelSaveFailed => '端末への保存に失敗しました';
 
   @override
+  String get novelTranslationActions => '翻訳オプション';
+
+  @override
+  String get novelRetranslate => '翻訳し直す';
+
+  @override
+  String get novelPromptTitle => 'この作品のプロンプト';
+
+  @override
+  String get novelPromptHint => 'この作品だけに適用。空欄なら全体のプロンプトに従います';
+
+  @override
   String get localNovelsImportFailed => 'インポートに失敗しました';
 
   @override

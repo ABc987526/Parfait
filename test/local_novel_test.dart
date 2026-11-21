@@ -222,40 +222,54 @@ void main() {
       expect(decoded?.paragraphs.length, 2);
     });
 
-    test('translations survive a reopen and go with the novel', () async {
-      final novel = await repository.importBytes(
-        fileName: 'translated.txt',
-        bytes: Uint8List.fromList(utf8.encode('a\nb')),
-        targetDir: dir,
-      );
+    test('translations are shared by source text, not by work', () async {
       await repository.writeTranslations(
-        localId: novel.id,
         language: 'zh',
         engine: 'llm:m:abc',
-        entries: {'p0': '甲', 'p1': '乙'},
+        entries: {'h1': '甲', 'h2': '乙'},
       );
 
       expect(
         await repository.readTranslations(
-          localId: novel.id,
+          sourceHashes: ['h1', 'h2', 'h3'],
           language: 'zh',
           engine: 'llm:m:abc',
         ),
-        {'p0': '甲', 'p1': '乙'},
+        {'h1': '甲', 'h2': '乙'},
       );
       // Another engine is another cache: the old rows must not answer it.
       expect(
         await repository.readTranslations(
-          localId: novel.id,
+          sourceHashes: ['h1'],
           language: 'zh',
           engine: 'llm:other:abc',
         ),
         isEmpty,
       );
 
+      // The cache outlives the work that filled it.
+      final novel = await repository.importBytes(
+        fileName: 'translated.txt',
+        bytes: Uint8List.fromList(utf8.encode('a\nb')),
+        targetDir: dir,
+      );
       await repository.delete(novel);
-      final db = await database.database;
-      expect(await db.query(LocalNovelDatabase.translationTable), isEmpty);
+      expect(
+        (await repository.readTranslations(
+          sourceHashes: ['h1'],
+          language: 'zh',
+          engine: 'llm:m:abc',
+        ))['h1'],
+        '甲',
+      );
+    });
+
+    test('a work keeps its own prompt until it is cleared', () async {
+      expect(await repository.readNovelPrompt(-7), isNull);
+      await repository.writeNovelPrompt(-7, '  古风  ');
+      expect(await repository.readNovelPrompt(-7), '古风');
+      await repository.writeNovelPrompt(-7, '   ');
+      expect(await repository.readNovelPrompt(-7), isNull);
     });
   });
 

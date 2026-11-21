@@ -1206,6 +1206,10 @@
   "novelSaveToLocal": "Сохранить на устройство",
   "novelSavedLocally": "Сохранено в локальные новеллы — читается без сети",
   "novelSaveFailed": "Не удалось сохранить на устройство",
+  "novelTranslationActions": "Действия перевода",
+  "novelRetranslate": "Перевести заново",
+  "novelPromptTitle": "Промпт для этой работы",
+  "novelPromptHint": "Только для этой работы; пусто — общий промпт",
   "localNovelsImportFailed": "Не удалось импортировать",
   "localNovelsImported": "Импортировано «{title}»",
   "@localNovelsImported": {

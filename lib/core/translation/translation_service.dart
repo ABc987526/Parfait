@@ -6,6 +6,7 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 
+import '../localnovel/local_novel_repository.dart';
 import '../network/http_client_providers.dart';
 import '../network/local_network_address.dart';
 import '../platform/local_network.dart';
@@ -531,7 +532,14 @@ final translationCredentialStoreProvider = Provider<TranslationCredentialStore>(
 /// Fingerprint of the translation configuration, so a cached translation is
 /// reused only under the engine and tuning that produced it: another model,
 /// another prompt or another provider starts a fresh cache.
-final translationEngineSignatureProvider = FutureProvider<String>((ref) async {
+/// Fingerprint of the translation configuration for one work, so a cached
+/// translation is reused only under the engine and tuning that produced it:
+/// another model, another global prompt, another provider, or this work's own
+/// prompt starting or changing all start a fresh cache.
+final translationEngineSignatureProvider = FutureProvider.family<String, int>((
+  ref,
+  novelId,
+) async {
   final settings = ref.watch(settingsProvider).value;
   final provider =
       settings?.translationProvider ?? TranslationProvider.disabled;
@@ -540,8 +548,12 @@ final translationEngineSignatureProvider = FutureProvider<String>((ref) async {
       final credentials = await ref
           .watch(translationCredentialStoreProvider)
           .readLlm();
+      final own = await ref
+          .watch(localNovelRepositoryProvider)
+          .readNovelPrompt(novelId);
       final model = credentials?.model ?? '';
-      return 'llm:$model:${_shortDigest(credentials?.prompt ?? '')}';
+      final tuning = '${credentials?.prompt ?? ''}\u0000${own ?? ''}';
+      return 'llm:$model:${_shortDigest(tuning)}';
     case TranslationProvider.indexTranslate:
       final model = settings?.indexTranslateModel.name ?? '';
       final thinking = settings?.indexTranslateThinking ?? false;

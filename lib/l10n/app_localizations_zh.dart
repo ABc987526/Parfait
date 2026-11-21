@@ -2897,6 +2897,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get novelSaveFailed => '保存到本地失败';
 
   @override
+  String get novelTranslationActions => '翻译选项';
+
+  @override
+  String get novelRetranslate => '重新翻译';
+
+  @override
+  String get novelPromptTitle => '本书提示词';
+
+  @override
+  String get novelPromptHint => '只对这一本生效；留空则跟随全局提示词';
+
+  @override
   String get localNovelsImportFailed => '导入失败';
 
   @override

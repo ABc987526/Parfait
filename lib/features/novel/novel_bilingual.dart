@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:convert';
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -26,14 +28,13 @@ mixin BilingualReading<T extends ConsumerStatefulWidget> on ConsumerState<T> {
   /// The reader whose pages are translated.
   NovelReaderHandle get bilingualReader;
 
-  /// The local library row whose translations persist between sessions, or
-  /// null when the source cannot cache (an online novel).
-  int? get translationCacheNovelId => null;
-
   bool bilingual = false;
 
   /// A batch is being translated.
   bool translatingPage = false;
+
+  /// Whether the page holds translations to take back or redo.
+  bool get hasTranslations => _translations.isNotEmpty;
 
   Map<String, String> _translations = const {};
   Map<String, String> _sources = const {};
@@ -44,6 +45,10 @@ mixin BilingualReading<T extends ConsumerStatefulWidget> on ConsumerState<T> {
   String? _cacheKey;
   String? _engine;
 
+  /// Set by [retranslate]: the next restore must not read the cache it is
+  /// about to overwrite.
+  bool _skipCacheOnce = false;
+
   /// What the reader shows under its paragraphs.
   Map<String, String> get pageTranslations =>
       bilingual ? _translations : const {};
@@ -51,6 +56,24 @@ mixin BilingualReading<T extends ConsumerStatefulWidget> on ConsumerState<T> {
   void toggleBilingual() {
     setState(() => bilingual = !bilingual);
     bilingualPageSettled();
+  }
+
+  /// Throws the page's translations away and translates it again, overwriting
+  /// their cached rows. The reader's re-translate action calls this.
+  Future<void> retranslate() async {
+    if (translatingPage) return;
+    setState(() => _translations = const {});
+    _skipCacheOnce = true;
+    await _translateAhead();
+  }
+
+  /// Drops what is shown and the cache mark, e.g. after this work's prompt
+  /// changed: the next settle reads under the new signature.
+  void invalidateTranslations() {
+    setState(() {
+      _translations = const {};
+      _cacheKey = null;
+    });
   }
 
   /// The reader settled on a page — a turn or a relayout: translate what
@@ -121,54 +144,73 @@ mixin BilingualReading<T extends ConsumerStatefulWidget> on ConsumerState<T> {
     unawaited(_persistTranslations(ids, sources, results, target));
   }
 
-  /// Fills [_translations] from the local library for this book, language
-  /// and engine configuration, before the network is asked for anything.
+  /// Fills [_translations] from the cache — keyed by the source text, so it is
+  /// shared by comments, online novels and saved copies — before the network
+  /// is asked for anything.
   Future<void> _restoreTranslations() async {
-    final localId = translationCacheNovelId;
-    if (localId == null) return;
+    final novelId = bilingualNovel.id;
     final language = Localizations.localeOf(context).languageCode;
-    final engine = await ref.read(translationEngineSignatureProvider.future);
+    final engine = await ref.read(
+      translationEngineSignatureProvider(novelId).future,
+    );
     if (!mounted) return;
     _engine = engine;
-    final key = '$localId|$language|$engine';
+    final key = '$novelId|$language|$engine';
     if (_cacheKey == key) return;
     _cacheKey = key;
+    if (_skipCacheOnce) {
+      // A re-translate: read nothing, let the batch overwrite the rows.
+      _skipCacheOnce = false;
+      return;
+    }
+    final idsByHash = <String, List<String>>{};
+    for (final entry in _sources.entries) {
+      if (entry.value.trim().isEmpty) continue;
+      idsByHash.putIfAbsent(_sourceHash(entry.value), () => []).add(entry.key);
+    }
+    if (idsByHash.isEmpty) return;
     try {
       final stored = await ref
           .read(localNovelRepositoryProvider)
           .readTranslations(
-            localId: localId,
+            sourceHashes: idsByHash.keys,
             language: language,
             engine: engine,
           );
       if (!mounted || _cacheKey != key || stored.isEmpty) return;
       setState(() {
-        _translations = Map.unmodifiable({...stored, ..._translations});
+        _translations = Map.unmodifiable({
+          for (final entry in stored.entries)
+            for (final id in idsByHash[entry.key] ?? const <String>[])
+              id: entry.value,
+          ..._translations,
+        });
       });
     } on Object catch (error, stack) {
       CrashLog.record(error, stack);
     }
   }
 
-  /// Writes a finished batch so the next open costs no network.
+  /// Writes a finished batch by source text, so any work holding the same
+  /// sentence reads it from the cache.
   Future<void> _persistTranslations(
     List<String> ids,
     List<String> sources,
     List<String> results,
     String language,
   ) async {
-    final localId = translationCacheNovelId;
     final engine = _engine;
-    if (localId == null || engine == null) return;
-    final entries = {
-      for (final (index, id) in ids.indexed)
-        id: _shown(sources[index], results[index]),
-    };
+    if (engine == null) return;
+    final entries = <String, String>{};
+    for (var index = 0; index < ids.length; index++) {
+      final source = sources[index];
+      if (source.trim().isEmpty) continue;
+      entries[_sourceHash(source)] = _shown(source, results[index]);
+    }
     try {
       await ref
           .read(localNovelRepositoryProvider)
           .writeTranslations(
-            localId: localId,
             language: language,
             engine: engine,
             entries: entries,
@@ -219,6 +261,10 @@ mixin BilingualReading<T extends ConsumerStatefulWidget> on ConsumerState<T> {
 }
 
 final _lineBreaks = RegExp(r'\s*\n\s*');
+
+/// Cache key of a source paragraph: the text itself, so the same sentence in
+/// a comment, an online novel or a saved copy is one row.
+String _sourceHash(String text) => sha1.convert(utf8.encode(text)).toString();
 
 /// What shows under [source]: nothing when the engine handed it back
 /// unchanged (it is already in the target language), otherwise the

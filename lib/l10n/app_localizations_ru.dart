@@ -2988,6 +2988,18 @@ class AppLocalizationsRu extends AppLocalizations {
   String get novelSaveFailed => 'Не удалось сохранить на устройство';
 
   @override
+  String get novelTranslationActions => 'Действия перевода';
+
+  @override
+  String get novelRetranslate => 'Перевести заново';
+
+  @override
+  String get novelPromptTitle => 'Промпт для этой работы';
+
+  @override
+  String get novelPromptHint => 'Только для этой работы; пусто — общий промпт';
+
+  @override
   String get localNovelsImportFailed => 'Не удалось импортировать';
 
   @override

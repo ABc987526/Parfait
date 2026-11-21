@@ -143,15 +143,16 @@ class LocalNovelRepository {
     );
   }
 
-  /// Removes the index row, the stored file and every translation of it; a
+  /// Removes the index row, the stored file and the work's saved prompt; a
   /// missing file is tolerated so cleanup of a half-deleted entry still
-  /// completes.
+  /// completes. Cached translations stay: they are keyed by source text and
+  /// shared with every other work that holds the same sentence.
   Future<void> delete(LocalNovel novel) async {
     final db = await _database.database;
     await db.delete(
-      LocalNovelDatabase.translationTable,
-      where: 'local_id = ?',
-      whereArgs: [novel.id],
+      LocalNovelDatabase.promptTable,
+      where: 'novel_id = ?',
+      whereArgs: [-novel.id],
     );
     await db.delete(
       LocalNovelDatabase.table,
@@ -233,30 +234,33 @@ class LocalNovelRepository {
     return _fromRow(rows.first);
   }
 
-  /// Cached translations of [localId] for one language and engine
-  /// configuration, by paragraph id.
+  /// Cached translations for [sourceHashes] in one language and engine
+  /// configuration, by source hash. Absent rows are simply not returned.
   Future<Map<String, String>> readTranslations({
-    required int localId,
+    required Iterable<String> sourceHashes,
     required String language,
     required String engine,
   }) async {
+    final hashes = sourceHashes.toSet().toList(growable: false);
+    if (hashes.isEmpty) return const {};
     final db = await _database.database;
     final rows = await db.query(
       LocalNovelDatabase.translationTable,
-      columns: ['paragraph_id', 'text'],
-      where: 'local_id = ? AND language = ? AND engine = ?',
-      whereArgs: [localId, language, engine],
+      columns: ['source_hash', 'text'],
+      where:
+          'language = ? AND engine = ? AND source_hash IN '
+          '(${List.filled(hashes.length, '?').join(', ')})',
+      whereArgs: [language, engine, ...hashes],
     );
     return {
       for (final row in rows)
-        row['paragraph_id']! as String: row['text']! as String,
+        row['source_hash']! as String: row['text']! as String,
     };
   }
 
-  /// Stores [entries] (paragraph id → translation), replacing rows for the
-  /// same paragraph, language and engine.
+  /// Stores [entries] (source hash → translation), replacing rows for the
+  /// same hash, language and engine.
   Future<void> writeTranslations({
-    required int localId,
     required String language,
     required String engine,
     required Map<String, String> entries,
@@ -268,12 +272,46 @@ class LocalNovelRepository {
     for (final entry in entries.entries) {
       batch.rawInsert(
         'INSERT OR REPLACE INTO ${LocalNovelDatabase.translationTable} '
-        '(local_id, paragraph_id, language, engine, text, created_at) '
-        'VALUES (?, ?, ?, ?, ?, ?)',
-        [localId, entry.key, language, engine, entry.value, now],
+        '(source_hash, language, engine, text, created_at) '
+        'VALUES (?, ?, ?, ?, ?)',
+        [entry.key, language, engine, entry.value, now],
       );
     }
     await batch.commit(noResult: true);
+  }
+
+  /// The work's own prompt (its entity id, negative for a local copy), or
+  /// null when it follows the global one.
+  Future<String?> readNovelPrompt(int novelId) async {
+    final db = await _database.database;
+    final rows = await db.query(
+      LocalNovelDatabase.promptTable,
+      columns: ['prompt'],
+      where: 'novel_id = ?',
+      whereArgs: [novelId],
+      limit: 1,
+    );
+    return rows.isEmpty ? null : rows.first['prompt'] as String?;
+  }
+
+  /// Saves the work's own prompt; an empty [prompt] removes it, so the work
+  /// follows the global prompt again.
+  Future<void> writeNovelPrompt(int novelId, String? prompt) async {
+    final db = await _database.database;
+    final text = prompt?.trim() ?? '';
+    if (text.isEmpty) {
+      await db.delete(
+        LocalNovelDatabase.promptTable,
+        where: 'novel_id = ?',
+        whereArgs: [novelId],
+      );
+      return;
+    }
+    await db.rawInsert(
+      'INSERT OR REPLACE INTO ${LocalNovelDatabase.promptTable} '
+      '(novel_id, prompt) VALUES (?, ?)',
+      [novelId, text],
+    );
   }
 
   Future<void> updateReadOffset(int id, int offset) async {

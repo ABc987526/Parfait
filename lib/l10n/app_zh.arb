@@ -1682,6 +1682,10 @@
   "novelSaveToLocal": "保存到本地",
   "novelSavedLocally": "已保存到本地小说，可离线阅读",
   "novelSaveFailed": "保存到本地失败",
+  "novelTranslationActions": "翻译选项",
+  "novelRetranslate": "重新翻译",
+  "novelPromptTitle": "本书提示词",
+  "novelPromptHint": "只对这一本生效；留空则跟随全局提示词",
   "localNovelsImportFailed": "导入失败",
   "localNovelsImported": "已导入「{title}」",
   "@localNovelsImported": {

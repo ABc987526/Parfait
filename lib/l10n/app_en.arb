@@ -1213,6 +1213,10 @@
   "novelSaveToLocal": "Save to device",
   "novelSavedLocally": "Saved to your local novels; it reads offline",
   "novelSaveFailed": "Could not save to the device",
+  "novelTranslationActions": "Translation options",
+  "novelRetranslate": "Translate again",
+  "novelPromptTitle": "Prompt for this work",
+  "novelPromptHint": "Applies to this work only; leave empty to follow the global prompt",
   "localNovelsImportFailed": "Import failed",
   "localNovelsImported": "Imported \"{title}\"",
   "@localNovelsImported": {

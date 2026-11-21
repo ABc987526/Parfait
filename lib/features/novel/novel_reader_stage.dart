@@ -25,6 +25,7 @@ import '../../app/window/desktop_command_bar_scope.dart'
 import '../../app/window/desktop_title_bar.dart' show DesktopChromeMetrics;
 import '../../core/auth/account_store.dart';
 import '../../core/errors/no_retry.dart';
+import '../../core/localnovel/local_novel_repository.dart';
 import '../../core/log.dart';
 import '../../core/network/pixiv_http_client.dart';
 import '../../core/novel/novel_entity.dart';
@@ -66,7 +67,6 @@ class NovelReaderStageSpec {
     required this.progress,
     this.titleBlock,
     this.topActions = const [],
-    this.translationCacheNovelId,
     this.onImageTap,
     this.onLinkTap,
     this.marker,
@@ -84,10 +84,6 @@ class NovelReaderStageSpec {
   /// Extra actions rendered before the info button in the top bar
   /// (online: share + bookmark; local: none).
   final List<Widget> topActions;
-
-  /// The local library row whose translations persist, or null for an online
-  /// novel (translations then stay for the stage's life).
-  final int? translationCacheNovelId;
 
   /// Opens a tapped illustration (online: the image viewer; a TXT file
   /// has none).
@@ -329,9 +325,6 @@ class _NovelReaderStageState extends ConsumerState<NovelReaderStage>
 
   @override
   NovelReaderHandle get bilingualReader => _readerHandle;
-
-  @override
-  int? get translationCacheNovelId => widget.spec.translationCacheNovelId;
 
   /// The settings page needs the system bars the immersive reader hides.
   @override
@@ -965,6 +958,12 @@ class _NovelReaderStageState extends ConsumerState<NovelReaderStage>
                                 color: Theme.of(context).colorScheme.primary,
                               ),
                       ),
+                      if (hasTranslations)
+                        IconButton(
+                          tooltip: context.l10n.novelTranslationActions,
+                          onPressed: () => _showTranslationActions(context),
+                          icon: const Icon(AppIcons.update),
+                        ),
                       IconButton(
                         tooltip: widget.spec.infoTooltip,
                         onPressed: () => _showInfoSheet(context),
@@ -1141,6 +1140,76 @@ class _NovelReaderStageState extends ConsumerState<NovelReaderStage>
         ),
       ),
     );
+  }
+
+  /// Actions for a page that already has translations: redo them, or give
+  /// this work its own prompt.
+  void _showTranslationActions(BuildContext context) {
+    _showReaderSideSheet(
+      isScrollControlled: true,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(AppIcons.update),
+              title: Text(sheetContext.l10n.novelRetranslate),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                unawaited(retranslate());
+              },
+            ),
+            ListTile(
+              leading: const Icon(AppIcons.edit),
+              title: Text(sheetContext.l10n.novelPromptTitle),
+              subtitle: Text(sheetContext.l10n.novelPromptHint),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                _editNovelPrompt(context);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Edits this work's own prompt; an empty field follows the global one
+  /// again, and the engine signature changes either way, so the next batch
+  /// never reads rows the old prompt produced.
+  Future<void> _editNovelPrompt(BuildContext context) async {
+    final repository = ref.read(localNovelRepositoryProvider);
+    final current = await repository.readNovelPrompt(novel.id) ?? '';
+    if (!mounted) return;
+    final controller = TextEditingController(text: current);
+    final saved = await showAppDialog<String>(
+      context: context,
+      builder: (dialogContext) => AppAlertDialog(
+        title: Text(context.l10n.novelPromptTitle),
+        content: TextField(
+          controller: controller,
+          minLines: 3,
+          maxLines: 6,
+          decoration: InputDecoration(hintText: context.l10n.novelPromptHint),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(context.l10n.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, controller.text),
+            child: Text(context.l10n.save),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (saved == null) return;
+    await repository.writeNovelPrompt(novel.id, saved);
+    if (!mounted) return;
+    // The page holds translations the old prompt produced.
+    invalidateTranslations();
   }
 
   void _showInfoSheet(BuildContext context) {

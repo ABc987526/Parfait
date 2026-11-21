@@ -5567,6 +5567,30 @@ abstract class AppLocalizations {
   /// **'保存到本地失败'**
   String get novelSaveFailed;
 
+  /// No description provided for @novelTranslationActions.
+  ///
+  /// In zh, this message translates to:
+  /// **'翻译选项'**
+  String get novelTranslationActions;
+
+  /// No description provided for @novelRetranslate.
+  ///
+  /// In zh, this message translates to:
+  /// **'重新翻译'**
+  String get novelRetranslate;
+
+  /// No description provided for @novelPromptTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'本书提示词'**
+  String get novelPromptTitle;
+
+  /// No description provided for @novelPromptHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'只对这一本生效；留空则跟随全局提示词'**
+  String get novelPromptHint;
+
   /// No description provided for @localNovelsImportFailed.
   ///
   /// In zh, this message translates to:
