@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:material_ui/material_ui.dart';
@@ -11,6 +12,7 @@ import '../../core/localnovel/local_novel_decoder.dart';
 import '../../core/localnovel/local_novel_repository.dart';
 import '../../core/localnovel/read_offset_anchor.dart';
 import '../../core/novel/novel_entity.dart';
+import '../../core/novel/novel_snapshot_codec.dart';
 import '../../core/user/user_entity.dart';
 import '../../l10n/context.dart';
 import 'novel_layout.dart';
@@ -62,7 +64,7 @@ class LocalNovelReaderPage extends ConsumerWidget {
     required LocalNovel novel,
     required String text,
   }) {
-    final entity = _entityFor(novel, text);
+    final entity = _entityFrom(novel, text);
     return NovelReaderStage(
       spec: NovelReaderStageSpec(
         novel: entity,
@@ -76,6 +78,33 @@ class LocalNovelReaderPage extends ConsumerWidget {
           entity: entity,
         ),
       ),
+    );
+  }
+
+  /// A saved snapshot when the work came from the reader (it keeps paragraph
+  /// ids, image blocks and page starts), else the imported TXT lines.
+  static NovelEntity _entityFrom(LocalNovel novel, String text) {
+    final payload = novel.payloadJson;
+    if (payload == null) return _entityFor(novel, text);
+    final NovelEntity? saved;
+    try {
+      saved = NovelSnapshotCodec().decodeEntity(jsonDecode(payload));
+    } on FormatException {
+      return _entityFor(novel, text);
+    }
+    if (saved == null) return _entityFor(novel, text);
+    // The negative id keeps the local copy disjoint from the real novel id
+    // anywhere an id leaks into an observer.
+    return NovelEntity(
+      id: -novel.id,
+      title: saved.title,
+      caption: saved.caption,
+      user: saved.user,
+      tags: saved.tags,
+      textLength: saved.textLength,
+      contentVersion: saved.contentVersion,
+      paragraphs: saved.paragraphs,
+      markup: saved.markup,
     );
   }
 

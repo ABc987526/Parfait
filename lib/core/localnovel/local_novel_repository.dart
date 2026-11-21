@@ -2,6 +2,7 @@
 /// support directory and indexed in `local_novels.db`.
 library;
 
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -10,6 +11,7 @@ import 'package:path/path.dart' as path;
 
 import '../log.dart';
 import '../novel/novel_entity.dart';
+import '../novel/novel_snapshot_codec.dart';
 import '../platform/app_storage_paths.dart';
 import '../platform/saf_tree.dart';
 import 'local_novel_database.dart';
@@ -28,6 +30,7 @@ class LocalNovel {
     this.readOffset,
     this.sourceNovelId,
     this.sourceContentVersion,
+    this.payloadJson,
   });
 
   final int id;
@@ -48,6 +51,10 @@ class LocalNovel {
 
   /// That novel's `contentVersion` when it was saved.
   final String? sourceContentVersion;
+
+  /// Snapshot of the body as saved (paragraphs, markup and image blocks), so
+  /// the reader can restore the work as it was. Null for a TXT import.
+  final String? payloadJson;
 
   File get file => File(path);
 }
@@ -169,6 +176,7 @@ class LocalNovelRepository {
   }) async {
     final blocks = novel.markup?.blocks ?? novel.paragraphs;
     final text = [for (final block in blocks) block.plainText].join('\n');
+    final payload = jsonEncode(NovelSnapshotCodec().encodeEntity(novel));
     if (text.length > maxImportBytes) {
       throw const DocumentTooLargeException(maxImportBytes);
     }
@@ -188,6 +196,7 @@ class LocalNovelRepository {
         'read_offset': null,
         'source_novel_id': novel.id,
         'source_content_version': novel.contentVersion,
+        'payload_json': payload,
       });
     } on Object {
       try {
@@ -206,6 +215,7 @@ class LocalNovelRepository {
       importedAt: DateTime.now(),
       sourceNovelId: novel.id,
       sourceContentVersion: novel.contentVersion,
+      payloadJson: payload,
     );
   }
 
@@ -315,6 +325,7 @@ class LocalNovelRepository {
       readOffset: row['read_offset'] as int?,
       sourceNovelId: row['source_novel_id'] as int?,
       sourceContentVersion: row['source_content_version'] as String?,
+      payloadJson: row['payload_json'] as String?,
     );
   }
 }

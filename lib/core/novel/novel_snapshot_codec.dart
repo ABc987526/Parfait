@@ -31,6 +31,11 @@ final class NovelSnapshotCodec extends FeedSnapshotCodec {
   @override
   Object? encodeEntity(Object entity) => _encode(entity as NovelEntity);
 
+  /// The entity a payload from [encodeEntity] holds, or null when it is not
+  /// one. Lets a saved novel restore its body, images and page starts.
+  NovelEntity? decodeEntity(Object? json) =>
+      json is Map<String, dynamic> ? _decode(json) : null;
+
   @override
   List<int> restoreEntities(
     Ref ref,

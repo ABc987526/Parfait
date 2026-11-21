@@ -30,7 +30,7 @@ class LocalNovelDatabase {
   /// text (`p0…pn`), so a rewritten file (new [LocalNovel] row) starts clean.
   static const translationTable = 'local_novel_translations';
 
-  static const schemaVersion = 2;
+  static const schemaVersion = 3;
 
   final SqliteDatabase _sqlite;
 
@@ -49,7 +49,8 @@ class LocalNovelDatabase {
         imported_at INTEGER NOT NULL,
         read_offset INTEGER,
         source_novel_id INTEGER,
-        source_content_version TEXT
+        source_content_version TEXT,
+        payload_json TEXT
       )
     ''');
     await _createTranslationTable(db);
@@ -85,6 +86,10 @@ class LocalNovelDatabase {
         'ALTER TABLE $table ADD COLUMN source_content_version TEXT',
       );
       await _createTranslationTable(db);
+    }
+    if (oldVersion < 3) {
+      // Rows saved before the snapshot existed keep their TXT rendering.
+      await db.execute('ALTER TABLE $table ADD COLUMN payload_json TEXT');
     }
   }
 }

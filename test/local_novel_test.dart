@@ -12,6 +12,7 @@ import 'package:parfait/core/localnovel/local_novel_repository.dart';
 import 'package:parfait/core/localnovel/local_novel_store.dart';
 import 'package:parfait/core/localnovel/read_offset_anchor.dart';
 import 'package:parfait/core/novel/novel_entity.dart';
+import 'package:parfait/core/novel/novel_snapshot_codec.dart';
 import 'package:parfait/core/platform/saf_tree.dart';
 import 'package:parfait/core/user/user_entity.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -212,6 +213,13 @@ void main() {
       expect(await File(saved.path).readAsString(), '春眠\n不觉晓');
       expect((await repository.findBySourceNovel(4242))?.id, saved.id);
       expect(await repository.findBySourceNovel(1), isNull);
+      // The snapshot keeps the body for the reader, images included.
+      expect(saved.payloadJson, isNotNull);
+      final decoded = NovelSnapshotCodec().decodeEntity(
+        jsonDecode(saved.payloadJson!),
+      );
+      expect(decoded?.title, '落花');
+      expect(decoded?.paragraphs.length, 2);
     });
 
     test('translations survive a reopen and go with the novel', () async {
