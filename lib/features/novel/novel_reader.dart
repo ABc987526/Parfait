@@ -558,8 +558,10 @@ class _NovelReaderState extends State<NovelReader> with WidgetsBindingObserver {
                     );
                     _notifyProgress();
                   },
-                  itemBuilder: (context, viewIndex) =>
-                      _buildPageViewItem(layout, viewIndex, color),
+                  itemBuilder: (context, viewIndex) => _pageTurnLeaf(
+                    viewIndex,
+                    _buildPageViewItem(layout, viewIndex, color),
+                  ),
                 ),
               ),
             ),
@@ -591,6 +593,51 @@ class _NovelReaderState extends State<NovelReader> with WidgetsBindingObserver {
       endCharacter: page.endCharacter,
       chapterTitle: page.chapterTitle,
       breakBefore: page.breakBefore,
+    );
+  }
+
+  /// A page as a turning leaf: while pages move, the leaving page rotates
+  /// away from its inner edge and darkens, so paging reads as paper rather
+  /// than a slide. Settled pages, spreads, and the system's remove-animations
+  /// setting draw the page untouched.
+  Widget _pageTurnLeaf(int viewIndex, Widget child) {
+    if (_spread || (MediaQuery.maybeDisableAnimationsOf(context) ?? false)) {
+      return child;
+    }
+    return AnimatedBuilder(
+      animation: _pageController,
+      builder: (context, child) {
+        final position = _pageController.hasClients
+            ? _pageController.position
+            : null;
+        final current = position != null && position.hasContentDimensions
+            ? _pageController.page
+            : null;
+        if (current == null) return child!;
+        final turn = (viewIndex - current).clamp(-1.0, 1.0);
+        if (turn.abs() < 0.01) return child!;
+        return Transform(
+          // The leaf hinges on the edge it leaves from.
+          alignment: turn < 0 ? Alignment.centerRight : Alignment.centerLeft,
+          transform: Matrix4.identity()
+            ..setEntry(3, 2, 0.0012)
+            ..rotateY(turn * 0.55),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              child!,
+              IgnorePointer(
+                child: ColoredBox(
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.scrim.withValues(alpha: 0.35 * turn.abs()),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+      child: child,
     );
   }
 
