@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as path;
 
 import '../log.dart';
+import '../novel/novel_content_codec.dart';
 import '../novel/novel_entity.dart';
 import '../novel/novel_snapshot_codec.dart';
 import '../platform/app_storage_paths.dart';
@@ -177,9 +178,14 @@ class LocalNovelRepository {
   }) async {
     final blocks = novel.markup?.blocks ?? novel.paragraphs;
     final text = [for (final block in blocks) block.plainText].join('\n');
-    // The feed-snapshot codec keeps metadata only (no paragraphs, no images),
-    // so this payload restores nothing on its own; the text file is the body.
-    final payload = jsonEncode(NovelSnapshotCodec().encodeEntity(novel));
+    // Metadata for the list and title, plus the body (blocks, images, page
+    // breaks) the feed codec does not carry. The text file stays the fallback.
+    final metadata =
+        NovelSnapshotCodec().encodeEntity(novel) as Map<String, Object?>;
+    final payload = jsonEncode({
+      ...metadata,
+      'content': encodeNovelContent(novel),
+    });
     if (text.length > maxImportBytes) {
       throw const DocumentTooLargeException(maxImportBytes);
     }

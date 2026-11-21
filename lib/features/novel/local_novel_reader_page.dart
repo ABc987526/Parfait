@@ -10,6 +10,7 @@ import '../../app/widgets/feed/feed_states.dart';
 import '../../core/errors/no_retry.dart';
 import '../../core/localnovel/local_novel_decoder.dart';
 import '../../core/localnovel/local_novel_repository.dart';
+import '../../core/novel/novel_content_codec.dart';
 import '../../core/novel/novel_entity.dart';
 import '../../core/novel/novel_snapshot_codec.dart';
 import '../../core/user/user_entity.dart';
@@ -78,36 +79,38 @@ class LocalNovelReaderPage extends ConsumerWidget {
     );
   }
 
-  /// A saved snapshot when it actually carries a body, else the imported TXT
-  /// lines.
+  /// The saved body (blocks, illustrations and page breaks) when the payload
+  /// carries one, else the imported TXT lines.
   static NovelEntity _entityFrom(LocalNovel novel, String text) {
     final payload = novel.payloadJson;
     if (payload == null) return _entityFor(novel, text);
-    final NovelEntity? saved;
+    final Object? decoded;
     try {
-      saved = NovelSnapshotCodec().decodeEntity(jsonDecode(payload));
+      decoded = jsonDecode(payload);
     } on FormatException {
       return _entityFor(novel, text);
     }
-    // The snapshot codec stores metadata only: a payload without a body must
-    // not shadow the text file, or the reader opens a blank page.
-    final hasBody =
-        saved != null &&
-        (saved.paragraphs.isNotEmpty ||
-            (saved.markup?.blocks.isNotEmpty ?? false));
-    if (!hasBody) return _entityFor(novel, text);
+    final metadata = NovelSnapshotCodec().decodeEntity(decoded);
+    final document = decodeNovelContent(
+      decoded is Map<String, dynamic> ? decoded['content'] : null,
+    );
+    if (document == null || document.blocks.isEmpty) {
+      return _entityFor(novel, text);
+    }
     // The negative id keeps the local copy disjoint from the real novel id
     // anywhere an id leaks into an observer.
     return NovelEntity(
       id: -novel.id,
-      title: saved.title,
-      caption: saved.caption,
-      user: saved.user,
-      tags: saved.tags,
-      textLength: saved.textLength,
-      contentVersion: saved.contentVersion,
-      paragraphs: saved.paragraphs,
-      markup: saved.markup,
+      title: metadata?.title ?? novel.title,
+      caption: metadata?.caption ?? '',
+      user:
+          metadata?.user ??
+          UserEntity(id: 0, name: novel.author ?? '', account: 'local'),
+      tags: metadata?.tags ?? const [],
+      textLength: metadata?.textLength ?? novel.charCount,
+      contentVersion: metadata?.contentVersion ?? 'local:${novel.id}',
+      paragraphs: document.paragraphs,
+      markup: document,
     );
   }
 
