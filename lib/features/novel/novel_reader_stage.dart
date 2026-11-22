@@ -657,8 +657,8 @@ class _NovelReaderStageState extends ConsumerState<NovelReaderStage>
                                               ),
                                             ),
                                             Text(
-                                              ' 路 ${_page + 1}/$_pageCount 路 $percent%'
-                                              '${bilingual && translatingPage ? ' 路 ${l10n.novelTranslating}' : ''}',
+                                              ' · ${_page + 1}/$_pageCount · $percent%'
+                                              '${bilingual && translatingPage ? ' · ${l10n.novelTranslating}' : ''}',
                                               maxLines: 1,
                                               style: hintStyle,
                                             ),
@@ -1057,7 +1057,7 @@ class _NovelReaderStageState extends ConsumerState<NovelReaderStage>
                         iconAlignment: IconAlignment.end,
                         icon: const Icon(UiIcons.expandLess),
                         label: Text(
-                          '${_page + 1}/$_pageCount 路 ${percent.round()}%',
+                          '${_page + 1}/$_pageCount · ${percent.round()}%',
                           semanticsLabel: l10n.novelReadingProgress,
                           maxLines: 1,
                           style: Theme.of(

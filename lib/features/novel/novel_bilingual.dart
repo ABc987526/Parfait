@@ -146,14 +146,25 @@ mixin BilingualReading<T extends ConsumerStatefulWidget> on ConsumerState<T> {
     }
     // The reader relayouts with the new map and reports its page again,
     // which translates the next batch.
+    var unchanged = 0;
+    final shown = <String>[];
+    for (final (index, id) in ids.indexed) {
+      final value = _shown(sources[index], results[index]);
+      if (value.isEmpty) unchanged++;
+      shown.add(value);
+    }
     setState(() {
       translatingPage = false;
       _translations = Map.unmodifiable({
         ..._translations,
-        for (final (index, id) in ids.indexed)
-          id: _shown(sources[index], results[index]),
+        for (final (index, id) in ids.indexed) id: shown[index],
       });
     });
+    if (translationOnly && unchanged == results.length) {
+      // Every paragraph came back as its own source: reading translations
+      // only would show the original and look like nothing happened.
+      showAppSnackBar(context, context.l10n.translationEchoed);
+    }
     unawaited(_persistTranslations(ids, sources, results, target));
   }
 

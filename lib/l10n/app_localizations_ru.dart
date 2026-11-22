@@ -3033,6 +3033,10 @@ class AppLocalizationsRu extends AppLocalizations {
   String get novelImageInsert => 'Вставить иллюстрацию';
 
   @override
+  String get translationEchoed =>
+      'Модель вернула текст без изменений — возможно, она не переводит';
+
+  @override
   String get novelImagePickParagraph =>
       'Выберите абзац, после которого она встанет';
 

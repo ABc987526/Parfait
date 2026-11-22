@@ -1697,6 +1697,7 @@
   "novelContinueFailed": "续写失败",
   "novelContinuing": "正在续写，请稍候…",
   "novelImageInsert": "插入插图",
+  "translationEchoed": "模型把原文原样返回了，可能没有在翻译；换模型或调整提示词试试",
   "novelImagePickParagraph": "选择插图放在哪一段之后",
   "novelImageInserted": "插图已插入",
   "novelImageInsertFailed": "插入插图失败",

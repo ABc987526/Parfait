@@ -5657,6 +5657,12 @@ abstract class AppLocalizations {
   /// **'插入插图'**
   String get novelImageInsert;
 
+  /// No description provided for @translationEchoed.
+  ///
+  /// In zh, this message translates to:
+  /// **'模型把原文原样返回了，可能没有在翻译；换模型或调整提示词试试'**
+  String get translationEchoed;
+
   /// No description provided for @novelImagePickParagraph.
   ///
   /// In zh, this message translates to:

@@ -3049,6 +3049,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get novelImageInsert => 'Insert an illustration';
 
   @override
+  String get translationEchoed =>
+      'The engine returned the text unchanged, so it may not be translating; try another model or prompt';
+
+  @override
   String get novelImagePickParagraph => 'Choose the paragraph it follows';
 
   @override

@@ -1221,6 +1221,7 @@
   "novelContinueFailed": "Не удалось продолжить историю",
   "novelContinuing": "Пишу продолжение…",
   "novelImageInsert": "Вставить иллюстрацию",
+  "translationEchoed": "Модель вернула текст без изменений — возможно, она не переводит",
   "novelImagePickParagraph": "Выберите абзац, после которого она встанет",
   "novelImageInserted": "Иллюстрация вставлена",
   "novelImageInsertFailed": "Не удалось вставить иллюстрацию",

@@ -1228,6 +1228,7 @@
   "novelContinueFailed": "Could not continue the story",
   "novelContinuing": "Writing the next part…",
   "novelImageInsert": "Insert an illustration",
+  "translationEchoed": "The engine returned the text unchanged, so it may not be translating; try another model or prompt",
   "novelImagePickParagraph": "Choose the paragraph it follows",
   "novelImageInserted": "Illustration inserted",
   "novelImageInsertFailed": "Could not insert the illustration",

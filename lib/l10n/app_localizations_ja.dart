@@ -2968,6 +2968,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get novelImageInsert => '挿絵を挿入';
 
   @override
+  String get translationEchoed => 'モデルが原文をそのまま返しました。翻訳していない可能性があります';
+
+  @override
   String get novelImagePickParagraph => 'どの段落の後に置くか選択';
 
   @override

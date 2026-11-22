@@ -2942,6 +2942,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get novelImageInsert => '插入插图';
 
   @override
+  String get translationEchoed => '模型把原文原样返回了，可能没有在翻译；换模型或调整提示词试试';
+
+  @override
   String get novelImagePickParagraph => '选择插图放在哪一段之后';
 
   @override

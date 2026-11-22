@@ -947,6 +947,7 @@ String l10nLookup(AppLocalizations l10n, String key) => switch (key) {
   'translateProvider' => l10n.translateProvider,
   'translateSettings' => l10n.translateSettings,
   'translationCopied' => l10n.translationCopied,
+  'translationEchoed' => l10n.translationEchoed,
   'translationFailed' => l10n.translationFailed,
   'translationHide' => l10n.translationHide,
   'translationInvalidCredentials' => l10n.translationInvalidCredentials,

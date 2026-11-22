@@ -1221,6 +1221,7 @@
   "novelContinueFailed": "続きを書けませんでした",
   "novelContinuing": "続きを書いています…",
   "novelImageInsert": "挿絵を挿入",
+  "translationEchoed": "モデルが原文をそのまま返しました。翻訳していない可能性があります",
   "novelImagePickParagraph": "どの段落の後に置くか選択",
   "novelImageInserted": "挿絵を挿入しました",
   "novelImageInsertFailed": "挿絵を挿入できませんでした",
