@@ -1488,5 +1488,30 @@
         "type": "int"
       }
     }
-  }
+  },
+  "translateLlmBuiltIn": "内蔵の公開エンドポイントを使用中（設定不要）",
+  "translateLlmBuiltInHint": "空欄のまま、またはクリアすると内蔵の公開エンドポイントを使います。自分のサーバーを入力すると上書きされます。",
+  "novelContinueHint": "段落を選んで続きを書き、字数も指定できます",
+  "novelContinueSheetHint": "生成結果は新しい本として保存され、元の本は変更されません",
+  "novelContinueFromEndHint": "最後の段落の後ろに続けて書く",
+  "novelContinueParagraph": "第 {index} 段落",
+  "@novelContinueParagraph": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
+  "novelContinueMode": "続きの入れ方",
+  "novelContinueInsertHint": "選んだ段落の後ろに挿入し、以降の本文は残す",
+  "novelContinueRewriteHint": "選んだ段落までを残し、以降は生成内容で置き換える",
+  "novelContinueWordsApprox": "約 {count} 字",
+  "@novelContinueWordsApprox": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "novelContinueDirectionHint": "例：主人公は村を出ることを決める"
 }

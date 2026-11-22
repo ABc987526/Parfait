@@ -1,5 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 
+import '../../app/icons/ui_icons.dart';
 import '../../app/motion/app_overlays.dart';
 import '../../app/theme/func_semantic_tokens.dart';
 import '../../l10n/context.dart';
@@ -25,7 +26,15 @@ class NovelContinuationRequest {
 
 const int _minWords = 100;
 const int _maxWords = 4000;
-const int _recentParagraphs = 12;
+
+/// The slider's granularity: one step per 100 characters, so a drag lands on a
+/// round number and the field beside it never shows an odd one.
+const int _wordStep = 100;
+const List<int> _wordPresets = [300, 500, 800, 1500];
+
+/// Tall enough for two rows plus a hint, short enough to leave the controls
+/// below visible on a phone.
+const double _positionListHeight = 224;
 
 Future<NovelContinuationRequest?> showNovelContinuationSheet(
   BuildContext context, {
@@ -55,24 +64,32 @@ class _NovelContinuationSheetState extends State<_NovelContinuationSheet> {
   int? _start;
   bool _rewrite = false;
 
-  /// The last few paragraphs are the ones a reader picks from; offering a
-  /// thousand radio rows would be worse than a short list.
-  List<int> get _pickable {
-    final total = widget.paragraphs.length;
-    final first = total <= _recentParagraphs ? 0 : total - _recentParagraphs;
-    return [for (var index = first; index < total; index++) index];
+  @override
+  void initState() {
+    super.initState();
+    // The slider and the field are one value: dragging rewrites the field,
+    // typing moves the slider. The listener rebuilds for both.
+    _words.addListener(_onWordsChanged);
+  }
+
+  void _onWordsChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
+    _words.removeListener(_onWordsChanged);
     _direction.dispose();
     _words.dispose();
     super.dispose();
   }
 
   String _excerpt(int index) {
-    final text = widget.paragraphs[index].trim().replaceAll('\n', ' ');
-    return text.length <= 24 ? text : '${text.substring(0, 24)}…';
+    final text = widget.paragraphs[index].trim().replaceAll(
+      RegExp(r'\s+'),
+      ' ',
+    );
+    return text.length <= 42 ? text : '${text.substring(0, 42)}…';
   }
 
   int get _wordCount {
@@ -80,104 +97,301 @@ class _NovelContinuationSheetState extends State<_NovelContinuationSheet> {
     return parsed.clamp(_minWords, _maxWords).toInt();
   }
 
+  /// One value for both controls; writing the field triggers the listener, so
+  /// the caller does not wrap this in its own setState.
+  void _selectWords(int value) {
+    final next = value.clamp(_minWords, _maxWords).toInt();
+    final text = '$next';
+    if (_words.text != text) _words.text = text;
+  }
+
+  void _submit() {
+    Navigator.pop(
+      context,
+      NovelContinuationRequest(
+        startIndex: _start,
+        rewrite: _rewrite && _start != null,
+        direction: _direction.text.trim(),
+        words: _wordCount,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final l10n = context.l10n;
+    final media = MediaQuery.of(context);
     return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(FuncSpacing.xl),
+      // The keyboard covers the sheet instead of shrinking it to nothing.
+      padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: media.size.height * 0.88),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              l10n.novelContinue,
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: FuncSpacing.md),
-            Text(
-              l10n.novelContinueStart,
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            const SizedBox(height: FuncSpacing.xs),
-            Wrap(
-              spacing: FuncSpacing.sm,
-              runSpacing: FuncSpacing.xs,
-              children: [
-                ChoiceChip(
-                  label: Text(l10n.novelContinueFromEnd),
-                  selected: _start == null,
-                  onSelected: (_) => setState(() => _start = null),
+            _header(context),
+            Flexible(
+              child: ListView(
+                padding: const EdgeInsetsDirectional.fromSTEB(
+                  FuncSpacing.xl,
+                  FuncSpacing.lg,
+                  FuncSpacing.xl,
+                  FuncSpacing.md,
                 ),
-                for (final index in _pickable)
-                  ChoiceChip(
-                    label: Text('${index + 1}'),
-                    selected: _start == index,
-                    onSelected: (_) => setState(() => _start = index),
-                  ),
-              ],
-            ),
-            if (_start case final start?) ...[
-              const SizedBox(height: FuncSpacing.xs),
-              Text(
-                _excerpt(start),
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: FuncSpacing.sm),
-              Wrap(
-                spacing: FuncSpacing.sm,
                 children: [
-                  ChoiceChip(
-                    label: Text(l10n.novelContinueInsert),
-                    selected: !_rewrite,
-                    onSelected: (_) => setState(() => _rewrite = false),
-                  ),
-                  ChoiceChip(
-                    label: Text(l10n.novelContinueRewrite),
-                    selected: _rewrite,
-                    onSelected: (_) => setState(() => _rewrite = true),
+                  _sectionLabel(context, context.l10n.novelContinueStart),
+                  const SizedBox(height: FuncSpacing.sm),
+                  _positionList(context),
+                  if (_start != null) ...[
+                    const SizedBox(height: FuncSpacing.lg),
+                    _sectionLabel(context, context.l10n.novelContinueMode),
+                    const SizedBox(height: FuncSpacing.sm),
+                    _ChoiceRow(
+                      selected: !_rewrite,
+                      title: context.l10n.novelContinueInsert,
+                      subtitle: context.l10n.novelContinueInsertHint,
+                      onTap: () => setState(() => _rewrite = false),
+                    ),
+                    _ChoiceRow(
+                      selected: _rewrite,
+                      title: context.l10n.novelContinueRewrite,
+                      subtitle: context.l10n.novelContinueRewriteHint,
+                      onTap: () => setState(() => _rewrite = true),
+                    ),
+                  ],
+                  const SizedBox(height: FuncSpacing.lg),
+                  _sectionLabel(context, context.l10n.novelContinueWords),
+                  const SizedBox(height: FuncSpacing.sm),
+                  _wordControls(context),
+                  const SizedBox(height: FuncSpacing.lg),
+                  _sectionLabel(context, context.l10n.novelContinueDirection),
+                  const SizedBox(height: FuncSpacing.sm),
+                  TextField(
+                    controller: _direction,
+                    minLines: 2,
+                    maxLines: 4,
+                    decoration: InputDecoration(
+                      hintText: context.l10n.novelContinueDirectionHint,
+                    ),
                   ),
                 ],
               ),
-            ],
-            const SizedBox(height: FuncSpacing.md),
-            TextField(
-              controller: _direction,
-              minLines: 2,
-              maxLines: 4,
-              decoration: InputDecoration(
-                labelText: l10n.novelContinueDirection,
+            ),
+            _footer(context),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _header(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsetsDirectional.fromSTEB(
+        FuncSpacing.xl,
+        FuncSpacing.lg,
+        FuncSpacing.xl,
+        0,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(context.l10n.novelContinue, style: theme.textTheme.titleLarge),
+          const SizedBox(height: FuncSpacing.xs),
+          Text(
+            context.l10n.novelContinueSheetHint,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Every paragraph is a choice, not only the last dozen: the model can be
+  /// asked to write into the middle of a chapter. The end comes first because
+  /// that is what most continuations want.
+  Widget _positionList(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      height: _positionListHeight,
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(FuncSpacing.md),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      child: ListView.builder(
+        padding: const EdgeInsets.symmetric(vertical: FuncSpacing.xs),
+        itemCount: widget.paragraphs.length + 1,
+        itemBuilder: (context, position) {
+          if (position == 0) {
+            return _ChoiceRow(
+              selected: _start == null,
+              title: context.l10n.novelContinueFromEnd,
+              subtitle: context.l10n.novelContinueFromEndHint,
+              onTap: () => setState(() => _start = null),
+            );
+          }
+          final index = position - 1;
+          return _ChoiceRow(
+            selected: _start == index,
+            title: context.l10n.novelContinueParagraph(index + 1),
+            subtitle: _excerpt(index),
+            onTap: () => setState(() => _start = index),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _wordControls(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Slider(
+                value: _wordCount.toDouble(),
+                min: _minWords.toDouble(),
+                max: _maxWords.toDouble(),
+                divisions: (_maxWords - _minWords) ~/ _wordStep,
+                label: '$_wordCount',
+                onChanged: (value) => _selectWords(value.round()),
               ),
             ),
-            TextField(
-              controller: _words,
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(labelText: l10n.novelContinueWords),
+            const SizedBox(width: FuncSpacing.sm),
+            SizedBox(
+              width: 88,
+              child: TextField(
+                controller: _words,
+                keyboardType: TextInputType.number,
+                textAlign: TextAlign.center,
+                decoration: const InputDecoration(isDense: true),
+              ),
             ),
-            const SizedBox(height: FuncSpacing.lg),
-            Row(
-              children: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: Text(l10n.cancel),
-                ),
-                const Spacer(),
-                FilledButton(
-                  onPressed: () => Navigator.pop(
-                    context,
-                    NovelContinuationRequest(
-                      startIndex: _start,
-                      rewrite: _rewrite,
-                      direction: _direction.text.trim(),
-                      words: _wordCount,
+          ],
+        ),
+        Wrap(
+          spacing: FuncSpacing.sm,
+          children: [
+            for (final preset in _wordPresets)
+              ChoiceChip(
+                label: Text('$preset'),
+                selected: _wordCount == preset,
+                onSelected: (_) => _selectWords(preset),
+              ),
+          ],
+        ),
+        const SizedBox(height: FuncSpacing.xs),
+        Text(
+          context.l10n.novelContinueWordsApprox(_wordCount),
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _footer(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsetsDirectional.fromSTEB(
+        FuncSpacing.xl,
+        FuncSpacing.sm,
+        FuncSpacing.xl,
+        FuncSpacing.lg,
+      ),
+      child: Row(
+        children: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(context.l10n.cancel),
+          ),
+          const Spacer(),
+          FilledButton(
+            onPressed: _submit,
+            child: Text(context.l10n.novelContinueGenerate),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _sectionLabel(BuildContext context, String text) => Text(
+    text,
+    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+      color: Theme.of(context).colorScheme.onSurfaceVariant,
+    ),
+  );
+}
+
+/// One selectable row: a check marker, a title and an optional preview line.
+/// Radio widgets are avoided on purpose — a screen of them reads as a form,
+/// while these rows are a list of paragraphs to drop the new part into.
+class _ChoiceRow extends StatelessWidget {
+  const _ChoiceRow({
+    required this.selected,
+    required this.title,
+    required this.onTap,
+    this.subtitle,
+  });
+
+  final bool selected;
+  final String title;
+  final String? subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: FuncSpacing.md,
+          vertical: FuncSpacing.sm,
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Icon(
+                selected ? UiIcons.checkCircle : UiIcons.circleUnchecked,
+                size: 18,
+                color: selected ? scheme.primary : scheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(width: FuncSpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: selected ? scheme.primary : null,
                     ),
                   ),
-                  child: Text(l10n.novelContinueGenerate),
-                ),
-              ],
+                  if (subtitle case final subtitle?) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             ),
           ],
         ),

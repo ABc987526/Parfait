@@ -3526,4 +3526,48 @@ class AppLocalizationsRu extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get translateLlmBuiltIn =>
+      'Используется встроенная публичная точка доступа (без настройки)';
+
+  @override
+  String get translateLlmBuiltInHint =>
+      'Оставьте поля пустыми или очистите их, чтобы использовать встроенную публичную точку доступа. Свой сервер её заменяет.';
+
+  @override
+  String get novelContinueHint =>
+      'Выберите абзац, задайте объём и сохраните как новую книгу';
+
+  @override
+  String get novelContinueSheetHint =>
+      'Результат сохраняется как новая книга; оригинал не меняется';
+
+  @override
+  String get novelContinueFromEndHint => 'Продолжить после последнего абзаца';
+
+  @override
+  String novelContinueParagraph(int index) {
+    return 'Абзац $index';
+  }
+
+  @override
+  String get novelContinueMode => 'Как разместить текст';
+
+  @override
+  String get novelContinueInsertHint =>
+      'Вставить после выбранного абзаца, остальное сохранить';
+
+  @override
+  String get novelContinueRewriteHint =>
+      'Оставить книгу до выбранного абзаца, остальное заменить';
+
+  @override
+  String novelContinueWordsApprox(int count) {
+    return 'Около $count знаков';
+  }
+
+  @override
+  String get novelContinueDirectionHint =>
+      'Например: герой решает покинуть деревню';
 }

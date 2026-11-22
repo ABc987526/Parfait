@@ -391,10 +391,9 @@ class LlmTranslationTransport
         TranslationFailureKind.unsupportedLanguage,
       );
     }
-    final credentials = await _store.readLlm();
-    if (credentials == null) {
-      throw const TranslationUnavailable(TranslationFailureKind.notConfigured);
-    }
+    // A saved server wins; otherwise the bundled endpoint answers, so
+    // translation works before the user configures anything.
+    final credentials = await resolveLlmCredentials(_store);
     final endpoint = llmChatCompletionsEndpoint(credentials.baseUrl);
     if (endpoint == null) {
       throw const TranslationError(
@@ -625,10 +624,9 @@ class LlmTranslationTransport
   /// kept apart so a batch failure can fall back without touching the
   /// single-text path.
   Future<String> _batchRequest(String userText) async {
-    final credentials = await _store.readLlm();
-    if (credentials == null) {
-      throw const TranslationUnavailable(TranslationFailureKind.notConfigured);
-    }
+    // A saved server wins; otherwise the bundled endpoint answers, so
+    // translation works before the user configures anything.
+    final credentials = await resolveLlmCredentials(_store);
     final endpoint = llmChatCompletionsEndpoint(credentials.baseUrl);
     if (endpoint == null) {
       throw const TranslationError(
@@ -784,17 +782,19 @@ final translationEngineSignatureProvider = FutureProvider.family<String, int>((
 ) async {
   final settings = ref.watch(settingsProvider).value;
   final provider =
-      settings?.translationProvider ?? TranslationProvider.disabled;
+      settings?.translationProvider ?? TranslationProvider.translationLlm;
   switch (provider) {
     case TranslationProvider.translationLlm:
-      final credentials = await ref
-          .watch(translationCredentialStoreProvider)
-          .readLlm();
+      final credentials = await resolveLlmCredentials(
+        ref.watch(translationCredentialStoreProvider),
+      );
       final own = await ref
           .watch(localNovelRepositoryProvider)
           .readNovelPrompt(novelId);
-      final model = credentials?.model ?? '';
-      final tuning = '${credentials?.prompt ?? ''}\u0000${own ?? ''}';
+      final model = credentials.model ?? '';
+      final tuning =
+          '${credentials.baseUrl}\u0000${credentials.prompt ?? ''}\u0000'
+          '${own ?? ''}';
       return 'llm:$model:${_shortDigest(tuning)}';
     case TranslationProvider.indexTranslate:
       final model = settings?.indexTranslateModel.name ?? '';
@@ -819,7 +819,7 @@ String _shortDigest(String value) {
 /// request.
 final _translationSelectionProvider = Provider<TranslationProvider>((ref) {
   return ref.watch(settingsProvider).value?.translationProvider ??
-      TranslationProvider.disabled;
+      TranslationProvider.translationLlm;
 });
 
 class ConfiguredTranslationService implements TranslationTransport {

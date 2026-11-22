@@ -7,11 +7,16 @@
          configured address (image source, DoH, LLM, system proxy) is on
          the local network. See LocalNetworkChannel. -->
     <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />
+    <!-- Plain HTTP stays allowed: the bundled translation endpoint and any
+         self-hosted model server a user configures have no certificate the
+         app can verify. Pixiv's own hosts are compiled in as https, so this
+         never downgrades them. -->
     <application
         android:label="Parfait"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
-        android:enableOnBackInvokedCallback="true">
+        android:enableOnBackInvokedCallback="true"
+        android:usesCleartextTraffic="true">
         <activity
             android:name=".MainActivity"
             android:exported="true"

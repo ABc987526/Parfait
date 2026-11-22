@@ -3409,4 +3409,41 @@ class AppLocalizationsZh extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get translateLlmBuiltIn => '使用内置公共接口（免配置）';
+
+  @override
+  String get translateLlmBuiltInHint => '留空或清除后自动使用内置公共接口；填写自己的接口会覆盖它。';
+
+  @override
+  String get novelContinueHint => '选段落续写、设定字数，另存为新书';
+
+  @override
+  String get novelContinueSheetHint => '生成的内容另存为一本新书，原书不会被修改';
+
+  @override
+  String get novelContinueFromEndHint => '在最后一段之后接着写';
+
+  @override
+  String novelContinueParagraph(int index) {
+    return '第 $index 段';
+  }
+
+  @override
+  String get novelContinueMode => '续写方式';
+
+  @override
+  String get novelContinueInsertHint => '把新段落插在所选段落之后，后面的原文保留';
+
+  @override
+  String get novelContinueRewriteHint => '新书只保留到所选段落，之后用新内容替换';
+
+  @override
+  String novelContinueWordsApprox(int count) {
+    return '约 $count 字';
+  }
+
+  @override
+  String get novelContinueDirectionHint => '例如：主角决定离开村子';
 }

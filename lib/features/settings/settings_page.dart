@@ -939,8 +939,12 @@ class _TranslationSummaryState extends ConsumerState<_TranslationSummary>
         // never invents a state.
         if (state == null) return Text(label);
         final l10n = context.l10n;
+        // Nothing saved under the LLM entry is not "unconfigured": the
+        // bundled endpoint answers until the user enters a server.
         final status = state
             ? l10n.settingsCredentialConfigured
+            : widget.provider == TranslationProvider.translationLlm
+            ? l10n.translateLlmBuiltIn
             : l10n.settingsCredentialNotConfigured;
         return Text('$label · $status');
       },

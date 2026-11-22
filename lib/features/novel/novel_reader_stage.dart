@@ -1308,20 +1308,21 @@ class _NovelReaderStageState extends ConsumerState<NovelReaderStage>
             ),
             if (novel.id < 0)
               ListTile(
+                leading: const Icon(AppIcons.edit),
+                title: Text(sheetContext.l10n.novelContinue),
+                subtitle: Text(sheetContext.l10n.novelContinueHint),
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  unawaited(_continueNovel());
+                },
+              ),
+            if (novel.id < 0)
+              ListTile(
                 leading: const Icon(AppIcons.illust),
                 title: Text(sheetContext.l10n.novelImageInsert),
                 onTap: () {
                   Navigator.of(sheetContext).pop();
                   unawaited(_insertIllustration());
-                },
-              ),
-            if (novel.id < 0)
-              ListTile(
-                leading: const Icon(AppIcons.edit),
-                title: Text(sheetContext.l10n.novelContinue),
-                onTap: () {
-                  Navigator.of(sheetContext).pop();
-                  unawaited(_continueNovel());
                 },
               ),
           ],

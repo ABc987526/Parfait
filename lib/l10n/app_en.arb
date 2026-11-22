@@ -1495,5 +1495,30 @@
         "type": "int"
       }
     }
-  }
+  },
+  "translateLlmBuiltIn": "Using the built-in public endpoint (no setup)",
+  "translateLlmBuiltInHint": "Leave the form empty, or clear it, to use the built-in public endpoint. Your own server overrides it.",
+  "novelContinueHint": "Pick a paragraph, set a length, save as a new book",
+  "novelContinueSheetHint": "The result is saved as a new book; the original stays untouched",
+  "novelContinueFromEndHint": "Keep writing after the last paragraph",
+  "novelContinueParagraph": "Paragraph {index}",
+  "@novelContinueParagraph": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
+  "novelContinueMode": "How to place the new text",
+  "novelContinueInsertHint": "Insert after the chosen paragraph and keep the rest",
+  "novelContinueRewriteHint": "Keep the book up to the chosen paragraph and replace the rest",
+  "novelContinueWordsApprox": "About {count} characters",
+  "@novelContinueWordsApprox": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "novelContinueDirectionHint": "For example: the protagonist decides to leave the village"
 }

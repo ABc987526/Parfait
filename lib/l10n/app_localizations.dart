@@ -6490,6 +6490,72 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'{count, plural, other{已加入收藏队列（{count} 项）}}'**
   String batchBookmarkEnqueued(int count);
+
+  /// No description provided for @translateLlmBuiltIn.
+  ///
+  /// In zh, this message translates to:
+  /// **'使用内置公共接口（免配置）'**
+  String get translateLlmBuiltIn;
+
+  /// No description provided for @translateLlmBuiltInHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'留空或清除后自动使用内置公共接口；填写自己的接口会覆盖它。'**
+  String get translateLlmBuiltInHint;
+
+  /// No description provided for @novelContinueHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'选段落续写、设定字数，另存为新书'**
+  String get novelContinueHint;
+
+  /// No description provided for @novelContinueSheetHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'生成的内容另存为一本新书，原书不会被修改'**
+  String get novelContinueSheetHint;
+
+  /// No description provided for @novelContinueFromEndHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'在最后一段之后接着写'**
+  String get novelContinueFromEndHint;
+
+  /// No description provided for @novelContinueParagraph.
+  ///
+  /// In zh, this message translates to:
+  /// **'第 {index} 段'**
+  String novelContinueParagraph(int index);
+
+  /// No description provided for @novelContinueMode.
+  ///
+  /// In zh, this message translates to:
+  /// **'续写方式'**
+  String get novelContinueMode;
+
+  /// No description provided for @novelContinueInsertHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'把新段落插在所选段落之后，后面的原文保留'**
+  String get novelContinueInsertHint;
+
+  /// No description provided for @novelContinueRewriteHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'新书只保留到所选段落，之后用新内容替换'**
+  String get novelContinueRewriteHint;
+
+  /// No description provided for @novelContinueWordsApprox.
+  ///
+  /// In zh, this message translates to:
+  /// **'约 {count} 字'**
+  String novelContinueWordsApprox(int count);
+
+  /// No description provided for @novelContinueDirectionHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'例如：主角决定离开村子'**
+  String get novelContinueDirectionHint;
 }
 
 class _AppLocalizationsDelegate

@@ -259,6 +259,7 @@ class _TranslationCredentialsPageState
           _baseUrlController.clear();
           _apiKeyController.clear();
           _modelController.clear();
+          _promptController.clear();
         }
         setState(() {
           _pristine = _snapshot();
@@ -314,6 +315,21 @@ class _TranslationCredentialsPageState
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         const SizedBox(height: FuncSpacing.sm),
+                        // The bundled endpoint is what answers while the form
+                        // is empty, so the page has to say so: an empty form
+                        // here is not "translation is off".
+                        if (!widget.baidu) ...[
+                          Text(
+                            context.l10n.translateLlmBuiltInHint,
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
+                                ),
+                          ),
+                          const SizedBox(height: FuncSpacing.md),
+                        ],
                         ..._fields(),
                         Reveal(
                           child: switch (_status) {

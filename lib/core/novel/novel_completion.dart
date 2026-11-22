@@ -33,10 +33,7 @@ class NovelCompleter {
     required int words,
     String? workPrompt,
   }) async {
-    final credentials = await _store.readLlm();
-    if (credentials == null) {
-      throw const TranslationUnavailable(TranslationFailureKind.notConfigured);
-    }
+    final credentials = await resolveLlmCredentials(_store);
     final endpoint = llmChatCompletionsEndpoint(credentials.baseUrl);
     if (endpoint == null) {
       throw const TranslationError(

@@ -75,6 +75,38 @@ class LlmTranslationCredentials {
   String toString() => 'LlmTranslationCredentials(baseUrl: $baseUrl)';
 }
 
+/// The endpoint this fork bundles so a fresh install can translate a page
+/// without setting anything up first.
+///
+/// The key is public and shared by every install: it is a best-effort free
+/// tier, not a private account. Saving credentials of your own in
+/// Settings → Translation overrides it, and clearing them falls back to it.
+///
+/// Plain HTTP is deliberate — the gateway has no certificate the app can
+/// verify, and the key is already public.
+const LlmTranslationCredentials builtInLlmTranslationCredentials =
+    LlmTranslationCredentials(
+      baseUrl: 'http://38.76.216.232:17870/v1',
+      apiKey: 'sk-kui-g4-8f3a51c7d2e94b60',
+      model: 'gemma4-26b-abl',
+    );
+
+/// The credentials an LLM request should use: the stored ones when the user
+/// configured a server, the bundled endpoint otherwise.
+///
+/// A secure store that cannot be read degrades to the bundled endpoint instead
+/// of disabling translation: the keystore failing on a device says nothing
+/// about the network.
+Future<LlmTranslationCredentials> resolveLlmCredentials(
+  TranslationCredentialStore store,
+) async {
+  try {
+    return await store.readLlm() ?? builtInLlmTranslationCredentials;
+  } on TranslationCredentialsStoreException {
+    return builtInLlmTranslationCredentials;
+  }
+}
+
 /// The chat-completions endpoint of a user-configured OpenAI-compatible
 /// base URL, or null when [baseUrl] cannot be one.
 ///

@@ -3534,4 +3534,49 @@ class AppLocalizationsEn extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get translateLlmBuiltIn =>
+      'Using the built-in public endpoint (no setup)';
+
+  @override
+  String get translateLlmBuiltInHint =>
+      'Leave the form empty, or clear it, to use the built-in public endpoint. Your own server overrides it.';
+
+  @override
+  String get novelContinueHint =>
+      'Pick a paragraph, set a length, save as a new book';
+
+  @override
+  String get novelContinueSheetHint =>
+      'The result is saved as a new book; the original stays untouched';
+
+  @override
+  String get novelContinueFromEndHint =>
+      'Keep writing after the last paragraph';
+
+  @override
+  String novelContinueParagraph(int index) {
+    return 'Paragraph $index';
+  }
+
+  @override
+  String get novelContinueMode => 'How to place the new text';
+
+  @override
+  String get novelContinueInsertHint =>
+      'Insert after the chosen paragraph and keep the rest';
+
+  @override
+  String get novelContinueRewriteHint =>
+      'Keep the book up to the chosen paragraph and replace the rest';
+
+  @override
+  String novelContinueWordsApprox(int count) {
+    return 'About $count characters';
+  }
+
+  @override
+  String get novelContinueDirectionHint =>
+      'For example: the protagonist decides to leave the village';
 }

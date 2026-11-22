@@ -190,7 +190,12 @@ void main() {
           .cast<Map<String, dynamic>>()
           .toList();
       expect(messages.first['role'], 'system');
-      expect(messages.last['content'] as String, contains('Translate into zh'));
+      // The target is named, not coded: a local model does not know that
+      // `zh` means Chinese and answers with the source unchanged.
+      expect(
+        messages.last['content'] as String,
+        contains('Translate into Chinese'),
+      );
     });
 
     test('posts to a plain HTTP endpoint on a self-hosted server', () async {
@@ -227,6 +232,37 @@ void main() {
         requested,
         Uri.parse('http://192.168.1.9:8080/v1/chat/completions'),
       );
+    });
+
+    test('falls back to the bundled endpoint when nothing is stored', () async {
+      store.llm = null;
+      late Uri requested;
+      late Map<String, dynamic> body;
+      final service = LlmTranslationTransport(
+        MockClient((request) async {
+          requested = request.url;
+          body = jsonDecode(request.body) as Map<String, dynamic>;
+          return http.Response.bytes(
+            utf8.encode(
+              jsonEncode({
+                'choices': [
+                  {
+                    'message': {'content': '你好'},
+                  },
+                ],
+              }),
+            ),
+            200,
+          );
+        }),
+        store,
+        unrestricted,
+      );
+
+      expect(await service.translate('hello', targetLanguage: 'zh'), '你好');
+      expect(requested.host, '38.76.216.232');
+      expect(requested.path, '/v1/chat/completions');
+      expect(body['model'], 'gemma4-26b-abl');
     });
 
     test('appends the stored prompt to the fixed contract', () async {
@@ -571,10 +607,10 @@ void main() {
       expect(llm.toString(), isNot(contains('APIKEY-VALUE-xyz')));
     });
 
-    test('default settings resolve to disabled for fresh installs', () {
+    test('a fresh install translates with the bundled endpoint', () {
       expect(
         AppSettings.defaults().translationProvider,
-        TranslationProvider.disabled,
+        TranslationProvider.translationLlm,
       );
     });
   });

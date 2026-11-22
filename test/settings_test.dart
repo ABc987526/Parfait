@@ -861,14 +861,18 @@ void main() {
 
     // A provider switch reuses the summary State — the probe must
     // follow the new provider instead of showing baidu's stale 已配置
-    // under the llm label.
+    // under the llm label. Nothing saved for the LLM entry means the
+    // bundled endpoint answers, not "unconfigured".
     final element = tester.element(find.byType(SettingsPage));
     await ProviderScope.containerOf(element)
         .read(settingsProvider.notifier)
         .selectTranslationProvider(TranslationProvider.translationLlm);
     await tester.pumpAndSettle();
 
-    expect(find.text('自定义 LLM（OpenAI 兼容） · 未配置'), findsOneWidget);
+    expect(
+      find.text('自定义 LLM（OpenAI 兼容） · 使用内置公共接口（免配置）'),
+      findsOneWidget,
+    );
     expect(find.textContaining('已配置'), findsNothing);
   });
 

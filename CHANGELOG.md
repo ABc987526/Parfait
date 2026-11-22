@@ -40,6 +40,8 @@ User-facing changes in each Parfait release. The format follows [Keep a Changelo
 - **保存的小说保留插图和分页：** 新增正文序列化（段落、章节标题、pixiv 分页、插图块及其解析信息），保存时一起落盘；阅读时按原样恢复排版，插图仍能加载。旧已保存的书重新保存一次即可获得插图。
 - **本地小说可以自己插图：** 阅读页「阅读选项 → 插入插图」选一个段落，再从文件/相册挑一张图，图片复制进应用目录并插在该段之后，随书显示、只在本机。
 - **修复本地 LLM 原样返回不翻译：** 目标语言改成自然语言名字（`Chinese (简体中文)`、`Japanese`…）而不是 `zh` 这类代码，并要求「不要原样返回原文」；不认识语言代码的本地模型（如 Gemma）现在会真正翻译。
+- **内置翻译服务：** App 自带一个公共翻译接口，「自定义 LLM」是默认引擎，装上就能翻评论和小说，不用填地址和密钥；想用自己的服务在「设置 → 翻译 → LLM 接口与密钥」里填，清除后回到内置接口。
+- **续写面板重做：** 「阅读选项 → 续写」直接列出全部段落（带原文预览）挑起点，字数用滑块、数字框和常用档位设定，再选「在后面插入」还是「重写后续」；生成的仍是另存的新书。
 
 ### 修复
 
@@ -90,6 +92,8 @@ User-facing changes in each Parfait release. The format follows [Keep a Changelo
 - **Saved novels keep their illustrations and page breaks:** a body serializer stores paragraphs, chapter headings, Pixiv page breaks and image blocks with their identifiers, so the layout restores as it was read and illustrations still load. A copy saved earlier needs one more save to gain them.
 - **A local novel takes your own illustrations:** Reading options → Insert an illustration picks a paragraph, then a picture; the file is copied into the app directory and placed after that paragraph, shown with the work and kept on this device only.
 - **Local LLMs now translate instead of echoing:** the target language is spelled out (Chinese (简体中文), Japanese…) rather than sent as a `zh`-style code, and the prompt says not to return the source unchanged, which is what code-unaware local models were doing.
+- **Built-in translation:** the app ships a public translation endpoint and Custom LLM is the default engine, so comments and novels translate on install without a URL or key. Enter your own server under Settings → Translation → LLM endpoint & key; clearing it returns to the built-in one.
+- **A rebuilt Continue sheet:** Reading options → Continue the story now lists every paragraph with a preview to pick the start from, sets the length with a slider, a number field and common presets, and offers insert-after or replace-the-rest; the result is still saved as a new book.
 
 ### Fixed
 

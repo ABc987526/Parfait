@@ -300,7 +300,10 @@ class AppSettings {
     this.animationSpeed = AnimationSpeed.normal,
     this.pressFeedback = true,
     this.hapticStrength = HapticStrength.standard,
-    this.translateIndex = 1,
+    // The bundled LLM endpoint is the pre-selected engine: a fresh install
+    // translates without configuring anything. Turning translation off stays
+    // one explicit choice away.
+    this.translateIndex = 3,
     this.indexTranslateModel = IndexTranslateModel.thirtyFiveBA3B,
     this.indexTranslateThinking = false,
     this.maxDownloadCount = defaultMaxDownloadCount,
@@ -824,7 +827,7 @@ class AppSettings {
 
   TranslationProvider get translationProvider =>
       TranslationProvider.fromCode(translateIndex) ??
-      TranslationProvider.disabled;
+      TranslationProvider.translationLlm;
 
   // Descriptive aliases used by consumers; beta56-compatible field names
   // remain the canonical public storage contract above.

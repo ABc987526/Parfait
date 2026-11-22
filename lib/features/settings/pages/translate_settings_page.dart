@@ -71,7 +71,12 @@ class _TranslateSettingsPageState extends ConsumerState<TranslateSettingsPage> {
     TranslationProvider.translationLlm => SettingsTile(
       icon: AppIcons.key,
       title: context.l10n.translateLlmCredential,
-      subtitle: _credentialStatus(_llmConfigured),
+      // Nothing saved is not "unconfigured" any more: the bundled endpoint
+      // answers until the user enters their own server.
+      subtitle: _credentialStatus(
+        _llmConfigured,
+        whenUnset: context.l10n.translateLlmBuiltIn,
+      ),
       onTap: () => _openTranslationCredentials(false),
     ),
     _ => null,
@@ -79,7 +84,7 @@ class _TranslateSettingsPageState extends ConsumerState<TranslateSettingsPage> {
 
   /// Subtitle under a credential entry. Pending or a store error renders
   /// nothing — the summary never invents a state.
-  Widget _credentialStatus(Future<bool>? configured) {
+  Widget _credentialStatus(Future<bool>? configured, {String? whenUnset}) {
     return FutureBuilder<bool>(
       future: configured,
       builder: (context, snapshot) {
@@ -88,7 +93,7 @@ class _TranslateSettingsPageState extends ConsumerState<TranslateSettingsPage> {
         return Text(
           state
               ? context.l10n.settingsCredentialConfigured
-              : context.l10n.settingsCredentialNotConfigured,
+              : whenUnset ?? context.l10n.settingsCredentialNotConfigured,
         );
       },
     );

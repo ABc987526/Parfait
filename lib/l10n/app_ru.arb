@@ -1488,5 +1488,30 @@
         "type": "int"
       }
     }
-  }
+  },
+  "translateLlmBuiltIn": "Используется встроенная публичная точка доступа (без настройки)",
+  "translateLlmBuiltInHint": "Оставьте поля пустыми или очистите их, чтобы использовать встроенную публичную точку доступа. Свой сервер её заменяет.",
+  "novelContinueHint": "Выберите абзац, задайте объём и сохраните как новую книгу",
+  "novelContinueSheetHint": "Результат сохраняется как новая книга; оригинал не меняется",
+  "novelContinueFromEndHint": "Продолжить после последнего абзаца",
+  "novelContinueParagraph": "Абзац {index}",
+  "@novelContinueParagraph": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
+  "novelContinueMode": "Как разместить текст",
+  "novelContinueInsertHint": "Вставить после выбранного абзаца, остальное сохранить",
+  "novelContinueRewriteHint": "Оставить книгу до выбранного абзаца, остальное заменить",
+  "novelContinueWordsApprox": "Около {count} знаков",
+  "@novelContinueWordsApprox": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "novelContinueDirectionHint": "Например: герой решает покинуть деревню"
 }

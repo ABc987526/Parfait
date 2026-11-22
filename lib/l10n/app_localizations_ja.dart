@@ -3437,4 +3437,42 @@ class AppLocalizationsJa extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get translateLlmBuiltIn => '内蔵の公開エンドポイントを使用中（設定不要）';
+
+  @override
+  String get translateLlmBuiltInHint =>
+      '空欄のまま、またはクリアすると内蔵の公開エンドポイントを使います。自分のサーバーを入力すると上書きされます。';
+
+  @override
+  String get novelContinueHint => '段落を選んで続きを書き、字数も指定できます';
+
+  @override
+  String get novelContinueSheetHint => '生成結果は新しい本として保存され、元の本は変更されません';
+
+  @override
+  String get novelContinueFromEndHint => '最後の段落の後ろに続けて書く';
+
+  @override
+  String novelContinueParagraph(int index) {
+    return '第 $index 段落';
+  }
+
+  @override
+  String get novelContinueMode => '続きの入れ方';
+
+  @override
+  String get novelContinueInsertHint => '選んだ段落の後ろに挿入し、以降の本文は残す';
+
+  @override
+  String get novelContinueRewriteHint => '選んだ段落までを残し、以降は生成内容で置き換える';
+
+  @override
+  String novelContinueWordsApprox(int count) {
+    return '約 $count 字';
+  }
+
+  @override
+  String get novelContinueDirectionHint => '例：主人公は村を出ることを決める';
 }

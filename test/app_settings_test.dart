@@ -31,7 +31,8 @@ void main() {
     expect(settings.enablePixivHistory, isTrue);
     expect(settings.enableLocalBlockR18, isFalse);
     expect(settings.enableLocalBlockAI, isFalse);
-    expect(settings.translateIndex, 1);
+    // The bundled LLM endpoint is the shipped default.
+    expect(settings.translateIndex, TranslationProvider.translationLlm.code);
     expect(settings.indexTranslateModel, IndexTranslateModel.thirtyFiveBA3B);
     expect(settings.indexTranslateThinking, isFalse);
     expect(settings.maxDownloadCount, 3);
@@ -97,7 +98,8 @@ void main() {
     expect(settings.maxDownloadCount, 3);
     expect(settings.namingRule.preset, NamingPreset.custom);
     expect(settings.namingRule.template, 'artist_{id}');
-    expect(settings.translateIndex, 1);
+    // The bundled LLM endpoint is the shipped default.
+    expect(settings.translateIndex, TranslationProvider.translationLlm.code);
   });
 
   test('the desktop window place round-trips; damage falls back', () {
@@ -237,7 +239,8 @@ void main() {
     expect(settings.languageTag, 'en-US');
     expect(settings.themeCode, AppSettings.systemTheme);
     expect(settings.maxDownloadCount, 7);
-    expect(settings.translateIndex, 1);
+    // The bundled LLM endpoint is the shipped default.
+    expect(settings.translateIndex, TranslationProvider.translationLlm.code);
   });
 
   test(
