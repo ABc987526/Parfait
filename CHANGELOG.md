@@ -42,6 +42,7 @@ User-facing changes in each Parfait release. The format follows [Keep a Changelo
 - **修复本地 LLM 原样返回不翻译：** 目标语言改成自然语言名字（`Chinese (简体中文)`、`Japanese`…）而不是 `zh` 这类代码，并要求「不要原样返回原文」；不认识语言代码的本地模型（如 Gemma）现在会真正翻译。
 - **内置翻译服务：** App 自带一个公共翻译接口，「自定义 LLM」是默认引擎，装上就能翻评论和小说，不用填地址和密钥；想用自己的服务在「设置 → 翻译 → LLM 接口与密钥」里填，清除后回到内置接口。
 - **续写面板重做：** 「阅读选项 → 续写」直接列出全部段落（带原文预览）挑起点，字数用滑块、数字框和常用档位设定，再选「在后面插入」还是「重写后续」；生成的仍是另存的新书。
+- **翻译请求改成流式读取：** 本地模型翻一整页要一两分钟，以前 40 秒的总超时会直接放弃这次请求，而服务器还在继续生成、把单并发的位置占住，后面的请求只能排队——看起来就像「服务挂了」。现在边生成边读，只有连续 2 分钟没有任何输出才算失败；整页还会按约 1500 字切成几次请求，一段卡住不再拖垮整页。续写（最长几千字）同样改成流式读取。
 
 ### 修复
 
@@ -95,6 +96,7 @@ User-facing changes in each Parfait release. The format follows [Keep a Changelo
 - **Local LLMs now translate instead of echoing:** the target language is spelled out (Chinese (简体中文), Japanese…) rather than sent as a `zh`-style code, and the prompt says not to return the source unchanged, which is what code-unaware local models were doing.
 - **Built-in translation:** the app ships a public translation endpoint and Custom LLM is the default engine, so comments and novels translate on install without a URL or key. Enter your own server under Settings → Translation → LLM endpoint & key; clearing it returns to the built-in one.
 - **A rebuilt Continue sheet:** Reading options → Continue the story now lists every paragraph with a preview to pick the start from, sets the length with a slider, a number field and common presets, and offers insert-after or replace-the-rest; the result is still saved as a new book.
+- **Translations are read as they stream in:** a local model needs a minute or two for a page, and the old 40-second total timeout gave up on it while the server kept generating — holding the single slot and making every later request queue, which looked like the service was gone. The reply is now read as it arrives and only two minutes of silence fails it; a page is also split into requests of about 1500 characters so one stuck chunk no longer costs the page. Continuation, which runs to thousands of characters, streams the same way.
 
 ### Fixed
 

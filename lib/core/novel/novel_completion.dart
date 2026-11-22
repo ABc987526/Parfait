@@ -18,7 +18,14 @@ import '../translation/translation_service.dart';
 class NovelCompleter {
   NovelCompleter(this._client, this._store, this._localNetwork);
 
-  static const _timeout = Duration(seconds: 180);
+  /// Waiting for the reply's headers; a cold model still loading shows up
+  /// here rather than in the generation budget.
+  static const _connectTimeout = Duration(seconds: 30);
+
+  /// No byte for this long fails the request. A continuation is up to a few
+  /// thousand characters, so silence is the only real failure.
+  static const _stallTimeout = Duration(seconds: 180);
+
   static const _maxResponseBytes = 512 * 1024;
 
   final http.Client _client;
@@ -65,21 +72,23 @@ class NovelCompleter {
       ..headers['Content-Type'] = 'application/json'
       ..headers['Authorization'] = 'Bearer ${credentials.apiKey}'
       ..headers['User-Agent'] = 'Parfait/1.0'
+      ..headers['Accept'] = 'text/event-stream'
       ..body = jsonEncode({
         'model': (credentials.model?.isEmpty ?? true)
             ? 'gpt-4o-mini'
             : credentials.model,
         'temperature': 0.8,
+        // A few thousand characters of prose takes a local model minutes.
+        // Reading the reply as it streams means only silence ends it.
+        'stream': true,
         'messages': [
           {'role': 'system', 'content': system},
           {'role': 'user', 'content': user},
         ],
       });
-    final http.Response response;
+    final http.StreamedResponse response;
     try {
-      response = await http.Response.fromStream(
-        await _client.send(request).timeout(_timeout),
-      ).timeout(_timeout);
+      response = await _client.send(request).timeout(_connectTimeout);
     } on TimeoutException {
       throw const TranslationError(
         'novel completion timed out',
@@ -114,43 +123,71 @@ class NovelCompleter {
         TranslationFailureKind.network,
       );
     }
-    if (response.bodyBytes.length > _maxResponseBytes) {
-      throw const TranslationError(
-        'novel completion response too large',
-        TranslationFailureKind.malformed,
-      );
-    }
-    final dynamic decoded;
+    final answer = StringBuffer();
+    final raw = StringBuffer();
+    var streamed = false;
+    var seen = 0;
     try {
-      decoded = jsonDecode(utf8.decode(response.bodyBytes));
-    } on FormatException {
+      await for (final line
+          in response.stream
+              .transform(utf8.decoder)
+              .transform(const LineSplitter())
+              .timeout(_stallTimeout)) {
+        seen += line.length;
+        if (seen > _maxResponseBytes) {
+          throw const TranslationError(
+            'novel completion response too large',
+            TranslationFailureKind.malformed,
+          );
+        }
+        final trimmed = line.trim();
+        if (!trimmed.startsWith('data:')) {
+          raw.writeln(line);
+          continue;
+        }
+        streamed = true;
+        final payload = trimmed.substring(5).trim();
+        if (payload.isEmpty) continue;
+        if (payload == '[DONE]') break;
+        final piece = llmStreamedDelta(payload);
+        if (piece != null) answer.write(piece);
+      }
+    } on TimeoutException {
+      throw const TranslationError(
+        'novel completion stalled',
+        TranslationFailureKind.network,
+      );
+    } on SocketException {
+      throw const TranslationError(
+        'novel completion network failure',
+        TranslationFailureKind.network,
+      );
+    } on http.ClientException {
+      throw const TranslationError(
+        'novel completion network failure',
+        TranslationFailureKind.network,
+      );
+    }
+    var text = streamed && answer.isNotEmpty ? answer.toString().trim() : '';
+    if (text.isEmpty) {
+      final Object? decoded;
+      try {
+        decoded = jsonDecode(raw.toString());
+      } on FormatException {
+        throw const TranslationError(
+          'malformed response',
+          TranslationFailureKind.malformed,
+        );
+      }
+      text = llmMessageContent(decoded) ?? '';
+    }
+    if (text.isEmpty) {
       throw const TranslationError(
         'malformed response',
         TranslationFailureKind.malformed,
       );
     }
-    final content = _contentOf(decoded);
-    if (content == null) {
-      throw const TranslationError(
-        'malformed response',
-        TranslationFailureKind.malformed,
-      );
-    }
-    return content;
-  }
-
-  static String? _contentOf(Object? decoded) {
-    if (decoded is! Map<String, dynamic>) return null;
-    final choices = decoded['choices'];
-    if (choices is! List || choices.isEmpty) return null;
-    final first = choices.first;
-    if (first is! Map<String, dynamic>) return null;
-    final message = first['message'];
-    if (message is! Map<String, dynamic>) return null;
-    final content = message['content'];
-    if (content is! String) return null;
-    final text = content.trim();
-    return text.isEmpty ? null : text;
+    return text;
   }
 }
 

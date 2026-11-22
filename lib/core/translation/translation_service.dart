@@ -351,8 +351,20 @@ class LlmTranslationTransport
     implements TranslationTransport {
   LlmTranslationTransport(this._client, this._store, this._localNetwork);
 
-  static const _timeout = Duration(seconds: 40);
+  /// Waiting for the reply's headers. A local model that is still loading
+  /// shows up here, not in the generation budget.
+  static const _connectTimeout = Duration(seconds: 30);
+
+  /// No byte for this long fails the request: a model that is still
+  /// generating keeps the connection busy, a dead one goes quiet.
+  static const _stallTimeout = Duration(seconds: 120);
+
   static const _maxResponseBytes = 256 * 1024;
+
+  /// Source characters per batch request. A page's answer from a local model
+  /// takes minutes; keeping each request this small keeps one slow chunk from
+  /// costing the whole page.
+  static const _batchMaxChars = 1500;
   static const _basePrompt =
       'You are a translation engine for Pixiv text. Translate the user '
       'text into the requested language. Return only the translation with no '
@@ -409,89 +421,22 @@ class LlmTranslationTransport
         TranslationFailureKind.localNetwork,
       );
     }
-    final request = http.Request('POST', endpoint)
-      ..headers['Content-Type'] = 'application/json'
-      ..headers['Authorization'] = 'Bearer ${credentials.apiKey}'
-      ..headers['User-Agent'] = 'Parfait/1.0'
-      ..body = jsonEncode({
-        'model': (credentials.model?.isEmpty ?? true)
-            ? 'gpt-4o-mini'
-            : credentials.model,
-        'temperature': 0.2,
-        'messages': [
-          {'role': 'system', 'content': _systemPrompt(credentials.prompt)},
-          {
-            'role': 'user',
-            'content': _userPrompt(
-              target: target,
-              source: source,
-              extra: credentials.prompt,
-            ),
-          },
-        ],
-      });
-    final http.Response response;
-    try {
-      response = await http.Response.fromStream(
-        await _client.send(request).timeout(_timeout),
-      ).timeout(_timeout);
-    } on TimeoutException {
-      throw const TranslationError(
-        'translation timed out',
-        TranslationFailureKind.network,
-      );
-    } on SocketException {
-      throw const TranslationError(
-        'translation network failure',
-        TranslationFailureKind.network,
-      );
-    } on http.ClientException {
-      throw const TranslationError(
-        'translation network failure',
-        TranslationFailureKind.network,
-      );
-    }
-    if (response.statusCode == 401 || response.statusCode == 403) {
-      throw const TranslationError(
-        'LLM credentials invalid',
-        TranslationFailureKind.invalidCredentials,
-      );
-    }
-    if (response.statusCode == 429) {
-      throw const TranslationError(
-        'LLM rate limited',
-        TranslationFailureKind.rateLimited,
-      );
-    }
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw const TranslationError(
-        'LLM http failure',
-        TranslationFailureKind.network,
-      );
-    }
-    if (response.bodyBytes.length > _maxResponseBytes) {
-      throw const TranslationError(
-        'LLM response too large',
-        TranslationFailureKind.malformed,
-      );
-    }
-    final dynamic decoded;
-    try {
-      decoded = jsonDecode(utf8.decode(response.bodyBytes));
-    } on FormatException {
-      throw const TranslationError(
-        'malformed response',
-        TranslationFailureKind.malformed,
-      );
-    }
-    final content = _extractContent(decoded);
-    if (content == null) {
-      throw const TranslationError(
-        'malformed response',
-        TranslationFailureKind.malformed,
-      );
-    }
-    return content;
+    return _chat(
+      endpoint: endpoint,
+      credentials: credentials,
+      temperature: 0.2,
+      messages: [
+        {'role': 'system', 'content': _systemPrompt(credentials.prompt)},
+        {
+          'role': 'user',
+          'content': _userPrompt(
+            target: target,
+            source: source,
+            extra: credentials.prompt,
+          ),
+        },
+      ],
+    );
   }
 
   /// The user turn repeats the requirements because not every server keeps
@@ -533,9 +478,13 @@ class LlmTranslationTransport
     _ => code,
   };
 
-  /// A page's paragraphs in one round trip: the model answers with the same
-  /// `[[n]]` markers, and a batch that comes back incomplete falls back to
-  /// the per-item path rather than showing a half-translated page.
+  /// A page's paragraphs in a few round trips: the model answers with the same
+  /// `[[n]]` markers, and a batch that comes back incomplete falls back to the
+  /// per-item path rather than showing a half-translated page.
+  ///
+  /// The page is split by source length: a local model on a 16 GB card spends
+  /// minutes generating one big answer, and one stalled chunk should not take
+  /// the whole page with it.
   ///
   /// Only the LLM transport batches: Google's and Baidu's endpoints take one
   /// text per call, and Index Translate's public contract does too.
@@ -552,17 +501,13 @@ class LlmTranslationTransport
     if (filled.length < 2) {
       return super.translateAll(texts, targetLanguage: targetLanguage);
     }
-    final String answer;
+    var translated = const <String>[];
     try {
       final target = _languageName(_targetOf(targetLanguage));
-      final numbered = [
-        for (final (index, text) in filled.indexed) '[[${index + 1}]]\n$text',
-      ].join('\n\n');
-      answer = await _batchRequest(
-        'Translate every segment below into $target. Keep each [[n]] marker '
-        'at the start of its translated segment, in order, and return no '
-        'commentary:\n\n$numbered',
-      );
+      translated = [
+        for (final chunk in _chunks(filled))
+          ...await _translateChunk(chunk, target, targetLanguage),
+      ];
     } on TranslationError catch (error) {
       // A wrong key, a rate limit or a network failure fails the same way one
       // request per paragraph, so it is not worth another round trip.
@@ -575,16 +520,59 @@ class LlmTranslationTransport
     } on Object {
       return super.translateAll(texts, targetLanguage: targetLanguage);
     }
-    final segments = _splitNumbered(answer);
-    if (segments.length != filled.length) {
-      return super.translateAll(texts, targetLanguage: targetLanguage);
-    }
     final out = <String>[];
     var next = 0;
     for (final source in sources) {
-      out.add(source.isEmpty ? '' : segments[next++]);
+      out.add(source.isEmpty ? '' : translated[next++]);
     }
     return out;
+  }
+
+  /// One chunk, in one request when it holds more than one segment. A
+  /// one-segment chunk is just [translate]: a batch marker would cost more
+  /// prompt than it saves.
+  Future<List<String>> _translateChunk(
+    List<String> chunk,
+    String target,
+    String targetLanguage,
+  ) async {
+    if (chunk.length == 1) {
+      return [await translate(chunk.single, targetLanguage: targetLanguage)];
+    }
+    final numbered = [
+      for (final (index, text) in chunk.indexed) '[[${index + 1}]]\n$text',
+    ].join('\n\n');
+    final answer = await _batchRequest(
+      'Translate every segment below into $target. Keep each [[n]] marker '
+      'at the start of its translated segment, in order, and return no '
+      'commentary:\n\n$numbered',
+    );
+    final segments = _splitNumbered(answer);
+    if (segments.length != chunk.length) {
+      return [
+        for (final text in chunk)
+          await translate(text, targetLanguage: targetLanguage),
+      ];
+    }
+    return segments;
+  }
+
+  /// Splits [texts] into groups whose sources stay under [_batchMaxChars].
+  static List<List<String>> _chunks(List<String> texts) {
+    final chunks = <List<String>>[];
+    var current = <String>[];
+    var chars = 0;
+    for (final text in texts) {
+      if (current.isNotEmpty && chars + text.length > _batchMaxChars) {
+        chunks.add(current);
+        current = [];
+        chars = 0;
+      }
+      current.add(text);
+      chars += text.length;
+    }
+    if (current.isNotEmpty) chunks.add(current);
+    return chunks;
   }
 
   static String _targetOf(String targetLanguage) {
@@ -650,25 +638,47 @@ class LlmTranslationTransport
     final user = requirement.isEmpty
         ? userText
         : 'Requirements for the translation: $requirement\n\n$userText';
+    return _chat(
+      endpoint: endpoint,
+      credentials: credentials,
+      temperature: 0.2,
+      messages: [
+        {'role': 'system', 'content': system},
+        {'role': 'user', 'content': user},
+      ],
+    );
+  }
+
+  /// One chat completion, read as it arrives.
+  ///
+  /// The reply is streamed instead of awaited whole: a 26B model on a 16 GB
+  /// card needs minutes for a page, and a total timeout killed exactly the
+  /// requests that were still producing tokens — which also left the server
+  /// generating for a client that had already given up. [_stallTimeout] only
+  /// fires when the connection goes silent, so a slow answer survives and a
+  /// dead one still ends.
+  Future<String> _chat({
+    required Uri endpoint,
+    required LlmTranslationCredentials credentials,
+    required double temperature,
+    required List<Map<String, String>> messages,
+  }) async {
     final request = http.Request('POST', endpoint)
       ..headers['Content-Type'] = 'application/json'
       ..headers['Authorization'] = 'Bearer ${credentials.apiKey}'
       ..headers['User-Agent'] = 'Parfait/1.0'
+      ..headers['Accept'] = 'text/event-stream'
       ..body = jsonEncode({
         'model': (credentials.model?.isEmpty ?? true)
             ? 'gpt-4o-mini'
             : credentials.model,
-        'temperature': 0.2,
-        'messages': [
-          {'role': 'system', 'content': system},
-          {'role': 'user', 'content': user},
-        ],
+        'temperature': temperature,
+        'stream': true,
+        'messages': messages,
       });
-    final http.Response response;
+    final http.StreamedResponse response;
     try {
-      response = await http.Response.fromStream(
-        await _client.send(request).timeout(_timeout),
-      ).timeout(_timeout);
+      response = await _client.send(request).timeout(_connectTimeout);
     } on TimeoutException {
       throw const TranslationError(
         'translation timed out',
@@ -685,62 +695,143 @@ class LlmTranslationTransport
         TranslationFailureKind.network,
       );
     }
-    if (response.statusCode == 401 || response.statusCode == 403) {
+    _checkStatus(response.statusCode);
+    final answer = StringBuffer();
+    final raw = StringBuffer();
+    var streamed = false;
+    var seen = 0;
+    try {
+      await for (final line
+          in response.stream
+              .transform(utf8.decoder)
+              .transform(const LineSplitter())
+              .timeout(_stallTimeout)) {
+        seen += line.length;
+        if (seen > _maxResponseBytes) {
+          throw const TranslationError(
+            'LLM response too large',
+            TranslationFailureKind.malformed,
+          );
+        }
+        final trimmed = line.trim();
+        if (!trimmed.startsWith('data:')) {
+          raw.writeln(line);
+          continue;
+        }
+        streamed = true;
+        final payload = trimmed.substring(5).trim();
+        if (payload.isEmpty) continue;
+        if (payload == '[DONE]') break;
+        final piece = _deltaContent(payload);
+        if (piece != null) answer.write(piece);
+      }
+    } on TimeoutException {
+      throw const TranslationError(
+        'LLM reply stalled',
+        TranslationFailureKind.network,
+      );
+    } on SocketException {
+      throw const TranslationError(
+        'translation network failure',
+        TranslationFailureKind.network,
+      );
+    } on http.ClientException {
+      throw const TranslationError(
+        'translation network failure',
+        TranslationFailureKind.network,
+      );
+    }
+    // A server that ignored `stream` answers with one JSON body: read that
+    // instead of failing an otherwise good reply.
+    final text = streamed && answer.isNotEmpty
+        ? answer.toString().trim()
+        : (_nonStreamed(raw.toString()) ?? '').trim();
+    if (text.isEmpty) {
+      throw const TranslationError(
+        'malformed response',
+        TranslationFailureKind.malformed,
+      );
+    }
+    return text;
+  }
+
+  static void _checkStatus(int statusCode) {
+    if (statusCode == 401 || statusCode == 403) {
       throw const TranslationError(
         'LLM credentials invalid',
         TranslationFailureKind.invalidCredentials,
       );
     }
-    if (response.statusCode == 429) {
+    if (statusCode == 429) {
       throw const TranslationError(
         'LLM rate limited',
         TranslationFailureKind.rateLimited,
       );
     }
-    if (response.statusCode < 200 || response.statusCode >= 300) {
+    if (statusCode < 200 || statusCode >= 300) {
       throw const TranslationError(
         'LLM http failure',
         TranslationFailureKind.network,
       );
     }
-    if (response.bodyBytes.length > _maxResponseBytes) {
-      throw const TranslationError(
-        'LLM response too large',
-        TranslationFailureKind.malformed,
-      );
-    }
-    final dynamic decoded;
-    try {
-      decoded = jsonDecode(utf8.decode(response.bodyBytes));
-    } on FormatException {
-      throw const TranslationError(
-        'malformed response',
-        TranslationFailureKind.malformed,
-      );
-    }
-    final content = _extractContent(decoded);
-    if (content == null) {
-      throw const TranslationError(
-        'malformed response',
-        TranslationFailureKind.malformed,
-      );
-    }
-    return content;
   }
 
-  static String? _extractContent(Object? decoded) {
-    if (decoded is! Map<String, dynamic>) return null;
-    final choices = decoded['choices'];
-    if (choices is! List || choices.isEmpty) return null;
-    final first = choices.first;
-    if (first is! Map<String, dynamic>) return null;
-    final message = first['message'];
-    if (message is! Map<String, dynamic>) return null;
-    final content = message['content'];
-    if (content is! String) return null;
-    final trimmed = content.trim();
-    return trimmed.isEmpty ? null : trimmed;
+  /// The text one streamed chunk carries: OpenAI sends it under `delta`, a
+  /// server that ignored streaming sends the whole `message` once.
+  static String? _deltaContent(String payload) => llmStreamedDelta(payload);
+
+  static String? _nonStreamed(String body) {
+    if (body.trim().isEmpty) return null;
+    final Object? decoded;
+    try {
+      decoded = jsonDecode(body);
+    } on FormatException {
+      return null;
+    }
+    return _extractContent(decoded);
   }
+
+  static String? _extractContent(Object? decoded) => llmMessageContent(decoded);
+}
+
+/// The text a streamed chat chunk carries, or null when the chunk holds no
+/// text (a role-only opener, a keep-alive, a malformed line). Both `delta` and
+/// `message` are read: a server that ignored `stream` answers once with the
+/// whole message.
+String? llmStreamedDelta(String payload) {
+  final Object? decoded;
+  try {
+    decoded = jsonDecode(payload);
+  } on FormatException {
+    return null;
+  }
+  if (decoded is! Map<String, dynamic>) return null;
+  final choices = decoded['choices'];
+  if (choices is! List || choices.isEmpty) return null;
+  final first = choices.first;
+  if (first is! Map<String, dynamic>) return null;
+  for (final key in const ['delta', 'message']) {
+    final part = first[key];
+    if (part is! Map<String, dynamic>) continue;
+    final content = part['content'];
+    if (content is String && content.isNotEmpty) return content;
+  }
+  return null;
+}
+
+/// The text of a whole chat completion body, or null when it holds none.
+String? llmMessageContent(Object? decoded) {
+  if (decoded is! Map<String, dynamic>) return null;
+  final choices = decoded['choices'];
+  if (choices is! List || choices.isEmpty) return null;
+  final first = choices.first;
+  if (first is! Map<String, dynamic>) return null;
+  final message = first['message'];
+  if (message is! Map<String, dynamic>) return null;
+  final content = message['content'];
+  if (content is! String) return null;
+  final trimmed = content.trim();
+  return trimmed.isEmpty ? null : trimmed;
 }
 
 final translationServiceProvider = Provider<TranslationTransport>((ref) {

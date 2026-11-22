@@ -198,6 +198,35 @@ void main() {
       );
     });
 
+    test('reads a streamed reply, so a slow answer is not cut off', () async {
+      store.llm = const LlmTranslationCredentials(
+        baseUrl: 'https://llm.example.com/v1',
+        apiKey: 'key-secret',
+      );
+      final service = LlmTranslationTransport(
+        MockClient((request) async {
+          expect(
+            (jsonDecode(request.body) as Map<String, dynamic>)['stream'],
+            isTrue,
+          );
+          return http.Response.bytes(
+            utf8.encode(
+              'data: {"choices":[{"delta":{"role":"assistant"}}]}\n'
+              'data: {"choices":[{"delta":{"content":"你"}}]}\n'
+              'data: {"choices":[{"delta":{"content":"好"}}]}\n'
+              'data: [DONE]\n',
+            ),
+            200,
+            headers: {'content-type': 'text/event-stream; charset=utf-8'},
+          );
+        }),
+        store,
+        unrestricted,
+      );
+
+      expect(await service.translate('hello', targetLanguage: 'zh'), '你好');
+    });
+
     test('posts to a plain HTTP endpoint on a self-hosted server', () async {
       store.llm = const LlmTranslationCredentials(
         baseUrl: 'http://192.168.1.9:8080/v1',
@@ -368,7 +397,8 @@ void main() {
       ], targetLanguage: 'zh');
 
       expect(result, ['甲', '甲']);
-      expect(requests, 2);
+      // One batch attempt, then one request per paragraph.
+      expect(requests, 3);
     });
 
     test('rejects an endpoint that is not an HTTP(S) URL', () async {
