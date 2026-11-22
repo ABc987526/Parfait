@@ -2141,5 +2141,31 @@
       }
     }
   },
-  "novelContinueDirectionHint": "例如：主角决定离开村子"
+  "novelContinueDirectionHint": "例如：主角决定离开村子",
+  "novelTranslationRunning": "正在翻译本页…",
+  "novelTranslationLastFailure": "上次翻译失败：{reason}",
+  "@novelTranslationLastFailure": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "novelTranslationLastEchoed": "上次有 {count} 段被模型原样返回，没有译文",
+  "@novelTranslationLastEchoed": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "novelTranslationPending": "本页还有 {count} 段没有译文",
+  "@novelTranslationPending": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "novelTranslationReady": "本页译文已就绪"
 }

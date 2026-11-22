@@ -37,6 +37,22 @@ mixin BilingualReading<T extends ConsumerStatefulWidget> on ConsumerState<T> {
   /// A batch is being translated.
   bool translatingPage = false;
 
+  /// Why the last batch produced nothing, kept for the reading options to
+  /// state: a snackbar is gone before anyone reads it, and "nothing happened"
+  /// is the hardest thing to report.
+  TranslationFailureKind? lastFailure;
+
+  /// How many paragraphs of the last batch the engine handed back unchanged.
+  int lastEchoed = 0;
+
+  /// Paragraphs of the page on screen that still have no translation.
+  int get pendingTranslations {
+    final layout = bilingualReader.layout?.call();
+    final page = bilingualReader.currentPage?.call();
+    if (layout == null || page == null) return 0;
+    return _untranslated(layout, page).length;
+  }
+
   /// Whether the page holds translations to take back or redo.
   bool get hasTranslations => _translations.isNotEmpty;
 
@@ -86,6 +102,8 @@ mixin BilingualReading<T extends ConsumerStatefulWidget> on ConsumerState<T> {
       // A re-translate is the reader saying the old answer was not good
       // enough: give the echoed paragraphs another chance too.
       _echoed.clear();
+      lastFailure = null;
+      lastEchoed = 0;
     });
     _skipCacheOnce = true;
     await _translateAhead();
@@ -146,6 +164,7 @@ mixin BilingualReading<T extends ConsumerStatefulWidget> on ConsumerState<T> {
     if (failure != null) {
       setState(() {
         translatingPage = false;
+        lastFailure = failure;
         bilingual = false;
         // Translations-only with no translation is source text wearing the
         // mode's name: switch it off so the page stops pretending, and say
@@ -182,6 +201,8 @@ mixin BilingualReading<T extends ConsumerStatefulWidget> on ConsumerState<T> {
     }
     setState(() {
       translatingPage = false;
+      lastFailure = null;
+      lastEchoed = unchanged;
       _translations = Map.unmodifiable(next);
       _echoed
         ..clear()

@@ -3570,4 +3570,25 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get novelContinueDirectionHint =>
       'Например: герой решает покинуть деревню';
+
+  @override
+  String get novelTranslationRunning => 'Перевод этой страницы…';
+
+  @override
+  String novelTranslationLastFailure(String reason) {
+    return 'Прошлая попытка не удалась: $reason';
+  }
+
+  @override
+  String novelTranslationLastEchoed(int count) {
+    return '$count абзацев вернулись без изменений — показывать нечего';
+  }
+
+  @override
+  String novelTranslationPending(int count) {
+    return 'На этой странице ещё $count абзацев без перевода';
+  }
+
+  @override
+  String get novelTranslationReady => 'Перевод этой страницы готов';
 }

@@ -3475,4 +3475,25 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get novelContinueDirectionHint => '例：主人公は村を出ることを決める';
+
+  @override
+  String get novelTranslationRunning => 'このページを翻訳中…';
+
+  @override
+  String novelTranslationLastFailure(String reason) {
+    return '前回の翻訳は失敗しました：$reason';
+  }
+
+  @override
+  String novelTranslationLastEchoed(int count) {
+    return '$count 段落が原文のまま返ってきたため、表示できる訳文がありません';
+  }
+
+  @override
+  String novelTranslationPending(int count) {
+    return 'このページに未翻訳の段落が $count 件あります';
+  }
+
+  @override
+  String get novelTranslationReady => 'このページの翻訳はそろっています';
 }

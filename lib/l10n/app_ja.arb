@@ -1513,5 +1513,31 @@
       }
     }
   },
-  "novelContinueDirectionHint": "例：主人公は村を出ることを決める"
+  "novelContinueDirectionHint": "例：主人公は村を出ることを決める",
+  "novelTranslationRunning": "このページを翻訳中…",
+  "novelTranslationLastFailure": "前回の翻訳は失敗しました：{reason}",
+  "@novelTranslationLastFailure": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "novelTranslationLastEchoed": "{count} 段落が原文のまま返ってきたため、表示できる訳文がありません",
+  "@novelTranslationLastEchoed": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "novelTranslationPending": "このページに未翻訳の段落が {count} 件あります",
+  "@novelTranslationPending": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "novelTranslationReady": "このページの翻訳はそろっています"
 }

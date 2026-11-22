@@ -1513,5 +1513,31 @@
       }
     }
   },
-  "novelContinueDirectionHint": "Например: герой решает покинуть деревню"
+  "novelContinueDirectionHint": "Например: герой решает покинуть деревню",
+  "novelTranslationRunning": "Перевод этой страницы…",
+  "novelTranslationLastFailure": "Прошлая попытка не удалась: {reason}",
+  "@novelTranslationLastFailure": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "novelTranslationLastEchoed": "{count} абзацев вернулись без изменений — показывать нечего",
+  "@novelTranslationLastEchoed": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "novelTranslationPending": "На этой странице ещё {count} абзацев без перевода",
+  "@novelTranslationPending": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "novelTranslationReady": "Перевод этой страницы готов"
 }

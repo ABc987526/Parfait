@@ -3446,4 +3446,25 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get novelContinueDirectionHint => '例如：主角决定离开村子';
+
+  @override
+  String get novelTranslationRunning => '正在翻译本页…';
+
+  @override
+  String novelTranslationLastFailure(String reason) {
+    return '上次翻译失败：$reason';
+  }
+
+  @override
+  String novelTranslationLastEchoed(int count) {
+    return '上次有 $count 段被模型原样返回，没有译文';
+  }
+
+  @override
+  String novelTranslationPending(int count) {
+    return '本页还有 $count 段没有译文';
+  }
+
+  @override
+  String get novelTranslationReady => '本页译文已就绪';
 }

@@ -1520,5 +1520,31 @@
       }
     }
   },
-  "novelContinueDirectionHint": "For example: the protagonist decides to leave the village"
+  "novelContinueDirectionHint": "For example: the protagonist decides to leave the village",
+  "novelTranslationRunning": "Translating this page…",
+  "novelTranslationLastFailure": "The last attempt failed: {reason}",
+  "@novelTranslationLastFailure": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "novelTranslationLastEchoed": "{count} paragraphs came back as the source, so there is nothing to show",
+  "@novelTranslationLastEchoed": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "novelTranslationPending": "{count} paragraphs on this page have no translation yet",
+  "@novelTranslationPending": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "novelTranslationReady": "This page is translated"
 }

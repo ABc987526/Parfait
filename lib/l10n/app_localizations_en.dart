@@ -3579,4 +3579,25 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get novelContinueDirectionHint =>
       'For example: the protagonist decides to leave the village';
+
+  @override
+  String get novelTranslationRunning => 'Translating this page…';
+
+  @override
+  String novelTranslationLastFailure(String reason) {
+    return 'The last attempt failed: $reason';
+  }
+
+  @override
+  String novelTranslationLastEchoed(int count) {
+    return '$count paragraphs came back as the source, so there is nothing to show';
+  }
+
+  @override
+  String novelTranslationPending(int count) {
+    return '$count paragraphs on this page have no translation yet';
+  }
+
+  @override
+  String get novelTranslationReady => 'This page is translated';
 }

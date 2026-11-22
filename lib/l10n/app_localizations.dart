@@ -6556,6 +6556,36 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'例如：主角决定离开村子'**
   String get novelContinueDirectionHint;
+
+  /// No description provided for @novelTranslationRunning.
+  ///
+  /// In zh, this message translates to:
+  /// **'正在翻译本页…'**
+  String get novelTranslationRunning;
+
+  /// No description provided for @novelTranslationLastFailure.
+  ///
+  /// In zh, this message translates to:
+  /// **'上次翻译失败：{reason}'**
+  String novelTranslationLastFailure(String reason);
+
+  /// No description provided for @novelTranslationLastEchoed.
+  ///
+  /// In zh, this message translates to:
+  /// **'上次有 {count} 段被模型原样返回，没有译文'**
+  String novelTranslationLastEchoed(int count);
+
+  /// No description provided for @novelTranslationPending.
+  ///
+  /// In zh, this message translates to:
+  /// **'本页还有 {count} 段没有译文'**
+  String novelTranslationPending(int count);
+
+  /// No description provided for @novelTranslationReady.
+  ///
+  /// In zh, this message translates to:
+  /// **'本页译文已就绪'**
+  String get novelTranslationReady;
 }
 
 class _AppLocalizationsDelegate

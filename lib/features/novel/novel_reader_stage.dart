@@ -17,6 +17,7 @@ import '../../app/widgets/app_spinner.dart';
 import '../../app/system_ui.dart';
 import '../../app/widgets/app_snack_bar.dart';
 import '../../app/widgets/app_top_bar.dart';
+import '../../app/widgets/inline_translation.dart';
 import '../../app/widgets/errors/error_details.dart';
 import '../../app/widgets/feed/feed_states.dart';
 import '../../app/widgets/watchlist_toggle.dart';
@@ -1271,8 +1272,28 @@ class _NovelReaderStageState extends ConsumerState<NovelReaderStage>
     ];
   }
 
+  /// One line describing where translation stands for the page on screen:
+  /// in flight, why the last batch gave nothing, or what is still missing.
+  String _translationStatus(BuildContext context) {
+    final l10n = context.l10n;
+    if (translatingPage) return l10n.novelTranslationRunning;
+    if (lastFailure case final failure?) {
+      return l10n.novelTranslationLastFailure(
+        translationFailureText(context, failure),
+      );
+    }
+    if (lastEchoed > 0) return l10n.novelTranslationLastEchoed(lastEchoed);
+    final pending = pendingTranslations;
+    if (pending > 0) return l10n.novelTranslationPending(pending);
+    return l10n.novelTranslationReady;
+  }
+
   /// Actions for a page that already has translations: redo them, or give
   /// this work its own prompt.
+  ///
+  /// The first line states what the last batch did. A translation that shows
+  /// nothing looks identical to one that never ran, and the snackbar that
+  /// explained it is gone by the time the reader wonders why.
   void _showTranslationActions(BuildContext context) {
     _showReaderSideSheet(
       isScrollControlled: true,
@@ -1280,6 +1301,23 @@ class _NovelReaderStageState extends ConsumerState<NovelReaderStage>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            Padding(
+              padding: const EdgeInsetsDirectional.fromSTEB(
+                FuncSpacing.lg,
+                FuncSpacing.md,
+                FuncSpacing.lg,
+                FuncSpacing.xs,
+              ),
+              child: Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: Text(
+                  _translationStatus(sheetContext),
+                  style: Theme.of(sheetContext).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(sheetContext).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ),
             SwitchListTile(
               secondary: const Icon(AppIcons.translate),
               title: Text(sheetContext.l10n.novelTranslationOnly),
