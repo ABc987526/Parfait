@@ -44,6 +44,14 @@ mixin BilingualReading<T extends ConsumerStatefulWidget> on ConsumerState<T> {
   Map<String, String> _sources = const {};
   String? _sourcesVersion;
 
+  /// Paragraphs the engine handed back unchanged. They are not translations,
+  /// so nothing shows for them, but asking again on every settle would spend
+  /// a request per page for a paragraph that is already in the target
+  /// language. Kept apart from [_translations] so a retry, a re-translate or
+  /// a new prompt can try again, and so an echoed answer never enters the
+  /// cache as if it were a translation.
+  final Set<String> _echoed = {};
+
   /// What the last cache read covered (`localId|language|engine`), so a page
   /// turn does not read the same rows again.
   String? _cacheKey;
@@ -73,7 +81,12 @@ mixin BilingualReading<T extends ConsumerStatefulWidget> on ConsumerState<T> {
   /// their cached rows. The reader's re-translate action calls this.
   Future<void> retranslate() async {
     if (translatingPage) return;
-    setState(() => _translations = const {});
+    setState(() {
+      _translations = const {};
+      // A re-translate is the reader saying the old answer was not good
+      // enough: give the echoed paragraphs another chance too.
+      _echoed.clear();
+    });
     _skipCacheOnce = true;
     await _translateAhead();
   }
@@ -83,6 +96,7 @@ mixin BilingualReading<T extends ConsumerStatefulWidget> on ConsumerState<T> {
   void invalidateTranslations() {
     setState(() {
       _translations = const {};
+      _echoed.clear();
       _cacheKey = null;
     });
   }
@@ -130,12 +144,16 @@ mixin BilingualReading<T extends ConsumerStatefulWidget> on ConsumerState<T> {
     }
     if (!mounted) return;
     if (failure != null) {
-      final shown = bilingual;
       setState(() {
         translatingPage = false;
         bilingual = false;
+        // Translations-only with no translation is source text wearing the
+        // mode's name: switch it off so the page stops pretending, and say
+        // why whether it was turned on as bilingual reading or as
+        // translations only.
+        translationOnly = false;
       });
-      if (shown) _showFailure(failure);
+      _showFailure(failure);
       return;
     }
     if (version != bilingualNovel.contentVersion) {
@@ -147,18 +165,27 @@ mixin BilingualReading<T extends ConsumerStatefulWidget> on ConsumerState<T> {
     // The reader relayouts with the new map and reports its page again,
     // which translates the next batch.
     var unchanged = 0;
-    final shown = <String>[];
+    final next = {..._translations};
+    final echoed = {..._echoed};
     for (final (index, id) in ids.indexed) {
       final value = _shown(sources[index], results[index]);
-      if (value.isEmpty) unchanged++;
-      shown.add(value);
+      if (value.isEmpty) {
+        // The engine returned the source: remember it so this page is not
+        // re-asked, but show and cache nothing for it.
+        unchanged++;
+        echoed.add(id);
+        next.remove(id);
+      } else {
+        next[id] = value;
+        echoed.remove(id);
+      }
     }
     setState(() {
       translatingPage = false;
-      _translations = Map.unmodifiable({
-        ..._translations,
-        for (final (index, id) in ids.indexed) id: shown[index],
-      });
+      _translations = Map.unmodifiable(next);
+      _echoed
+        ..clear()
+        ..addAll(echoed);
     });
     if (translationOnly && unchanged == results.length) {
       // Every paragraph came back as its own source: reading translations
@@ -204,9 +231,13 @@ mixin BilingualReading<T extends ConsumerStatefulWidget> on ConsumerState<T> {
       if (!mounted || _cacheKey != key || stored.isEmpty) return;
       setState(() {
         _translations = Map.unmodifiable({
+          // An empty row is not a translation: rows written by an engine that
+          // echoed its input used to be stored as blanks and would otherwise
+          // shadow a real answer forever.
           for (final entry in stored.entries)
-            for (final id in idsByHash[entry.key] ?? const <String>[])
-              id: entry.value,
+            if (entry.value.trim().isNotEmpty)
+              for (final id in idsByHash[entry.key] ?? const <String>[])
+                id: entry.value,
           ..._translations,
         });
       });
@@ -229,8 +260,13 @@ mixin BilingualReading<T extends ConsumerStatefulWidget> on ConsumerState<T> {
     for (var index = 0; index < ids.length; index++) {
       final source = sources[index];
       if (source.trim().isEmpty) continue;
-      entries[_sourceHash(source)] = _shown(source, results[index]);
+      final value = _shown(source, results[index]);
+      // Blanks are not translations; caching one would make every later open
+      // read it back as "already translated" and show nothing.
+      if (value.isEmpty) continue;
+      entries[_sourceHash(source)] = value;
     }
+    if (entries.isEmpty) return;
     try {
       await ref
           .read(localNovelRepositoryProvider)
@@ -253,6 +289,7 @@ mixin BilingualReading<T extends ConsumerStatefulWidget> on ConsumerState<T> {
     final blocks = novel.markup?.blocks ?? novel.paragraphs;
     _sources = {for (final block in blocks) block.id: block.plainText};
     _translations = const {};
+    _echoed.clear();
     _cacheKey = null;
   }
 
@@ -263,7 +300,10 @@ mixin BilingualReading<T extends ConsumerStatefulWidget> on ConsumerState<T> {
     for (final line in layout.pages[page].lines) {
       final id = line.paragraphId;
       if (line.isTranslation || line.isTitleBlock) continue;
-      if (_translations.containsKey(id)) continue;
+      if ((_translations[id] ?? '').isNotEmpty) continue;
+      // Asked before and answered with the source: another request would get
+      // the same answer, so this page is done with it.
+      if (_echoed.contains(id)) continue;
       if ((_sources[id] ?? '').trim().isEmpty) continue;
       ids.add(id);
     }

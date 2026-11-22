@@ -45,6 +45,7 @@ User-facing changes in each Parfait release. The format follows [Keep a Changelo
 
 ### 修复
 
+- **修复「只显示译文」整页还是原文：** 模型原样返回原文的段落，以前被当作「已翻译」处理，还把空文本写进了译文缓存；重开书后这些空记录又被读回来当成缓存命中，于是整页一直显示原文、点「只显示译文」像没反应。现在空回答不进缓存、读缓存时忽略空记录、并会重新请求一次；翻译失败时也一定会提示（以前只有双语模式才提示），同时自动退出「只显示译文」，不再让原文顶着译文的模式。
 - 横屏窗口里的特辑文章，封面按原比例限高并居中，打开文章就能看到正文开头；加载中的占位也守住同一高度。
 - 宽屏的个人主页，名字、分享和关注按钮收在一个内容宽度里，不再分处窗口两端。
 - 设置、下载、评论、收藏标签和登录这些限宽页面，宽窗口里顶栏的返回键和操作按钮与内容列对齐。
@@ -97,6 +98,7 @@ User-facing changes in each Parfait release. The format follows [Keep a Changelo
 
 ### Fixed
 
+- **Translations only used to show the source:** a paragraph the engine handed back unchanged was treated as translated, and the blank that stands for "no translation" was written to the translation cache; reopening the book read those blanks back as cache hits, so the page stayed in its source language and the Translations only switch looked dead. Blank answers are no longer cached, blank rows are ignored on restore and asked again, and a failed batch now always reports itself (bilingual reading used to be the only mode that did) and leaves Translations only instead of showing the source under a translated label.
 - In a landscape window, a spotlight article's cover keeps its ratio at a capped height and is centred, so the article opens on its first lines; the loading placeholder keeps the same height.
 - On a wide profile, the name, share and follow controls stay within one content width instead of sitting at the window's two edges.
 - On wide windows, the top bars of the width-capped pages (settings, downloads, comments, bookmark tags, sign-in) line their back button and actions up with the content column.
