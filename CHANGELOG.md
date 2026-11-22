@@ -39,6 +39,7 @@ User-facing changes in each Parfait release. The format follows [Keep a Changelo
 - **修复保存的小说打开白屏：** 落盘时存的那份「快照」其实只有元数据、没有正文，阅读器却优先用它；现在快照不含正文时改用文本文件，已经保存过的书不用重存也能正常显示。
 - **保存的小说保留插图和分页：** 新增正文序列化（段落、章节标题、pixiv 分页、插图块及其解析信息），保存时一起落盘；阅读时按原样恢复排版，插图仍能加载。旧已保存的书重新保存一次即可获得插图。
 - **本地小说可以自己插图：** 阅读页「阅读选项 → 插入插图」选一个段落，再从文件/相册挑一张图，图片复制进应用目录并插在该段之后，随书显示、只在本机。
+- **修复本地 LLM 原样返回不翻译：** 目标语言改成自然语言名字（`Chinese (简体中文)`、`Japanese`…）而不是 `zh` 这类代码，并要求「不要原样返回原文」；不认识语言代码的本地模型（如 Gemma）现在会真正翻译。
 
 ### 修复
 
@@ -88,6 +89,7 @@ User-facing changes in each Parfait release. The format follows [Keep a Changelo
 - **A saved novel no longer opens blank:** the stored snapshot holds metadata only, and the reader preferred it over the text file; a payload without a body now falls back to the text, so copies saved before this build open correctly too.
 - **Saved novels keep their illustrations and page breaks:** a body serializer stores paragraphs, chapter headings, Pixiv page breaks and image blocks with their identifiers, so the layout restores as it was read and illustrations still load. A copy saved earlier needs one more save to gain them.
 - **A local novel takes your own illustrations:** Reading options → Insert an illustration picks a paragraph, then a picture; the file is copied into the app directory and placed after that paragraph, shown with the work and kept on this device only.
+- **Local LLMs now translate instead of echoing:** the target language is spelled out (Chinese (简体中文), Japanese…) rather than sent as a `zh`-style code, and the prompt says not to return the source unchanged, which is what code-unaware local models were doing.
 
 ### Fixed
 

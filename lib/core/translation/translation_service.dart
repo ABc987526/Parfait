@@ -507,9 +507,32 @@ class LlmTranslationTransport
     final style = requirement.isEmpty
         ? ''
         : '\nRequirements for this translation: $requirement';
-    return 'Translate into $target. Return only the translation.$style\n\n'
+    return 'Translate into ${_languageName(target)}. Return only the '
+        'translation, never the source unchanged.$style\n\n'
         '$source';
   }
+
+  /// The language a target code names, in words a model understands: a local
+  /// Gemma does not reliably know that `zh` means Chinese, and answers with
+  /// the source unchanged when it is asked to translate "into zh".
+  static String _languageName(String code) => switch (code) {
+    'zh' || 'zh-cn' || 'zh-hans' => 'Chinese (简体中文)',
+    'zh-tw' || 'zh-hant' => 'Traditional Chinese (繁體中文)',
+    'en' => 'English',
+    'ja' => 'Japanese (日本語)',
+    'ru' => 'Russian (русский)',
+    'ko' => 'Korean (한국어)',
+    'fr' => 'French (français)',
+    'de' => 'German (Deutsch)',
+    'es' => 'Spanish (español)',
+    'pt' => 'Portuguese (português)',
+    'it' => 'Italian (italiano)',
+    'ar' => 'Arabic (العربية)',
+    'th' => 'Thai (ไทย)',
+    'vi' => 'Vietnamese (Tiếng Việt)',
+    'id' => 'Indonesian (Bahasa Indonesia)',
+    _ => code,
+  };
 
   /// A page's paragraphs in one round trip: the model answers with the same
   /// `[[n]]` markers, and a batch that comes back incomplete falls back to
@@ -532,7 +555,7 @@ class LlmTranslationTransport
     }
     final String answer;
     try {
-      final target = _targetOf(targetLanguage);
+      final target = _languageName(_targetOf(targetLanguage));
       final numbered = [
         for (final (index, text) in filled.indexed) '[[${index + 1}]]\n$text',
       ].join('\n\n');
