@@ -1285,6 +1285,7 @@ class _NovelReaderStageState extends ConsumerState<NovelReaderStage>
     if (lastEchoed > 0) return l10n.novelTranslationLastEchoed(lastEchoed);
     final pending = pendingTranslations;
     if (pending > 0) return l10n.novelTranslationPending(pending);
+    if (!hasTranslations) return l10n.novelTranslationNone;
     return l10n.novelTranslationReady;
   }
 

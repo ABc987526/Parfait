@@ -6586,6 +6586,12 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'本页译文已就绪'**
   String get novelTranslationReady;
+
+  /// No description provided for @novelTranslationNone.
+  ///
+  /// In zh, this message translates to:
+  /// **'本页还没有译文，点「重新翻译」再试一次'**
+  String get novelTranslationNone;
 }
 
 class _AppLocalizationsDelegate

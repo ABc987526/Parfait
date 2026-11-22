@@ -595,6 +595,7 @@ String l10nLookup(AppLocalizations l10n, String key) => switch (key) {
   'novelTranslatePage' => l10n.novelTranslatePage,
   'novelTranslating' => l10n.novelTranslating,
   'novelTranslationActions' => l10n.novelTranslationActions,
+  'novelTranslationNone' => l10n.novelTranslationNone,
   'novelTranslationOnly' => l10n.novelTranslationOnly,
   'novelTranslationReady' => l10n.novelTranslationReady,
   'novelTranslationRunning' => l10n.novelTranslationRunning,

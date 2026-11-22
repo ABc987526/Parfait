@@ -2167,5 +2167,6 @@
       }
     }
   },
-  "novelTranslationReady": "本页译文已就绪"
+  "novelTranslationReady": "本页译文已就绪",
+  "novelTranslationNone": "本页还没有译文，点「重新翻译」再试一次"
 }

@@ -1546,5 +1546,6 @@
       }
     }
   },
-  "novelTranslationReady": "This page is translated"
+  "novelTranslationReady": "This page is translated",
+  "novelTranslationNone": "This page has no translation yet; try Re-translate"
 }

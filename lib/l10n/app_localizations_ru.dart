@@ -3591,4 +3591,8 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get novelTranslationReady => 'Перевод этой страницы готов';
+
+  @override
+  String get novelTranslationNone =>
+      'На этой странице ещё нет перевода — попробуйте «Перевести заново»';
 }

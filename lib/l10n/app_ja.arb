@@ -1539,5 +1539,6 @@
       }
     }
   },
-  "novelTranslationReady": "このページの翻訳はそろっています"
+  "novelTranslationReady": "このページの翻訳はそろっています",
+  "novelTranslationNone": "このページにはまだ訳文がありません。もう一度「再翻訳」を試してください"
 }

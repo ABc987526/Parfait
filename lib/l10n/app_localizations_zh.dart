@@ -3467,4 +3467,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get novelTranslationReady => '本页译文已就绪';
+
+  @override
+  String get novelTranslationNone => '本页还没有译文，点「重新翻译」再试一次';
 }

@@ -3600,4 +3600,8 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get novelTranslationReady => 'This page is translated';
+
+  @override
+  String get novelTranslationNone =>
+      'This page has no translation yet; try Re-translate';
 }

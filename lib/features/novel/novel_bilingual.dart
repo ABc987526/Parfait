@@ -135,7 +135,21 @@ mixin BilingualReading<T extends ConsumerStatefulWidget> on ConsumerState<T> {
     final page = bilingualReader.currentPage?.call();
     if (layout == null || page == null) return;
     _syncSources();
-    await _restoreTranslations();
+    try {
+      await _restoreTranslations();
+    } on Object catch (error, stack) {
+      // The engine signature or the cache read failed. Left unhandled this
+      // becomes a silent no-op: the page keeps its source and nothing says
+      // why, which reads as "translation is broken".
+      CrashLog.record(error, stack);
+      if (!mounted) return;
+      setState(() {
+        translatingPage = false;
+        lastFailure = TranslationFailureKind.other;
+      });
+      _showFailure(TranslationFailureKind.other);
+      return;
+    }
     var ids = _untranslated(layout, page);
     if (ids.isEmpty) ids = _untranslated(layout, page + 1);
     if (ids.isEmpty) return;

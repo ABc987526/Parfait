@@ -3496,4 +3496,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get novelTranslationReady => 'このページの翻訳はそろっています';
+
+  @override
+  String get novelTranslationNone => 'このページにはまだ訳文がありません。もう一度「再翻訳」を試してください';
 }
